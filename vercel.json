@@ -1,10 +1,12 @@
 {
   "services": {
     "frontend": {
+      "root": "frontend",
       "entrypoint": "frontend",
       "framework": "nextjs"
     },
     "backend": {
+      "root": "backend",
       "entrypoint": "backend",
       "routePrefix": "/_/backend"
     }
