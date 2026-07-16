@@ -1,0 +1,233 @@
+.topBanner {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.chatWindowFrame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.chatWindow {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 100%;
+  max-height: 100%;
+
+  &::after {
+    content: "";
+    display: block;
+    height: 10px;
+  }
+}
+
+.scrollDownButton {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  z-index: 8;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 25%);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
+  color: var(--foreground);
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px -14px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: scrollDownIn 0.22s ease-out;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface-elevated));
+    border-color: color-mix(in srgb, var(--accent) 36%, var(--line-soft));
+  }
+}
+
+@media (max-width: 720px) {
+  .scrollDownButton {
+    right: 10px;
+    bottom: 12px;
+    padding: 7px 11px;
+    font-size: 11px;
+  }
+}
+
+html[data-theme="light"] .chatWindow {
+  background-image: none;
+}
+
+html[data-theme="dark"] .chatWindow {
+  --star-color-1: rgba(255, 236, 180, 0.5);
+  --star-color-2: rgba(255, 236, 180, 0.34);
+  --star-color-3: rgba(255, 236, 180, 0.2);
+}
+
+.empty {
+  opacity: 0.8;
+}
+
+.recentDivider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 18px 0 10px;
+  flex-shrink: 0;
+}
+
+.recentDividerLine {
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212, 175, 55, 0.2) 18%,
+    rgba(212, 175, 55, 0.65) 50%,
+    rgba(212, 175, 55, 0.2) 82%,
+    transparent 100%
+  );
+}
+
+.recentDividerLabel {
+  flex-shrink: 0;
+  padding: 7px 20px;
+  border-radius: 999px;
+  font-family: "Inter", sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #d4af37 92%, var(--foreground) 8%);
+  border: 1.5px solid rgba(212, 175, 55, 0.88);
+  background: color-mix(in srgb, var(--surface-elevated) 38%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.12),
+    0 8px 28px -12px rgba(212, 175, 55, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="light"] .recentDividerLabel {
+  color: color-mix(in srgb, #9a7b1a 88%, var(--foreground) 12%);
+  background: color-mix(in srgb, var(--surface-elevated) 72%, transparent);
+  border-color: rgba(180, 140, 40, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(180, 140, 40, 0.1),
+    0 6px 20px -10px rgba(180, 140, 40, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .recentDividerLine {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(180, 140, 40, 0.15) 20%,
+    rgba(180, 140, 40, 0.45) 50%,
+    rgba(180, 140, 40, 0.15) 80%,
+    transparent 100%
+  );
+}
+
+.typingLane {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  max-width: 92%;
+  margin: 4px 0 2px;
+  padding: 10px 14px 10px 16px;
+  border-radius: 16px 16px 16px 6px;
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 22%);
+  box-shadow: 0 6px 18px -14px color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: typingLaneIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.typingLaneText {
+  font-family: "Inter", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--foreground) 88%, var(--accent) 12%);
+}
+
+.typingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 2px;
+}
+
+.typingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 70%, var(--foreground));
+  opacity: 0.35;
+  animation: typingDotPulse 1.05s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+}
+
+@keyframes typingLaneIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typingDotPulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0) scale(1);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.12);
+  }
+}
+
+@keyframes scrollDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -1,0 +1,42 @@
+.root {
+  margin: 0;
+  /* ~Tailwind leading-relaxed */
+  line-height: 1.625;
+  letter-spacing: 0.018em;
+  font-style: normal;
+  font-variant-numeric: proportional-nums;
+  color: inherit;
+  text-wrap: pretty;
+
+  :global(i),
+  :global(em) {
+    font-family:
+      "Iowan Old Style",
+      "Palatino Linotype",
+      Palatino,
+      Georgia,
+      "Times New Roman",
+      serif;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0.022em;
+    /* Прив'язує акцент до кольору навколишнього тексту (працює і на теплих картках віршів) */
+    color: color-mix(in srgb, currentColor 66%, #b89f6a 34%);
+  }
+
+  :global(b),
+  :global(strong) {
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-style: normal;
+    color: color-mix(in srgb, currentColor 74%, #8a7a62 26%);
+  }
+}
+
+.empty {
+  font-style: normal;
+  letter-spacing: normal;
+  opacity: 0.42;
+  user-select: none;
+}

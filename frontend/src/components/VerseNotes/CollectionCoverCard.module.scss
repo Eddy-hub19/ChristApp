@@ -1,0 +1,203 @@
+.link {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
+
+  &:hover {
+    transform: scale(0.98);
+    box-shadow: 0 12px 32px -8px rgba(212, 175, 55, 0.25);
+    filter: brightness(1.05);
+  }
+
+  :global(html[data-theme="dark"]) & {
+    &:hover {
+      box-shadow: 0 12px 32px -8px rgba(212, 175, 55, 0.28);
+    }
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+
+  .link:hover {
+    transform: none;
+    filter: none;
+  }
+}
+
+.cover {
+  position: relative;
+  width: 100%;
+  min-height: 160px;
+  border-radius: 12px;
+  overflow: hidden;
+  isolation: isolate;
+  border-left: 2.5px solid #d4af37;
+  background: rgba(22, 19, 17, 0.72);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px -6px rgba(0, 0, 0, 0.35);
+  animation: cardSlide 0.52s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 20% 0%,
+    rgba(212, 175, 55, 0.08) 0%,
+    transparent 35%
+  ),
+  radial-gradient(
+    circle at 100% 100%,
+    rgba(90, 99, 69, 0.04) 0%,
+    transparent 40%
+  );
+  pointer-events: none;
+}
+
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(212, 175, 55, 0.28) 0%,
+    rgba(212, 175, 55, 0.12) 25%,
+    transparent 70%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes cardSlide {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.iconWrapper {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: #d4af37;
+  opacity: 0.48;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+
+  svg {
+    display: block;
+  }
+
+  .link:hover & {
+    opacity: 0.72;
+  }
+
+  .link:active & {
+    opacity: 0.58;
+  }
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 14px 16px;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display, "Achiko", "Inter", system-ui, sans-serif);
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: rgba(253, 252, 248, 0.98);
+  text-wrap: balance;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.tagline {
+  margin: 0;
+  margin-top: auto;
+  font-family: var(--font-body, "Achiko", "Inter", system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: rgba(196, 191, 180, 0.85);
+  max-width: none;
+  overflow-wrap: anywhere;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/**
+ * Minimal accent variants — тонкі кольорові смужки ліворуч, щоб візуально відрізняти збірки
+ */
+
+.gratitude {
+  border-left-color: #d4af37;
+}
+
+.love {
+  border-left-color: #e8969c;
+}
+
+.prayer {
+  border-left-color: #8fa8c4;
+}
+
+.insights {
+  border-left-color: #9ca89a;
+}
+
+.sermons {
+  border-left-color: #b89968;
+}

@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  /// * Уникальный @username (латиница, нижний регистр).
+  username          String             @unique
+  password          String
+  createdAt         DateTime           @default(now())
+  isActive          Boolean            @default(true)
+  avatarUrl         String?
+  /// * Отображаемый ник (изначально совпадает с username).
+  nickname          String?
+  /// * Кастомный цвет текста (#RRGGBB), опционально.
+  themeForegroundHex String? @db.VarChar(7)
+  /// * Кастомный фон (#RRGGBB), опционально.
+  themeBackgroundHex String? @db.VarChar(7)
+  /// * Ключ шрифта: `inter` | `achiko` | `bodoni-moda`.
+  themeFontKey      String? @db.VarChar(32)
+  /// Останній раз «був у мережі» (оновлюється при відключенні WebSocket після grace).
+  lastSeenAt        DateTime?
+  /// VIP — неон біля ніка в чаті; керується з адмінки.
+  isVip             Boolean   @default(false)
+  /// Короткий опис у профілі (видно в чаті / списку).
+  bio               String?   @db.VarChar(500)
+  messages          Message[]
+  pinnedMessages    PinnedMessage[]
+  pushSubscriptions PushSubscription[]
+  memberships       RoomMember[]
+  roomReadStates    RoomReadState[]
+  savedVerses       SavedVerse[]
+  reactions         Reaction[]
+  refreshSessions   RefreshSession[]
+  voiceListens      VoiceMessageListen[] @relation("VoiceListens")
+  avatarLikesReceived AvatarLike[] @relation("AvatarLikeTarget")
+  avatarLikesGiven    AvatarLike[] @relation("AvatarLikeLiker")
+}
+
+/// Лайк аватара: кто (liker) поставил кому (target).
+model AvatarLike {
+  id           String   @id @default(uuid())
+  targetUserId String
+  likerUserId  String
+  createdAt    DateTime @default(now())
+  targetUser   User     @relation("AvatarLikeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  likerUser    User     @relation("AvatarLikeLiker", fields: [likerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([targetUserId, likerUserId])
+  @@index([targetUserId])
+}
+
+/// * Opaque refresh token (хеш в БД, сырое значение только в HttpOnly-куке).
+model RefreshSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  /// After rotation, old row is kept ~30s so a duplicate refresh with the same cookie replays the same access JWT.
+  isRevoked        Boolean   @default(false)
+  revokedAt        DateTime?
+  graceAccessToken String?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRevoked, revokedAt])
+}
+
+enum MessageType {
+  TEXT
+  VOICE
+  IMAGE
+  FILE
+  VIDEO_NOTE
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  type      MessageType @default(TEXT)
+  content   String?
+  fileUrl   String?
+  voiceDuration Float?
+  senderId  String
+  createdAt DateTime    @default(now())
+  roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
+  room      Room        @relation(fields: [roomId], references: [id])
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+  voiceListens VoiceMessageListen[]
+  pinnedIn  PinnedMessage[]
+
+  @@index([roomId, createdAt])
+}
+
+/// Закріплені повідомлення в кімнаті (до кількох на чат).
+model PinnedMessage {
+  id             String   @id @default(uuid())
+  roomId         String   @db.Uuid
+  messageId      String
+  pinnedAt       DateTime @default(now())
+  pinnedByUserId String
+
+  room     Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy User    @relation(fields: [pinnedByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, messageId])
+  @@index([roomId])
+}
+
+model VoiceMessageListen {
+  id        String    @id @default(uuid())
+  messageId String
+  userId    String
+  listenedAt DateTime @default(now())
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User      @relation("VoiceListens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  userId    String
+  messageId String
+  type      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, type])
+  @@index([messageId, createdAt])
+}
+
+model Room {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String          @unique
+  createdAt  DateTime        @default(now())
+  messages   Message[]
+  members    RoomMember[]
+  readStates RoomReadState[]
+  pinnedMessages PinnedMessage[]
+}
+
+model RoomMember {
+  roomId   String   @db.Uuid
+  userId   String
+  joinedAt DateTime @default(now())
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@index([userId])
+}
+
+model SavedVerse {
+  id          String   @id @default(uuid())
+  userId      String
+  book        String
+  chapter     Int
+  verse       Int
+  text        String
+  translation String
+  savedAt     DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, book, chapter, verse, translation])
+  @@index([userId, savedAt])
+}
+
+model RoomReadState {
+  roomId     String   @db.Uuid
+  userId     String
+  lastReadAt DateTime @default(dbgenerated("to_timestamp((0)::double precision)"))
+  updatedAt  DateTime @updatedAt
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@index([userId, lastReadAt])
+}
+
+model PushSubscription {
+  id             String    @id @default(cuid())
+  userId         String
+  endpoint       String    @unique
+  p256dh         String
+  auth           String
+  expirationTime String?
+  userAgent      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastUsedAt     DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([updatedAt])
+}

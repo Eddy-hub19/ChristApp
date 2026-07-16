@@ -1,0 +1,246 @@
+.messageComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.replyingTo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, var(--accent) 28%);
+  background: color-mix(in srgb, var(--surface-elevated) 86%, var(--accent-soft) 14%);
+}
+
+.replyingToMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.replyingToLabel {
+  color: var(--accent);
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.replyingToText {
+  color: var(--text-muted);
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replyingToClose {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  padding: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
+
+.message {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  align-items: center;
+  position: relative;
+  min-height: 60px;
+  max-height: 170px;
+  padding: 10px 14px;
+  gap: 8px;
+  flex-shrink: 0;
+  border-radius: 30px;
+  border: 0;
+  background: var(--accent-soft);
+  box-shadow: none;
+
+  &.messageVoice {
+    align-items: center;
+    max-height: none;
+    min-height: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .input {
+    min-height: 22px;
+    max-height: 140px;
+    resize: none;
+    overflow-y: auto;
+    border: 0;
+    padding: 6px 4px;
+    width: 100%;
+    background: var(--accent-soft);
+    color: color-mix(in srgb, var(--foreground) 82%, #000 18%);
+    line-height: 1.35;
+    font: inherit;
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+}
+
+html:not([data-theme="dark"]) .message {
+  background: transparent;
+
+  .input {
+    background: transparent;
+  }
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+}
+
+/* Без нативного disabled на час надсилання — інакше на мобільних PWA клавіатура закривається. */
+.iconButtonSending {
+  pointer-events: none;
+  cursor: default;
+  opacity: 0.72;
+}
+
+.iconGraphic {
+  display: block;
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(16%);
+  transition: filter 0.25s ease;
+}
+
+.microIconGraphic {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(16%);
+  transition: filter 0.25s ease;
+}
+
+.stickerIconGraphic {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: none !important;
+}
+
+.stickerDock {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.stickerPickerWrap {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+}
+
+html[data-theme="dark"] .message {
+  background: light-dark(hsl(0 0% 100% / var(--glass-frost, 0)), hsl(0 0% 0% / var(--glass-frost, 0)));
+  box-shadow: none;
+
+  .input {
+    background: transparent;
+    color: var(--foreground);
+
+    &::placeholder {
+      color: var(--text-dim);
+    }
+  }
+
+}
+
+html[data-theme="dark"] .iconGraphic {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+html[data-theme="dark"] .microIconGraphic {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+html[data-theme="dark"] .stickerIconGraphic {
+  filter: none !important;
+}
+
+html[data-theme="dark"] .iconButton {
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--foreground) 16%, transparent);
+  }
+}
+
+html[data-theme="dark"] .replyingTo {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line-soft));
+  background: color-mix(in srgb, var(--surface-elevated) 86%, #111 14%);
+}

@@ -1,0 +1,112 @@
+.viewer {
+  position: relative;
+  padding-bottom: 96px; // запас под TabBar (см. layout.module .main)
+}
+
+.chapter {
+  margin-top: 20px;
+}
+
+.floatingNav {
+  position: fixed;
+  bottom: 100px; // чуть выше TabBar
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 300px;
+  z-index: 1000;
+
+  button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: #C4A265;
+    color: white;
+    font-size: 22px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+.main {
+  padding: 24px;
+}
+
+.chapter {
+  margin-top: 20px;
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  
+  
+  border-bottom: 1px solid #c4a26580;
+}
+
+.headerChapterData {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  margin-bottom: 5px;
+  gap:16px;
+}
+
+.headerIcon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  
+}
+
+.bookTitle {
+  color: var(--book-title-color);
+  font-size: 30.60px;
+  font-weight: 400;
+  line-height: 40px;
+  margin-top: 25px;
+  word-wrap: break-word;
+  text-align: center;
+  justify-content: center;
+}
+
+.headerBookTitle {
+  color: var(--book-title-color);
+font-size: 14px;
+font-style: normal;
+font-weight: 700;
+line-height: 28px; /* 183.007% */
+}
+
+.headerChapterTitle {
+  color: #C4A265;
+font-size: 14px;
+font-style: normal;
+font-weight: 500;
+line-height: 24px; /* 176.471% */
+}
+
+.sectionChapter {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+

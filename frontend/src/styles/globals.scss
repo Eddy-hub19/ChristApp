@@ -1,0 +1,143 @@
+/* Achiko — локальний файл у public/fonts/. */
+@font-face {
+  font-family: "Achiko";
+  src: url("/fonts/Achiko_1.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --background: #2e2d2dc8;
+  --foreground: #ffffff;
+  --book-title-color: #f1efef;
+  --surface: #2f2e31;
+  --surface-elevated: #343336;
+  --line-soft: rgba(232, 220, 200, 0.5);
+  --accent: #ddb468;
+  --accent-soft: #e8dcc8;
+  --my-bubble-dark-bg: #4c4740;
+  --text-muted: #bdb8b8;
+  --text-dim: rgba(241, 239, 239, 0.6);
+  --login-card-bg: #242323;
+  --login-card-border: #3a3939;
+  --login-card-shadow: rgba(0, 0, 0, 0.35);
+  --login-muted: #bdb8b8;
+  --login-title: #f1efef;
+  --login-label: #d8d4d4;
+  --login-footer: #bdb8b8;
+  --login-input-bg: #1e1d1d;
+  --login-input-border: #4a4747;
+  --login-button-bg: #f1efef;
+  --login-button-text: #1f1d1d;
+  --login-link: #f3c98b;
+  --login-error-bg: #3d2222;
+  --login-error-text: #ffc2c2;
+}
+
+[data-theme="light"] {
+  --background: #f8f2e9d2;
+  // --background: #00239625;
+  --foreground: #2e2c2c;
+  --book-title-color: #3a2a1e;
+  --surface: #f6efe4;
+  --surface-elevated: #fff8ee;
+  --line-soft: rgba(196, 162, 101, 0.4);
+  --accent: #f1cd8a;
+  --accent-soft: #e8dcc8;
+  --text-muted: #746858;
+  --text-dim: rgba(92, 64, 51, 0.6);
+  --login-card-bg: #fffdf9;
+  --login-card-border: #e8dfd1;
+  --login-card-shadow: rgba(38, 28, 16, 0.12);
+  --login-muted: #746858;
+  --login-title: #5f4222;
+  --login-label: #5f4222;
+  --login-footer: #746858;
+  --login-input-bg: #ffffff;
+  --login-input-border: #cabca8;
+  --login-button-bg: #6b4d2a;
+  --login-button-text: #ffffff;
+  --login-link: #7c5a31;
+  --login-error-bg: #fff3f1;
+  --login-error-text: #943535;
+}
+
+html {
+  scroll-behavior: smooth;
+  height: 100%;
+  height: -webkit-fill-available;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Прибираємо системне синє виділення тапу; фокус клавіатури — через :focus-visible у компонентів */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-inter), "Inter", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+  padding: 10px 10px;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+body.offlinePage {
+  padding: 0;
+}
+
+/* Лише екран кімнати чату на вузькій ширині: прибираємо нижній відступ body, щоб не було смуги під полем введення (клавіатура). */
+@media (max-width: 1023px) {
+  body.chatRoomPage {
+    padding-bottom: 0;
+  }
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  border: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}

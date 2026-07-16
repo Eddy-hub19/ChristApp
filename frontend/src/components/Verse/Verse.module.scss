@@ -1,0 +1,251 @@
+@keyframes verse-copied-fade {
+  0% {
+    background: color-mix(in srgb, var(--accent-soft) 30%, transparent);
+  }
+
+  100% {
+    background: transparent;
+  }
+}
+
+.verseContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .header {
+    display: flex;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--foreground);
+    font-weight: 500;
+  }
+
+  .clickable {
+    cursor: pointer;
+    color: var(--login-link);
+    text-decoration: underline;
+    font-weight: 600;
+
+    &:hover {
+      color: var(--login-button-bg);
+    }
+  }
+
+  .verseRow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+
+    .verse {
+      margin-top: 6px;
+      color: var(--foreground);
+      font-family: inherit;
+
+      .verseSup,
+      .verseSupLarge {
+        color: #c4a265;
+        vertical-align: baseline;
+        flex-shrink: 0;
+        line-height: 1.2;
+        margin-right: 3px;
+      }
+
+      .verseSup {
+        font-size: 12px;
+      }
+
+      .verseSupLarge {
+        font-size: 24px;
+      }
+
+      .verseText {
+        color: var(--foreground);
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      /* Увесь вірш: номер + текст; вибрано, колір ще не задано */
+      .selectionRing {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        max-width: 100%;
+        padding: 6px 12px;
+        margin: 2px 0;
+        border-radius: 10px;
+        border: 2px dotted color-mix(in srgb, var(--foreground) 42%, var(--accent) 38%);
+        background: transparent;
+        box-sizing: border-box;
+      }
+
+      /* Після вибору кольору в плашці (або з localStorage) */
+      .painted {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        max-width: 100%;
+        padding: 6px 12px;
+        margin: 2px 0;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--painted-border-color, var(--accent, #c4a265)) 45%, var(--line-soft));
+        border-left: 4px solid var(--painted-border-color, var(--accent, #c4a265));
+        background: var(
+          --painted-background,
+          color-mix(in srgb, var(--accent-soft, #e8dcc8) 50%, transparent)
+        );
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--painted-border-color, var(--accent, #c4a265)) 28%, transparent),
+          0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent);
+        box-sizing: border-box;
+      }
+
+      .copied {
+        animation: verse-copied-fade 900ms ease-out;
+      }
+    }
+
+    .inlineActions {
+      position: fixed;
+      left: 50%;
+      /* Вище зафіксованого TabBar (~96px + safe-area з layout.module.scss) */
+      bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
+      z-index: 160;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--surface-elevated) 90%, var(--surface) 10%);
+      box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.35);
+      animation: inline-actions-slide-up 220ms ease-out;
+
+      .inlineActionButton {
+        padding: 10px 10px;
+        border-radius: 6px;
+        background: var(--surface-elevated);
+        color: var(--foreground);
+        font-size: 10px;
+        line-height: 1.1;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 200ms ease-in-out;
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        &.saved {
+          background: color-mix(in srgb, var(--accent) 20%, var(--surface-elevated));
+          border-color: var(--accent);
+          color: var(--accent);
+          font-weight: 600;
+        }
+
+        &:hover:not(:disabled) {
+          background: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
+          border-color: var(--accent-soft);
+        }
+      }
+
+      .flexCenter {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .colorPalette {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 4px;
+
+        .colorDot {
+          position: relative;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 1px solid var(--line-soft);
+          padding: 0;
+          cursor: pointer;
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease;
+
+          &:hover {
+            transform: scale(1.08);
+          }
+
+          &.colorDotActive {
+            box-shadow:
+              0 0 0 1px var(--surface-elevated),
+              0 0 0 2px var(--foreground);
+
+            &::after {
+              content: "✕";
+              position: absolute;
+              inset: 0;
+              display: grid;
+              place-items: center;
+              color: #fff;
+              font-size: 10px;
+              font-weight: 700;
+              text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+              line-height: 1;
+            }
+          }
+        }
+
+        .customColorInputWrap {
+          position: relative;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 1px solid var(--line-soft);
+
+          &.customColorInputWrapActive::after {
+            content: "✕";
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+            line-height: 1;
+            pointer-events: none;
+          }
+        }
+
+        .customColorInput {
+          width: 26px;
+          height: 26px;
+          border: 0;
+          padding: 0;
+          margin: -3px;
+          background: transparent;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+
+@keyframes inline-actions-slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

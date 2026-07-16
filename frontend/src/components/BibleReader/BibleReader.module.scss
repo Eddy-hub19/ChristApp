@@ -1,0 +1,424 @@
+.bibleReader {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
+
+    .headerBar {
+        flex-shrink: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        margin-bottom: 16px;
+
+
+        >* {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .clickable {
+            cursor: pointer;
+            border: 1px solid var(--login-card-border);
+            padding: 8px 10px;
+            border-radius: 64px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 15px;
+
+            @media (min-width: 1440px) {
+                font-size: 20px;
+            }
+        }
+
+        select {
+            border: none;
+            background: transparent;
+            color: var(--foreground);
+            border: 1px solid var(--login-card-border);
+            padding: 8px 10px;
+            border-radius: 64px;
+            font-size: 15px;
+            cursor: pointer;
+            outline: none;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+
+            @media (min-width: 1440px) {
+                font-size: 20px;
+            }
+        }
+    }
+
+    .modalBackdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-out;
+
+        .modalSheet {
+            background: var(--background);
+            border-radius: 16px 16px 0 0;
+            height: 90vh;
+            width: 100%;
+            max-width: 100vw;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+
+            .modalHeader {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem;
+                border-bottom: 1px solid var(--login-card-border);
+
+                .backButton {
+                    background: transparent;
+                    border: none;
+                    color: var(--foreground);
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 14px;
+
+                    &:disabled {
+                        opacity: 0.3;
+                        cursor: default;
+                    }
+                }
+
+                .closeModalButton {
+                    background: transparent;
+                    border: none;
+                    font-size: 20px;
+                    cursor: pointer;
+                    color: var(--foreground);
+                }
+            }
+
+            .modalBody {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+
+                h3 {
+                    font-size: 18px;
+                    margin-bottom: 1rem;
+                    color: var(--foreground);
+                }
+
+                .testamentGrid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1rem;
+                }
+
+                .booksList {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.8rem;
+                }
+
+                .chaptersList {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+                    gap: 0.6rem;
+                }
+
+                .testamentButton,
+                .bookButton,
+                .chapterButton {
+                    padding: 1rem;
+                    background: var(--login-input-bg);
+                    color: var(--foreground);
+                    border: 2px solid var(--login-card-border);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+
+                    &:hover {
+                        background: var(--login-button-bg);
+                        color: var(--login-button-text);
+                        border-color: var(--login-button-bg);
+                    }
+
+                    &.active {
+                        background: var(--login-button-bg);
+                        color: var(--login-button-text);
+                        border-color: var(--login-button-bg);
+                    }
+                }
+            }
+        }
+    }
+
+    .floatingNavRow {
+        display: contents;
+
+        @media (max-width: 899px) {
+            display: flex;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+            padding-left: max(12px, env(safe-area-inset-left, 0px));
+            padding-right: max(12px, env(safe-area-inset-right, 0px));
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1600;
+            pointer-events: none;
+            transition:
+                transform 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 0.22s ease;
+
+            .floatingNavLeft,
+            .floatingNavRight {
+                pointer-events: auto;
+            }
+
+            &.floatingNavRowHidden {
+                transform: translateY(calc(100% + 20px));
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+
+        @media (min-width: 900px) {
+            &.floatingNavRowHidden {
+                .floatingNavLeft,
+                .floatingNavRight {
+                    opacity: 0;
+                    pointer-events: none;
+                }
+
+                .floatingNavLeft {
+                    transform: translate(calc(-100% - 24px), -50%) scale(0.94);
+                }
+
+                .floatingNavRight {
+                    transform: translate(24px, -50%) scale(0.94);
+                }
+            }
+        }
+    }
+
+    .floatingNavLeft,
+    .floatingNavRight {
+        position: absolute;
+        bottom: 95px;
+        z-index: 1600;
+
+        @media (max-width: 899px) {
+            position: static;
+            bottom: auto;
+            top: auto;
+            left: auto !important;
+            right: auto !important;
+            transform: none !important;
+        }
+
+        @media (min-width: 900px) {
+            top: 50%;
+            bottom: auto;
+            transition:
+                opacity 0.24s ease,
+                transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        .navButton {
+            border-radius: 9999px;
+            border: 1px solid #e8dcc8;
+            background: #fdf8f0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 9999px;
+            box-shadow:
+                0 2px 4px -2px rgba(0, 0, 0, 0.1),
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 0 0 0 rgba(0, 0, 0, 0),
+                0 0 0 0 rgba(0, 0, 0, 0);
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition:
+                transform 0.12s ease,
+                box-shadow 0.12s ease,
+                opacity 0.12s ease;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-3px);
+                box-shadow: 0 10px 20px rgba(245, 212, 152, 0.457);
+            }
+
+            &:disabled {
+                opacity: 0.35;
+                cursor: default;
+                transform: none;
+            }
+
+            @media (min-width: 900px) {
+                width: 50px;
+                height: 50px;
+            }
+        }
+    }
+
+    .floatingNavLeft {
+        left: 12px;
+
+        @media (min-width: 900px) {
+            /* відступ від «колонки» тексту; на вузькому десктопі стискаємо vw, щоб кнопка не вилазила за main */
+            left: calc(50% - min(328px, 34vw) - 50px);
+            right: auto;
+            transform: translate(-100%, -50%);
+        }
+
+        @media (min-width: 1200px) {
+            left: calc(50% - min(400px, 42vw) - 50px);
+        }
+    }
+
+    .floatingNavRight {
+        right: 12px;
+
+        @media (min-width: 900px) {
+            left: calc(50% + min(328px, 34vw) + 50px);
+            right: auto;
+            transform: translateY(-50%);
+        }
+
+        @media (min-width: 1200px) {
+            left: calc(50% + min(400px, 42vw) + 50px);
+        }
+    }
+
+    .versesSection {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        flex: 1;
+        min-height: 0;
+        background-color: transparent;
+        border-radius: 8px;
+        overflow-y: auto;
+        padding: 0;
+
+        @media (max-width: 899px) {
+            padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        }
+
+        @media (min-width: 900px) {
+            /* Резерв під фіксований island-tabbar, щоб останні вірші не йшли під навігацію. */
+            padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+        }
+    }
+
+    .chapterReadSentinel {
+        width: 100%;
+        height: 2px;
+        margin-top: 8px;
+        flex-shrink: 0;
+        pointer-events: none;
+    }
+
+    .chapterHeading {
+        flex-shrink: 0;
+        margin: 0 0 4px;
+        padding: 4px 0 12px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 55%, transparent);
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.35;
+        color: var(--book-title-color);
+        text-align: center;
+        letter-spacing: 0.02em;
+    }
+
+    .chapterHeadingBook {
+        color: var(--book-title-color);
+    }
+
+    .chapterHeadingSep {
+        font-weight: 600;
+        color: var(--text-dim);
+    }
+
+    .chapterHeadingChapter {
+        font-weight: 600;
+        color: var(--accent);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        background: rgba(0, 0, 0, 0);
+    }
+
+    to {
+        background: rgba(0, 0, 0, 0.4);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.skeletonTitle {
+    width: 120px;
+    height: 32px;
+    border-radius: 16px;
+    background: linear-gradient(90deg, #eee 25%, #f1cececa 50%, #f4d9d9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.2s infinite linear;
+    margin-bottom: 8px;
+}
+
+.skeletonSelect {
+    width: 90px;
+    height: 32px;
+    border-radius: 16px;
+    background: linear-gradient(90deg, #f7eded 25%, #f5f5f5 50%, #dcdada 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.2s infinite linear;
+}
+
+.loadingState {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    flex: 1;
+    min-height: min(60dvh, 420px);
+    padding: 0;
+}
