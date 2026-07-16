@@ -2,7 +2,6 @@
   "services": {
     "frontend": {
       "entrypoint": "frontend",
-      "routePrefix": "/",
       "framework": "nextjs"
     },
     "backend": {
