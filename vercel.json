@@ -7,8 +7,7 @@
     },
     "backend": {
       "root": "backend",
-      "entrypoint": "backend",
-      "routePrefix": "/_/backend"
+      "entrypoint": "backend"
     }
   },
   "rewrites": [
