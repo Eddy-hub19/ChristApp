@@ -2,12 +2,12 @@
   "services": {
     "frontend": {
       "root": "frontend",
-      "entrypoint": "frontend",
+      "entrypoint": ".",
       "framework": "nextjs"
     },
     "backend": {
       "root": "backend",
-      "entrypoint": "backend"
+      "entrypoint": "."
     }
   },
   "rewrites": [
