@@ -6,14 +6,16 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation";
+import type { TelegramAuthUser } from "@/lib/authSession";
 import CrossLoader from "@/components/CrossLoader/CrossLoader";
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel";
+import TelegramLoginButton from "@/components/TelegramLoginButton/TelegramLoginButton";
 import styles from "@/app/[lang]/(login)/login.module.scss";
 
 export default function LoginPage() {
   const t = useTranslations("login");
   const router = useRouter();
-  const { loading, login, error, isSubmitting } = useAuth();
+  const { loading, login, loginTelegram, error, isSubmitting } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,6 +41,13 @@ export default function LoginPage() {
 
   const handleNavigateToRegister = () => {
     router.push("/register");
+  };
+
+  const handleTelegramAuth = async (telegramUser: TelegramAuthUser) => {
+    const success = await loginTelegram(telegramUser);
+    if (success) {
+      router.push("/chat");
+    }
   };
 
   if (loading) {
@@ -157,6 +166,20 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <div className={styles.divider}>{t("orContinueWith")}</div>
+
+        <div className={styles.telegramWrap}>
+          {isSubmitting ? (
+            <CrossLoader
+              className={styles.loaderInCard}
+              label={t("telegramLoggingIn")}
+              variant="inline"
+            />
+          ) : (
+            <TelegramLoginButton onAuth={handleTelegramAuth} />
+          )}
+        </div>
 
         <footer className={styles.footer}>
           <p className={styles.footerText}>

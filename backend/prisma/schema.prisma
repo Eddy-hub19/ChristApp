@@ -11,7 +11,10 @@ model User {
   email             String             @unique
   /// * Уникальный @username (латиница, нижний регистр).
   username          String             @unique
-  password          String
+  /// * Nullable: у аккаунтов, созданных через Telegram Login, пароля нет.
+  password          String?
+  /// * Уникальный numeric id из Telegram (`Telegram Login Widget`), если аккаунт привязан/создан через Telegram.
+  telegramId        String?            @unique
   createdAt         DateTime           @default(now())
   isActive          Boolean            @default(true)
   avatarUrl         String?

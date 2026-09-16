@@ -26,6 +26,7 @@ import {
   getAuthSessionSnapshot,
   initializeApp,
   loginWithPassword,
+  loginWithTelegram,
   logout as performLogout,
   patchAuthenticatedUser,
   refreshToken,
@@ -33,6 +34,7 @@ import {
   subscribeAuthSession,
   type AuthSessionPayload,
   type AuthUser,
+  type TelegramAuthUser,
 } from "@/lib/authSession";
 
 export type { AuthSessionPayload, AuthUser } from "@/lib/authSession";
@@ -242,6 +244,32 @@ export function useAuth(options?: UseAuthOptions) {
     }
   };
 
+  const loginTelegram = async (telegramUser: TelegramAuthUser) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const data = await loginWithTelegram(telegramUser);
+
+      if (data.user) {
+        setAuthenticatedUser(data.user);
+        recordDailyVisit();
+      } else {
+        await refreshSession();
+      }
+      await fetchUsers();
+
+      return true;
+    } catch (err: unknown) {
+      const rawMessage = err instanceof Error ? err.message : "";
+      setError(
+        messageFromApiResponseBody(rawMessage, 401, getNetworkFailureHint(err)),
+      );
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const logout = async () => {
     clearPersistedReactQueryCache();
     void clearAppBadgeIfSupported();
@@ -258,6 +286,7 @@ export function useAuth(options?: UseAuthOptions) {
     error,
     isSubmitting,
     login,
+    loginTelegram,
     logout,
     refreshUsers: fetchUsers,
     refreshSession,
