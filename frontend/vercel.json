@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/nest/:path*",
-      "destination": "https://christapp-d78a.onrender.com/:path*"
+      "destination": "https://christapp-3dhb.onrender.com/:path*"
     }
   ]
 }

@@ -32,7 +32,7 @@ ChristApp — это full-stack PWA-приложение для христиан
 ## 2. Архитектура и деплой
 
 - Репозиторий — **npm workspaces монорепо** (`package.json` в корне: `workspaces: ["backend", "frontend"]`, общий `npm run dev` поднимает обе части через `concurrently`).
-- **Backend и frontend деплоятся раздельно**: backend — отдельным сервисом на **Render** (`frontend/vercel.json` делает rewrite `/api/nest/:path*` → `https://christapp-d78a.onrender.com/:path*`); frontend — на **Vercel**. Общий у них только Postgres (Vercel-сборка фронта запускает `prisma migrate deploy` против той же БД перед `next build`, см. `build:vercel` в `frontend/package.json` — поэтому миграции применяются из сборки фронта, хотя сам backend там не выполняется).
+- **Backend и frontend деплоятся раздельно**: backend — отдельным сервисом на **Render** (`frontend/vercel.json` делает rewrite `/api/nest/:path*` → `https://christapp-3dhb.onrender.com/:path*`); frontend — на **Vercel**. Общий у них только Postgres (Vercel-сборка фронта запускает `prisma migrate deploy` против той же БД перед `next build`, см. `build:vercel` в `frontend/package.json` — поэтому миграции применяются из сборки фронта, хотя сам backend там не выполняется).
 - Frontend обращается к backend не напрямую, а через собственные same-origin прокси-роуты, чтобы обойти CORS и ограничения Safari на cross-site cookies:
   - `/api/auth/[...path]` — прокси авторизационных эндпоинтов (нужно для HttpOnly refresh-cookie в PWA на iOS)
   - `/api/bibleProxy/[...path]` — прокси к внешнему API текста Библии (`https://api.prayerpulse.io`)
