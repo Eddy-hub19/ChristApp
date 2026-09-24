@@ -362,6 +362,103 @@ export class MessagesService {
     });
   }
 
+  /**
+   * Непрочитані по кожному з користувачів — пакетно.
+   * Потрібно для бейджа в пуші: per-user виклик `getUnreadSummary` давав N важких запитів
+   * на кожне повідомлення, тож у великих кімнатах бейдж просто не рахувався.
+   */
+  async getUnreadTotalsForUsers(
+    userIds: string[],
+  ): Promise<Map<string, number>> {
+    const totals = new Map<string, number>();
+    const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+    if (!uniqueUserIds.length) {
+      return totals;
+    }
+
+    for (const userId of uniqueUserIds) {
+      totals.set(userId, 0);
+    }
+
+    const memberRows = await this.prisma.roomMember.findMany({
+      where: { userId: { in: uniqueUserIds } },
+      select: { userId: true, roomId: true },
+    });
+
+    const candidateRoomIds = Array.from(
+      new Set<string>([
+        this.GLOBAL_ROOM,
+        ...memberRows.map((row) => row.roomId),
+      ]),
+    );
+
+    const rooms = await this.prisma.room.findMany({
+      where: { id: { in: candidateRoomIds } },
+      select: { id: true, title: true },
+    });
+    const titleByRoomId = new Map(rooms.map((room) => [room.id, room.title]));
+    const globalRoomExists = titleByRoomId.has(this.GLOBAL_ROOM);
+
+    // Пари (користувач, кімната) з тим самим фільтром доступу, що й у решті чату.
+    const pairs: Array<{ userId: string; roomId: string }> = [];
+    for (const userId of uniqueUserIds) {
+      const roomIds = new Set<string>(
+        memberRows
+          .filter((row) => row.userId === userId)
+          .map((row) => row.roomId),
+      );
+      if (globalRoomExists) {
+        roomIds.add(this.GLOBAL_ROOM);
+      }
+      for (const roomId of roomIds) {
+        const title = titleByRoomId.get(roomId);
+        if (title === undefined) {
+          continue;
+        }
+        if (!userMayAccessRoomByTitle(userId, title)) {
+          continue;
+        }
+        pairs.push({ userId, roomId });
+      }
+    }
+
+    if (!pairs.length) {
+      return totals;
+    }
+
+    const pairValues = Prisma.join(
+      pairs.map(
+        (pair) => Prisma.sql`(${pair.userId}, ${pair.roomId}::uuid)`,
+      ),
+    );
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ userId: string; unreadCount: number }>
+    >`
+      WITH scope("userId", "roomId") AS (
+        VALUES ${pairValues}
+      )
+      SELECT
+        s."userId" AS "userId",
+        COUNT(m.id)::int AS "unreadCount"
+      FROM scope s
+      LEFT JOIN "RoomReadState" rrs
+        ON rrs."roomId" = s."roomId"
+       AND rrs."userId" = s."userId"
+      LEFT JOIN "Message" m
+        ON m."roomId" = s."roomId"
+       AND m."senderId" <> s."userId"
+       AND m."createdAt" > COALESCE(rrs."lastReadAt", to_timestamp(0))
+      GROUP BY s."userId"
+    `;
+
+    for (const row of rows) {
+      totals.set(String(row.userId), Number(row.unreadCount) || 0);
+    }
+
+    return totals;
+  }
+
   async getUnreadSummary(userId: string): Promise<UnreadSummaryResult> {
     // Один запит одразу по всіх доступних кімнатах:
     // unread + останнє повідомлення по кожній кімнаті.
@@ -589,90 +686,5 @@ export class MessagesService {
       .slice(suffixIndex + this.REPLY_META_SUFFIX.length)
       .replace(/\s+/g, ' ')
       .trim();
-  }
-
-  private readonly MAX_PINS_PER_ROOM = 5;
-
-  async listPinnedMessageIds(roomId: string): Promise<string[]> {
-    const rows = await this.prisma.pinnedMessage.findMany({
-      where: { roomId },
-      orderBy: { pinnedAt: 'asc' },
-      select: { messageId: true },
-    });
-    return rows.map((r) => r.messageId);
-  }
-
-  async pinMessage(
-    roomId: string,
-    messageId: string,
-    userId: string,
-  ): Promise<
-    { ok: true; pinnedMessageIds: string[] } | { ok: false; error: string }
-  > {
-    const hasAccess = await canUserPostToRoom(this.prisma, userId, roomId);
-    if (!hasAccess) {
-      return { ok: false, error: 'Нет доступа' };
-    }
-
-    const msg = await this.prisma.message.findUnique({
-      where: { id: messageId },
-      select: { id: true, roomId: true },
-    });
-    if (!msg || msg.roomId !== roomId) {
-      return { ok: false, error: 'Сообщение не найдено' };
-    }
-
-    const count = await this.prisma.pinnedMessage.count({ where: { roomId } });
-    if (count >= this.MAX_PINS_PER_ROOM) {
-      return {
-        ok: false,
-        error: `Можно закрепить не более ${this.MAX_PINS_PER_ROOM} сообщений`,
-      };
-    }
-
-    const existing = await this.prisma.pinnedMessage.findUnique({
-      where: {
-        roomId_messageId: { roomId, messageId },
-      },
-    });
-    if (existing) {
-      const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
-      return { ok: true, pinnedMessageIds };
-    }
-
-    await this.prisma.pinnedMessage.create({
-      data: { roomId, messageId, pinnedByUserId: userId },
-    });
-    const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
-    return { ok: true, pinnedMessageIds };
-  }
-
-  async unpinMessage(
-    roomId: string,
-    messageId: string,
-    userId: string,
-  ): Promise<
-    { ok: true; pinnedMessageIds: string[] } | { ok: false; error: string }
-  > {
-    const hasAccess = await canUserPostToRoom(this.prisma, userId, roomId);
-    if (!hasAccess) {
-      return { ok: false, error: 'Нет доступа' };
-    }
-
-    const existing = await this.prisma.pinnedMessage.findUnique({
-      where: {
-        roomId_messageId: { roomId, messageId },
-      },
-    });
-    if (!existing) {
-      const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
-      return { ok: true, pinnedMessageIds };
-    }
-
-    await this.prisma.pinnedMessage.delete({
-      where: { id: existing.id },
-    });
-    const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
-    return { ok: true, pinnedMessageIds };
   }
 }

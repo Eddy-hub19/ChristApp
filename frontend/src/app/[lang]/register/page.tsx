@@ -4,14 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { useAuth, type AuthSessionPayload } from "@/hooks/useAuth";
-import { getHttpApiBase } from "@/lib/apiBase";
-import { apiFetch } from "@/lib/apiFetch";
-import { saveRecentAuthIdentity } from "@/lib/authAutocomplete";
-import {
-  getNetworkFailureHint,
-  messageFromApiResponseBody,
-} from "@/lib/apiError";
+import { useAuth } from "@/hooks/useAuth";
 import {
   type RegisterFieldErrors,
   validateRegisterForm,
@@ -22,15 +15,13 @@ import styles from "@/app/[lang]/(login)/login.module.scss";
 export default function RegisterPage() {
   const t = useTranslations("register");
   const router = useRouter();
-  const { error, applyAuthPayload } = useAuth();
+  const { error, register, isSubmitting } = useAuth();
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
-  const [registerError, setRegisterError] = useState<string | null>(null);
-  const [registerSubmitting, setRegisterSubmitting] = useState(false);
 
   const handleNavigateToLogin = () => {
     router.push("/");
@@ -51,45 +42,19 @@ export default function RegisterPage() {
     });
 
     setFieldErrors(nextErrors);
-    setRegisterError(null);
 
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
-    setRegisterSubmitting(true);
-    try {
-      const res = await apiFetch(`${getHttpApiBase()}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          username: normalizedUsername,
-          password,
-        }),
-      });
+    const success = await register({
+      email: normalizedEmail,
+      username: normalizedUsername,
+      password,
+    });
 
-      const text = await res.text();
-
-      if (!res.ok) {
-        setRegisterError(
-          messageFromApiResponseBody(text, res.status, t("failedFallback")),
-        );
-        return;
-      }
-
-      saveRecentAuthIdentity({
-        email: normalizedEmail,
-        username: normalizedUsername,
-      });
-
-      const data = JSON.parse(text) as AuthSessionPayload;
-      applyAuthPayload(data);
+    if (success) {
       router.push("/chat");
-    } catch (err: unknown) {
-      setRegisterError(getNetworkFailureHint(err));
-    } finally {
-      setRegisterSubmitting(false);
     }
   };
 
@@ -111,12 +76,6 @@ export default function RegisterPage() {
         </header>
 
         <LoginServerWarmupPanel />
-
-        {registerError && (
-          <div className={styles.errorWrap}>
-            <p className={styles.error}>{registerError}</p>
-          </div>
-        )}
 
         {error && (
           <div className={styles.errorWrap}>
@@ -218,10 +177,10 @@ export default function RegisterPage() {
           <div className={styles.actions}>
             <button
               type="submit"
-              disabled={registerSubmitting}
+              disabled={isSubmitting}
               className={styles.button}
             >
-              {registerSubmitting ? t("signingUp") : t("signUp")}
+              {isSubmitting ? t("signingUp") : t("signUp")}
             </button>
           </div>
         </form>

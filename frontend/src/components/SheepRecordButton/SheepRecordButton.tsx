@@ -3,31 +3,44 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import styles from "./SheepRecordButton.module.scss";
 
 type SheepRecordButtonProps = {
   mode: "voice" | "sheep";
   disabled?: boolean;
   isRecording?: boolean;
+  /** Запис зафіксовано свайпом угору — кнопка більше не реагує на жести. */
+  isLocked?: boolean;
   onToggleMode: () => void;
-  onLongPressStart: () => void | Promise<void>;
-  onLongPressEnd: () => void | Promise<void>;
+  /** Натиснули й утримують — починаємо запис. */
+  onHoldStart: () => void;
+  /** Палець рухається: зсув від точки натискання (px, вниз/вправо додатні). */
+  onHoldMove?: (offset: { dx: number; dy: number }) => void;
+  /** Відпустили — надсилаємо (якщо жест не скасував і не зафіксував запис). */
+  onHoldEnd: () => void;
 };
 
-const LONG_PRESS_MS = 280;
+/** Скільки тримати, щоб це рахувалось записом, а не тапом-перемиканням режиму. */
+const HOLD_START_MS = 220;
 
 export default function SheepRecordButton({
   mode,
   disabled = false,
   isRecording = false,
+  isLocked = false,
   onToggleMode,
-  onLongPressStart,
-  onLongPressEnd,
+  onHoldStart,
+  onHoldMove,
+  onHoldEnd,
 }: SheepRecordButtonProps) {
+  const t = useTranslations("chat");
   const timerRef = useRef<number | null>(null);
-  const longPressActiveRef = useRef(false);
+  const holdActiveRef = useRef(false);
+  const originRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
 
-  const clearPressTimer = () => {
+  const clearHoldTimer = () => {
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -35,12 +48,16 @@ export default function SheepRecordButton({
   };
 
   const finishPress = () => {
-    clearPressTimer();
-    if (longPressActiveRef.current) {
-      longPressActiveRef.current = false;
-      void onLongPressEnd();
+    clearHoldTimer();
+    originRef.current = null;
+    pointerIdRef.current = null;
+
+    if (holdActiveRef.current) {
+      holdActiveRef.current = false;
+      onHoldEnd();
       return;
     }
+    // Коротке натискання — це перемикач «голос ⇄ відео-кружок», як у Telegram.
     onToggleMode();
   };
 
@@ -48,19 +65,32 @@ export default function SheepRecordButton({
     <button
       type="button"
       className={styles.recordButton}
-      aria-label={mode === "voice" ? "Режим голоса" : "Режим видео-овечки"}
-      title={mode === "voice" ? "Голос" : "Видео-овечка"}
+      aria-label={mode === "voice" ? t("voiceModeAria") : t("videoModeAria")}
+      title={mode === "voice" ? t("voiceModeTitle") : t("videoModeTitle")}
       disabled={disabled}
       onContextMenu={(event) => event.preventDefault()}
       onPointerDown={(event) => {
-        if (disabled) return;
+        if (disabled || isLocked) return;
         event.preventDefault();
-        longPressActiveRef.current = false;
-        clearPressTimer();
+        holdActiveRef.current = false;
+        originRef.current = { x: event.clientX, y: event.clientY };
+        pointerIdRef.current = event.pointerId;
+        // Жести мають доходити навіть коли палець зійшов із кнопки.
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        clearHoldTimer();
         timerRef.current = window.setTimeout(() => {
-          longPressActiveRef.current = true;
-          void onLongPressStart();
-        }, LONG_PRESS_MS);
+          holdActiveRef.current = true;
+          onHoldStart();
+        }, HOLD_START_MS);
+      }}
+      onPointerMove={(event) => {
+        if (disabled || isLocked) return;
+        const origin = originRef.current;
+        if (!origin || !holdActiveRef.current) return;
+        onHoldMove?.({
+          dx: event.clientX - origin.x,
+          dy: event.clientY - origin.y,
+        });
       }}
       onPointerUp={(event) => {
         if (disabled) return;
@@ -70,12 +100,6 @@ export default function SheepRecordButton({
       onPointerCancel={() => {
         if (disabled) return;
         finishPress();
-      }}
-      onPointerLeave={() => {
-        if (disabled) return;
-        if (!longPressActiveRef.current) {
-          clearPressTimer();
-        }
       }}
     >
       {isRecording ? <span className={styles.recordPulse} aria-hidden /> : null}
@@ -123,7 +147,7 @@ export default function SheepRecordButton({
           ) : (
             <Image
               src="/sheep.png"
-              alt="Овечка"
+              alt=""
               width={50}
               height={25}
               className={styles.sheepIcon}

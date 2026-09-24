@@ -9,6 +9,7 @@ type VideoNoteSceneProps = {
   elapsedSeconds: number;
   maxDurationSeconds: number;
   facingMode: "user" | "environment";
+  isSwitchingCamera?: boolean;
   previewVideoRef: React.MutableRefObject<HTMLVideoElement | null>;
   onSwitchCamera: () => void | Promise<void>;
   onStop: () => void | Promise<void>;
@@ -29,6 +30,7 @@ export default function VideoNoteScene({
   elapsedSeconds,
   maxDurationSeconds,
   facingMode,
+  isSwitchingCamera = false,
   previewVideoRef,
   onSwitchCamera,
   onStop,
@@ -48,11 +50,9 @@ export default function VideoNoteScene({
         <div
           className={`${styles.sheepFrame}${isRecording ? ` ${styles.sheepFrameRecording}` : ""}`}
         >
-          <span className={`${styles.ear} ${styles.earLeft}`} aria-hidden />
-          <span className={`${styles.ear} ${styles.earRight}`} aria-hidden />
           <video
             ref={previewVideoRef}
-            className={styles.preview}
+            className={`${styles.preview}${facingMode === "user" ? ` ${styles.previewMirrored}` : ""}`}
             autoPlay
             muted
             playsInline
@@ -61,7 +61,7 @@ export default function VideoNoteScene({
             type="button"
             className={styles.switchCameraButton}
             onClick={() => void onSwitchCamera()}
-            disabled={isUploading || isRecording}
+            disabled={isUploading || isSwitchingCamera}
             aria-label="Переворот камеры"
             title={
               facingMode === "user" ? "Фронтальная камера" : "Задняя камера"

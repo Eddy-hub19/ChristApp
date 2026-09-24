@@ -32,6 +32,8 @@ interface SocketUser {
 interface SocketWithUser extends Socket {
   data: {
     user?: SocketUser;
+    /** Кімнати, які цей сокет ЗАРАЗ тримає на екрані (див. `roomViewState`). */
+    viewedRooms?: Set<string>;
   };
 }
 
@@ -109,6 +111,19 @@ type SnakeStatePayload = {
   };
 };
 
+/** Ігри в особистих чатах. Рахунок і сесію тримає сервер — це єдине джерело правди. */
+type GameKind = 'doodle' | 'snake';
+
+type RoomGameSession = {
+  kind: GameKind;
+  roomId: string;
+  /** Номер партії: зростає на кожному скиданні, щоб відкинути пакети з попередньої. */
+  round: number;
+  startedAt: number;
+  /** userId → поточний рахунок у цій партії. */
+  scores: Map<string, number>;
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -121,6 +136,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** Спільний «plasma» фон кімнати (лише в пам’яті WS; без БД). */
   private readonly roomPlasmaBackground = new Map<string, boolean>();
+
+  /** `${roomId}:${kind}` → ігрова сесія кімнати (у пам'яті WS; партія живе, поки живе кімната). */
+  private readonly gameSessions = new Map<string, RoomGameSession>();
+
+  /**
+   * roomId → (userId → скільки сокетів цієї людини ЗАРАЗ тримають кімнату на екрані).
+   * Саме «на екрані», а не просто приєднані: клієнт знімає прапорець, коли вкладку згортають.
+   * Потрібно, щоб не слати пуш у чат, який людина читає просто зараз.
+   */
+  private readonly activeRoomViewers = new Map<string, Map<string, number>>();
+
+  /**
+   * `${userId}:${roomId}` → коли востаннє слали read-sync.
+   * Клієнт позначає кімнату прочитаною на кожне нове повідомлення, а службовий пуш дорогий
+   * (квота браузера + батарея), тож шлемо його не частіше за раз на кілька секунд.
+   */
+  private readonly lastReadSyncAt = new Map<string, number>();
+
+  private static readonly READ_SYNC_THROTTLE_MS = 15_000;
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
   private static readonly ALLOWED_REACTIONS = new Set([
@@ -433,6 +467,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = client.data.user;
     if (!user) return;
 
+    this.clearActiveRoomViewsForSocket(client);
+
     const userId = user.id;
     const currentConnections = this.onlineUsers.get(userId);
     if (!currentConnections) return;
@@ -524,14 +560,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         lastReadAt: readAt.toISOString(),
       });
 
-      const pinnedMessageIds =
-        await this.messagesService.listPinnedMessageIds(roomId);
-
       client.emit('roomHistory', {
         roomId,
         messages: history,
         plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
-        pinnedMessageIds,
       });
 
       client.emit('roomReadStates', {
@@ -622,6 +654,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId: user.id,
       lastReadAt: readAt.toISOString(),
     });
+
+    // Інші пристрої цієї ж людини: прибрати сповіщення кімнати зі шторки й оновити бейдж.
+    if (this.shouldSendReadSync(user.id, roomId)) {
+      void this.pushService
+        .sendReadSyncPush({ userId: user.id, roomId })
+        .catch((error: unknown) => {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error('[Push] sendReadSyncPush failed:', {
+            roomId,
+            userId: user.id,
+            reason,
+          });
+        });
+    }
   }
 
   @SubscribeMessage('roomTyping')
@@ -649,6 +695,212 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  // ================= ХТО ЗАРАЗ ДИВИТЬСЯ КІМНАТУ =================
+
+  private addActiveRoomViewer(roomId: string, userId: string) {
+    const viewers =
+      this.activeRoomViewers.get(roomId) ?? new Map<string, number>();
+    viewers.set(userId, (viewers.get(userId) ?? 0) + 1);
+    this.activeRoomViewers.set(roomId, viewers);
+  }
+
+  private removeActiveRoomViewer(roomId: string, userId: string) {
+    const viewers = this.activeRoomViewers.get(roomId);
+    if (!viewers) {
+      return;
+    }
+    const next = (viewers.get(userId) ?? 0) - 1;
+    if (next > 0) {
+      viewers.set(userId, next);
+      return;
+    }
+    viewers.delete(userId);
+    if (!viewers.size) {
+      this.activeRoomViewers.delete(roomId);
+    }
+  }
+
+  private shouldSendReadSync(userId: string, roomId: string): boolean {
+    const key = `${userId}:${roomId}`;
+    const now = Date.now();
+    const last = this.lastReadSyncAt.get(key) ?? 0;
+    if (now - last < ChatGateway.READ_SYNC_THROTTLE_MS) {
+      return false;
+    }
+    this.lastReadSyncAt.set(key, now);
+
+    // Мапа не має рости нескінченно: прибираємо записи, що вже й так протухли.
+    if (this.lastReadSyncAt.size > 2000) {
+      for (const [entryKey, at] of this.lastReadSyncAt) {
+        if (now - at >= ChatGateway.READ_SYNC_THROTTLE_MS) {
+          this.lastReadSyncAt.delete(entryKey);
+        }
+      }
+    }
+
+    return true;
+  }
+
+  private getActiveRoomViewerIds(roomId: string): string[] {
+    return Array.from(this.activeRoomViewers.get(roomId)?.keys() ?? []);
+  }
+
+  /** Знімає всі «перегляди» сокета, що відключився або вийшов із кімнати. */
+  private clearActiveRoomViewsForSocket(
+    client: SocketWithUser,
+    roomId?: string,
+  ) {
+    const viewed = client.data.viewedRooms;
+    if (!viewed) {
+      return;
+    }
+    const userId = client.data.user?.id;
+    if (!userId) {
+      return;
+    }
+
+    const roomIds = roomId ? [roomId] : Array.from(viewed);
+    for (const rid of roomIds) {
+      if (!viewed.has(rid)) {
+        continue;
+      }
+      viewed.delete(rid);
+      this.removeActiveRoomViewer(rid, userId);
+    }
+  }
+
+  /** Клієнт повідомляє, що кімната з'явилась/зникла з екрана (фокус, згортання, вихід). */
+  @SubscribeMessage('roomViewState')
+  async handleRoomViewState(
+    @MessageBody() body: { roomId?: string; active?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const viewed = (client.data.viewedRooms ??= new Set<string>());
+    const shouldBeActive = Boolean(body?.active);
+
+    if (shouldBeActive) {
+      if (viewed.has(roomId)) {
+        return;
+      }
+      viewed.add(roomId);
+      this.addActiveRoomViewer(roomId, user.id);
+      return;
+    }
+
+    if (!viewed.has(roomId)) {
+      return;
+    }
+    viewed.delete(roomId);
+    this.removeActiveRoomViewer(roomId, user.id);
+  }
+
+  // ================= ІГРОВІ СЕСІЇ (сервер — джерело правди) =================
+
+  private gameSessionKey(roomId: string, kind: GameKind) {
+    return `${roomId}:${kind}`;
+  }
+
+  private getOrCreateGameSession(roomId: string, kind: GameKind) {
+    const key = this.gameSessionKey(roomId, kind);
+    const existing = this.gameSessions.get(key);
+    if (existing) {
+      return existing;
+    }
+
+    const created: RoomGameSession = {
+      kind,
+      roomId,
+      round: 1,
+      startedAt: Date.now(),
+      scores: new Map<string, number>(),
+    };
+    this.gameSessions.set(key, created);
+    return created;
+  }
+
+  private serializeGameSession(session: RoomGameSession) {
+    return {
+      roomId: session.roomId,
+      game: session.kind,
+      round: session.round,
+      startedAt: session.startedAt,
+      scores: Object.fromEntries(session.scores),
+    };
+  }
+
+  private broadcastGameSession(session: RoomGameSession) {
+    this.server
+      .to(session.roomId)
+      .emit('gameSession', this.serializeGameSession(session));
+  }
+
+  /**
+   * Рахунок приходить від клієнта, але зберігає його лише сервер.
+   * Повертає сесію, тільки якщо значення справді змінилося — щоб не розсилати снапшот на кожен тік.
+   */
+  private recordGameScore(
+    roomId: string,
+    kind: GameKind,
+    userId: string,
+    rawScore: number,
+  ): RoomGameSession | null {
+    if (!Number.isFinite(rawScore)) {
+      return null;
+    }
+
+    const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
+    const session = this.getOrCreateGameSession(roomId, kind);
+    if (session.scores.get(userId) === score) {
+      return null;
+    }
+
+    session.scores.set(userId, score);
+    return session;
+  }
+
+  private resetGameSession(roomId: string, kind: GameKind) {
+    const session = this.getOrCreateGameSession(roomId, kind);
+    session.round += 1;
+    session.startedAt = Date.now();
+    session.scores.clear();
+    return session;
+  }
+
+  private clearGameSessionsForRoom(roomId: string) {
+    for (const kind of ['doodle', 'snake'] as const) {
+      this.gameSessions.delete(this.gameSessionKey(roomId, kind));
+    }
+  }
+
+  /** Клієнт просить актуальний стан партії: при відкритті гри, реконекті або пізньому вході. */
+  @SubscribeMessage('gameSync')
+  async handleGameSync(
+    @MessageBody() body: { roomId?: string; game?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    const kind: GameKind = body?.game === 'snake' ? 'snake' : 'doodle';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const session = this.getOrCreateGameSession(roomId, kind);
+    client.emit('gameSession', this.serializeGameSession(session));
+  }
+
   @SubscribeMessage('doodle-score')
   async handleDoodleScore(
     @MessageBody() body: DoodleScorePayload,
@@ -656,7 +908,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -674,11 +925,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!Number.isFinite(rawScore)) return;
     const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
 
+    const session = this.recordGameScore(roomId, 'doodle', user.id, score);
     this.server.to(roomId).emit('doodle-score-updated', {
       roomId,
       userId: user.id,
       score,
     });
+    if (session) {
+      this.broadcastGameSession(session);
+    }
   }
 
   @SubscribeMessage('doodle-reset')
@@ -688,7 +943,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -702,9 +956,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     if (!room?.title?.startsWith('dm:')) return;
 
+    const session = this.resetGameSession(roomId, 'doodle');
     this.server.to(roomId).emit('doodle-reset', {
       roomId,
     });
+    this.broadcastGameSession(session);
   }
 
   @SubscribeMessage('doodle-state')
@@ -714,7 +970,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -745,6 +1000,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    const scoreSession = this.recordGameScore(
+      roomId,
+      'doodle',
+      user.id,
+      score,
+    );
+
     this.server.to(roomId).emit('doodle-state-updated', {
       roomId,
       userId: user.id,
@@ -759,6 +1021,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           : Date.now(),
       },
     });
+
+    if (scoreSession) {
+      this.broadcastGameSession(scoreSession);
+    }
   }
 
   @SubscribeMessage('snake-score')
@@ -768,7 +1034,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -786,11 +1051,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!Number.isFinite(rawScore)) return;
     const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
 
+    const session = this.recordGameScore(roomId, 'snake', user.id, score);
     this.server.to(roomId).emit('snake-score-updated', {
       roomId,
       userId: user.id,
       score,
     });
+    if (session) {
+      this.broadcastGameSession(session);
+    }
   }
 
   @SubscribeMessage('snake-reset')
@@ -800,7 +1069,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -814,9 +1082,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     if (!room?.title?.startsWith('dm:')) return;
 
+    const session = this.resetGameSession(roomId, 'snake');
     this.server.to(roomId).emit('snake-reset', {
       roomId,
     });
+    this.broadcastGameSession(session);
   }
 
   @SubscribeMessage('snake-state')
@@ -826,7 +1096,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    if (!user.isVip) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
@@ -871,6 +1140,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           .slice(0, 180)
       : [];
 
+    const scoreSession = this.recordGameScore(
+      roomId,
+      'snake',
+      user.id,
+      score,
+    );
+
     this.server.to(roomId).emit('snake-state-updated', {
       roomId,
       userId: user.id,
@@ -887,6 +1163,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         body: bodyPoints,
       },
     });
+
+    if (scoreSession) {
+      this.broadcastGameSession(scoreSession);
+    }
   }
 
   // ================= ВИХІД ІЗ КІМНАТИ =================
@@ -897,6 +1177,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = client.data.user;
 
+    this.clearActiveRoomViewsForSocket(client, roomId);
+
     // 🔹 Видаляємо сокет із кімнати
     await client.leave(roomId);
 
@@ -906,6 +1188,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId: user.id,
         username: user.nickname || user.username,
       });
+    }
+
+    // Кімната спорожніла — партію більше нема кому продовжувати.
+    if (!this.server.sockets.adapter.rooms.get(roomId)?.size) {
+      this.clearGameSessionsForRoom(roomId);
     }
   }
 
@@ -1575,14 +1862,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: result.roomId,
       });
 
-      const pinnedAfterDelete = await this.messagesService.listPinnedMessageIds(
-        result.roomId,
-      );
-      this.server.to(result.roomId).emit('roomPinsUpdated', {
-        roomId: result.roomId,
-        pinnedMessageIds: pinnedAfterDelete,
-      });
-
       client.emit('deleteMessageResult', {
         ok: true,
         messageId: result.messageId,
@@ -1602,106 +1881,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         error: 'Ошибка удаления сообщения',
       });
     }
-  }
-
-  @SubscribeMessage('pinMessage')
-  async handlePinMessage(
-    @MessageBody() body: { roomId?: string; messageId?: string },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const user = await this.resolveSocketUser(client);
-    if (!user) {
-      return;
-    }
-
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    const messageId =
-      typeof body?.messageId === 'string' ? body.messageId.trim() : '';
-    if (!roomId || !messageId) {
-      client.emit('pinMessageResult', {
-        ok: false,
-        error: 'roomId и messageId обязательны',
-        roomId: roomId || undefined,
-        messageId: messageId || undefined,
-      });
-      return;
-    }
-
-    const result = await this.messagesService.pinMessage(
-      roomId,
-      messageId,
-      user.id,
-    );
-    if (!result.ok) {
-      client.emit('pinMessageResult', {
-        ok: false,
-        error: result.error,
-        roomId,
-        messageId,
-      });
-      return;
-    }
-
-    this.server.to(roomId).emit('roomPinsUpdated', {
-      roomId,
-      pinnedMessageIds: result.pinnedMessageIds,
-    });
-    client.emit('pinMessageResult', {
-      ok: true,
-      roomId,
-      messageId,
-      pinnedMessageIds: result.pinnedMessageIds,
-    });
-  }
-
-  @SubscribeMessage('unpinMessage')
-  async handleUnpinMessage(
-    @MessageBody() body: { roomId?: string; messageId?: string },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const user = await this.resolveSocketUser(client);
-    if (!user) {
-      return;
-    }
-
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    const messageId =
-      typeof body?.messageId === 'string' ? body.messageId.trim() : '';
-    if (!roomId || !messageId) {
-      client.emit('unpinMessageResult', {
-        ok: false,
-        error: 'roomId и messageId обязательны',
-        roomId: roomId || undefined,
-        messageId: messageId || undefined,
-      });
-      return;
-    }
-
-    const result = await this.messagesService.unpinMessage(
-      roomId,
-      messageId,
-      user.id,
-    );
-    if (!result.ok) {
-      client.emit('unpinMessageResult', {
-        ok: false,
-        error: result.error,
-        roomId,
-        messageId,
-      });
-      return;
-    }
-
-    this.server.to(roomId).emit('roomPinsUpdated', {
-      roomId,
-      pinnedMessageIds: result.pinnedMessageIds,
-    });
-    client.emit('unpinMessageResult', {
-      ok: true,
-      roomId,
-      messageId,
-      pinnedMessageIds: result.pinnedMessageIds,
-    });
   }
 
   @SubscribeMessage('editMessage')
@@ -1909,6 +2088,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         messageType: message.type,
         fileUrl: message.fileUrl,
         createdAt: message.createdAt,
+        excludeUserIds: this.getActiveRoomViewerIds(roomId),
       })
       .catch((error: unknown) => {
         const reason = error instanceof Error ? error.message : String(error);

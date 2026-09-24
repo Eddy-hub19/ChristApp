@@ -54,17 +54,21 @@
   max-width: min(230px, 100%);
   min-width: 0;
   height: auto;
-  padding: 15px 15px;
-  padding: 7px 12px 0;
+  padding: 9px 14px 4px;
   flex-direction: column;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   // border-radius: 16px 16px 16px 0;
   // border: 1px solid var(--line-soft);
   // background: var(--surface-elevated);
   // color: var(--foreground);
   // box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
-  transition: all 0.2s ease-in-out;
+  /* Тільки кольори: `all` анімував ще й геометрію, і бульбашки «дихали» при зміні теми. */
+  transition:
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out,
+    color 0.2s ease-in-out;
 
   border: 1px solid rgba(198, 163, 84, 0.35);
   background:
@@ -565,7 +569,7 @@ html[data-theme="dark"] .myBubble {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 5px;
+  padding-top: 6px;
   overflow: visible;
 }
 
@@ -601,15 +605,6 @@ html[data-theme="dark"] .myBubble {
   &:hover {
     color: var(--accent);
     background: color-mix(in srgb, var(--accent) 12%, transparent);
-  }
-}
-
-.metaActionIconPinned {
-  color: color-mix(in srgb, #c4a035 88%, var(--text-muted));
-
-  &:hover {
-    color: #d4af37;
-    background: color-mix(in srgb, #c4a035 14%, transparent);
   }
 }
 
@@ -857,12 +852,6 @@ html[data-theme="dark"] .myBubble {
   animation: message-highlight 1.8s ease;
 }
 
-.bubblePinned {
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, #d4af37 45%, transparent),
-    0 2px 12px -4px color-mix(in srgb, #c4a035 35%, transparent);
-}
-
 @keyframes message-highlight {
   0% {
     box-shadow:
@@ -890,8 +879,6 @@ html[data-theme="dark"] .bubble {
     inset 0 1px 1px rgba(255, 255, 255, 0.05),
     0 4px 15px rgba(0, 0, 0, 0.2);
   color: #f5f5f5;
-  border-radius: 18px 18px 4px 18px;
-  padding: 10px 14px;
 
   .replyPreview {
     background: color-mix(in srgb, var(--my-bubble-dark-bg) 26%, var(--surface) 74%);

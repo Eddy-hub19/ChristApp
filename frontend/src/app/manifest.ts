@@ -5,8 +5,12 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Christ App",
     short_name: "ChristApp",
     description: "Read Scripture, chat, and stay connected.",
-    /** Прямий шлях з префіксом локалі — без редиректу з `/`, щоб на старті PWA не губились куки (Safari). */
-    start_url: "/en/chat",
+    /**
+     * Головний екран із префіксом локалі (без редиректу з `/`, щоб на старті PWA
+     * не губились куки в Safari). Звідти екран запуску сам переведе в чати,
+     * щойно бекенд прокинеться й відновиться сесія.
+     */
+    start_url: "/en",
     scope: "/",
     display: "minimal-ui",
     orientation: "portrait",

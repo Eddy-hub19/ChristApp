@@ -276,13 +276,6 @@
     "profileLastRead": "Last read",
     "profileNoData": "No data",
     "profileBio": "About",
-    "pinnedLabel": "Pinned",
-    "pinnedRegionAria": "Pinned messages",
-    "pinnedMessageUnavailable": "Message",
-    "pinMessage": "Pin",
-    "unpinMessage": "Unpin",
-    "pinMessageAria": "Pin message",
-    "unpinMessageAria": "Unpin message",
     "composerConnecting": "Connecting room…",
     "composerPlaceholder": "Write a message…",
     "participantsTitle": "Chat members",
@@ -313,7 +306,21 @@
     "openStickersAria": "Open stickers",
     "stickersTitle": "Stickers",
     "composerDefaultPlaceholder": "Write a message…",
-    "pickImageFile": "Please choose an image file."
+    "pickImageFile": "Please choose an image file.",
+    "dateToday": "Today",
+    "dateYesterday": "Yesterday",
+    "voiceRecordingAria": "Recording a voice message",
+    "voiceSlideToCancel": "‹ Slide to cancel",
+    "voiceReleaseToCancel": "Release to cancel",
+    "voiceCancel": "Cancel",
+    "voiceSend": "Send",
+    "voiceModeAria": "Hold to record a voice message",
+    "voiceModeTitle": "Voice message",
+    "videoModeAria": "Hold to record a video message",
+    "videoModeTitle": "Video message",
+    "voicePermissionDenied": "Microphone access is blocked. Allow it in your browser settings to record voice messages.",
+    "voiceUnsupported": "Voice recording is not supported on this device.",
+    "voiceRecordFailed": "Could not start recording. Please try again."
   },
   "randomVerse": {
     "cardLabel": "Verse for you",
@@ -326,5 +333,16 @@
     "close": "Close verse of the day",
     "loading": "Loading…",
     "error": "Could not load the verse. Try again later."
+  },
+  "startup": {
+    "startingTitle": "Waking the server up",
+    "startingBody": "The app is starting. On free hosting the server usually takes 1–3 minutes to wake up after idling.",
+    "startingBodyWithSession": "The app is starting. Your session is saved — we will take you straight to your chats as soon as the server responds.",
+    "restoringTitle": "Almost there",
+    "restoringBody": "The server is up. Restoring your session…",
+    "waitingFor": "Waiting:",
+    "secondsShort": "s",
+    "autoContinue": "No need to do anything — this screen closes by itself.",
+    "showLoginAnyway": "Show the sign-in form anyway"
   }
 }

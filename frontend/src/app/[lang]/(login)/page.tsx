@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -8,6 +8,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation";
 import type { TelegramAuthUser } from "@/lib/authSession";
 import CrossLoader from "@/components/CrossLoader/CrossLoader";
+import ServerStartupScreen from "@/components/ServerStartupScreen/ServerStartupScreen";
+import { useServerStartupBoot } from "@/hooks/useServerStartupBoot";
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel";
 import TelegramLoginButton from "@/components/TelegramLoginButton/TelegramLoginButton";
 import styles from "@/app/[lang]/(login)/login.module.scss";
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const t = useTranslations("login");
   const router = useRouter();
   const { loading, login, loginTelegram, error, isSubmitting } = useAuth();
+  const boot = useServerStartupBoot();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,6 +52,27 @@ export default function LoginPage() {
       router.push("/chat");
     }
   };
+
+  // Сервер піднявся і сесія ціла — одразу ведемо в чати, без проміжної форми входу.
+  useEffect(() => {
+    if (boot.shouldEnterApp) {
+      router.replace("/chat");
+    }
+  }, [boot.shouldEnterApp, router]);
+
+  // Поки бекенд прокидається, показуємо екран запуску: форма входу все одно не спрацює,
+  // а refresh-токен лишається на місці й підхоплюється, щойно API відповість.
+  if (boot.showStartupScreen) {
+    return (
+      <ServerStartupScreen
+        phase={boot.phase}
+        elapsedSeconds={boot.elapsedSeconds}
+        hasStoredSession={boot.hasStoredSession}
+        canSkip={boot.canSkip}
+        onSkip={boot.skip}
+      />
+    );
+  }
 
   if (loading) {
     return (

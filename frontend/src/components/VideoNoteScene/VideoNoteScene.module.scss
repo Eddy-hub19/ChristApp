@@ -41,29 +41,15 @@
     0 0 56px rgba(255, 80, 80, 0.2);
 }
 
-.ear {
-  position: absolute;
-  top: -12px;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  background: #c9bda9;
-  z-index: 2;
-  border: 2px solid rgba(31, 26, 20, 0.14);
-}
-
-.earLeft {
-  left: 20%;
-}
-
-.earRight {
-  right: 20%;
-}
-
 .preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Фронтальна камера — дзеркально, як у будь-якому селфі-режимі. */
+.previewMirrored {
+  transform: scaleX(-1);
 }
 
 .switchCameraButton {

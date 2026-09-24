@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   memo,
   useCallback,
   useEffect,
@@ -10,7 +11,11 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  formatChatDateSeparator,
+  localDayKey,
+} from "@/lib/chatDateSeparator";
 import type { AppReactionType, Message } from "@/types/message";
 import styles from "@/components/ChatWindow/ChatWindow.module.scss";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
@@ -28,10 +33,7 @@ type ChatWindowProps = {
   onEditMessage?: (message: Message) => void;
   canDeleteOwnMessages?: boolean;
   canModerateMessages?: boolean;
-  pinnedMessageIds?: string[];
-  canPinMessages?: boolean;
-  onTogglePinMessage?: (message: Message) => void;
-  /** Прокрутка до повідомлення (для панелі закріпів під шапкою). */
+  /** Прокрутка до повідомлення (наприклад, з прев'ю відповіді). */
   jumpToMessageRef?: MutableRefObject<((messageId: string) => void) | null>;
   /** Контент над списком повідомлень (наприклад, привітання в особливому чаті). */
   topBanner?: ReactNode;
@@ -60,7 +62,7 @@ type ChatWindowProps = {
 const MIN_MESSAGES_FOR_RECENT_LINE = 14;
 const DEFAULT_RECENT_MESSAGES_COUNT = 12;
 const SCROLL_DOWN_TRIGGER_MESSAGES = 20;
-const CHAT_VERTICAL_GAP_PX = 10;
+const CHAT_VERTICAL_GAP_PX = 14;
 const AUTO_SCROLL_FOLLOW_DISTANCE_PX = 80;
 
 function ChatWindow({
@@ -90,12 +92,10 @@ function ChatWindow({
   hideSenderNames = false,
   hideOwnSenderName = false,
   senderNameMode = "inline",
-  pinnedMessageIds = [],
-  canPinMessages = false,
-  onTogglePinMessage,
   jumpToMessageRef,
 }: ChatWindowProps) {
   const t = useTranslations("chat");
+  const lang = useLocale();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const didInitialScrollRef = useRef(false);
@@ -127,6 +127,33 @@ function ChatWindow({
     const head = names.slice(0, -1).join(", ");
     return t("typingMany", { head, last });
   };
+
+  /** Підпис роздільника перед першим повідомленням кожного нового дня. */
+  const dateSeparatorByMessageId = useMemo(() => {
+    const separators = new Map<string, string>();
+    const now = new Date();
+    const labels = {
+      today: t("dateToday"),
+      yesterday: t("dateYesterday"),
+    };
+
+    let previousDayKey: string | null = null;
+    for (const message of messages) {
+      const createdAt = new Date(message.createdAt);
+      if (Number.isNaN(createdAt.getTime())) {
+        continue;
+      }
+      const dayKey = localDayKey(createdAt);
+      if (dayKey !== previousDayKey) {
+        separators.set(
+          message.id,
+          formatChatDateSeparator(createdAt, now, lang, labels),
+        );
+        previousDayKey = dayKey;
+      }
+    }
+    return separators;
+  }, [messages, lang, t]);
 
   const recentSplitIndex = useMemo(() => {
     const n = messages.length;
@@ -227,6 +254,27 @@ function ChatWindow({
     updateScrollDownVisibility();
   }, [messages.length, updateScrollDownVisibility]);
 
+  /**
+   * Клавіатура (і будь-яка інша зміна висоти списку) не має ховати останнє повідомлення:
+   * якщо людина стояла біля низу — тримаємо її там.
+   */
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (!shouldFollowBottomRef.current) {
+        return;
+      }
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   const typingLine = formatTypingLine(typingStatuses);
   const typingBlock =
     typingLine !== "" ? (
@@ -278,8 +326,24 @@ function ChatWindow({
     };
   }, [jumpToMessageRef, navigateToReferencedMessage]);
 
-  const renderBubble = (message: Message) => (
-    <div key={message.id} ref={(element) => setMessageRef(message.id, element)}>
+  const renderBubble = (message: Message) => {
+    const dateSeparatorLabel = dateSeparatorByMessageId.get(message.id);
+    return (
+      <Fragment key={message.id}>
+        {dateSeparatorLabel ? (
+          <div className={styles.dateSeparator} role="separator">
+            <span className={styles.dateSeparatorLabel}>
+              {dateSeparatorLabel}
+            </span>
+          </div>
+        ) : null}
+        {renderBubbleBody(message)}
+      </Fragment>
+    );
+  };
+
+  const renderBubbleBody = (message: Message) => (
+    <div ref={(element) => setMessageRef(message.id, element)}>
       {(() => {
         const readReceiptUsers =
           readReceiptUsersByMessageId?.get(message.id) ?? [];
@@ -314,9 +378,6 @@ function ChatWindow({
             hideSenderName={hideSenderNames}
             hideOwnSenderName={hideOwnSenderName}
             senderNameMode={senderNameMode}
-            isPinned={pinnedMessageIds.includes(message.id)}
-            showPinControl={canPinMessages}
-            onTogglePin={onTogglePinMessage}
           />
         );
       })()}

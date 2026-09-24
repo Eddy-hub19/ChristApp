@@ -22,13 +22,13 @@ type ChatPushNotificationInput = {
   createdAt: Date;
   messageType?: MessageType;
   fileUrl?: string | null;
+  /** Користувачі, у яких ця кімната зараз відкрита на екрані — їм пуш не потрібен. */
+  excludeUserIds?: string[];
 };
 
 const PUSH_BODY_MAX_LEN = 220;
 /** Ліміт тіла JSON до шифрування web-push (запас до ~4 КБ після overhead). */
 const PUSH_JSON_UTF8_MAX_BYTES = 3600;
-/** Вище порога не рахуємо badge per-user (дорогий SQL на кожного отримувача). */
-const MAX_BADGE_PREFETCH_RECIPIENTS = 40;
 
 type PushSubscriptionRecord = {
   id: string;
@@ -179,13 +179,19 @@ export class PushService {
       input.senderId,
     );
 
-    if (!recipientUserIds.length) {
+    // Кімната зараз відкрита на екрані — людина бачить повідомлення наживо, пуш зайвий.
+    const excluded = new Set(input.excludeUserIds ?? []);
+    const deliverableUserIds = recipientUserIds.filter(
+      (userId) => !excluded.has(userId),
+    );
+
+    if (!deliverableUserIds.length) {
       return;
     }
 
     const subscriptions = await this.prisma.pushSubscription.findMany({
       where: {
-        userId: { in: recipientUserIds },
+        userId: { in: deliverableUserIds },
       },
       select: {
         id: true,
@@ -215,22 +221,15 @@ export class PushService {
     const uniqueRecipientIds = [
       ...new Set(subscriptions.map((sub) => sub.userId)),
     ];
-    const badgeByUserId = new Map<string, number>();
-    const shouldAttachBadge =
-      uniqueRecipientIds.length > 0 &&
-      uniqueRecipientIds.length <= MAX_BADGE_PREFETCH_RECIPIENTS;
 
-    if (shouldAttachBadge) {
-      await Promise.all(
-        uniqueRecipientIds.map(async (userId) => {
-          try {
-            const summary = await this.messagesService.getUnreadSummary(userId);
-            badgeByUserId.set(userId, summary.totalUnread);
-          } catch {
-            badgeByUserId.set(userId, 1);
-          }
-        }),
-      );
+    // Лічильник для бейджа рахує сервер — одним запитом на всіх отримувачів одразу.
+    let badgeByUserId = new Map<string, number>();
+    try {
+      badgeByUserId =
+        await this.messagesService.getUnreadTotalsForUsers(uniqueRecipientIds);
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Не удалось посчитать badge для push: ${reason}`);
     }
 
     await Promise.allSettled(
@@ -242,9 +241,7 @@ export class PushService {
           subscription.userId,
         );
 
-        const badgeCount = shouldAttachBadge
-          ? (badgeByUserId.get(subscription.userId) ?? 1)
-          : undefined;
+        const badgeCount = badgeByUserId.get(subscription.userId);
 
         return this.sendToSubscription(subscription, {
           title,
@@ -412,6 +409,9 @@ export class PushService {
       createdAt: string;
       messageId: string;
       badgeCount?: number;
+      /** 'read-sync' — службовий пуш: нічого не показувати, лише прибрати сповіщення. */
+      kind?: 'read-sync';
+      readRoomId?: string;
     },
   ) {
     const pushSubscription: webPush.PushSubscription = {
@@ -506,6 +506,9 @@ export class PushService {
         ...(typeof working.badgeCount === 'number'
           ? { badgeCount: working.badgeCount }
           : {}),
+        // Службовий пуш не можна «обрізати» до звичайного — SW показав би порожнє сповіщення.
+        ...(working.kind ? { kind: working.kind } : {}),
+        ...(working.readRoomId ? { readRoomId: working.readRoomId } : {}),
       });
     }
 
@@ -530,6 +533,70 @@ export class PushService {
     }
 
     return undefined;
+  }
+
+  /**
+   * Користувач прочитав кімнату — прибираємо її сповіщення зі шторки на ЙОГО інших пристроях
+   * і оновлюємо там бейдж. Це службовий (тихий) пуш: SW його не показує.
+   */
+  async sendReadSyncPush(input: {
+    userId: string;
+    roomId: string;
+    /** Підписка пристрою, який щойно прочитав — їй пуш не потрібен. */
+    excludeEndpoint?: string;
+  }) {
+    if (!this.isConfigured) {
+      return;
+    }
+
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId: input.userId },
+      select: {
+        id: true,
+        userId: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+      },
+    });
+
+    const targets = subscriptions.filter(
+      (sub) => sub.endpoint !== input.excludeEndpoint,
+    );
+    if (!targets.length) {
+      return;
+    }
+
+    let badgeCount = 0;
+    try {
+      const totals = await this.messagesService.getUnreadTotalsForUsers([
+        input.userId,
+      ]);
+      badgeCount = totals.get(input.userId) ?? 0;
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Не удалось посчитать badge для read-sync: ${reason}`);
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+
+    await Promise.allSettled(
+      targets.map((sub) =>
+        this.sendToSubscription(sub, {
+          title: '',
+          body: '',
+          targetUrl: '/chat',
+          roomId: input.roomId,
+          senderId: input.userId,
+          createdAt,
+          messageId: '',
+          badgeCount,
+          kind: 'read-sync',
+          readRoomId: input.roomId,
+        }),
+      ),
+    );
   }
 
   async sendCallPush(input: {

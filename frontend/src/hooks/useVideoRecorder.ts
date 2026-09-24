@@ -16,6 +16,7 @@ type UseVideoRecorderResult = {
   switchCamera: () => Promise<void>;
   isRecording: boolean;
   isUploading: boolean;
+  isSwitchingCamera: boolean;
   isSceneOpen: boolean;
   elapsedSeconds: number;
   maxDurationSeconds: number;
@@ -24,6 +25,9 @@ type UseVideoRecorderResult = {
 };
 
 const MAX_VIDEO_NOTE_SECONDS = 60;
+/** Кружок квадратний — пишемо рівно в такий канвас. */
+const VIDEO_NOTE_SIZE_PX = 480;
+const VIDEO_NOTE_FPS = 30;
 
 const VIDEO_NOTE_MIME_ALLOW = new Set([
   "video/webm",
@@ -60,46 +64,131 @@ export function useVideoRecorder({
 }: UseVideoRecorderOptions): UseVideoRecorderResult {
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [isSceneOpen, setIsSceneOpen] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  /** Потік камери: міняється при перевороті. */
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  /** Потік мікрофона: живе всю сесію, щоб звук не рвався при перевороті камери. */
+  const micStreamRef = useRef<MediaStream | null>(null);
+  /** Те, що реально пише MediaRecorder: відео з канвасу + постійний звук. */
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawFrameRef = useRef<number | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const startedAtRef = useRef<number | null>(null);
+  const facingModeRef = useRef<"user" | "environment">("user");
 
-  const stopStream = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    if (previewVideoRef.current) {
-      previewVideoRef.current.srcObject = null;
+  const stopCameraStream = useCallback(() => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+  }, []);
+
+  const stopDrawLoop = useCallback(() => {
+    if (drawFrameRef.current !== null) {
+      cancelAnimationFrame(drawFrameRef.current);
+      drawFrameRef.current = null;
     }
   }, []);
 
-  const startPreviewStream = useCallback(
+  const teardownMedia = useCallback(() => {
+    stopDrawLoop();
+    stopCameraStream();
+    micStreamRef.current?.getTracks().forEach((track) => track.stop());
+    micStreamRef.current = null;
+    recordingStreamRef.current = null;
+    canvasRef.current = null;
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
+    }
+  }, [stopCameraStream, stopDrawLoop]);
+
+  /** Відкриває камеру з потрібного боку і показує її в прев'ю. Звук не чіпає. */
+  const openCameraStream = useCallback(
     async (nextFacingMode: "user" | "environment") => {
-      stopStream();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 480 },
-          height: { ideal: 480 },
+          width: { ideal: VIDEO_NOTE_SIZE_PX },
+          height: { ideal: VIDEO_NOTE_SIZE_PX },
           aspectRatio: { ideal: 1 },
           facingMode: nextFacingMode,
         },
-        audio: true,
+        audio: false,
       });
 
-      streamRef.current = stream;
+      // Стару камеру глушимо лише після того, як нова вже відкрилась,
+      // інакше на перевороті буде чорний кадр у записі.
+      stopCameraStream();
+      cameraStreamRef.current = stream;
+      facingModeRef.current = nextFacingMode;
+
       const previewVideo = previewVideoRef.current;
       if (previewVideo) {
         previewVideo.srcObject = stream;
         await previewVideo.play().catch(() => undefined);
       }
+
+      return stream;
     },
-    [stopStream],
+    [stopCameraStream],
   );
+
+  /**
+   * Пишемо не напряму з камери, а з канвасу: доріжка канвасу не переривається,
+   * тому камеру можна перевернути просто посеред запису (як у Telegram).
+   */
+  const startDrawLoop = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
+
+    const drawFrame = () => {
+      drawFrameRef.current = requestAnimationFrame(drawFrame);
+
+      const video = previewVideoRef.current;
+      if (!video || video.readyState < 2) {
+        return;
+      }
+
+      const side = Math.min(video.videoWidth, video.videoHeight);
+      if (!side) {
+        return;
+      }
+      const sx = (video.videoWidth - side) / 2;
+      const sy = (video.videoHeight - side) / 2;
+
+      context.save();
+      // Фронтальну камеру дзеркалимо — інакше запис не збігається з тим, що людина бачить.
+      if (facingModeRef.current === "user") {
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+      }
+      context.drawImage(
+        video,
+        sx,
+        sy,
+        side,
+        side,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
+      context.restore();
+    };
+
+    stopDrawLoop();
+    drawFrame();
+  }, [stopDrawLoop]);
 
   const uploadBlob = useCallback(
     async (blob: Blob) => {
@@ -168,15 +257,30 @@ export function useVideoRecorder({
 
     try {
       setIsSceneOpen(true);
-      await startPreviewStream(facingMode);
 
-      const stream = streamRef.current;
-      if (!stream) {
-        throw new Error("Не удалось запустить превью камеры");
-      }
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      micStreamRef.current = micStream;
+
+      await openCameraStream(facingModeRef.current);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = VIDEO_NOTE_SIZE_PX;
+      canvas.height = VIDEO_NOTE_SIZE_PX;
+      canvasRef.current = canvas;
+      startDrawLoop();
+
+      const canvasStream = canvas.captureStream(VIDEO_NOTE_FPS);
+      const recordingStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...micStream.getAudioTracks(),
+      ]);
+      recordingStreamRef.current = recordingStream;
+
       const mimeType = pickVideoMimeType();
       const options = mimeType ? { mimeType } : undefined;
-      const recorder = new MediaRecorder(stream, options);
+      const recorder = new MediaRecorder(recordingStream, options);
 
       chunksRef.current = [];
       recorder.ondataavailable = (event) => {
@@ -195,7 +299,7 @@ export function useVideoRecorder({
         setElapsedSeconds(0);
 
         if (!blob.size) {
-          stopStream();
+          teardownMedia();
           setIsSceneOpen(false);
           return;
         }
@@ -210,7 +314,7 @@ export function useVideoRecorder({
             onError?.(message);
           })
           .finally(() => {
-            stopStream();
+            teardownMedia();
             setIsSceneOpen(false);
             setIsUploading(false);
           });
@@ -222,25 +326,26 @@ export function useVideoRecorder({
       setElapsedSeconds(0);
       setIsRecording(true);
     } catch {
-      stopStream();
+      teardownMedia();
       setIsSceneOpen(false);
       onError?.("Нет доступа к камере или микрофону");
     }
   }, [
-    facingMode,
     isUploading,
     onError,
-    startPreviewStream,
-    stopStream,
+    openCameraStream,
+    startDrawLoop,
+    teardownMedia,
     uploadBlob,
   ]);
 
   const stop = useCallback(async () => {
     const recorder = recorderRef.current;
     recorderRef.current = null;
+    stopDrawLoop();
 
     if (!recorder) {
-      stopStream();
+      teardownMedia();
       setIsRecording(false);
       startedAtRef.current = null;
       setElapsedSeconds(0);
@@ -250,27 +355,27 @@ export function useVideoRecorder({
     if (recorder.state !== "inactive") {
       recorder.stop();
     } else {
-      stopStream();
+      teardownMedia();
       setIsRecording(false);
       startedAtRef.current = null;
       setElapsedSeconds(0);
     }
-  }, [stopStream]);
+  }, [stopDrawLoop, teardownMedia]);
 
   const closeScene = useCallback(async () => {
     if (isRecording) {
       await stop();
     } else {
-      stopStream();
+      teardownMedia();
       setElapsedSeconds(0);
       startedAtRef.current = null;
       setIsSceneOpen(false);
     }
-  }, [isRecording, stop, stopStream]);
+  }, [isRecording, stop, teardownMedia]);
 
+  /** Переворот камери доступний і під час запису — доріжка канвасу не переривається. */
   const switchCamera = useCallback(async () => {
-    if (isRecording) {
-      onError?.("Камеру можно перевернуть до начала записи");
+    if (isSwitchingCamera) {
       return;
     }
     if (
@@ -281,14 +386,18 @@ export function useVideoRecorder({
       return;
     }
 
-    const nextFacingMode = facingMode === "user" ? "environment" : "user";
+    const nextFacingMode =
+      facingModeRef.current === "user" ? "environment" : "user";
+    setIsSwitchingCamera(true);
     try {
-      await startPreviewStream(nextFacingMode);
+      await openCameraStream(nextFacingMode);
       setFacingMode(nextFacingMode);
     } catch {
       onError?.("Не удалось переключить камеру");
+    } finally {
+      setIsSwitchingCamera(false);
     }
-  }, [facingMode, isRecording, onError, startPreviewStream]);
+  }, [isSwitchingCamera, onError, openCameraStream]);
 
   useEffect(() => {
     if (!isRecording) {
@@ -318,9 +427,9 @@ export function useVideoRecorder({
         recorder.stop();
       }
       recorderRef.current = null;
-      stopStream();
+      teardownMedia();
     };
-  }, [stopStream]);
+  }, [teardownMedia]);
 
   return {
     start,
@@ -329,6 +438,7 @@ export function useVideoRecorder({
     switchCamera,
     isRecording,
     isUploading,
+    isSwitchingCamera,
     isSceneOpen,
     elapsedSeconds,
     maxDurationSeconds: MAX_VIDEO_NOTE_SECONDS,
