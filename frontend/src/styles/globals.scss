@@ -112,6 +112,11 @@ body.offlinePage {
   }
 }
 
+/* Відкрита кінозала «Кіношки» — повноекранний шар; сторінка під ним не прокручується. */
+body.cinemaHallOpen {
+  overflow: hidden;
+}
+
 img,
 picture,
 video,

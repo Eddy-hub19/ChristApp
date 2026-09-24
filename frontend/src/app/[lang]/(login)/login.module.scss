@@ -184,27 +184,6 @@
     }
   }
 
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--login-muted);
-    font-size: 12px;
-
-    &::before,
-    &::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--login-card-border);
-    }
-  }
-
-  .telegramWrap {
-    display: flex;
-    justify-content: center;
-  }
-
   .footer {
     margin-top: 4px;
   }

@@ -14,9 +14,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeUsernameHandle } from 'src/users/username.util';
 import { LoginDto, RegisterDto } from './dto/AuthDTO';
-import { TelegramAuthDto } from './dto/TelegramAuthDTO';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
-import { TelegramAuthService } from './telegram-auth.service';
 
 const USER_SAFE_SELECT = {
   id: true,
@@ -55,7 +53,6 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-    private telegramAuth: TelegramAuthService,
   ) {
     this.accessExpiresIn =
       this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() ||
@@ -238,15 +235,6 @@ export class AuthService {
       );
     }
 
-    if (!user.password) {
-      this.logger.warn(
-        `login failed: account has no password (Telegram-only) userId=${user.id}; ${meta}`,
-      );
-      throw new UnauthorizedException(
-        'Этот аккаунт создан через Telegram и не имеет пароля. Войдите через Telegram.',
-      );
-    }
-
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) {
       this.logger.warn(
@@ -260,79 +248,6 @@ export class AuthService {
       `login success: userId=${user.id}; username=${user.username}; accessTtl=${this.accessExpiresIn}; ${meta}`,
     );
     return this.buildAccessResponse(user.id);
-  }
-
-  async telegramLogin(dto: TelegramAuthDto, res: Response, req?: Request) {
-    const meta = req ? this.requestMeta(req) : 'meta=not-provided';
-    const telegramId = String(dto.id);
-    this.logger.log(`telegram login attempt: telegramId=${telegramId}; ${meta}`);
-
-    this.telegramAuth.verify(dto);
-
-    const user = await this.findOrCreateByTelegramId(dto);
-    if (!user.isActive) {
-      this.logger.warn(
-        `telegram login denied: inactive userId=${user.id}; telegramId=${telegramId}; ${meta}`,
-      );
-      throw new UnauthorizedException('Аккаунт деактивирован.');
-    }
-
-    await this.issueRefreshSession(user.id, res);
-    this.logger.log(
-      `telegram login success: userId=${user.id}; telegramId=${telegramId}; ${meta}`,
-    );
-    return this.buildAccessResponse(user.id);
-  }
-
-  private async findOrCreateByTelegramId(dto: TelegramAuthDto) {
-    const telegramId = String(dto.id);
-
-    const existing = await this.prisma.user.findUnique({
-      where: { telegramId },
-    });
-    if (existing) {
-      return existing;
-    }
-
-    const nickname =
-      dto.first_name?.trim() ||
-      dto.username?.trim() ||
-      `Пользователь ${telegramId}`;
-    const usernameBase = normalizeUsernameHandle(
-      dto.username?.trim() || `tg_${telegramId}`,
-    );
-    const username = await this.generateUniqueUsername(usernameBase);
-    // Telegram не передаёт email, а поле User.email обязательно и уникально —
-    // используем детерминированный плейсхолдер, привязанный к telegramId.
-    const email = `tg${telegramId}@telegram.christ-app.local`;
-
-    try {
-      return await this.prisma.user.create({
-        data: {
-          email,
-          username,
-          nickname,
-          password: null,
-          avatarUrl: dto.photo_url,
-          telegramId,
-          isActive: true,
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        // Гонка: пользователь с этим telegramId уже создан параллельным запросом.
-        const raced = await this.prisma.user.findUnique({
-          where: { telegramId },
-        });
-        if (raced) {
-          return raced;
-        }
-      }
-      throw error;
-    }
   }
 
   private async generateUniqueUsername(base: string): Promise<string> {

@@ -6,18 +6,17 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation";
-import type { TelegramAuthUser } from "@/lib/authSession";
 import CrossLoader from "@/components/CrossLoader/CrossLoader";
 import ServerStartupScreen from "@/components/ServerStartupScreen/ServerStartupScreen";
 import { useServerStartupBoot } from "@/hooks/useServerStartupBoot";
+import { consumePostLoginPath } from "@/lib/postLoginRedirect";
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel";
-import TelegramLoginButton from "@/components/TelegramLoginButton/TelegramLoginButton";
 import styles from "@/app/[lang]/(login)/login.module.scss";
 
 export default function LoginPage() {
   const t = useTranslations("login");
   const router = useRouter();
-  const { loading, login, loginTelegram, error, isSubmitting } = useAuth();
+  const { loading, login, error, isSubmitting } = useAuth();
   const boot = useServerStartupBoot();
 
   const [email, setEmail] = useState("");
@@ -38,7 +37,7 @@ export default function LoginPage() {
 
     const success = await login(normalizedEmail, password);
     if (success) {
-      router.push("/chat");
+      router.push(consumePostLoginPath() ?? "/chat");
     }
   };
 
@@ -46,17 +45,10 @@ export default function LoginPage() {
     router.push("/register");
   };
 
-  const handleTelegramAuth = async (telegramUser: TelegramAuthUser) => {
-    const success = await loginTelegram(telegramUser);
-    if (success) {
-      router.push("/chat");
-    }
-  };
-
   // Сервер піднявся і сесія ціла — одразу ведемо в чати, без проміжної форми входу.
   useEffect(() => {
     if (boot.shouldEnterApp) {
-      router.replace("/chat");
+      router.replace(consumePostLoginPath() ?? "/chat");
     }
   }, [boot.shouldEnterApp, router]);
 
@@ -190,20 +182,6 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
-
-        <div className={styles.divider}>{t("orContinueWith")}</div>
-
-        <div className={styles.telegramWrap}>
-          {isSubmitting ? (
-            <CrossLoader
-              className={styles.loaderInCard}
-              label={t("telegramLoggingIn")}
-              variant="inline"
-            />
-          ) : (
-            <TelegramLoginButton onAuth={handleTelegramAuth} />
-          )}
-        </div>
 
         <footer className={styles.footer}>
           <p className={styles.footerText}>

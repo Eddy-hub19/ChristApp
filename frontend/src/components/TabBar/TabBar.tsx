@@ -31,6 +31,10 @@ import {
 } from "@/hooks/useMediaQuery";
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  fetchWatchRooms,
+  watchRoomsQueryKey,
+} from "@/lib/queries/watchRoomsQueries";
 
 const UNREAD_REFRESH_INTERVAL_MS = 15_000;
 
@@ -67,6 +71,16 @@ export default function TabBar() {
 
   const unreadCount = Number(unreadQuery.data?.totalUnread ?? 0);
 
+  /** Запрошення в «Кіношку» — бейдж на вкладці; оновлюється і сокет-подією `watch:invited`. */
+  const watchRoomsQuery = useQuery({
+    queryKey: watchRoomsQueryKey(userId),
+    queryFn: fetchWatchRooms,
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const watchInvitesCount = watchRoomsQuery.data?.invitations.length ?? 0;
+
   useEffect(() => {
     void syncAppBadgeFromUnreadCount(unreadCount);
   }, [unreadCount]);
@@ -79,7 +93,8 @@ export default function TabBar() {
 
   const hiddenRoutes = ["/", "/register", "/offline"];
   /** Список чатів — таб видимий; відкрита кімната — таб прихований, більше місця під листування. */
-  const hideOnActiveChatRoom = pathname.startsWith("/chat/");
+  const hideOnActiveChatRoom =
+    pathname.startsWith("/chat/") || pathname.startsWith("/cinema/");
   const shouldHideTabBar =
     hideOnActiveChatRoom ||
     hiddenRoutes.some(
@@ -127,12 +142,17 @@ export default function TabBar() {
       return;
     }
 
+    const refetchWatchRooms = () =>
+      void queryClient.invalidateQueries({ queryKey: ["watch-rooms"] });
+
     socket.on("newMessage", refetchUnread);
+    socket.on("watch:invited", refetchWatchRooms);
 
     return () => {
       socket.off("newMessage", refetchUnread);
+      socket.off("watch:invited", refetchWatchRooms);
     };
-  }, [socket, refetchUnread]);
+  }, [socket, refetchUnread, queryClient]);
 
   useEffect(() => {
     window.addEventListener(CHAT_UNREAD_CHANGED_EVENT, refetchUnread);
@@ -211,6 +231,32 @@ export default function TabBar() {
               aria-label={t("unreadMessages", { count: unreadCount })}
             >
               {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          ) : null}
+        </span>
+      </Link>
+      <Link
+        className={styles.tabLink}
+        href="/cinema"
+        prefetch
+        aria-label={t("cinema")}
+        title={t("cinema")}
+      >
+        <span
+          className={`${styles.iconWrap} ${isRouteActive("/cinema") ? styles.activeIcon : ""}`}
+        >
+          <Image
+            src="/icon-cinema.svg"
+            alt={t("cinema")}
+            width={24}
+            height={24}
+          />
+          {watchInvitesCount > 0 ? (
+            <span
+              className={styles.unreadBadge}
+              aria-label={t("cinemaInvites", { count: watchInvitesCount })}
+            >
+              {watchInvitesCount > 9 ? "9+" : watchInvitesCount}
             </span>
           ) : null}
         </span>

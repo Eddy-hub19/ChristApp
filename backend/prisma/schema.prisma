@@ -11,10 +11,7 @@ model User {
   email             String             @unique
   /// * Уникальный @username (латиница, нижний регистр).
   username          String             @unique
-  /// * Nullable: у аккаунтов, созданных через Telegram Login, пароля нет.
-  password          String?
-  /// * Уникальный numeric id из Telegram (`Telegram Login Widget`), если аккаунт привязан/создан через Telegram.
-  telegramId        String?            @unique
+  password          String
   createdAt         DateTime           @default(now())
   isActive          Boolean            @default(true)
   avatarUrl         String?
@@ -42,6 +39,9 @@ model User {
   voiceListens      VoiceMessageListen[] @relation("VoiceListens")
   avatarLikesReceived AvatarLike[] @relation("AvatarLikeTarget")
   avatarLikesGiven    AvatarLike[] @relation("AvatarLikeLiker")
+  hostedWatchRooms    WatchRoom[]       @relation("WatchRoomHost")
+  watchMemberships    WatchRoomMember[] @relation("WatchRoomMemberUser")
+  watchMessages       WatchMessage[]
 }
 
 /// Лайк аватара: кто (liker) поставил кому (target).
@@ -187,4 +187,58 @@ model PushSubscription {
 
   @@index([userId])
   @@index([updatedAt])
+}
+
+enum WatchMemberStatus {
+  INVITED
+  JOINED
+}
+
+/// Кімната «Кіношка з Ісусом»: спільний перегляд YouTube. Стан плеєра — єдине джерело правди на сервері.
+model WatchRoom {
+  id             String            @id @default(uuid())
+  title          String            @db.VarChar(80)
+  videoId        String            @db.VarChar(11)
+  /// Назва відео з YouTube oEmbed (для картки); може бути порожньою.
+  videoTitle     String?           @db.VarChar(200)
+  isPlaying      Boolean           @default(false)
+  /// Позиція (с) на момент `stateUpdatedAt`; під час відтворення поточна = position + (now − stateUpdatedAt).
+  positionSec    Float             @default(0)
+  stateUpdatedAt DateTime          @default(now())
+  hostId         String
+  /// Секрет для посилання-запрошення: будь-хто залогінений із ним стає учасником.
+  inviteToken    String            @unique
+  createdAt      DateTime          @default(now())
+  host           User              @relation("WatchRoomHost", fields: [hostId], references: [id], onDelete: Cascade)
+  members        WatchRoomMember[]
+  messages       WatchMessage[]
+
+  @@index([hostId])
+}
+
+model WatchRoomMember {
+  roomId      String
+  userId      String
+  status      WatchMemberStatus @default(INVITED)
+  invitedById String?
+  createdAt   DateTime          @default(now())
+  /// Коли прийняв запрошення — порядок для автопередачі керування.
+  joinedAt    DateTime?
+  room        WatchRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User              @relation("WatchRoomMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@index([userId, status])
+}
+
+model WatchMessage {
+  id        String    @id @default(uuid())
+  roomId    String
+  userId    String
+  content   String    @db.VarChar(500)
+  createdAt DateTime  @default(now())
+  room      WatchRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
 }

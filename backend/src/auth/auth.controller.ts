@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { LoginDto, RegisterDto } from './dto/AuthDTO';
-import { TelegramAuthDto } from './dto/TelegramAuthDTO';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 
@@ -35,16 +34,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.authService.login(dto, res, req);
-  }
-
-  @Post('auth/telegram')
-  @HttpCode(200)
-  telegramLogin(
-    @Body() dto: TelegramAuthDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.authService.telegramLogin(dto, res, req);
   }
 
   @Post('auth/refresh')

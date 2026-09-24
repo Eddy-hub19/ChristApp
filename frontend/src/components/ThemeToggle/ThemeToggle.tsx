@@ -53,8 +53,10 @@ export default function ThemeToggle() {
   const isLight = theme === "light";
   const isProfilePage = pathname.startsWith("/profile");
   const isOfflinePage = pathname === "/offline";
+  /** Кінозала завжди темна — перемикач теми там лише заважає. */
+  const isCinemaHall = pathname.startsWith("/cinema/");
 
-  if (isProfilePage || isOfflinePage) {
+  if (isProfilePage || isOfflinePage || isCinemaHall) {
     return null;
   }
 

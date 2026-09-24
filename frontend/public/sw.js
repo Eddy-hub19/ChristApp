@@ -121,8 +121,15 @@ function shouldBypassSwFetch(request) {
     return true;
   }
 
-  /** Виджет Telegram Login грузит скрипт и iframe с этих доменов — SWR-кеш для Nest API им только мешает (свой CSP у sw.js не пускает connect-src). */
-  if (url.hostname === "telegram.org" || url.hostname.endsWith(".telegram.org")) {
+  /**
+   * YouTube IFrame API, прев'ю й відеопотоки «Кіношки»: SWR-кеш для Nest API їм не підходить,
+   * а CSP самого sw.js (connect-src) не пускає fetch до цих доменів.
+   */
+  if (
+    /(^|\.)(youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com|ggpht\.com)$/.test(
+      url.hostname,
+    )
+  ) {
     return true;
   }
 
