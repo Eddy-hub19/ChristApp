@@ -1,7 +1,7 @@
-const STATIC_CACHE = "christapp-static-v6";
-const RUNTIME_CACHE = "christapp-runtime-v6";
+const STATIC_CACHE = "christapp-static-v7";
+const RUNTIME_CACHE = "christapp-runtime-v7";
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v6";
+const API_SWR_CACHE = "christapp-api-swr-v7";
 const OFFLINE_URL = "/offline";
 
 const APP_SHELL = [
@@ -41,9 +41,40 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/** Прибирає зі шторки всі сповіщення однієї кімнати й виставляє бейдж. */
+async function dismissRoomNotifications(roomId, badgeCount) {
+  try {
+    const shown = await self.registration.getNotifications();
+    for (const notification of shown) {
+      if (!roomId || notification.data?.roomId === roomId) {
+        notification.close();
+      }
+    }
+  } catch {
+    // getNotifications підтримується не всюди
+  }
+
+  if (typeof badgeCount === "number") {
+    await applyAppBadgeFromPush(self.registration, badgeCount);
+  }
+}
+
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+
+  // Кімнату прочитано на цьому пристрої — сповіщення з неї більше не потрібні.
+  if (event.data?.type === "CHAT_ROOM_READ") {
+    const roomId =
+      typeof event.data.roomId === "string" ? event.data.roomId : undefined;
+    const badgeRaw = event.data.badgeCount;
+    const badgeCount =
+      typeof badgeRaw === "number" && Number.isFinite(badgeRaw)
+        ? Math.max(0, Math.floor(badgeRaw))
+        : undefined;
+    event.waitUntil(dismissRoomNotifications(roomId, badgeCount));
   }
 });
 
@@ -268,6 +299,11 @@ function parsePushPayload(event) {
       messageId:
         typeof payload?.messageId === "string" ? payload.messageId : "",
       badgeCount,
+      kind: payload?.kind === "read-sync" ? "read-sync" : undefined,
+      readRoomId:
+        typeof payload?.readRoomId === "string"
+          ? payload.readRoomId
+          : undefined,
     };
   } catch {
     return {
@@ -307,6 +343,15 @@ async function applyAppBadgeFromPush(registration, badgeCount) {
 self.addEventListener("push", (event) => {
   const payload = parsePushPayload(event);
   const registration = self.registration;
+
+  // Службовий пуш: користувач прочитав кімнату на іншому пристрої.
+  // Нічого не показуємо — лише прибираємо сповіщення цієї кімнати й правимо бейдж.
+  if (payload.kind === "read-sync") {
+    event.waitUntil(
+      dismissRoomNotifications(payload.readRoomId, payload.badgeCount ?? 0),
+    );
+    return;
+  }
 
   const tag =
     payload.messageId && payload.messageId.length > 0

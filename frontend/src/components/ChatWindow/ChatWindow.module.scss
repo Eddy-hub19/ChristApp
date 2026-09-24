@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -25,7 +25,7 @@
   &::after {
     content: "";
     display: block;
-    height: 10px;
+    height: 14px;
   }
 }
 
@@ -230,4 +230,30 @@ html[data-theme="light"] .recentDividerLine {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Роздільник дат між повідомленнями різних днів (як у Telegram): плашка по центру. */
+.dateSeparator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 6px 0 2px;
+  flex-shrink: 0;
+}
+
+.dateSeparatorLabel {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: "Inter", sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--text-muted) 28%);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px -10px rgba(0, 0, 0, 0.3);
 }

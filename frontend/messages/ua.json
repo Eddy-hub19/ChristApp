@@ -276,13 +276,6 @@
     "profileLastRead": "Останнє читання",
     "profileNoData": "Немає даних",
     "profileBio": "Про себе",
-    "pinnedLabel": "Закріплені",
-    "pinnedRegionAria": "Закріплені повідомлення",
-    "pinnedMessageUnavailable": "Повідомлення",
-    "pinMessage": "Закріпити",
-    "unpinMessage": "Відкріпити",
-    "pinMessageAria": "Закріпити повідомлення",
-    "unpinMessageAria": "Відкріпити повідомлення",
     "composerConnecting": "Підключаємо кімнату…",
     "composerPlaceholder": "Напишіть повідомлення…",
     "participantsTitle": "Учасники чату",
@@ -313,7 +306,21 @@
     "openStickersAria": "Відкрити стікери",
     "stickersTitle": "Стікери",
     "composerDefaultPlaceholder": "Напишіть повідомлення…",
-    "pickImageFile": "Оберіть файл зображення."
+    "pickImageFile": "Оберіть файл зображення.",
+    "dateToday": "Сьогодні",
+    "dateYesterday": "Вчора",
+    "voiceRecordingAria": "Запис голосового повідомлення",
+    "voiceSlideToCancel": "‹ Проведіть, щоб скасувати",
+    "voiceReleaseToCancel": "Відпустіть, щоб скасувати",
+    "voiceCancel": "Скасувати",
+    "voiceSend": "Надіслати",
+    "voiceModeAria": "Утримуйте, щоб записати голосове",
+    "voiceModeTitle": "Голосове повідомлення",
+    "videoModeAria": "Утримуйте, щоб записати відео",
+    "videoModeTitle": "Відеоповідомлення",
+    "voicePermissionDenied": "Доступ до мікрофона заборонено. Дозвольте його в налаштуваннях браузера, щоб записувати голосові.",
+    "voiceUnsupported": "Запис голосу не підтримується на цьому пристрої.",
+    "voiceRecordFailed": "Не вдалося почати запис. Спробуйте ще раз."
   },
   "randomVerse": {
     "cardLabel": "Вірш для вас",
@@ -326,5 +333,16 @@
     "close": "Закрити вірш дня",
     "loading": "Завантаження…",
     "error": "Не вдалося завантажити вірш. Спробуйте пізніше."
+  },
+  "startup": {
+    "startingTitle": "Сервер запускається",
+    "startingBody": "Застосунок стартує. На безкоштовному хостингу пробудження сервера після простою зазвичай триває 1–3 хвилини.",
+    "startingBodyWithSession": "Застосунок стартує. Вашу сесію збережено — щойно сервер відповість, одразу відкриємо чати.",
+    "restoringTitle": "Майже готово",
+    "restoringBody": "Сервер піднявся. Відновлюємо сесію…",
+    "waitingFor": "Чекаємо:",
+    "secondsShort": "с",
+    "autoContinue": "Нічого робити не треба — екран закриється сам.",
+    "showLoginAnyway": "Усе одно показати вхід"
   }
 }

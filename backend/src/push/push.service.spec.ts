@@ -85,7 +85,7 @@ function createConfigMock(): Pick<ConfigService, 'get'> {
 describe('PushService', () => {
   let prisma: PrismaMock;
   let config: Pick<ConfigService, 'get'>;
-  let messagesService: { getUnreadSummary: jest.Mock };
+  let messagesService: { getUnreadTotalsForUsers: jest.Mock };
   let service: PushService;
 
   beforeEach(() => {
@@ -93,7 +93,12 @@ describe('PushService', () => {
     prisma = createPrismaMock();
     config = createConfigMock();
     messagesService = {
-      getUnreadSummary: jest.fn().mockResolvedValue({ totalUnread: 2 }),
+      // Бейдж рахується пакетно: userId → кількість непрочитаних.
+      getUnreadTotalsForUsers: jest
+        .fn()
+        .mockImplementation((userIds: string[]) =>
+          Promise.resolve(new Map(userIds.map((id) => [id, 2]))),
+        ),
     };
     service = new PushService(
       prisma as never,

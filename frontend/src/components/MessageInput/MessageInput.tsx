@@ -17,7 +17,8 @@ import { chatMessagePreview } from "@/lib/chatMessagePreview";
 import styles from "@/components/MessageInput/MessageInput.module.scss";
 import Image from "next/image";
 import type { Message } from "@/types/message";
-import VoiceInput from "@/components/VoiceInput/VoiceInput";
+import VoiceRecordingBar from "@/components/VoiceInput/VoiceInput";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import StickerPicker, {
   type StickerItem,
 } from "@/components/StickerPicker/StickerPicker";
@@ -54,6 +55,10 @@ type MessageInputProps = {
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_TEXTAREA_HEIGHT = 140;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
+/** Свайп уліво далі цього порога — відпускання скасовує запис. */
+const VOICE_CANCEL_THRESHOLD_PX = 90;
+/** Свайп угору далі цього порога — запис фіксується, тримати кнопку більше не треба. */
+const VOICE_LOCK_THRESHOLD_PX = 70;
 
 /** Після очищення поля на мобільних PWA треба повернути фокус; на iOS — повтор у наступному тіку. */
 function focusComposerTextarea(textarea: HTMLTextAreaElement | null) {
@@ -96,6 +101,15 @@ export default function MessageInput({
   const isSendingRef = useRef(false);
   const [mode, setMode] = useState<ComposerMode>("text");
   const [recordMode, setRecordMode] = useState<"voice" | "sheep">("voice");
+  /** Запис зафіксовано свайпом угору: кнопку можна відпустити. */
+  const [isVoiceLocked, setIsVoiceLocked] = useState(false);
+  /** Палець відведено вліво за поріг — відпускання скасує запис. */
+  const [isVoiceCancelArmed, setIsVoiceCancelArmed] = useState(false);
+  const [voiceCancelProgress, setVoiceCancelProgress] = useState(0);
+  const isVoiceCancelArmedRef = useRef(false);
+  const isVoiceLockedRef = useRef(false);
+  /** Кнопку ще тримають. Запит дозволу на мікрофон асинхронний — палець може встигнути піднятись. */
+  const isVoiceHoldActiveRef = useRef(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,6 +128,41 @@ export default function MessageInput({
   const filesEnabled = Boolean(onSelectFiles);
   const stickerEnabled = Boolean(onSendSticker);
   const composerPlaceholder = placeholder ?? t("composerDefaultPlaceholder");
+
+  const onSendVoiceRef = useRef(onSendVoice);
+  onSendVoiceRef.current = onSendVoice;
+  const onVoiceRecordingActivityRef = useRef(onVoiceRecordingActivity);
+  onVoiceRecordingActivityRef.current = onVoiceRecordingActivity;
+
+  const resetVoiceGestureState = () => {
+    isVoiceCancelArmedRef.current = false;
+    isVoiceLockedRef.current = false;
+    isVoiceHoldActiveRef.current = false;
+    setIsVoiceCancelArmed(false);
+    setIsVoiceLocked(false);
+    setVoiceCancelProgress(0);
+  };
+
+  const deliverVoiceBlob = async (blob: Blob | null) => {
+    resetVoiceGestureState();
+    onVoiceRecordingActivityRef.current?.(false);
+    if (!blob || !onSendVoiceRef.current) {
+      return;
+    }
+    try {
+      await Promise.resolve(onSendVoiceRef.current(blob));
+    } catch {
+      // помилку показує сам чат
+    }
+  };
+
+  const voiceRecorder = useVoiceRecorder({
+    onAutoStop: (blob) => {
+      void deliverVoiceBlob(blob);
+    },
+  });
+
+  const isVoiceRecordingActive = voiceRecorder.isRecording;
 
   useEffect(() => {
     return () => {
@@ -148,6 +197,14 @@ export default function MessageInput({
       setIsStickerPickerOpen(false);
     }
   }, [mode]);
+
+  // Запис перервали ззовні (вимкнули чат, забрали дозвіл) — повертаємо звичайне поле.
+  useEffect(() => {
+    if (!isVoiceRecordingActive && mode === "voice") {
+      setMode("text");
+      resetVoiceGestureState();
+    }
+  }, [isVoiceRecordingActive, mode]);
 
   useEffect(() => {
     if (!editingMessage) {
@@ -245,39 +302,103 @@ export default function MessageInput({
     }
   };
 
-  const openVoiceMode = () => {
-    if (disabled || !voiceEnabled) return;
+  /** Затиснули кнопку: одразу починаємо запис (голос) або відео-кружок. */
+  const handleRecordHoldStart = async () => {
+    if (disabled) return;
+
+    if (recordMode !== "voice") {
+      await Promise.resolve(onStartVideoRecording?.());
+      return;
+    }
+    if (!voiceEnabled) return;
+
+    resetVoiceGestureState();
+    isVoiceHoldActiveRef.current = true;
+    const started = await voiceRecorder.start();
+    if (!started) {
+      isVoiceHoldActiveRef.current = false;
+      return;
+    }
+
+    // Встигли відпустити, поки чекали дозволу — такий «запис» ні про що, кидаємо його.
+    if (!isVoiceHoldActiveRef.current) {
+      voiceRecorder.cancel();
+      return;
+    }
+
     setMode("voice");
+    onVoiceRecordingActivityRef.current?.(true);
   };
 
-  const backToTextMode = () => {
+  /** Свайп: уліво — скасувати, угору — зафіксувати запис без утримання. */
+  const handleRecordHoldMove = ({ dx, dy }: { dx: number; dy: number }) => {
+    if (recordMode !== "voice" || !voiceRecorder.isRecording) return;
+    if (isVoiceLockedRef.current) return;
+
+    if (-dy >= VOICE_LOCK_THRESHOLD_PX && -dx < VOICE_CANCEL_THRESHOLD_PX) {
+      isVoiceLockedRef.current = true;
+      isVoiceHoldActiveRef.current = false;
+      setIsVoiceLocked(true);
+      setIsVoiceCancelArmed(false);
+      isVoiceCancelArmedRef.current = false;
+      setVoiceCancelProgress(0);
+      return;
+    }
+
+    const leftShift = Math.max(0, -dx);
+    setVoiceCancelProgress(Math.min(1, leftShift / VOICE_CANCEL_THRESHOLD_PX));
+    const armed = leftShift >= VOICE_CANCEL_THRESHOLD_PX;
+    if (armed !== isVoiceCancelArmedRef.current) {
+      isVoiceCancelArmedRef.current = armed;
+      setIsVoiceCancelArmed(armed);
+    }
+  };
+
+  /** Відпустили кнопку: надсилаємо, якщо жест не скасував і не зафіксував запис. */
+  const handleRecordHoldEnd = async () => {
+    isVoiceHoldActiveRef.current = false;
+
+    if (recordMode !== "voice") {
+      if (!disabled) {
+        await Promise.resolve(onStopVideoRecording?.());
+      }
+      return;
+    }
+
+    if (!voiceRecorder.isRecording) {
+      resetVoiceGestureState();
+      return;
+    }
+
+    // Зафіксований запис живе далі — його завершать кнопками в панелі.
+    if (isVoiceLockedRef.current) {
+      return;
+    }
+
+    if (isVoiceCancelArmedRef.current) {
+      voiceRecorder.cancel();
+      resetVoiceGestureState();
+      onVoiceRecordingActivityRef.current?.(false);
+      setMode("text");
+      return;
+    }
+
+    const blob = await voiceRecorder.stop();
+    await deliverVoiceBlob(blob);
     setMode("text");
   };
 
-  const handleRecordButtonLongPressStart = async () => {
-    if (disabled) return;
-    if (recordMode === "voice") {
-      openVoiceMode();
-      return;
-    }
-    await Promise.resolve(onStartVideoRecording?.());
+  const handleLockedVoiceSend = async () => {
+    const blob = await voiceRecorder.stop();
+    await deliverVoiceBlob(blob);
+    setMode("text");
   };
 
-  const handleRecordButtonLongPressEnd = async () => {
-    if (disabled || recordMode !== "sheep") return;
-    await Promise.resolve(onStopVideoRecording?.());
-  };
-
-  const handleVoiceComplete = async (blob: Blob) => {
-    if (!onSendVoice || disabled) return;
-    try {
-      const result = await Promise.resolve(onSendVoice(blob));
-      if (result !== false) {
-        setMode("text");
-      }
-    } catch {
-      // лишаємось у режимі голосу
-    }
+  const handleLockedVoiceCancel = () => {
+    voiceRecorder.cancel();
+    resetVoiceGestureState();
+    onVoiceRecordingActivityRef.current?.(false);
+    setMode("text");
   };
 
   const handleImageFileChange = async (
@@ -393,6 +514,26 @@ export default function MessageInput({
         </div>
       ) : null}
 
+      {voiceRecorder.error ? (
+        <div className={styles.voiceError} role="alert">
+          <span>
+            {voiceRecorder.error === "permission"
+              ? t("voicePermissionDenied")
+              : voiceRecorder.error === "unsupported"
+                ? t("voiceUnsupported")
+                : t("voiceRecordFailed")}
+          </span>
+          <button
+            type="button"
+            className={styles.voiceErrorClose}
+            onClick={voiceRecorder.clearError}
+            aria-label={t("close")}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
+
       <div className={styles.composerRow}>
         <div className={messageRowClass}>
           <input
@@ -428,12 +569,15 @@ export default function MessageInput({
             />
           </button>
 
-          {mode === "voice" && voiceEnabled ? (
-            <VoiceInput
-              embedded
-              onSend={handleVoiceComplete}
-              disabled={disabled}
-              onRecordingActivity={onVoiceRecordingActivity}
+          {isVoiceRecordingActive ? (
+            <VoiceRecordingBar
+              stream={voiceRecorder.stream}
+              seconds={voiceRecorder.seconds}
+              isLocked={isVoiceLocked}
+              isCancelArmed={isVoiceCancelArmed}
+              cancelProgress={voiceCancelProgress}
+              onCancel={handleLockedVoiceCancel}
+              onSend={() => void handleLockedVoiceSend()}
             />
           ) : (
             <textarea
@@ -472,24 +616,7 @@ export default function MessageInput({
             />
           )}
 
-          {mode === "voice" && voiceEnabled ? (
-            <button
-              type="button"
-              className={styles.iconButton}
-              aria-label={t("composerMessageAria")}
-              title={t("composerKeyboardTitle")}
-              onClick={backToTextMode}
-              disabled={disabled}
-            >
-              <Image
-                src="/icon-msg.svg"
-                alt=""
-                width={20}
-                height={20}
-                className={styles.iconGraphic}
-              />
-            </button>
-          ) : hasText ? (
+          {hasText && !isVoiceRecordingActive ? (
             <button
               type="button"
               className={`${styles.iconButton}${isSending ? ` ${styles.iconButtonSending}` : ""}`}
@@ -512,32 +639,28 @@ export default function MessageInput({
               <SheepRecordButton
                 mode={recordMode}
                 disabled={disabled}
-                isRecording={isVideoRecording}
+                isRecording={isVideoRecording || voiceRecorder.isRecording}
+                isLocked={isVoiceLocked}
                 onToggleMode={() => {
                   setRecordMode((prev) =>
                     prev === "voice" ? "sheep" : "voice",
                   );
                 }}
-                onLongPressStart={handleRecordButtonLongPressStart}
-                onLongPressEnd={handleRecordButtonLongPressEnd}
+                onHoldStart={() => void handleRecordHoldStart()}
+                onHoldMove={handleRecordHoldMove}
+                onHoldEnd={() => void handleRecordHoldEnd()}
               />
             ) : (
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={t("voiceMessageAria")}
-                title={t("voiceMessageTitle")}
-                onClick={openVoiceMode}
+              <SheepRecordButton
+                mode="voice"
                 disabled={disabled}
-              >
-                <Image
-                  src="/icon-micro.svg"
-                  alt=""
-                  width={40}
-                  height={40}
-                  className={styles.microIconGraphic}
-                />
-              </button>
+                isRecording={voiceRecorder.isRecording}
+                isLocked={isVoiceLocked}
+                onToggleMode={() => undefined}
+                onHoldStart={() => void handleRecordHoldStart()}
+                onHoldMove={handleRecordHoldMove}
+                onHoldEnd={() => void handleRecordHoldEnd()}
+              />
             )
           ) : (
             <button

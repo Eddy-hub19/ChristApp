@@ -22,6 +22,7 @@ import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { apiFetch } from "@/lib/apiFetch";
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
+import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
 import { showChatNotification } from "@/lib/notifications";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { Link } from "@/i18n/navigation";
@@ -43,8 +44,9 @@ import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useVideoRecorder } from "@/hooks/useVideoRecorder";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
-import { Gamepad2, Phone, Pin } from "lucide-react";
+import { Gamepad2, Phone } from "lucide-react";
 import dynamic from "next/dynamic";
 import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame";
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame";
@@ -138,7 +140,6 @@ type DirectRoomOpenedPayload = {
 type RoomHistoryPayload = {
   roomId: string;
   messages: IncomingSocketMessage[];
-  pinnedMessageIds?: string[];
 };
 
 type OnlineUsersPayload = {
@@ -233,6 +234,15 @@ type DoodleScoreUpdatedPayload = {
   roomId?: string;
   userId?: string;
   score?: number;
+};
+
+/** Авторитетний зріз партії з сервера: рахунки всіх учасників кімнати. */
+type GameSessionPayload = {
+  roomId?: string;
+  game?: string;
+  round?: number;
+  startedAt?: number;
+  scores?: Record<string, number>;
 };
 
 type DoodleResetPayload = {
@@ -573,7 +583,6 @@ export default function ChatPageDetails() {
   /** true після joinRoom до приходу roomHistory (зокрема при skipLoadingSpinner). */
   const awaitingRoomHistoryRef = useRef(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([]);
   const jumpToMessageRef = useRef<((messageId: string) => void) | null>(null);
   const [roomTitle, setRoomTitle] = useState<string>("");
   const [roomRawTitle, setRoomRawTitle] = useState<string>("");
@@ -680,6 +689,9 @@ export default function ChatPageDetails() {
     [],
   );
 
+  // Поле введення має підніматися разом із клавіатурою (iOS не стискає layout viewport сам).
+  useKeyboardInset();
+
   const params = useParams<{ roomId: string }>();
   const router = useRouter();
   const routeRoomId = params?.roomId;
@@ -771,6 +783,8 @@ export default function ChatPageDetails() {
 
     socket.emit("markRoomRead", { roomId: target });
     dispatchChatUnreadChangedEvent();
+    // Прочитане — сповіщення цієї кімнати більше не потрібні у шторці.
+    void dismissRoomNotificationsLocally(target);
   }, [effectiveSocketRoomId]);
 
   const handleTypingActivity = useCallback((active: boolean) => {
@@ -1251,7 +1265,6 @@ export default function ChatPageDetails() {
     const onRoomHistory = ({
       roomId: historyRoomId,
       messages: history,
-      pinnedMessageIds: historyPins,
     }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return;
@@ -1265,8 +1278,6 @@ export default function ChatPageDetails() {
       );
 
       messageIdsRef.current = nextMessageIds;
-
-      setPinnedMessageIds(Array.isArray(historyPins) ? historyPins : []);
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1];
       if (historyRoomId && lastMessage) {
@@ -1288,28 +1299,6 @@ export default function ChatPageDetails() {
       );
     };
     socket.on("roomHistory", onRoomHistory);
-
-    const onRoomPinsUpdated = (payload: {
-      roomId?: string;
-      pinnedMessageIds?: string[];
-    }) => {
-      const rid = payload?.roomId;
-      if (!rid || rid !== joinedRoomRef.current) {
-        return;
-      }
-      setPinnedMessageIds(
-        Array.isArray(payload.pinnedMessageIds) ? payload.pinnedMessageIds : [],
-      );
-    };
-    socket.on("roomPinsUpdated", onRoomPinsUpdated);
-
-    const onPinOrUnpinResult = (payload: { ok?: boolean; error?: string }) => {
-      if (payload?.ok === false && payload?.error) {
-        window.alert(payload.error);
-      }
-    };
-    socket.on("pinMessageResult", onPinOrUnpinResult);
-    socket.on("unpinMessageResult", onPinOrUnpinResult);
 
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
       queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), rooms);
@@ -1696,6 +1685,39 @@ export default function ChatPageDetails() {
     };
     socket.on("call-user-sent", onCallUserSent);
 
+    const onGameSession = (payload: GameSessionPayload) => {
+      const joinedId = joinedRoomRef.current;
+      if (!joinedId || payload?.roomId !== joinedId) {
+        return;
+      }
+
+      const myId = userIdRef.current;
+      const scores = payload.scores ?? {};
+      let mine = 0;
+      let peer = 0;
+      for (const [userId, rawScore] of Object.entries(scores)) {
+        const value = Number(rawScore);
+        if (!Number.isFinite(value)) {
+          continue;
+        }
+        const normalized = Math.max(0, Math.floor(value));
+        if (userId === myId) {
+          mine = normalized;
+        } else {
+          peer = Math.max(peer, normalized);
+        }
+      }
+
+      if (payload.game === "snake") {
+        setMySnakeScore(mine);
+        setPeerSnakeScore(peer);
+        return;
+      }
+      setMyDoodleScore(mine);
+      setPeerDoodleScore(peer);
+    };
+    socket.on("gameSession", onGameSession);
+
     const onDoodleScoreUpdated = (payload: DoodleScoreUpdatedPayload) => {
       const joinedId = joinedRoomRef.current;
       if (!joinedId || payload?.roomId !== joinedId || !payload?.userId) {
@@ -1871,9 +1893,6 @@ export default function ChatPageDetails() {
       socket.off("deleteMessageResult", onDeleteMessageResult);
       socket.off("messageEdited", onMessageEdited);
       socket.off("roomHistory", onRoomHistory);
-      socket.off("roomPinsUpdated", onRoomPinsUpdated);
-      socket.off("pinMessageResult", onPinOrUnpinResult);
-      socket.off("unpinMessageResult", onPinOrUnpinResult);
       socket.off("myRooms", onMyRooms);
       socket.off("directRoomOpened", onDirectRoomOpened);
       socket.off("userInvitedToRoom", onInvitedToRoom);
@@ -1890,6 +1909,7 @@ export default function ChatPageDetails() {
       socket.off("call-accepted", onCallAccepted);
       socket.off("call-declined", onCallDeclined);
       socket.off("call-error", onCallError);
+      socket.off("gameSession", onGameSession);
       socket.off("doodle-score-updated", onDoodleScoreUpdated);
       socket.off("doodle-reset", onDoodleReset);
       socket.off("doodle-state-updated", onDoodleStateUpdated);
@@ -2046,6 +2066,39 @@ export default function ChatPageDetails() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [markRoomAsRead]);
+
+  /**
+   * Поки кімната справді на екрані — сервер не шле з неї пуші (пункт «без сповіщень
+   * під час живого спілкування»). Згорнули застосунок — прапорець знімається, пуші вертаються.
+   */
+  useEffect(() => {
+    const roomForViewState = effectiveSocketRoomId;
+    if (!roomForViewState || !isSocketConnected) {
+      return;
+    }
+
+    const emitViewState = (active: boolean) => {
+      const socket = socketRef.current;
+      if (!socket?.connected) {
+        return;
+      }
+      socket.emit("roomViewState", { roomId: roomForViewState, active });
+    };
+
+    const syncFromVisibility = () => {
+      emitViewState(document.visibilityState === "visible");
+    };
+
+    syncFromVisibility();
+    document.addEventListener("visibilitychange", syncFromVisibility);
+    window.addEventListener("pagehide", syncFromVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", syncFromVisibility);
+      window.removeEventListener("pagehide", syncFromVisibility);
+      emitViewState(false);
+    };
+  }, [effectiveSocketRoomId, isSocketConnected]);
 
   const isShareWithJesusView =
     routeRoomId === SHARE_WITH_JESUS_SLUG ||
@@ -2594,7 +2647,6 @@ export default function ChatPageDetails() {
   useEffect(() => {
     setPeekProfileUserId(null);
     setIsUserProfileOpen(false);
-    setPinnedMessageIds([]);
   }, [roomId]);
 
   const handleToggleReaction = useCallback(
@@ -2664,7 +2716,7 @@ export default function ChatPageDetails() {
   }, [activeCall?.channelName]);
 
   const handleOpenDoodle = useCallback(() => {
-    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+    if (!directChatTargetUserId || !effectiveSocketRoomId) {
       return;
     }
     const socket = socketRef.current;
@@ -2680,8 +2732,8 @@ export default function ChatPageDetails() {
     setPeerDoodleState(null);
     setPeerDoodlePingMs(null);
     socket.emit("doodle-reset", { roomId: effectiveSocketRoomId });
-    socket.emit("doodle-score", { roomId: effectiveSocketRoomId, score: 0 });
-  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip]);
+    socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "doodle" });
+  }, [directChatTargetUserId, effectiveSocketRoomId]);
 
   const handleDoodleScoreChange = useCallback((score: number) => {
     setMyDoodleScore(score);
@@ -2720,7 +2772,7 @@ export default function ChatPageDetails() {
   }, []);
 
   const handleOpenSnake = useCallback(() => {
-    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+    if (!directChatTargetUserId || !effectiveSocketRoomId) {
       return;
     }
     const socket = socketRef.current;
@@ -2736,18 +2788,18 @@ export default function ChatPageDetails() {
     setPeerSnakeState(null);
     setPeerSnakePingMs(null);
     socket.emit("snake-reset", { roomId: effectiveSocketRoomId });
-    socket.emit("snake-score", { roomId: effectiveSocketRoomId, score: 0 });
-  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip]);
+    socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "snake" });
+  }, [directChatTargetUserId, effectiveSocketRoomId]);
 
   const handleOpenFilword = useCallback(() => {
-    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+    if (!directChatTargetUserId || !effectiveSocketRoomId) {
       return;
     }
     setIsDoodleOpen(false);
     setIsSnakeOpen(false);
     setIsGameMenuOpen(false);
     setIsFilwordOpen(true);
-  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip]);
+  }, [directChatTargetUserId, effectiveSocketRoomId]);
 
   const handleSnakeScoreChange = useCallback((score: number) => {
     setMySnakeScore(score);
@@ -2911,6 +2963,7 @@ export default function ChatPageDetails() {
     elapsedSeconds: videoElapsedSeconds,
     maxDurationSeconds: videoMaxDurationSeconds,
     facingMode: videoFacingMode,
+    isSwitchingCamera: isSwitchingVideoCamera,
     previewVideoRef,
   } = useVideoRecorder({
     uploadUrl: `${CHAT_HTTP_API}/messages/video-note`,
@@ -3244,45 +3297,6 @@ export default function ChatPageDetails() {
     { side: "right", width: "medium" },
   ] as const;
 
-  const handleTogglePinMessage = useCallback(
-    (message: Message) => {
-      const socket = socketRef.current;
-      const r = effectiveSocketRoomId;
-      if (!socket?.connected || !r || !message.id) {
-        return;
-      }
-      const isPinned = pinnedMessageIds.includes(message.id);
-      socket.emit(isPinned ? "unpinMessage" : "pinMessage", {
-        roomId: r,
-        messageId: message.id,
-      });
-    },
-    [effectiveSocketRoomId, pinnedMessageIds],
-  );
-
-  const pinnedEntries = useMemo(() => {
-    if (pinnedMessageIds.length === 0) {
-      return [];
-    }
-    return pinnedMessageIds.map((id) => {
-      const msg = messages.find((m) => m.id === id);
-      const raw = msg
-        ? chatMessagePreview({
-            content: msg.content,
-            type: msg.type,
-            fileUrl: msg.fileUrl ?? null,
-          }).trim()
-        : "";
-      const preview =
-        raw.length > 0 ? raw.slice(0, 120) : t("pinnedMessageUnavailable");
-      return { messageId: id, preview };
-    });
-  }, [pinnedMessageIds, messages, t]);
-
-  const canPinMessages = Boolean(
-    effectiveSocketRoomId && isSocketConnected && !authError,
-  );
-
   const messagingPane = (
     <ChatWindow
       messages={messages}
@@ -3322,9 +3336,6 @@ export default function ChatPageDetails() {
       senderNameMode={
         useCompactSenderNamesInGlobal ? "compact-above" : "inline"
       }
-      pinnedMessageIds={pinnedMessageIds}
-      canPinMessages={canPinMessages}
-      onTogglePinMessage={handleTogglePinMessage}
       jumpToMessageRef={jumpToMessageRef}
     />
   );
@@ -3410,7 +3421,7 @@ export default function ChatPageDetails() {
                   />
                 </button>
               ) : null}
-              {directChatTargetUser && user?.isVip ? (
+              {directChatTargetUser ? (
                 <div className={styles.gameMenuWrap}>
                   <button
                     type="button"
@@ -3473,38 +3484,6 @@ export default function ChatPageDetails() {
             </div>
           </div>
         </div>
-
-        {!authError && pinnedEntries.length > 0 ? (
-          <div
-            className={styles.pinnedMessagesDock}
-            role="region"
-            aria-label={t("pinnedRegionAria")}
-          >
-            <span className={styles.pinnedMessagesDockLabel}>
-              {t("pinnedLabel")}
-            </span>
-            <div className={styles.pinnedMessagesDockChips}>
-              {pinnedEntries.map((entry) => (
-                <button
-                  key={entry.messageId}
-                  type="button"
-                  className={styles.pinnedMessagesDockChip}
-                  onClick={() => jumpToMessageRef.current?.(entry.messageId)}
-                >
-                  <span
-                    className={styles.pinnedMessagesDockChipIcon}
-                    aria-hidden
-                  >
-                    <Pin size={14} strokeWidth={2.1} />
-                  </span>
-                  <span className={styles.pinnedMessagesDockChipText}>
-                    {entry.preview}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         {authError ? (
           <p className={styles.stateMessage}>{authError}</p>
@@ -3617,6 +3596,7 @@ export default function ChatPageDetails() {
           elapsedSeconds={videoElapsedSeconds}
           maxDurationSeconds={videoMaxDurationSeconds}
           facingMode={videoFacingMode}
+          isSwitchingCamera={isSwitchingVideoCamera}
           previewVideoRef={previewVideoRef}
           onSwitchCamera={switchVideoCamera}
           onStop={stopVideoRecording}

@@ -15,26 +15,26 @@ function applyTheme(theme: ThemeMode) {
 
 export default function ThemeToggle() {
   const t = useTranslations("theme");
-  // Збігається з SSR і з <html data-theme="dark"> у layout — інакше гідрація лається,
-  // якщо в localStorage уже light (клієнт читав стор до першого paint).
+  // Збігається з SSR і з <html data-theme="dark"> у layout — інакше гідрація лається.
+  // Реальне значення вже стоїть на <html> завдяки блокуючому скрипту в layout, тож
+  // після гідрації ми лише зчитуємо його, а не перезастосовуємо (звідси й брався спалах).
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [hasHydratedTheme, setHasHydratedTheme] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (saved === "light" || saved === "dark") {
-        setTheme(saved);
-      }
-    } catch {
-      // ігноруємо
+    const applied = document.documentElement.getAttribute("data-theme");
+    if (applied === "light" || applied === "dark") {
+      setTheme(applied);
     }
     setHasHydratedTheme(true);
   }, []);
 
   useEffect(() => {
     if (!hasHydratedTheme) {
+      return;
+    }
+    if (document.documentElement.getAttribute("data-theme") === theme) {
       return;
     }
     applyTheme(theme);

@@ -276,13 +276,6 @@
     "profileLastRead": "Последнее чтение",
     "profileNoData": "Нет данных",
     "profileBio": "О себе",
-    "pinnedLabel": "Закреплённые",
-    "pinnedRegionAria": "Закреплённые сообщения",
-    "pinnedMessageUnavailable": "Сообщение",
-    "pinMessage": "Закрепить",
-    "unpinMessage": "Открепить",
-    "pinMessageAria": "Закрепить сообщение",
-    "unpinMessageAria": "Открепить сообщение",
     "composerConnecting": "Подключаем комнату…",
     "composerPlaceholder": "Напиши сообщение…",
     "participantsTitle": "Участники чата",
@@ -313,7 +306,21 @@
     "openStickersAria": "Открыть стикеры",
     "stickersTitle": "Стикеры",
     "composerDefaultPlaceholder": "Напиши сообщение…",
-    "pickImageFile": "Выберите файл изображения."
+    "pickImageFile": "Выберите файл изображения.",
+    "dateToday": "Сегодня",
+    "dateYesterday": "Вчера",
+    "voiceRecordingAria": "Запись голосового сообщения",
+    "voiceSlideToCancel": "‹ Смахните, чтобы отменить",
+    "voiceReleaseToCancel": "Отпустите, чтобы отменить",
+    "voiceCancel": "Отменить",
+    "voiceSend": "Отправить",
+    "voiceModeAria": "Удерживайте, чтобы записать голосовое",
+    "voiceModeTitle": "Голосовое сообщение",
+    "videoModeAria": "Удерживайте, чтобы записать видео",
+    "videoModeTitle": "Видеосообщение",
+    "voicePermissionDenied": "Доступ к микрофону запрещён. Разрешите его в настройках браузера, чтобы записывать голосовые.",
+    "voiceUnsupported": "Запись голоса не поддерживается на этом устройстве.",
+    "voiceRecordFailed": "Не удалось начать запись. Попробуйте ещё раз."
   },
   "randomVerse": {
     "cardLabel": "Стих для вас",
@@ -326,5 +333,16 @@
     "close": "Закрыть стих дня",
     "loading": "Загрузка…",
     "error": "Не удалось загрузить стих. Попробуйте позже."
+  },
+  "startup": {
+    "startingTitle": "Сервер запускается",
+    "startingBody": "Приложение стартует. На бесплатном хостинге пробуждение сервера после простоя обычно занимает 1–3 минуты.",
+    "startingBodyWithSession": "Приложение стартует. Ваша сессия сохранена — как только сервер ответит, сразу откроем чаты.",
+    "restoringTitle": "Почти готово",
+    "restoringBody": "Сервер поднялся. Восстанавливаем сессию…",
+    "waitingFor": "Ждём:",
+    "secondsShort": "сек",
+    "autoContinue": "Ничего делать не нужно — экран закроется сам.",
+    "showLoginAnyway": "Всё равно показать вход"
   }
 }

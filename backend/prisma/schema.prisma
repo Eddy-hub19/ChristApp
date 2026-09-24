@@ -33,7 +33,6 @@ model User {
   /// Короткий опис у профілі (видно в чаті / списку).
   bio               String?   @db.VarChar(500)
   messages          Message[]
-  pinnedMessages    PinnedMessage[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]
   roomReadStates    RoomReadState[]
@@ -96,25 +95,8 @@ model Message {
   sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions Reaction[]
   voiceListens VoiceMessageListen[]
-  pinnedIn  PinnedMessage[]
 
   @@index([roomId, createdAt])
-}
-
-/// Закріплені повідомлення в кімнаті (до кількох на чат).
-model PinnedMessage {
-  id             String   @id @default(uuid())
-  roomId         String   @db.Uuid
-  messageId      String
-  pinnedAt       DateTime @default(now())
-  pinnedByUserId String
-
-  room     Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  pinnedBy User    @relation(fields: [pinnedByUserId], references: [id], onDelete: Cascade)
-
-  @@unique([roomId, messageId])
-  @@index([roomId])
 }
 
 model VoiceMessageListen {
@@ -150,7 +132,6 @@ model Room {
   messages   Message[]
   members    RoomMember[]
   readStates RoomReadState[]
-  pinnedMessages PinnedMessage[]
 }
 
 model RoomMember {

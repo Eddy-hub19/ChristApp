@@ -27,6 +27,7 @@ import {
   initializeApp,
   loginWithPassword,
   loginWithTelegram,
+  registerWithPassword,
   logout as performLogout,
   patchAuthenticatedUser,
   refreshToken,
@@ -244,6 +245,44 @@ export function useAuth(options?: UseAuthOptions) {
     }
   };
 
+  /** Той самий флоу, що й `login`: спільне збереження сесії, однакова обробка помилок. */
+  const register = async (input: {
+    email: string;
+    username: string;
+    password: string;
+  }) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const data = await registerWithPassword(input);
+
+      saveRecentAuthIdentity({
+        email: input.email,
+        username:
+          typeof data?.user?.username === "string"
+            ? data.user.username
+            : input.username,
+      });
+      if (data.user) {
+        setAuthenticatedUser(data.user);
+        recordDailyVisit();
+      } else {
+        await refreshSession();
+      }
+      await fetchUsers();
+
+      return true;
+    } catch (err: unknown) {
+      const rawMessage = err instanceof Error ? err.message : "";
+      setError(
+        messageFromApiResponseBody(rawMessage, 400, getNetworkFailureHint(err)),
+      );
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const loginTelegram = async (telegramUser: TelegramAuthUser) => {
     try {
       setIsSubmitting(true);
@@ -286,6 +325,7 @@ export function useAuth(options?: UseAuthOptions) {
     error,
     isSubmitting,
     login,
+    register,
     loginTelegram,
     logout,
     refreshUsers: fetchUsers,

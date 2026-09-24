@@ -22,7 +22,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useHydrated } from "@/hooks/useHydrated";
 import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX } from "@/hooks/useMediaQuery";
-import { PenLine, Pin, PinOff, Trash2 } from "lucide-react";
+import { PenLine, Trash2 } from "lucide-react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { getInitials } from "@/lib/utils";
 import styles from "@/components/MessageBubble/MessageBubble.module.scss";
@@ -60,9 +60,6 @@ type MessageBubbleProps = {
   hideSenderName?: boolean;
   hideOwnSenderName?: boolean;
   senderNameMode?: "inline" | "compact-above";
-  isPinned?: boolean;
-  showPinControl?: boolean;
-  onTogglePin?: (message: Message) => void;
 };
 
 const SWIPE_REPLY_THRESHOLD = 56;
@@ -406,9 +403,6 @@ function MessageBubble({
   hideSenderName = false,
   hideOwnSenderName = false,
   senderNameMode = "inline",
-  isPinned = false,
-  showPinControl = false,
-  onTogglePin,
 }: MessageBubbleProps) {
   const t = useTranslations("chat");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -653,7 +647,7 @@ function MessageBubble({
     }
   };
 
-  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""} ${isPinned ? styles.bubblePinned : ""}`;
+  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`;
   const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen);
   const reactionsClassName = `${styles.messageReactions} ${isOwnMessage ? styles.messageReactionsOwn : styles.messageReactionsPeer}`;
   const interactiveBubbleProps = {
@@ -985,27 +979,6 @@ function MessageBubble({
 
       <div className={styles.metaRow}>
         <div className={styles.metaActions}>
-          {showPinControl && onTogglePin ? (
-            <button
-              type="button"
-              className={`${styles.metaActionIcon} ${isPinned ? styles.metaActionIconPinned : ""}`}
-              data-bubble-control
-              onClick={(event) => {
-                event.stopPropagation();
-                onTogglePin(message);
-              }}
-              aria-label={
-                isPinned ? t("unpinMessageAria") : t("pinMessageAria")
-              }
-              title={isPinned ? t("unpinMessage") : t("pinMessage")}
-            >
-              {isPinned ? (
-                <PinOff size={15} strokeWidth={2.1} aria-hidden />
-              ) : (
-                <Pin size={15} strokeWidth={2.1} aria-hidden />
-              )}
-            </button>
-          ) : null}
           {isOwnMessage &&
           onEdit &&
           message.type !== "VOICE" &&

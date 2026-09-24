@@ -324,6 +324,44 @@ export async function loginWithPassword(
   return payload;
 }
 
+/**
+ * Реєстрація йде тим самим шляхом, що й логін: через same-origin проксі `/api/auth`,
+ * який перевидає HttpOnly refresh-cookie на домені фронтенду. Через прямий виклик бекенда
+ * cookie не закріплювалася (Safari PWA блокує cross-site), і сесія після реєстрації жила
+ * лише до протухання access-токена.
+ */
+export async function registerWithPassword(input: {
+  email: string;
+  username: string;
+  password: string;
+}): Promise<AuthSessionPayload> {
+  const response = await fetch(`${AUTH_PROXY_URL}/register`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text || "Register failed");
+  }
+
+  const payload = JSON.parse(text) as AuthSessionPayload;
+  if (!payload?.access_token) {
+    throw new Error("Register response does not contain access token");
+  }
+
+  setAuthToken(payload.access_token);
+  if (payload.user) {
+    setAuthenticatedUser(payload.user);
+  }
+  markAuthInitialized();
+  return payload;
+}
+
 export async function loginWithTelegram(
   telegramUser: TelegramAuthUser,
 ): Promise<AuthSessionPayload> {
