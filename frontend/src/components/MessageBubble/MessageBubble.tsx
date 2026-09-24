@@ -1031,6 +1031,7 @@ function MessageBubble({
                     <motion.button
                       key="reaction-overlay"
                       type="button"
+                      data-app-overlay
                       className={styles.reactionOverlay}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}

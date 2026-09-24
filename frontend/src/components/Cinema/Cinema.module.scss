@@ -166,6 +166,8 @@
   align-items: center;
   gap: 14px;
   padding: 16px;
+  /* Кнопка не під лампочкою теми (body 10 + сторінка 16 + шапка 16 = 42px до краю). */
+  padding-right: max(16px, calc(var(--theme-toggle-inset) - 26px));
   border: 1px solid var(--c-line);
   border-top: none;
   border-radius: 30px;

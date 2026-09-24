@@ -109,6 +109,29 @@ body.offlinePage {
 @media (max-width: 1023px) {
   body.chatRoomPage {
     padding-bottom: 0;
+    /* Екран чату — fixed по видимій області; сама сторінка під ним не прокручується. */
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}
+
+/*
+ * Місце під лампочку ThemeToggle (fixed у правому верхньому куті): скільки пікселів від правого
+ * краю екрана вона займає разом із невеликим зазором. Шапки екранів беруть звідси відступ справа:
+ *   padding-right: max(0px, calc(var(--theme-toggle-inset) - <власна відстань до краю екрана>));
+ * Коли лампочки немає (профіль, офлайн, кінозала) або на широкому екрані вона поза контентом — 0.
+ */
+:root {
+  --theme-toggle-inset: 0px;
+}
+
+:root:has([data-theme-toggle]) {
+  --theme-toggle-inset: 58px;
+}
+
+@media (min-width: 1500px) {
+  :root:has([data-theme-toggle]) {
+    --theme-toggle-inset: 0px;
   }
 }
 

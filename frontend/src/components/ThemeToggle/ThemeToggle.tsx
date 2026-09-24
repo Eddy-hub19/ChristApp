@@ -61,7 +61,7 @@ export default function ThemeToggle() {
   }
 
   return (
-    <div className={styles.hanger}>
+    <div className={styles.hanger} data-theme-toggle>
       <span className={styles.mount} />
       <button
         type="button"

@@ -5,27 +5,41 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  /* Поля з урахуванням вирізів і смужки «додому». */
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   background: rgba(10, 10, 10, 0.72);
   backdrop-filter: blur(4px);
 }
 
 .card {
   width: min(760px, 96vw);
-  max-height: min(92vh, 860px);
-  overflow: auto;
+  /* Раніше min(92vh, 860px): на iOS 92vh вищі за видиму область — низ списку питань обрізався. */
+  max-height: min(860px, calc(100vh - 32px));
+  max-height: min(
+    860px,
+    calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 96%, var(--background));
   box-shadow: 0 20px 45px -30px rgba(0, 0, 0, 0.65);
-  padding: 12px;
+  padding: 0 12px 16px;
 }
 
+/* Шапка залишається зверху, поки сітка й питання прокручуються під нею. */
 .topRow {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin: 0 -12px 6px;
+  padding: 12px 12px 6px;
+  background: color-mix(in srgb, var(--surface-elevated) 96%, var(--background));
 }
 
 .title {
@@ -35,12 +49,31 @@
 }
 
 .close {
+  /* Зона дотику 44×44; від'ємний відступ, щоб хрестик не роздував шапку. */
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px -8px 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
   font-size: 24px;
   line-height: 1;
+
+  &:hover,
+  &:active {
+    background: color-mix(in srgb, var(--line-soft) 40%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 .progressRow {

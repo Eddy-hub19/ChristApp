@@ -5,13 +5,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  /* Поля з урахуванням вирізів і смужки «додому». */
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   background: rgba(10, 10, 10, 0.68);
   backdrop-filter: blur(4px);
 }
 
 .card {
   width: min(520px, 96vw);
+  /* Видима область (dvh), а не 100vh: на iOS vh більший за екран із панелями Safari. */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 95%, var(--background));
@@ -33,12 +40,31 @@
 }
 
 .close {
+  /* Зона дотику 44×44; від'ємний відступ, щоб хрестик не роздував шапку. */
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px -8px 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--foreground);
   cursor: pointer;
   font-size: 24px;
   line-height: 1;
+
+  &:hover,
+  &:active {
+    background: color-mix(in srgb, var(--line-soft) 40%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 .scoreLine,

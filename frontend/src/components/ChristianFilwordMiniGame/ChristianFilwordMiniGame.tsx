@@ -457,7 +457,13 @@ export default function ChristianFilwordMiniGame({
       onPointerCancel={completeSelection}
       onClick={onClose}
     >
-      <div className={styles.card} onClick={(event) => event.stopPropagation()}>
+      <div
+        className={styles.card}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Христианский филворд"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className={styles.topRow}>
           <p className={styles.title}>Христианский филворд</p>
           <button

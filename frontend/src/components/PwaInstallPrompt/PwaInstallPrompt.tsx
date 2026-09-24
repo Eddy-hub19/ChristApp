@@ -141,7 +141,8 @@ export default function PwaInstallPrompt() {
       <div
         className={sheetClass}
         role="dialog"
-        aria-modal="true"
+        aria-modal={open}
+        aria-hidden={!open}
         aria-labelledby="pwa-install-title"
       >
         <div className={styles.handle} aria-hidden />

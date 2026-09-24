@@ -45,6 +45,7 @@ import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useVideoRecorder } from "@/hooks/useVideoRecorder";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { focusChatComposer } from "@/lib/chatComposerFocus";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
 import { Gamepad2, Phone } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -2501,6 +2502,8 @@ export default function ChatPageDetails() {
   const handleReplyMessage = (message: Message) => {
     setReplyToMessage(message);
     setEditingMessage(null);
+    // Синхронно в жесті — інакше iOS не відкриє (або закриє) клавіатуру.
+    focusChatComposer();
   };
 
   const handleMissingReferencedMessage = useCallback(() => {
@@ -2513,6 +2516,7 @@ export default function ChatPageDetails() {
       if (message.type && message.type !== "TEXT") return;
       setEditingMessage(message);
       setReplyToMessage(null);
+      focusChatComposer();
     },
     [user],
   );
@@ -3422,64 +3426,65 @@ export default function ChatPageDetails() {
                 </button>
               ) : null}
               {directChatTargetUser ? (
-                <div className={styles.gameMenuWrap}>
+                <div className={styles.headerActions}>
+                  <div className={styles.gameMenuWrap}>
+                    <button
+                      type="button"
+                      className={styles.gameButton}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIsGameMenuOpen((prev) => !prev);
+                      }}
+                      aria-label="Игры"
+                      aria-haspopup="menu"
+                      aria-expanded={isGameMenuOpen}
+                      title="Игры"
+                    >
+                      <Gamepad2 size={18} strokeWidth={2.1} aria-hidden />
+                    </button>
+                    {isGameMenuOpen ? (
+                      <div
+                        className={styles.gameMenu}
+                        role="menu"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          className={styles.gameMenuItem}
+                          role="menuitem"
+                          onClick={handleOpenDoodle}
+                        >
+                          Doodle
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.gameMenuItem}
+                          role="menuitem"
+                          onClick={handleOpenSnake}
+                        >
+                          Snake
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.gameMenuItem}
+                          role="menuitem"
+                          onClick={handleOpenFilword}
+                        >
+                          Филворд
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
-                    className={styles.gameButton}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setIsGameMenuOpen((prev) => !prev);
-                    }}
-                    aria-label="Открыть меню игр"
-                    title="Game"
+                    className={styles.callButton}
+                    onClick={handleStartCall}
+                    aria-label="Аудиозвонок"
+                    title="Аудиозвонок"
                   >
-                    <Gamepad2 size={14} strokeWidth={2.2} aria-hidden />
-                    <span>Game</span>
+                    <Phone size={17} strokeWidth={2.1} aria-hidden />
                   </button>
-                  {isGameMenuOpen ? (
-                    <div
-                      className={styles.gameMenu}
-                      role="menu"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className={styles.gameMenuItem}
-                        role="menuitem"
-                        onClick={handleOpenDoodle}
-                      >
-                        Doodle
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.gameMenuItem}
-                        role="menuitem"
-                        onClick={handleOpenSnake}
-                      >
-                        Snake
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.gameMenuItem}
-                        role="menuitem"
-                        onClick={handleOpenFilword}
-                      >
-                        Филворд
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
-              ) : null}
-              {directChatTargetUser ? (
-                <button
-                  type="button"
-                  className={styles.callButton}
-                  onClick={handleStartCall}
-                  aria-label="Аудиозвонок"
-                  title="Аудиозвонок"
-                >
-                  <Phone size={17} strokeWidth={2.1} aria-hidden />
-                </button>
               ) : null}
             </div>
           </div>
@@ -3617,6 +3622,8 @@ export default function ChatPageDetails() {
           >
             <div
               className={styles.avatarPreviewCard}
+              role="dialog"
+              aria-modal="true"
               onClick={(event) => event.stopPropagation()}
             >
               <button
@@ -3660,6 +3667,8 @@ export default function ChatPageDetails() {
           >
             <div
               className={styles.profilePreviewCard}
+              role="dialog"
+              aria-modal="true"
               onClick={(event) => event.stopPropagation()}
             >
               <button

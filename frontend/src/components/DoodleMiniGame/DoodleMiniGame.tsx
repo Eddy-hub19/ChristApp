@@ -8,8 +8,16 @@ type Platform = {
   y: number;
   w: number;
   kind: "solid" | "breakable";
+  /** Сколько раз на хрупкую платформу уже приземлились: 1 — треснула, 2 — сломана. */
+  hits: number;
   broken: boolean;
   fallSpeed: number;
+  /** Кадры покачивания после первого приземления (затухает до 0). */
+  wobble: number;
+  /** Кадры с момента разлома — для анимации разлетающихся половинок. */
+  breakT: number;
+  /** Кадр последнего засчитанного приземления — защита от двойного срабатывания. */
+  lastHitFrame: number;
 };
 
 export type DoodleRuntimeState = {
@@ -44,6 +52,11 @@ const DESKTOP_JUMP_VELOCITY = -6.9;
 const MOVE_SPEED = 3.8;
 const BREAKABLE_SCORE_THRESHOLD = 1000;
 const BREAKABLE_PLATFORM_CHANCE = 0.3;
+/** С какого приземления хрупкая платформа ломается. */
+const BREAKABLE_HITS_TO_BREAK = 2;
+const CRACK_WOBBLE_FRAMES = 18;
+/** Минимум кадров между двумя засчитанными приземлениями на одну платформу. */
+const HIT_COOLDOWN_FRAMES = 8;
 
 export default function DoodleMiniGame({
   open,
@@ -119,6 +132,7 @@ export default function DoodleMiniGame({
     let alive = true;
     let cameraY = 0;
     let score = 0;
+    let frame = 0;
 
     const player = {
       x: WORLD_W / 2 - PLAYER_W / 2,
@@ -142,8 +156,12 @@ export default function DoodleMiniGame({
       y: basePlatformY,
       w: 86,
       kind: "solid",
+      hits: 0,
       broken: false,
       fallSpeed: 0,
+      wobble: 0,
+      breakT: 0,
+      lastHitFrame: -Infinity,
     });
     for (let i = 1; i < 9; i += 1) {
       platforms.push({
@@ -151,8 +169,12 @@ export default function DoodleMiniGame({
         y: basePlatformY - i * 64,
         w: 72,
         kind: "solid",
+        hits: 0,
         broken: false,
         fallSpeed: 0,
+        wobble: 0,
+        breakT: 0,
+        lastHitFrame: -Infinity,
       });
     }
 
@@ -198,20 +220,34 @@ export default function DoodleMiniGame({
         if (py < -20 || py > WORLD_H + 20) continue;
 
         if (platform.broken) {
+          // Две половинки разлетаются в стороны, вращаются и тускнеют, падая вниз.
+          const t = platform.breakT;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, 1 - t / 60);
           ctx.fillStyle = "#ba9550";
           ctx.save();
-          ctx.translate(platform.x + platform.w * 0.32, py + 5);
-          ctx.rotate(-0.22);
-          ctx.fillRect(-platform.w * 0.28, -3, platform.w * 0.48, 6);
+          ctx.translate(platform.x + platform.w * 0.3 - t * 0.7, py + 5);
+          ctx.rotate(-0.22 - t * 0.035);
+          ctx.fillRect(-platform.w * 0.26, -3, platform.w * 0.5, 6);
           ctx.restore();
 
           ctx.save();
-          ctx.translate(platform.x + platform.w * 0.72, py + 7);
-          ctx.rotate(0.28);
-          ctx.fillRect(-platform.w * 0.22, -3, platform.w * 0.44, 6);
+          ctx.translate(platform.x + platform.w * 0.72 + t * 0.7, py + 7);
+          ctx.rotate(0.28 + t * 0.04);
+          ctx.fillRect(-platform.w * 0.22, -3, platform.w * 0.46, 6);
+          ctx.restore();
           ctx.restore();
           continue;
         }
+
+        // Треснувшая платформа коротко покачивается после первого приземления.
+        const cracked = platform.kind === "breakable" && platform.hits > 0;
+        const wobbleX =
+          platform.wobble > 0
+            ? Math.sin(platform.wobble * 1.3) * platform.wobble * 0.12
+            : 0;
+        ctx.save();
+        ctx.translate(wobbleX, 0);
 
         // Платформа-овечка: ушки + мягкая "шерстяная" подушка.
         ctx.fillStyle = "#d9b889";
@@ -231,10 +267,18 @@ export default function DoodleMiniGame({
         ctx.fill();
 
         drawRoundedRect(platform.x, py + 2, platform.w, 10, 5);
-        ctx.fillStyle = platform.kind === "breakable" ? "#f0c98b" : "#f3ecd9";
+        ctx.fillStyle = cracked
+          ? "#dcae6c"
+          : platform.kind === "breakable"
+            ? "#f0c98b"
+            : "#f3ecd9";
         ctx.fill();
 
-        ctx.strokeStyle = platform.kind === "breakable" ? "#c7864f" : "#d4b159";
+        ctx.strokeStyle = cracked
+          ? "#9e5f2e"
+          : platform.kind === "breakable"
+            ? "#c7864f"
+            : "#d4b159";
         ctx.lineWidth = 1;
         ctx.stroke();
 
@@ -263,6 +307,23 @@ export default function DoodleMiniGame({
           ctx.lineTo(platform.x + platform.w * 0.61, py + 5);
           ctx.stroke();
         }
+
+        if (cracked) {
+          // После первого приземления: глубокая трещина через всю платформу — второй раз не выдержит.
+          ctx.strokeStyle = "rgba(92, 48, 18, 0.9)";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(platform.x + platform.w * 0.5, py + 2);
+          ctx.lineTo(platform.x + platform.w * 0.45, py + 6);
+          ctx.lineTo(platform.x + platform.w * 0.55, py + 8);
+          ctx.lineTo(platform.x + platform.w * 0.48, py + 12);
+          ctx.moveTo(platform.x + platform.w * 0.45, py + 6);
+          ctx.lineTo(platform.x + platform.w * 0.3, py + 4);
+          ctx.moveTo(platform.x + platform.w * 0.55, py + 8);
+          ctx.lineTo(platform.x + platform.w * 0.72, py + 10);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       const peerY = ghost.initialized
@@ -296,6 +357,7 @@ export default function DoodleMiniGame({
 
     const update = () => {
       if (!alive) return;
+      frame += 1;
 
       const targetPeer = peerStateRef.current;
       if (targetPeer) {
@@ -339,10 +401,24 @@ export default function DoodleMiniGame({
           const crossedTop =
             playerBottomPrev <= platformTop && playerBottomNext >= platformTop;
           if (intersectsX && crossedTop) {
-            if (p.kind === "breakable" && score >= BREAKABLE_SCORE_THRESHOLD) {
+            // Одно приземление засчитывается один раз: повторное касание в пределах нескольких кадров игнорируем.
+            if (frame - p.lastHitFrame < HIT_COOLDOWN_FRAMES) {
+              continue;
+            }
+            p.lastHitFrame = frame;
+
+            const isFragile =
+              p.kind === "breakable" && score >= BREAKABLE_SCORE_THRESHOLD;
+            if (isFragile) p.hits += 1;
+
+            if (isFragile && p.hits >= BREAKABLE_HITS_TO_BREAK) {
+              // Второе приземление: платформа ломается, игрок проваливается сквозь неё.
               p.broken = true;
               p.fallSpeed = 2.2;
+              p.breakT = 0;
             } else {
+              // Обычный отскок; хрупкая после первого раза трескается и покачивается.
+              if (isFragile) p.wobble = CRACK_WOBBLE_FRAMES;
               player.y = p.y - PLAYER_H;
               player.vy = jumpVelocity;
             }
@@ -352,11 +428,13 @@ export default function DoodleMiniGame({
       }
 
       for (const p of platforms) {
+        if (p.wobble > 0) p.wobble -= 1;
         if (!p.broken) {
           continue;
         }
         p.y += p.fallSpeed;
         p.fallSpeed += 0.22;
+        p.breakT += 1;
       }
 
       if (player.y - cameraY < WORLD_H * 0.35) {
@@ -372,8 +450,13 @@ export default function DoodleMiniGame({
             score >= BREAKABLE_SCORE_THRESHOLD &&
             Math.random() < BREAKABLE_PLATFORM_CHANCE;
           p.kind = canBreak ? "breakable" : "solid";
+          // Платформа переиспользуется — полностью сбрасываем трещины и разлом.
+          p.hits = 0;
           p.broken = false;
           p.fallSpeed = 0;
+          p.wobble = 0;
+          p.breakT = 0;
+          p.lastHitFrame = -Infinity;
         }
       }
 
@@ -466,7 +549,13 @@ export default function DoodleMiniGame({
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.card} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.card}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Doodle"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.topRow}>
           <p className={styles.title}>Doodle</p>
           <button
