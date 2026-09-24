@@ -309,6 +309,8 @@ export default function CallScreen({
       {isOpen && isVisible ? (
         <motion.div
           className={styles.overlay}
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0, backdropFilter: "blur(2px)" }}
           animate={{ opacity: 1, backdropFilter: "blur(20px)" }}
           exit={{ opacity: 0, backdropFilter: "blur(2px)" }}

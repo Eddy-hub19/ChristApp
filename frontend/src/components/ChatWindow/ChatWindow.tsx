@@ -188,18 +188,28 @@ function ChatWindow({
     .map((item) => `${item.username}:${item.activity}`)
     .join("|");
 
+  /**
+   * Прокрутка лише самого списку. `scrollIntoView` прокручує ще й усі батьківські контейнери
+   * та сторінку — на iOS з відкритою клавіатурою через це «їхав» увесь екран разом із шапкою.
+   */
+  const scrollListToBottom = useCallback((behavior: ScrollBehavior) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+  }, []);
+
   useEffect(() => {
     if (!didInitialScrollRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+      scrollListToBottom("auto");
       didInitialScrollRef.current = true;
       shouldFollowBottomRef.current = true;
       return;
     }
 
     if (shouldFollowBottomRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      scrollListToBottom("smooth");
     }
-  }, [messages.length, typingStatusesKey]);
+  }, [messages.length, typingStatusesKey, scrollListToBottom]);
 
   const estimateScrollDownThresholdPx = useCallback(() => {
     const lastMessages = messages.slice(-SCROLL_DOWN_TRIGGER_MESSAGES);
@@ -268,11 +278,71 @@ function ChatWindow({
       if (!shouldFollowBottomRef.current) {
         return;
       }
-      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      scrollListToBottom("auto");
     });
 
     observer.observe(container);
     return () => observer.disconnect();
+  }, [scrollListToBottom]);
+
+  /**
+   * Клавіатура ховається лише за бажанням людини (як у Telegram):
+   * тап по порожньому місцю списку або свайп списку вниз. Нові повідомлення та перерисовки її не чіпають.
+   */
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const SWIPE_DOWN_DISMISS_PX = 36;
+    let startY: number | null = null;
+    let startX = 0;
+
+    const composerFocused = () => {
+      const active = document.activeElement;
+      return active instanceof HTMLElement && active.hasAttribute("data-chat-composer")
+        ? active
+        : null;
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      startY = event.touches[0]?.clientY ?? null;
+      startX = event.touches[0]?.clientX ?? 0;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (startY === null) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dy = touch.clientY - startY;
+      const dx = Math.abs(touch.clientX - startX);
+      if (dy > SWIPE_DOWN_DISMISS_PX && dy > dx * 1.5) {
+        composerFocused()?.blur();
+        startY = null;
+      }
+    };
+
+    const onClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+      // Тап по повідомленню, кнопці, посиланню тощо — не «порожнє місце».
+      if (
+        target.closest(
+          "[data-chat-message], button, a, input, textarea, select, audio, video, [role='button']",
+        )
+      ) {
+        return;
+      }
+      composerFocused()?.blur();
+    };
+
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: true });
+    container.addEventListener("click", onClick);
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("click", onClick);
+    };
   }, []);
 
   const typingLine = formatTypingLine(typingStatuses);
@@ -304,7 +374,17 @@ function ChatWindow({
         return;
       }
 
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Центруємо повідомлення в межах списку, не зачіпаючи прокрутку сторінки (див. scrollListToBottom).
+      const container = scrollContainerRef.current;
+      if (container) {
+        const targetRect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const top =
+          container.scrollTop +
+          (targetRect.top - containerRect.top) -
+          (container.clientHeight - targetRect.height) / 2;
+        container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }
       setHighlightedMessageId(messageId);
       if (highlightTimerRef.current !== null) {
         window.clearTimeout(highlightTimerRef.current);
@@ -343,7 +423,7 @@ function ChatWindow({
   };
 
   const renderBubbleBody = (message: Message) => (
-    <div ref={(element) => setMessageRef(message.id, element)}>
+    <div ref={(element) => setMessageRef(message.id, element)} data-chat-message>
       {(() => {
         const readReceiptUsers =
           readReceiptUsersByMessageId?.get(message.id) ?? [];
@@ -385,8 +465,8 @@ function ChatWindow({
   );
 
   const handleScrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, []);
+    scrollListToBottom("smooth");
+  }, [scrollListToBottom]);
 
   return (
     <div className={styles.chatWindowFrame}>

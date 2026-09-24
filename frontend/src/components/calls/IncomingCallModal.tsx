@@ -21,6 +21,8 @@ export default function IncomingCallModal({
       {open ? (
         <motion.div
           className={styles.backdrop}
+          role="dialog"
+          aria-modal="true"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

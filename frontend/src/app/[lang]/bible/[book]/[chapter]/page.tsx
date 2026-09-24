@@ -73,7 +73,7 @@ export default function ChapterPage({ params }: Props) {
   return (
     <main className={`${styles.main} container`}>
       {isBookSelectorOpen && (
-        <div className={styles.modal}>
+        <div className={styles.modal} role="dialog" aria-modal="true">
           <BookDropdown
             books={bible.Books}
             selectedBook={selectedBook}
@@ -83,7 +83,7 @@ export default function ChapterPage({ params }: Props) {
         </div>
       )}
       {isChapterSelectorOpen && selectedBook && (
-        <div className={styles.modal}>
+        <div className={styles.modal} role="dialog" aria-modal="true">
           <ChapterList book={selectedBook} onSelect={handleChapterSelect} />
           <button onClick={() => setIsChapterSelectorOpen(false)}>
             Закрыть

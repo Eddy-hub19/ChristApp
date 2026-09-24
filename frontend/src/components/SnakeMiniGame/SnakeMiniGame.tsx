@@ -329,7 +329,13 @@ export default function SnakeMiniGame({
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.card} onClick={(event) => event.stopPropagation()}>
+      <div
+        className={styles.card}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Snake"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className={styles.topRow}>
           <p className={styles.title}>Snake</p>
           <button

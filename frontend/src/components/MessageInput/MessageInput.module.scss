@@ -116,8 +116,9 @@
     width: 100%;
     background: var(--accent-soft);
     color: color-mix(in srgb, var(--foreground) 82%, #000 18%);
-    line-height: 1.35;
     font: inherit;
+    /* Після `font: inherit`, інакше він скидає висоту рядка. До ~5 рядків, далі — прокрутка всередині. */
+    line-height: 1.35;
 
     &::placeholder {
       color: var(--text-muted);

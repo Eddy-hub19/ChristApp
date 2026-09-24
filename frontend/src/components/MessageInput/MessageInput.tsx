@@ -60,12 +60,15 @@ const VOICE_CANCEL_THRESHOLD_PX = 90;
 /** Свайп угору далі цього порога — запис фіксується, тримати кнопку більше не треба. */
 const VOICE_LOCK_THRESHOLD_PX = 70;
 
-/** Після очищення поля на мобільних PWA треба повернути фокус; на iOS — повтор у наступному тіку. */
+/**
+ * Страховка після відправки: зазвичай фокус і так лишається в полі (кнопка не забирає його
+ * на pointerdown), але якщо браузер усе ж зняв фокус — повертаємо без прокрутки сторінки.
+ */
 function focusComposerTextarea(textarea: HTMLTextAreaElement | null) {
-  if (!textarea) return;
-  textarea.focus();
+  if (!textarea || document.activeElement === textarea) return;
+  textarea.focus({ preventScroll: true });
   window.setTimeout(() => {
-    textarea.focus();
+    if (document.activeElement !== textarea) textarea.focus({ preventScroll: true });
   }, 0);
 }
 
@@ -214,7 +217,7 @@ export default function MessageInput({
     setIsStickerPickerOpen(false);
     setValue(editingMessage.content);
     requestAnimationFrame(() => {
-      textareaRef.current?.focus();
+      textareaRef.current?.focus({ preventScroll: true });
     });
   }, [editingMessage]);
 
@@ -582,6 +585,7 @@ export default function MessageInput({
           ) : (
             <textarea
               ref={textareaRef}
+              data-chat-composer
               value={value}
               onChange={(event) => setValue(event.target.value)}
               onFocus={() =>
@@ -612,7 +616,9 @@ export default function MessageInput({
               placeholder={composerPlaceholder}
               className={styles.input}
               aria-label={t("composerMessageAria")}
-              readOnly={disabled || isSending}
+              // Не readOnly під час відправки: на iOS зміна readOnly у фокусованого поля закриває
+              // клавіатуру. Повторну відправку й так блокує isSendingRef у submit().
+              readOnly={disabled}
             />
           )}
 

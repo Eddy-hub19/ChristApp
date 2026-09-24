@@ -13,6 +13,7 @@ import Verse from "@/components/Verse/Verse";
 import ShareToChatModal from "@/components/Verse/ShareToChatModal";
 import styles from "./BibleReader.module.scss";
 import Image from "next/image";
+import { useAutoHideOnScroll } from "@/hooks/useAutoHideOnScroll";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -150,8 +151,6 @@ export default function BibleReader({
   const chapterReadSentinelRef = useRef<HTMLDivElement | null>(null);
   /** Щоб не перезаписувати книгу/главу при кожному новому reference `books` з useQuery. */
   const readerLayoutTranslationRef = useRef<string | null>(null);
-  /** На мобільному: ховаємо нижні стрілки під час прокрутки тексту глави. */
-  const [floatingNavScrolledAway, setFloatingNavScrolledAway] = useState(false);
 
   // ===== ЗАВАНТАЖЕННЯ ГЛАВИ =====
   const loadChapter = useCallback((book: BookType, chapter: number) => {
@@ -575,7 +574,6 @@ export default function BibleReader({
     if (el) {
       el.scrollTop = 0;
     }
-    setFloatingNavScrolledAway(false);
   }, [currentBook?.id, currentChapter, versesIsLoading, hasVersesData]);
 
   const didScrollToInitialVerseRef = useRef(false);
@@ -603,19 +601,8 @@ export default function BibleReader({
     hasVersesData,
   ]);
 
-  useEffect(() => {
-    if (!currentBook || (versesIsLoading && !hasVersesData)) return undefined;
-    const el = versesSectionRef.current;
-    if (!el) return undefined;
-    const threshold = 40;
-    const onScroll = () => {
-      const away = el.scrollTop > threshold;
-      setFloatingNavScrolledAway((prev) => (prev === away ? prev : away));
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [
+  /** Стрілки глав ховаються, поки гортаємо вниз, і повертаються після паузи / скролу вгору / в кінці глави. */
+  const floatingNavScrolledAway = useAutoHideOnScroll(versesSectionRef, [
     currentBook?.id,
     currentChapter,
     versesIsLoading,
@@ -715,6 +702,8 @@ export default function BibleReader({
         >
           <div
             className={styles.modalSheet}
+            role="dialog"
+            aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.modalHeader}>
@@ -813,6 +802,7 @@ export default function BibleReader({
       {/* FLOATING NAV: нижче 900px — fixed внизу; під час прокрутки глави з'їжджають вниз */}
       <div
         className={`${styles.floatingNavRow} ${floatingNavScrolledAway ? styles.floatingNavRowHidden : ""}`}
+        inert={floatingNavScrolledAway}
       >
         <div className={styles.floatingNavLeft}>
           <button

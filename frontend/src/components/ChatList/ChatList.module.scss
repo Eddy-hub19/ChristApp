@@ -328,7 +328,8 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding-right: 60px;
+      /* Кнопки не під лампочкою теми (шапка стоїть 10px від правого краю екрана — відступ body). */
+      padding-right: max(0px, calc(var(--theme-toggle-inset) - 10px));
     }
 
     .headerActionHidden {
