@@ -31,17 +31,6 @@ export type AuthSessionPayload = {
   user?: AuthUser;
 };
 
-/** Полезная нагрузка колбэка Telegram Login Widget (см. `onTelegramAuth(user)`). */
-export type TelegramAuthUser = {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: number;
-  hash: string;
-};
-
 type AuthSnapshot = {
   initialized: boolean;
   user: AuthUser | null;
@@ -352,36 +341,6 @@ export async function registerWithPassword(input: {
   const payload = JSON.parse(text) as AuthSessionPayload;
   if (!payload?.access_token) {
     throw new Error("Register response does not contain access token");
-  }
-
-  setAuthToken(payload.access_token);
-  if (payload.user) {
-    setAuthenticatedUser(payload.user);
-  }
-  markAuthInitialized();
-  return payload;
-}
-
-export async function loginWithTelegram(
-  telegramUser: TelegramAuthUser,
-): Promise<AuthSessionPayload> {
-  const response = await fetch(`${AUTH_PROXY_URL}/auth/telegram`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(telegramUser),
-  });
-
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(text || "Telegram login failed");
-  }
-
-  const payload = JSON.parse(text) as AuthSessionPayload;
-  if (!payload?.access_token) {
-    throw new Error("Telegram login response does not contain access token");
   }
 
   setAuthToken(payload.access_token);

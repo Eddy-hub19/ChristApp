@@ -121,11 +121,6 @@ function shouldBypassSwFetch(request) {
     return true;
   }
 
-  /** Виджет Telegram Login грузит скрипт и iframe с этих доменов — SWR-кеш для Nest API им только мешает (свой CSP у sw.js не пускает connect-src). */
-  if (url.hostname === "telegram.org" || url.hostname.endsWith(".telegram.org")) {
-    return true;
-  }
-
   const p = url.pathname;
   if (p === "/login" || p === "/register") {
     return true;

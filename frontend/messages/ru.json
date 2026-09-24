@@ -20,8 +20,6 @@
     "createAccount": "Создать аккаунт",
     "noAccount": "Нет аккаунта?",
     "registerLink": "Регистрация",
-    "orContinueWith": "или войдите через",
-    "telegramLoggingIn": "Входим через Telegram...",
     "warmupConnecting": "Подключаемся к серверу",
     "warmupUnavailable": "Сервер запускается или недоступен",
     "warmupCheckingBody": "Проверяем связь с API. Обычно это занимает несколько секунд.",

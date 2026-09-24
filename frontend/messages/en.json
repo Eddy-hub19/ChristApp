@@ -20,8 +20,6 @@
     "createAccount": "Create account",
     "noAccount": "Don't have an account?",
     "registerLink": "Register",
-    "orContinueWith": "or continue with",
-    "telegramLoggingIn": "Signing in with Telegram...",
     "warmupConnecting": "Connecting to server",
     "warmupUnavailable": "Server is starting or unavailable",
     "warmupCheckingBody": "Checking API. Usually takes a few seconds.",

@@ -5,7 +5,6 @@ import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { JwtStrategy } from './jwt.strategy';
-import { TelegramAuthService } from './telegram-auth.service';
 
 @Module({
   imports: [
@@ -34,7 +33,7 @@ import { TelegramAuthService } from './telegram-auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, TelegramAuthService],
+  providers: [AuthService, JwtStrategy],
   exports: [JwtModule, AuthService],
 })
 export class AuthModule {}
