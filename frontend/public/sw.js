@@ -121,6 +121,18 @@ function shouldBypassSwFetch(request) {
     return true;
   }
 
+  /**
+   * YouTube IFrame API, прев'ю й відеопотоки «Кіношки»: SWR-кеш для Nest API їм не підходить,
+   * а CSP самого sw.js (connect-src) не пускає fetch до цих доменів.
+   */
+  if (
+    /(^|\.)(youtube\.com|youtube-nocookie\.com|ytimg\.com|googlevideo\.com|ggpht\.com)$/.test(
+      url.hostname,
+    )
+  ) {
+    return true;
+  }
+
   const p = url.pathname;
   if (p === "/login" || p === "/register") {
     return true;

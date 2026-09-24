@@ -1,0 +1,1164 @@
+/*
+ * Кінозала: завжди «темний зал» незалежно від теми застосунку.
+ * Екран — у центрі, зі світінням проектора; над ним — тонкий натяк на червону завісу;
+ * під ним — панель керування і ряд «крісел» із глядачами; чат — збоку або знизу.
+ */
+
+.hall {
+  --hall-bg: #09080c;
+  --hall-surface: rgba(255, 255, 255, 0.045);
+  --hall-surface-strong: rgba(255, 255, 255, 0.08);
+  --hall-line: rgba(255, 236, 205, 0.1);
+  --hall-text: #f4eee6;
+  --hall-muted: rgba(244, 238, 230, 0.6);
+  --hall-gold: #e6bf73;
+  --hall-gold-ink: #1b140a;
+  --hall-velvet: #7d1620;
+  --hall-velvet-deep: #3d070d;
+  --hall-online: #45d18b;
+  --hall-danger: #ff6b6b;
+  --curtain-h: 34px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  color: var(--hall-text);
+  color-scheme: dark;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 18%, rgba(255, 214, 160, 0.07), transparent 70%),
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(125, 22, 32, 0.18), transparent 70%),
+    var(--hall-bg);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0
+    env(safe-area-inset-left, 0px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-inter), "Inter", Arial, sans-serif;
+
+  @media (min-width: 768px) {
+    overflow: hidden;
+  }
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ================= ВЕРХНЯ ПАНЕЛЬ =================
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+
+.hallIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--hall-text);
+  background: var(--hall-surface);
+  border: 1px solid var(--hall-line);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    background: var(--hall-surface-strong);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--hall-gold);
+    outline-offset: 2px;
+  }
+}
+
+.topbarTitle {
+  flex: 1;
+  min-width: 0;
+
+  h1 {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  p {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--hall-muted);
+    white-space: nowrap;
+    overflow: hidden;
+
+    svg {
+      color: var(--hall-gold);
+      flex-shrink: 0;
+    }
+  }
+}
+
+.topbarVideo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inviteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  cursor: pointer;
+  box-shadow: 0 6px 18px -8px rgba(230, 191, 115, 0.8);
+
+  @media (max-width: 520px) {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+
+    span {
+      display: none;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.menuWrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  min-width: 220px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: #1a171f;
+  border: 1px solid var(--hall-line);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+  transform-origin: top right;
+
+  button,
+  a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--hall-text);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--hall-surface-strong);
+      outline: none;
+    }
+  }
+}
+
+.menuDanger {
+  color: var(--hall-danger) !important;
+}
+
+.connectionBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 14px 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #ffd9a8;
+  background: rgba(255, 170, 80, 0.12);
+  border: 1px solid rgba(255, 170, 80, 0.25);
+}
+
+// ================= РОЗКЛАДКА =================
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 12px 16px;
+
+  @media (min-width: 768px) {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    padding: 0 18px 18px;
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+.stageColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+
+  @media (min-width: 768px) {
+    min-height: 0;
+    overflow-y: auto;
+    justify-content: center;
+  }
+}
+
+// ================= ТЕАТР: ЗАВІСА + ЕКРАН + ПАНЕЛЬ =================
+
+.theater {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: calc(var(--curtain-h) + 10px);
+  width: 100%;
+  // Екран не більший за висоту вікна, щоб під ним лишалися панель і крісла.
+  max-width: calc((100dvh - 330px) * 16 / 9);
+  min-width: min(100%, 300px);
+  margin: 0 auto;
+
+  @media (max-width: 767px) {
+    max-width: none;
+  }
+}
+
+.curtain {
+  position: absolute;
+  inset: 0 -12px auto;
+  height: var(--curtain-h);
+  pointer-events: none;
+  // Ламбрекен: вертикальні складки оксамиту з фестонами знизу.
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--hall-velvet-deep) 0 6px,
+      var(--hall-velvet) 12px,
+      #9a2530 15px,
+      var(--hall-velvet) 18px,
+      var(--hall-velvet-deep) 26px
+    );
+  opacity: 0.78;
+  -webkit-mask:
+    radial-gradient(circle 14px at 14px 100%, transparent 98%, #000) 0 0 / 28px 100% repeat-x;
+  mask:
+    radial-gradient(circle 14px at 14px 100%, transparent 98%, #000) 0 0 / 28px 100% repeat-x;
+  border-radius: 0 0 6px 6px;
+  box-shadow: inset 0 6px 10px rgba(0, 0, 0, 0.5);
+
+  // Тонка золота кромка над завісою.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(230, 191, 115, 0.65), transparent);
+  }
+}
+
+// Бічні куліси — ледь помітні, згасають донизу.
+.curtainLeft,
+.curtainRight {
+  position: absolute;
+  top: var(--curtain-h);
+  width: 18px;
+  height: 55%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--hall-velvet-deep) 0 3px,
+    var(--hall-velvet) 7px,
+    var(--hall-velvet-deep) 11px
+  );
+  opacity: 0.45;
+  -webkit-mask: linear-gradient(180deg, #000, transparent);
+  mask: linear-gradient(180deg, #000, transparent);
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
+
+.curtainLeft {
+  left: -6px;
+  border-radius: 0 0 12px 0;
+}
+
+.curtainRight {
+  right: -6px;
+  border-radius: 0 0 0 12px;
+}
+
+.screenGlow {
+  position: relative;
+
+  // Світло проектора: м'яке тепле сяйво довкола екрана, ледь «дихає».
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -8% -6%;
+    z-index: 0;
+    border-radius: 40px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(255, 226, 180, 0.2),
+      rgba(255, 210, 150, 0.06) 45%,
+      transparent 70%
+    );
+    filter: blur(24px);
+    animation: projector 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes projector {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.screen {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+  box-shadow:
+    0 0 0 1px rgba(255, 236, 205, 0.08),
+    0 0 40px rgba(255, 220, 170, 0.14),
+    0 30px 60px -20px rgba(0, 0, 0, 0.9);
+
+  @media (max-width: 767px) {
+    border-radius: 14px;
+  }
+}
+
+.playerMount {
+  position: absolute;
+  inset: 0;
+
+  > div,
+  iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: 0;
+    display: block;
+  }
+}
+
+.enterGate {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  background: #000;
+  color: var(--hall-text);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.45) saturate(0.9);
+    transition:
+      filter 0.3s ease,
+      transform 0.6s ease;
+  }
+
+  &:hover img {
+    filter: brightness(0.55);
+    transform: scale(1.02);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--hall-gold);
+    outline-offset: -3px;
+  }
+}
+
+.enterGateInner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.enterGateButton {
+  padding: 12px 24px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  box-shadow: 0 0 30px rgba(230, 191, 115, 0.45);
+  animation: gatePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes gatePulse {
+  50% {
+    box-shadow: 0 0 44px rgba(230, 191, 115, 0.7);
+  }
+}
+
+.enterGateHint {
+  font-size: 12px;
+  color: var(--hall-muted);
+}
+
+.reactionsLayer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  // Реакції стартують від верхнього краю екрана й летять угору, у смугу завіси.
+  top: calc(var(--curtain-h) + 10px);
+  height: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.floatingEmoji {
+  position: absolute;
+  bottom: 0;
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+  will-change: transform, opacity;
+}
+
+.stageStatus {
+  display: flex;
+  justify-content: center;
+  min-height: 20px;
+  font-size: 12px;
+  color: var(--hall-muted);
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.stageError {
+  flex-wrap: wrap;
+  justify-content: center;
+  text-align: center;
+  color: #ffc2c2;
+
+  button {
+    padding: 4px 12px;
+    border-radius: 999px;
+    color: var(--hall-gold-ink);
+    background: var(--hall-gold);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.unmuteChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  cursor: pointer;
+  animation: gatePulse 2.4s ease-in-out infinite;
+}
+
+// ================= ПАНЕЛЬ КЕРУВАННЯ =================
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-radius: 18px;
+  background: var(--hall-surface);
+  border: 1px solid var(--hall-line);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time {
+  min-width: 40px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--hall-muted);
+  text-align: center;
+}
+
+.progress {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+
+  input {
+    position: absolute;
+    inset: -8px 0;
+    width: 100%;
+    height: 22px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(230, 191, 115, 0.35);
+    }
+
+    &::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border: 0;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(230, 191, 115, 0.35);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+
+      &::-webkit-slider-thumb {
+        opacity: 0;
+      }
+
+      &::-moz-range-thumb {
+        opacity: 0;
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--hall-gold);
+      outline-offset: 2px;
+      border-radius: 999px;
+    }
+  }
+}
+
+.progressLoaded,
+.progressPlayed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.progressLoaded {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.progressPlayed {
+  background: linear-gradient(90deg, #c99a4a, var(--hall-gold));
+  box-shadow: 0 0 10px rgba(230, 191, 115, 0.5);
+}
+
+.buttonsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.playButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(230, 191, 115, 0.4);
+  transition:
+    transform 0.15s ease,
+    opacity 0.2s ease;
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--hall-muted);
+    background: var(--hall-surface-strong);
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.controlledBy {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--hall-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  svg {
+    color: var(--hall-gold);
+    flex-shrink: 0;
+  }
+}
+
+.controlledByMe {
+  color: var(--hall-gold);
+  font-weight: 600;
+}
+
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  input {
+    width: 90px;
+    accent-color: var(--hall-gold);
+
+    @media (max-width: 480px) {
+      display: none;
+    }
+  }
+}
+
+// ================= ПОВНОЕКРАННИЙ РЕЖИМ =================
+
+.theaterFullscreen,
+.theaterPseudoFullscreen {
+  max-width: none;
+  padding: 12px;
+  justify-content: center;
+  background: #000;
+
+  .curtain,
+  .reactionsLayer {
+    display: none;
+  }
+
+  .screen {
+    width: min(100%, calc((100dvh - 140px) * 16 / 9));
+    margin: 0 auto;
+    border-radius: 10px;
+  }
+
+  .screenGlow {
+    width: 100%;
+  }
+
+  .controls {
+    width: min(100%, 960px);
+    margin: 0 auto;
+  }
+}
+
+// iPhone Safari: Fullscreen API для довільних елементів немає — розгортаємо засобами CSS.
+.theaterPseudoFullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+// ================= КРІСЛА =================
+
+.seats {
+  display: flex;
+  gap: 6px;
+  padding: 18px 4px 6px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  // Легкий «підйом» ряду — наче перший ряд залу.
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  justify-content: safe center;
+}
+
+.seat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 66px;
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  background: transparent;
+  color: var(--hall-text);
+  cursor: default;
+  opacity: 0.5;
+  filter: saturate(0.4);
+  transition:
+    opacity 0.3s ease,
+    filter 0.3s ease;
+
+  &:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--hall-gold);
+    outline-offset: 2px;
+    border-radius: 12px;
+  }
+}
+
+.seatOnline {
+  opacity: 1;
+  filter: none;
+}
+
+.seatBack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 48px;
+  border-radius: 18px 18px 8px 8px;
+  background: linear-gradient(180deg, #8a1c27, var(--hall-velvet-deep));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.45),
+    0 6px 14px -6px rgba(0, 0, 0, 0.8);
+
+  // Шов посередині спинки крісла.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 6px 50% 6px auto;
+    width: 1px;
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  > :global(*) {
+    position: relative;
+  }
+}
+
+.seatHost .seatBack {
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(230, 191, 115, 0.7),
+    0 0 18px rgba(230, 191, 115, 0.35);
+}
+
+.seatArms {
+  width: 64px;
+  height: 7px;
+  margin-top: -6px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #4a0c13, #26050a);
+}
+
+.crown {
+  position: absolute !important;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  padding: 3px 5px;
+  border-radius: 999px;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  box-shadow: 0 0 10px rgba(230, 191, 115, 0.6);
+}
+
+.onlineDot {
+  position: absolute !important;
+  right: 4px;
+  bottom: 4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--hall-velvet-deep);
+  background: #6b6470;
+
+  .seatOnline & {
+    background: var(--hall-online);
+    box-shadow: 0 0 8px var(--hall-online);
+  }
+}
+
+.seatName {
+  max-width: 100%;
+  font-size: 11px;
+  color: var(--hall-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ================= ЧАТ =================
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: min(60dvh, 460px);
+  border-radius: 22px;
+  background: var(--hall-surface);
+  border: 1px solid var(--hall-line);
+  overflow: hidden;
+
+  @media (min-width: 768px) {
+    height: auto;
+  }
+}
+
+.chatTitle {
+  padding: 12px 16px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hall-muted);
+}
+
+.chatList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 8px;
+}
+
+.chatEmpty {
+  margin: auto;
+  padding: 20px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--hall-muted);
+}
+
+.chatMessage {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 88%;
+  animation: messageIn 0.2s ease;
+}
+
+.chatMessageMine {
+  align-self: flex-end;
+
+  .chatBubble {
+    background: rgba(230, 191, 115, 0.2);
+    border-color: rgba(230, 191, 115, 0.3);
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 16px;
+  }
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.chatBubble {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 11px;
+  border-radius: 16px;
+  border-bottom-left-radius: 6px;
+  background: var(--hall-surface-strong);
+  border: 1px solid var(--hall-line);
+}
+
+.chatAuthor {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--hall-gold);
+}
+
+.chatText {
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.reactionBar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  border-top: 1px solid var(--hall-line);
+}
+
+.reactionButton {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 20px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    background: var(--hall-surface-strong);
+  }
+
+  &:active {
+    transform: scale(1.25);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--hall-gold);
+  }
+}
+
+.chatForm {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+
+  @media (min-width: 768px) {
+    padding-bottom: 10px;
+  }
+}
+
+.chatInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--hall-text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hall-line);
+  outline: none;
+  // 16px — щоб iOS не збільшував сторінку при фокусі.
+  font-size: 16px;
+
+  &::placeholder {
+    color: var(--hall-muted);
+  }
+
+  &:focus {
+    border-color: var(--hall-gold);
+  }
+}
+
+.sendButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+// ================= СТАНИ / ДІАЛОГИ / ТОСТИ =================
+
+.hallMessage {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  max-width: 420px;
+  text-align: center;
+  color: var(--hall-muted);
+
+  h1 {
+    font-size: 18px;
+    line-height: 1.35;
+    color: var(--hall-text);
+  }
+
+  svg {
+    color: var(--hall-gold);
+  }
+}
+
+.hallMessageActions,
+.sheetActionsHall {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.sheetActionsHall {
+  justify-content: flex-end;
+}
+
+.hallPrimary,
+.hallGhost,
+.hallDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.hallPrimary {
+  color: var(--hall-gold-ink, #1b140a);
+  background: var(--hall-gold, #e6bf73);
+}
+
+.hallGhost {
+  color: var(--c-text, #f4eee6);
+  background: transparent;
+  border: 1px solid var(--c-line, rgba(255, 236, 205, 0.12));
+}
+
+.hallDanger {
+  color: #fff;
+  background: #c8434b;
+}
+
+.sheetText {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--c-muted);
+}
+
+.toastWrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 450;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 16px;
+}
+
+.toast {
+  max-width: 420px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--hall-text, #f4eee6);
+  background: rgba(26, 23, 31, 0.94);
+  border: 1px solid rgba(230, 191, 115, 0.25);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screenGlow::before,
+  .enterGateButton,
+  .unmuteChip {
+    animation: none;
+  }
+}

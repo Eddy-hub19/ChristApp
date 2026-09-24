@@ -643,6 +643,53 @@ export class PushService {
     );
   }
 
+  /** Запрошення до «Кіношки з Ісусом»: клік відкриває список кімнат, де чекає «Прийняти». */
+  async sendWatchInvitePush(input: {
+    targetUserIds: string[];
+    inviterName: string;
+    roomTitle: string;
+    roomId: string;
+  }) {
+    if (!this.isConfigured || !input.targetUserIds.length) {
+      return;
+    }
+
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId: { in: input.targetUserIds } },
+      select: {
+        id: true,
+        userId: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+      },
+    });
+
+    if (!subscriptions.length) {
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const body = this.truncatePushText(
+      `${input.inviterName || 'Хтось'} кличе на перегляд «${input.roomTitle}»`,
+      PUSH_BODY_MAX_LEN,
+    );
+
+    await Promise.allSettled(
+      subscriptions.map((sub) =>
+        this.sendToSubscription(sub, {
+          title: '🎬 Кіношка з Ісусом',
+          body,
+          targetUrl: '/cinema',
+          roomId: `watch-${input.roomId}`,
+          senderId: '',
+          createdAt,
+          messageId: '',
+        }),
+      ),
+    );
+  }
+
   private async removeInvalidPushSubscription(
     subscription: PushSubscriptionRecord,
     httpStatus: number,

@@ -11,6 +11,7 @@ import { VersesModule } from './verses/verses.module';
 import { PushModule } from './push/push.module';
 import { AdminModule } from './admin/admin.module';
 import { CallsModule } from './calls/calls.module';
+import { WatchPartyModule } from './watch-party/watch-party.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CallsModule } from './calls/calls.module';
     PushModule,
     AdminModule,
     CallsModule,
+    WatchPartyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,6 +9,7 @@ import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation";
 import CrossLoader from "@/components/CrossLoader/CrossLoader";
 import ServerStartupScreen from "@/components/ServerStartupScreen/ServerStartupScreen";
 import { useServerStartupBoot } from "@/hooks/useServerStartupBoot";
+import { consumePostLoginPath } from "@/lib/postLoginRedirect";
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel";
 import styles from "@/app/[lang]/(login)/login.module.scss";
 
@@ -36,7 +37,7 @@ export default function LoginPage() {
 
     const success = await login(normalizedEmail, password);
     if (success) {
-      router.push("/chat");
+      router.push(consumePostLoginPath() ?? "/chat");
     }
   };
 
@@ -47,7 +48,7 @@ export default function LoginPage() {
   // Сервер піднявся і сесія ціла — одразу ведемо в чати, без проміжної форми входу.
   useEffect(() => {
     if (boot.shouldEnterApp) {
-      router.replace("/chat");
+      router.replace(consumePostLoginPath() ?? "/chat");
     }
   }, [boot.shouldEnterApp, router]);
 
