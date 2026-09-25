@@ -50,6 +50,12 @@
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
+
+  // Мобільний: керування переїхало оверлеєм на відео, а крісла — у шторку «Учасники»,
+  // тож завісі тут лишається бути лише тонким декоративним натяком зверху.
+  @media (max-width: 767px) {
+    --curtain-h: 10px;
+  }
 }
 
 .spin {
@@ -132,6 +138,23 @@
       flex-shrink: 0;
     }
   }
+
+  // Десктоп показує назву відео; мобільний — статус хоста (керування там оверлей на відео,
+  // тож окрема панель під екраном йому не потрібна, а хто керує — варто дублювати в шапці).
+  // Селектор навмисно вкладений (.topbarTitle .topbarVideo), щоб перебити специфічність `p{}` вище.
+  .topbarVideo {
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+
+  .topbarStatusMobile {
+    display: none;
+
+    @media (max-width: 767px) {
+      display: flex;
+    }
+  }
 }
 
 .topbarVideo {
@@ -167,6 +190,56 @@
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
+
+  // Мобільний: замінена компактною стопкою аватарок учасників (.memberStack) — для кнопки
+  // запрошення там просто немає місця в шапці.
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
+
+// Стопка аватарок учасників у шапці на мобільному — тап відкриває шторку «Учасники».
+.memberStack {
+  display: none;
+
+  @media (max-width: 767px) {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 8px 0 4px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--hall-surface);
+    border: 1px solid var(--hall-line);
+    cursor: pointer;
+  }
+}
+
+.memberStackAvatar {
+  display: inline-flex;
+  margin-left: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--hall-bg);
+
+  &:first-child {
+    margin-left: 0;
+  }
+}
+
+.memberStackMore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--hall-text);
+  background: var(--hall-surface-strong);
+  box-shadow: 0 0 0 2px var(--hall-bg);
 }
 
 .menuWrap {
@@ -549,6 +622,150 @@
   color: var(--hall-muted);
 }
 
+/*
+ * Мобільний оверлей керування поверх відео (як у YouTube): play/pause, звук і повний
+ * екран з'являються по тапу і ховаються через ~3с; тонка шкала прогресу — завжди видима.
+ * Рендериться завжди (і на десктопі — компонент лишається змонтованим), але видимість
+ * тут перемикає лише медіазапит: на десктопі лишається справжня HostControls-панель
+ * під екраном (.controls), а не цей оверлей.
+ */
+.mobileStage {
+  display: none;
+
+  @media (max-width: 767px) {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+}
+
+.mobileOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 16px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72) 65%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.mobileOverlayVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobilePlayButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #1b140a;
+  background: var(--hall-gold);
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+.mobileTime {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.mobileSpacer {
+  flex: 1;
+}
+
+.mobileIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+}
+
+// Тонка смужка прогресу — лишається видимою завжди, незалежно від .mobileOverlay.
+.mobileProgress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.25);
+
+  input {
+    position: absolute;
+    inset: -11px 0;
+    width: 100%;
+    height: 25px;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(230, 191, 115, 0.35);
+    }
+
+    &::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: 0;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(230, 191, 115, 0.35);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+}
+
+.mobileProgressLoaded,
+.mobileProgressPlayed {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.mobileProgressLoaded {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.mobileProgressPlayed {
+  background: var(--hall-gold);
+}
+
 // Показ уже йде, а глядач ще не в залі — помітний індикатор із живою точкою,
 // щоб було очевидно: тиснеш "Увійти" — і одразу підхоплюєш поточну позицію.
 .enterGateLive {
@@ -746,6 +963,12 @@
   border-radius: 18px;
   background: var(--hall-surface);
   border: 1px solid var(--hall-line);
+
+  // Мобільний: замінена оверлеєм на самому відео (.mobileStage) — прибираємо з потоку
+  // цілком, інакше під екраном лишався б порожній відступ від цієї панелі.
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
 .progressRow {
@@ -996,6 +1219,12 @@
   // Легкий «підйом» ряду — наче перший ряд залу.
   mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
   justify-content: safe center;
+
+  // Мобільний: винесено у шторку «Учасники» (відкривається тапом на стопку аватарок
+  // у шапці) — на екрані телефону місця на постійний ряд крісел немає.
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
 .seat {
@@ -1115,6 +1344,86 @@
   white-space: nowrap;
 }
 
+// ================= ШТОРКА «УЧАСНИКИ» =================
+// Рендериться в портал (Sheet), тож поза DOM-піддеревом .hall — CSS-змінні --hall-*
+// сюди не успадковуються. Використовуємо --c-* (див. hall-tokens у Cinema.module.scss),
+// які .sheetHall перевизначає саме для порталу, з літеральними фолбеками про всяк.
+
+.participantsList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.participantRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+}
+
+.participantAvatar {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.participantDot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--c-surface, #17141b);
+  background: #6b6470;
+}
+
+.participantDotOnline {
+  background: #45d18b;
+  box-shadow: 0 0 6px #45d18b;
+}
+
+.participantInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.participantName {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text, #f4eee6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  svg {
+    color: var(--c-accent, #e6bf73);
+    flex-shrink: 0;
+  }
+}
+
+.participantStatus {
+  font-size: 12px;
+  color: var(--c-muted, rgba(244, 238, 230, 0.62));
+}
+
+.participantTransfer {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-accent-ink, #1b140a);
+  background: var(--c-accent, #e6bf73);
+  cursor: pointer;
+}
+
 // ================= ЧАТ =================
 
 .chat {
@@ -1127,6 +1436,13 @@
   background: var(--hall-surface);
   border: 1px solid var(--hall-line);
   overflow: hidden;
+
+  // Мобільний: керування й крісла більше не займають місце в .stageColumn, тож чату
+  // лишається набагато більше висоти — дозволяємо йому займати геть усе звільнене
+  // (flex: 1 уже задано вище) і стискатися нижче 110px, коли клавіатура забирає простір.
+  @media (max-width: 767px) {
+    min-height: 0;
+  }
 
   @media (min-width: 768px) {
     flex: initial;
@@ -1142,6 +1458,11 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--hall-muted);
+
+  // Мобільний: місце в дефіциті — заголовок і так очевидний з контексту екрана.
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
 .chatList {
@@ -1219,6 +1540,19 @@
   padding: 6px 10px;
   overflow-x: auto;
   border-top: 1px solid var(--hall-line);
+
+  // Мобільний: ховається за кнопкою 😊 (.emojiToggle) — на десктопі лишається завжди
+  // видимою (нижче правило .reactionBarOpen тут ні на що не впливає).
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
+
+// Клас, що вмикає JS (WatchChat), коли натиснуто 😊 — має значення лише на мобільному.
+.reactionBarOpen {
+  @media (max-width: 767px) {
+    display: flex;
+  }
 }
 
 .reactionButton {
@@ -1246,6 +1580,8 @@
   }
 }
 
+// Єдине місце в залі, що резервує safe-area-inset-bottom для чату: .hall (кореневий
+// контейнер) свій нижній padding навмисно лишає 0 (див. верх файлу) — не дублюємо тут.
 .chatForm {
   display: flex;
   gap: 8px;
@@ -1253,6 +1589,33 @@
 
   @media (min-width: 768px) {
     padding-bottom: 10px;
+  }
+}
+
+// Кнопка 😊 — на мобільному відкриває/закриває .reactionBar над полем; на десктопі
+// прихована, бо там рядок емодзі й так завжди видимий.
+.emojiToggle {
+  display: none;
+
+  @media (max-width: 767px) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: var(--hall-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+}
+
+.emojiToggleActive {
+  @media (max-width: 767px) {
+    color: var(--hall-gold);
+    background: var(--hall-surface-strong);
   }
 }
 
