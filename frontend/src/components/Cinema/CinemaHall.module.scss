@@ -508,24 +508,114 @@
   }
 }
 
+/*
+ * Летючі емодзі-реакції: шар лежить прямо в .theater, тож у fullscreen (реальному —
+ * бо він рендериться тільки у зафуллскриненому елементі — і в повернутому псевдо-fullscreen,
+ * де .theaterPseudoFullscreenRotated своїм transform стає containing block для position:fixed)
+ * той самий position:fixed;inset:0 щоразу коректно покриває весь видимий екран без жодної
+ * JS-логіки на визначення режиму. У повернутому режимі transform батька обертає весь шар
+ * як одне ціле — емодзі летять «вгору відносно відео» автоматично, у локальних координатах.
+ *
+ * КРИХКО: це працює, лише поки в жодного елемента між .theater і .reactionsLayer (curtain,
+ * screenGlow, screen тощо) НЕМАЄ власного transform, filter або backdrop-filter (наприклад,
+ * майбутній «скляний» ефект на .screenGlow). Будь-яка з цих властивостей теж стає containing
+ * block для position:fixed — і шар почне позиціонуватись відносно НЕЇ, а не всього екрана.
+ * Якщо додаєте таке — перевірте реакції вручну в fullscreen і в повернутому режимі
+ * (скріншот + sips --rotate 270, як у стадії 0), автотесту на це немає.
+ */
 .reactionsLayer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  // Реакції стартують від верхнього краю екрана й летять угору, у смугу завіси.
-  top: calc(var(--curtain-h) + 10px);
-  height: 0;
-  z-index: 4;
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  overflow: hidden;
   pointer-events: none;
 }
 
 .floatingEmoji {
+  // top/left виставляються інлайново з JS: або точка кнопки, з якої натиснули (своя реакція),
+  // або випадковий розкид ближче до низу (чужа реакція) — див. FloatingReactions.tsx.
   position: absolute;
-  bottom: 0;
-  font-size: 28px;
+  will-change: transform, opacity;
+  animation: emojiRise var(--dur, 3s) cubic-bezier(0.22, 0.61, 0.32, 1) forwards;
+}
+
+.floatingEmojiSway {
+  position: relative;
+  font-size: 30px;
   line-height: 1;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-  will-change: transform, opacity;
+  will-change: transform;
+  animation: emojiSway var(--sway-dur, 900ms) ease-in-out infinite;
+}
+
+// Аватарка відправника — тільки для чужих реакцій (для своєї це й так очевидно).
+.floatingEmojiAvatar {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  line-height: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(9, 8, 12, 0.85);
+}
+
+@keyframes emojiRise {
+  0% {
+    transform: translateY(0) rotate(var(--rot-start, -8deg)) scale(0.55);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(calc(var(--rise, 640px) * -0.06)) rotate(calc(var(--rot-start, -8deg) * 0.5))
+      scale(var(--scale-peak, 1.2));
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(var(--rise, 640px) * -1)) rotate(var(--rot-end, 12deg))
+      scale(var(--scale-end, 0.8));
+    opacity: 0;
+  }
+}
+
+// Легке покачування вліво-вправо, накладене на вертикальний політ через вкладений елемент —
+// CSS-трансформи предка й нащадка компонуються, тож обидва рухи йдуть одночасно без JS-кадрів.
+@keyframes emojiSway {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway, 16px) * -1));
+  }
+  50% {
+    transform: translateX(var(--sway, 16px));
+  }
+}
+
+// «Зменшити рух» у системі: без польоту й покачування — просто плавна поява й зникнення на місці.
+@media (prefers-reduced-motion: reduce) {
+  .floatingEmoji {
+    // top/left лишаються ті самі (обчислена точка старту) — просто без підйому й повороту.
+    animation-name: emojiFadeReduced;
+    animation-timing-function: ease-in-out;
+  }
+
+  .floatingEmojiSway {
+    animation: none;
+  }
+}
+
+@keyframes emojiFadeReduced {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .stageStatus {
@@ -760,8 +850,7 @@
   justify-content: center;
   background: #000;
 
-  .curtain,
-  .reactionsLayer {
+  .curtain {
     display: none;
   }
 

@@ -54,6 +54,9 @@ export type HallEvent =
 
 const CLOCK_RESYNC_MS = 60_000;
 const JOIN_RETRY_MS = 2_500;
+/** Той самий ліміт, що й у backend/src/watch-party/watch-party.gateway.ts (RateLimiter для watch:reaction). */
+const REACTION_RATE_LIMIT = 6;
+const REACTION_RATE_WINDOW_MS = 3_000;
 
 /**
  * Стан зали «Кіношки» поверх спільного сокета застосунку: вхід/перепідключення,
@@ -242,9 +245,23 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     [socket, roomId],
   );
 
+  // Дзеркалимо серверний ліміт (6 реакцій/3с на сокет), щоб зайві тапи не летіли в мережу —
+  // сервер однаково їх відкине, але навіщо витрачати запит. UI при цьому не чекає на нас:
+  // летючий емодзі на своєму екрані малюється завжди, лише мережевий emit тут може бути пропущений.
+  const reactionSentAt = useRef<number[]>([]);
   const sendReaction = useCallback(
-    (emoji: string) => {
-      socket?.emit("watch:reaction", { roomId, emoji });
+    (emoji: string): boolean => {
+      if (!socket?.connected) return false;
+      const now = Date.now();
+      const recent = reactionSentAt.current.filter((t) => now - t < REACTION_RATE_WINDOW_MS);
+      if (recent.length >= REACTION_RATE_LIMIT) {
+        reactionSentAt.current = recent;
+        return false;
+      }
+      recent.push(now);
+      reactionSentAt.current = recent;
+      socket.emit("watch:reaction", { roomId, emoji });
+      return true;
     },
     [socket, roomId],
   );

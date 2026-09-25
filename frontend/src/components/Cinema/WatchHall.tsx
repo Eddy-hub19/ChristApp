@@ -28,7 +28,7 @@ import {
 } from "@/lib/queries/watchRoomsQueries";
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
 import { expectedPosition } from "@/lib/watchSync";
-import FloatingReactions from "./FloatingReactions";
+import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReactions";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
 import SeatsRow from "./SeatsRow";
@@ -114,6 +114,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   const stageRef = useRef<YouTubeStageHandle | null>(null);
   const theaterRef = useRef<HTMLDivElement>(null);
+  const reactionsRef = useRef<FloatingReactionsHandle>(null);
 
   // Зала завжди «темна» і на весь екран: ховаємо прокрутку сторінки під нею.
   useEffect(() => {
@@ -233,6 +234,17 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       else hall.commands.pause(action.positionSec);
     },
     [hall.commands],
+  );
+
+  // Свій емодзі летить одразу, з точки натиснутої кнопки — не чекаючи мережі. sendReaction
+  // повертає, чи справді пішов emit (клієнтський рейт-ліміт дзеркалить серверний), щоб
+  // FloatingReactions не чекав відлуння для тапів, які сервер і так не побачить.
+  const handleReact = useCallback(
+    (emoji: string, rect: DOMRect) => {
+      const sent = hall.sendReaction(emoji);
+      reactionsRef.current?.spawnLocal(emoji, rect, sent);
+    },
+    [hall],
   );
 
   const copyLink = async () => {
@@ -415,7 +427,12 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               <span className={styles.curtainLeft} />
               <span className={styles.curtainRight} />
             </div>
-            <FloatingReactions subscribe={hall.subscribeReactions} />
+            <FloatingReactions
+              ref={reactionsRef}
+              subscribe={hall.subscribeReactions}
+              currentUserId={me}
+              members={hall.members}
+            />
 
             <div className={styles.screenGlow}>
               <div className={styles.screen}>
@@ -510,7 +527,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
           hostId={state.hostId}
           reactions={hall.reactionOptions}
           onSend={hall.sendMessage}
-          onReact={hall.sendReaction}
+          onReact={handleReact}
         />
       </div>
 
