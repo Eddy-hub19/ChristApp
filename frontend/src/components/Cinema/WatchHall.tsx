@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Clapperboard,
-  Crown,
   ExternalLink,
   Link2,
   Loader2,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import {
   acceptWatchInvite,
   declineWatchInvite,
@@ -107,6 +107,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   const [pendingVideo, setPendingVideo] = useState<PickedVideo | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  // iPhone Safari: немає fullscreen для довільних елементів і немає screen.orientation.lock,
+  // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
+  const [pseudoRotated, setPseudoRotated] = useState(false);
 
   const stageRef = useRef<YouTubeStageHandle | null>(null);
   const theaterRef = useRef<HTMLDivElement>(null);
@@ -117,11 +120,35 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     return () => document.body.classList.remove("cinemaHallOpen");
   }, []);
 
+  // На iOS 100dvh не стискається під клавіатуру — стискається лише visual viewport.
+  // Той самий хук, що й у /chat: зала підлаштовується під --vv-height, плеєр лишається зверху.
+  useKeyboardInset();
+
   useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const onChange = () => {
+      const fs = Boolean(document.fullscreenElement);
+      setIsFullscreen(fs);
+      if (!fs) {
+        try {
+          (screen.orientation as ScreenOrientation & { unlock?: () => void })?.unlock?.();
+        } catch {
+          // деякі браузери кидають, якщо lock ніколи не викликався — не критично
+        }
+      }
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  // Поки активний псевдо-fullscreen, стежимо за орієнтацією: обертаємо театр лише в портреті.
+  useEffect(() => {
+    if (!pseudoFullscreen || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(orientation: portrait)");
+    const update = () => setPseudoRotated(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [pseudoFullscreen]);
 
   const state = hall.state;
   const isHost = Boolean(me && state?.hostId === me);
@@ -160,10 +187,19 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     }
     if (pseudoFullscreen) {
       setPseudoFullscreen(false);
+      setPseudoRotated(false);
       return;
     }
     if (document.fullscreenEnabled && el.requestFullscreen) {
-      await el.requestFullscreen().catch(() => setPseudoFullscreen(true));
+      try {
+        await el.requestFullscreen();
+        // Тільки Android Chrome підтримує lock без обертання самим пристроєм; iOS і десктоп — ігнорують.
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })
+          ?.lock?.("landscape")
+          .catch(() => undefined);
+      } catch {
+        setPseudoFullscreen(true);
+      }
     } else {
       // iPhone Safari не вміє fullscreen для довільних елементів — розгортаємо засобами CSS.
       setPseudoFullscreen(true);
@@ -295,7 +331,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   // ================= ЗАЛА =================
 
-  const theaterClass = `${styles.theater} ${isFullscreen ? styles.theaterFullscreen : ""} ${pseudoFullscreen ? styles.theaterPseudoFullscreen : ""}`;
+  const theaterClass = `${styles.theater} ${isFullscreen ? styles.theaterFullscreen : ""} ${pseudoFullscreen ? styles.theaterPseudoFullscreen : ""} ${pseudoFullscreen && pseudoRotated ? styles.theaterPseudoFullscreenRotated : ""}`;
 
   return (
     <div className={styles.hall}>
@@ -305,10 +341,8 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         </Link>
         <div className={styles.topbarTitle}>
           <h1>{hall.roomTitle}</h1>
-          <p>
-            <Crown size={12} aria-hidden /> {isHost ? t("hall.youControl") : t("hall.controlledBy", { name: hostName })}
-            {state.videoTitle ? <span className={styles.topbarVideo}> · {state.videoTitle}</span> : null}
-          </p>
+          {/* Хто керує — вже показано в панелі під екраном (лишається видимим і в fullscreen); тут дублювати не треба. */}
+          {state.videoTitle ? <p className={styles.topbarVideo}>{state.videoTitle}</p> : null}
         </div>
         <button type="button" className={styles.inviteButton} onClick={() => setDialog("invite")}>
           <UserPlus size={16} aria-hidden />

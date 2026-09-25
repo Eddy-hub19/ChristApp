@@ -20,7 +20,15 @@
   --curtain-h: 34px;
 
   position: fixed;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  // На iOS 100dvh не стискається під клавіатуру — стискається лише visual viewport.
+  // useKeyboardInset() тримає --vv-top/--vv-height синхронними з ним (той самий трюк, що й у /chat):
+  // зала завжди рівно по видимій області, плеєр і панель лишаються над клавіатурою, а не під нею.
+  top: var(--vv-top, 0px);
+  height: 100%;
+  height: var(--vv-height, 100dvh);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -32,12 +40,15 @@
     var(--hall-bg);
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0
     env(safe-area-inset-left, 0px);
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   font-family: var(--font-inter), "Inter", Arial, sans-serif;
+  transition:
+    height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  @media (min-width: 768px) {
-    overflow: hidden;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
 
@@ -221,12 +232,13 @@
 .layout {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 0 12px 16px;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+  padding: 0 12px 10px;
+  overflow: hidden;
 
   @media (min-width: 768px) {
-    flex: 1;
-    min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
     gap: 18px;
@@ -241,10 +253,12 @@
 .stageColumn {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  flex-shrink: 0;
+  gap: 10px;
   min-width: 0;
 
   @media (min-width: 768px) {
+    flex-shrink: 1;
     min-height: 0;
     overflow-y: auto;
     justify-content: center;
@@ -260,13 +274,15 @@
   gap: 10px;
   padding-top: calc(var(--curtain-h) + 10px);
   width: 100%;
-  // Екран не більший за висоту вікна, щоб під ним лишалися панель і крісла.
+  // Екран не більший за висоту вікна, щоб під ним завжди лишалося місце на панель,
+  // ряд крісел і хоча б трохи чату — інакше сторінці довелося б скролитись.
   max-width: calc((100dvh - 330px) * 16 / 9);
   min-width: min(100%, 300px);
   margin: 0 auto;
 
   @media (max-width: 767px) {
-    max-width: none;
+    max-width: calc((100dvh - 300px) * 16 / 9);
+    min-width: min(100%, 220px);
   }
 }
 
@@ -742,6 +758,39 @@
     max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
 }
 
+// Телефон лишається в портреті, а немає ні fullscreen, ні screen.orientation.lock (iOS Safari) —
+// повертаємо сам контейнер на 90° й міняємо місцями ширину/висоту, щоб він заповнив екран як landscape.
+.theaterPseudoFullscreenRotated {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  overflow: hidden;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+
+  // Локальні top/bottom (виріз камери й смужка home indicator) після повороту опиняються
+  // на бічних краях екрана — лівому чи правому залежно від того, в який бік фізично повернули
+  // телефон (напрямок наперед не знаємо). Резервуємо однаково з обох боків, щоб не гадати.
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: 12px;
+  padding-right: 12px;
+
+  // У повернутому контейнері «висота» на екрані — це його локальна ширина (100dvw), а не 100dvh:
+  // рахуємо екран від неї, інакше він не влізе разом із рештою (статус-рядок + панель керування),
+  // яка при повороті теж займає частку саме цієї осі. 166px — бюджет під них, плюс реальний safe-area.
+  .screen {
+    width: min(
+      100%,
+      calc(
+        (100dvw - 166px - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))) * 16 / 9
+      )
+    );
+  }
+}
+
 // ================= КРІСЛА =================
 
 .seats {
@@ -877,14 +926,17 @@
 .chat {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  height: min(60dvh, 460px);
+  flex: 1;
+  // Мінімум, щоб чат не зникав повністю на дуже низьких екранах — решту віддаємо плеєру.
+  min-height: 110px;
   border-radius: 22px;
   background: var(--hall-surface);
   border: 1px solid var(--hall-line);
   overflow: hidden;
 
   @media (min-width: 768px) {
+    flex: initial;
+    min-height: 0;
     height: auto;
   }
 }
