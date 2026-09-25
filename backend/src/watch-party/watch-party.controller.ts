@@ -14,10 +14,12 @@ import {
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { CreateWatchRoomDto, InviteWatchRoomDto } from './dto/watch-room.dto';
 import {
+  ResolveVideoQueryDto,
   VideoPopularQueryDto,
   VideoSearchQueryDto,
 } from './dto/video-search.dto';
 import { WatchPartyService } from './watch-party.service';
+import { VideoResolverService } from './video-resolver.service';
 import { YoutubeSearchService } from './youtube-search.service';
 
 type AuthedRequest = { user: { id: string } };
@@ -28,6 +30,7 @@ export class WatchPartyController {
   constructor(
     private readonly watchParty: WatchPartyService,
     private readonly youtubeSearch: YoutubeSearchService,
+    private readonly videoResolver: VideoResolverService,
   ) {}
 
   @Get()
@@ -39,6 +42,16 @@ export class WatchPartyController {
   @Get('video-check/:videoId')
   checkVideo(@Param('videoId') videoId: string) {
     return this.watchParty.checkVideo(videoId);
+  }
+
+  /**
+   * Визначає провайдера з довільного посилання (YouTube/Vimeo/Dailymotion/файл/інше) і повертає
+   * готові до показу прев'ю-метадані. Єдине місце, де сервер сам ходить у мережу за URL від
+   * клієнта — під SSRF-захистом (url-safety.ts). Результат кешується на 10 хв.
+   */
+  @Get('resolve-video')
+  resolveVideo(@Query() query: ResolveVideoQueryDto) {
+    return this.videoResolver.resolveLink(query.url);
   }
 
   /** Міні-YouTube у кінозалі: пошук доступний будь-якому учаснику, не лише хосту. */

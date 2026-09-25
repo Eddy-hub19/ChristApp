@@ -56,6 +56,39 @@ export function isValidVideoId(value: unknown): value is string {
   return typeof value === 'string' && YOUTUBE_VIDEO_ID_RE.test(value);
 }
 
+export const VIMEO_ID_RE = /^\d{6,12}$/;
+export const DAILYMOTION_ID_RE = /^[A-Za-z0-9]{6,14}$/;
+
+/**
+ * Формальна перевірка "схожості" ref на правильний для цього провайдера (без мережі — це
+ * не резолвінг посилання, а захист про всяк випадок від явно зіпсованих/шкідливих значень,
+ * що надійшли прямо в сокет-команду в обхід звичайного шляху "вставили посилання → resolveLink").
+ * FILE/IFRAME/MANUAL зберігають повний URL — тут лише http/https, без розкодовування хоста.
+ */
+export function isValidProviderRef(
+  provider: WatchProvider,
+  value: unknown,
+): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;
+  switch (provider) {
+    case 'YOUTUBE':
+      return YOUTUBE_VIDEO_ID_RE.test(value);
+    case 'VIMEO':
+      return VIMEO_ID_RE.test(value);
+    case 'DAILYMOTION':
+      return DAILYMOTION_ID_RE.test(value);
+    case 'FILE':
+    case 'IFRAME':
+    case 'MANUAL':
+      try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch {
+        return false;
+      }
+  }
+}
+
 export function clampPosition(value: number): number {
   if (!Number.isFinite(value) || value < 0) return 0;
   return Math.min(value, MAX_POSITION_SEC);
@@ -93,7 +126,15 @@ export type ControlCommand =
   | { type: 'play'; positionSec?: number; sentAt?: number }
   | { type: 'pause'; positionSec?: number; sentAt?: number }
   | { type: 'seek'; positionSec: number; sentAt?: number }
-  | { type: 'changeVideo'; provider: WatchProvider; videoId: string; startSec?: number }
+  | {
+      type: 'changeVideo';
+      provider: WatchProvider;
+      videoId: string;
+      startSec?: number;
+      /** Лише для не-YOUTUBE: сервер повторно посилання не тягне, довіряє цим полям з клієнта. */
+      videoTitle?: string;
+      thumbnailUrl?: string;
+    }
   | {
       type: 'heartbeat';
       positionSec: number;

@@ -14,6 +14,7 @@ import { PushService } from 'src/push/push.service';
 import {
   applyControlCommand,
   clampPosition,
+  isValidProviderRef,
   isValidVideoId,
   pickNextHost,
   projectPosition,
@@ -62,6 +63,7 @@ export type WatchStateReason =
 type RoomRuntime = WatchPlaybackState & {
   roomId: string;
   videoTitle: string | null;
+  thumbnailUrl: string | null;
   hostId: string;
   /** Монотонний номер стану: клієнт відкидає пакети, старші за вже застосований. */
   version: number;
@@ -180,6 +182,35 @@ export class WatchPartyService implements OnModuleDestroy {
     return check.title;
   }
 
+  /**
+   * YOUTUBE — як і раніше, сервер сам перевіряє відео через oEmbed (requireEmbeddableVideo).
+   * Інші провайдери — лише формат ref (isValidProviderRef): клієнт уже пройшов
+   * GET /watch-rooms/resolve-video (єдине місце, де сервер сам ходить у мережу за довільним
+   * URL від клієнта, під SSRF-захистом із url-safety.ts) і передає готові title/thumbnailUrl —
+   * повторний мережевий запит тут не робимо.
+   */
+  private async resolveAndValidate(
+    provider: WatchProvider,
+    videoId: string,
+    clientTitle?: string,
+    clientThumbnailUrl?: string,
+  ): Promise<{ title: string | null; thumbnailUrl: string | null }> {
+    if (provider === 'YOUTUBE') {
+      const title = await this.requireEmbeddableVideo(videoId);
+      return { title, thumbnailUrl: null };
+    }
+    if (!isValidProviderRef(provider, videoId)) {
+      throw new BadRequestException({
+        code: 'INVALID_VIDEO',
+        message: 'Некоректне посилання',
+      });
+    }
+    return {
+      title: clientTitle?.trim().slice(0, 200) || null,
+      thumbnailUrl: clientThumbnailUrl?.trim().slice(0, 1024) || null,
+    };
+  }
+
   // ================= СПИСОК / CRUD =================
 
   async listForUser(userId: string) {
@@ -257,14 +288,22 @@ export class WatchPartyService implements OnModuleDestroy {
     const title = dto.title.trim();
     if (!title) throw new BadRequestException('Вкажіть назву кімнати');
 
-    const videoTitle = await this.requireEmbeddableVideo(dto.videoId);
+    const provider = dto.provider ?? 'YOUTUBE';
+    const { title: videoTitle, thumbnailUrl } = await this.resolveAndValidate(
+      provider,
+      dto.videoId,
+      dto.videoTitle,
+      dto.thumbnailUrl,
+    );
     const inviteeIds = await this.resolveInvitees(dto.inviteeIds ?? [], userId);
 
     const room = await this.prisma.watchRoom.create({
       data: {
         title,
+        provider,
         videoId: dto.videoId,
         videoTitle,
+        thumbnailUrl,
         positionSec: clampPosition(dto.startSec ?? 0),
         hostId: userId,
         inviteToken: this.generateInviteToken(),
@@ -546,16 +585,27 @@ export class WatchPartyService implements OnModuleDestroy {
     }
 
     if (command.type === 'changeVideo') {
-      if (!isValidVideoId(command.videoId)) {
-        return { ok: false as const, code: 'INVALID_VIDEO' as const };
+      if (command.provider === 'YOUTUBE') {
+        if (!isValidVideoId(command.videoId)) {
+          return { ok: false as const, code: 'INVALID_VIDEO' as const };
+        }
+        const check = await this.checkVideo(command.videoId);
+        if (!check.ok) return { ok: false as const, code: check.code };
+        // Поки перевіряли відео, керування могло перейти до іншого.
+        if (runtime.hostId !== userId || !this.runtimes.has(roomId)) {
+          return { ok: false as const, code: 'NOT_HOST' as const };
+        }
+        runtime.videoTitle = check.title;
+        runtime.thumbnailUrl = null;
+      } else {
+        // Не-YOUTUBE: лише формат ref, без повторного походу в мережу за URL від клієнта —
+        // дивись коментар біля resolveAndValidate().
+        if (!isValidProviderRef(command.provider, command.videoId)) {
+          return { ok: false as const, code: 'INVALID_VIDEO' as const };
+        }
+        runtime.videoTitle = command.videoTitle?.trim().slice(0, 200) || null;
+        runtime.thumbnailUrl = command.thumbnailUrl?.trim().slice(0, 1024) || null;
       }
-      const check = await this.checkVideo(command.videoId);
-      if (!check.ok) return { ok: false as const, code: check.code };
-      // Поки перевіряли відео, керування могло перейти до іншого.
-      if (runtime.hostId !== userId || !this.runtimes.has(roomId)) {
-        return { ok: false as const, code: 'NOT_HOST' as const };
-      }
-      runtime.videoTitle = check.title;
     }
 
     const now = Date.now();
@@ -810,6 +860,7 @@ export class WatchPartyService implements OnModuleDestroy {
         provider: true,
         videoId: true,
         videoTitle: true,
+        thumbnailUrl: true,
         isPlaying: true,
         positionSec: true,
         stateUpdatedAt: true,
@@ -825,6 +876,7 @@ export class WatchPartyService implements OnModuleDestroy {
       provider: room.provider as WatchProvider,
       videoId: room.videoId,
       videoTitle: room.videoTitle,
+      thumbnailUrl: room.thumbnailUrl,
       // Застарілий «грає» — ознака падіння сервера посеред сеансу: не проєктуємо на години вперед.
       isPlaying: room.isPlaying && !stale,
       positionSec: room.positionSec,
@@ -849,6 +901,7 @@ export class WatchPartyService implements OnModuleDestroy {
           provider: runtime.provider,
           videoId: runtime.videoId,
           videoTitle: runtime.videoTitle,
+          thumbnailUrl: runtime.thumbnailUrl,
           isPlaying: runtime.isPlaying,
           positionSec: runtime.positionSec,
           stateUpdatedAt: new Date(runtime.updatedAtMs),
@@ -873,6 +926,7 @@ export class WatchPartyService implements OnModuleDestroy {
       provider: runtime.provider,
       videoId: runtime.videoId,
       videoTitle: runtime.videoTitle,
+      thumbnailUrl: runtime.thumbnailUrl,
       isPlaying: runtime.isPlaying,
       positionSec: runtime.positionSec,
       updatedAt: runtime.updatedAtMs,
