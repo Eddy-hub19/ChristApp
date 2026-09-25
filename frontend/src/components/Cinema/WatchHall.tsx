@@ -5,8 +5,8 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Check,
   Clapperboard,
-  Crown,
   ExternalLink,
   Link2,
   Loader2,
@@ -16,9 +16,11 @@ import {
   UserPlus,
   Volume2,
   WifiOff,
+  X,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import {
   acceptWatchInvite,
   declineWatchInvite,
@@ -27,12 +29,14 @@ import {
   watchUserName,
 } from "@/lib/queries/watchRoomsQueries";
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
-import FloatingReactions from "./FloatingReactions";
+import { expectedPosition } from "@/lib/watchSync";
+import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReactions";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
 import SeatsRow from "./SeatsRow";
 import Sheet from "./Sheet";
 import VideoLinkField, { type PickedVideo } from "./VideoLinkField";
+import YouTubePicker from "./YouTubePicker";
 import WatchChat from "./WatchChat";
 import YouTubeStage, { type StageStatus, type YouTubeStageHandle } from "./YouTubeStage";
 import { useWatchHall, type HallEvent, type HallMember } from "./useWatchHall";
@@ -51,7 +55,14 @@ function readStoredVolume(): number {
   }
 }
 
-type Dialog = "invite" | "changeVideo" | "leave" | "delete" | { transferTo: HallMember } | null;
+type Dialog =
+  | "invite"
+  | "changeVideo"
+  | "suggestVideo"
+  | "leave"
+  | "delete"
+  | { transferTo: HallMember }
+  | null;
 
 export default function WatchHall({ roomId }: { roomId: string }) {
   const t = useTranslations("cinema");
@@ -107,9 +118,13 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   const [pendingVideo, setPendingVideo] = useState<PickedVideo | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  // iPhone Safari: немає fullscreen для довільних елементів і немає screen.orientation.lock,
+  // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
+  const [pseudoRotated, setPseudoRotated] = useState(false);
 
   const stageRef = useRef<YouTubeStageHandle | null>(null);
   const theaterRef = useRef<HTMLDivElement>(null);
+  const reactionsRef = useRef<FloatingReactionsHandle>(null);
 
   // Зала завжди «темна» і на весь екран: ховаємо прокрутку сторінки під нею.
   useEffect(() => {
@@ -117,11 +132,35 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     return () => document.body.classList.remove("cinemaHallOpen");
   }, []);
 
+  // На iOS 100dvh не стискається під клавіатуру — стискається лише visual viewport.
+  // Той самий хук, що й у /chat: зала підлаштовується під --vv-height, плеєр лишається зверху.
+  useKeyboardInset();
+
   useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const onChange = () => {
+      const fs = Boolean(document.fullscreenElement);
+      setIsFullscreen(fs);
+      if (!fs) {
+        try {
+          (screen.orientation as ScreenOrientation & { unlock?: () => void })?.unlock?.();
+        } catch {
+          // деякі браузери кидають, якщо lock ніколи не викликався — не критично
+        }
+      }
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  // Поки активний псевдо-fullscreen, стежимо за орієнтацією: обертаємо театр лише в портреті.
+  useEffect(() => {
+    if (!pseudoFullscreen || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(orientation: portrait)");
+    const update = () => setPseudoRotated(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [pseudoFullscreen]);
 
   const state = hall.state;
   const isHost = Boolean(me && state?.hostId === me);
@@ -160,25 +199,42 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     }
     if (pseudoFullscreen) {
       setPseudoFullscreen(false);
+      setPseudoRotated(false);
       return;
     }
     if (document.fullscreenEnabled && el.requestFullscreen) {
-      await el.requestFullscreen().catch(() => setPseudoFullscreen(true));
+      try {
+        await el.requestFullscreen();
+        // Тільки Android Chrome підтримує lock без обертання самим пристроєм; iOS і десктоп — ігнорують.
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })
+          ?.lock?.("landscape")
+          .catch(() => undefined);
+      } catch {
+        setPseudoFullscreen(true);
+      }
     } else {
       // iPhone Safari не вміє fullscreen для довільних елементів — розгортаємо засобами CSS.
       setPseudoFullscreen(true);
     }
   };
 
+  // Натискання хоста на play/scrubber ДО того, як плеєр змонтований (ще не було жесту
+  // для автоплею) — саме є тим жестом: монтуємо плеєр і одразу шлемо команду з позиції
+  // з серверного стану (stageRef ще порожній). Плеєр, щойно змонтувавшись, сам підхопить
+  // щойно надіслану позицію — той самий шлях, яким і глядач приєднується до вже активного показу.
   const hostPlay = () => {
-    const pos = stageRef.current?.localPlay() ?? 0;
+    if (!entered) setEntered(true);
+    const pos = stageRef.current?.localPlay() ?? state?.positionSec ?? 0;
     hall.commands.play(pos);
   };
   const hostPause = () => {
-    const pos = stageRef.current?.localPause() ?? 0;
+    if (!entered) setEntered(true);
+    const pos =
+      stageRef.current?.localPause() ?? (state ? expectedPosition(state, hall.clock.now()) : 0);
     hall.commands.pause(pos);
   };
   const hostSeek = (sec: number) => {
+    if (!entered) setEntered(true);
     stageRef.current?.localSeek(sec);
     hall.commands.seek(sec);
   };
@@ -188,6 +244,17 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       else hall.commands.pause(action.positionSec);
     },
     [hall.commands],
+  );
+
+  // Свій емодзі летить одразу, з точки натиснутої кнопки — не чекаючи мережі. sendReaction
+  // повертає, чи справді пішов emit (клієнтський рейт-ліміт дзеркалить серверний), щоб
+  // FloatingReactions не чекав відлуння для тапів, які сервер і так не побачить.
+  const handleReact = useCallback(
+    (emoji: string, rect: DOMRect) => {
+      const sent = hall.sendReaction(emoji);
+      reactionsRef.current?.spawnLocal(emoji, rect, sent);
+    },
+    [hall],
   );
 
   const copyLink = async () => {
@@ -295,7 +362,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   // ================= ЗАЛА =================
 
-  const theaterClass = `${styles.theater} ${isFullscreen ? styles.theaterFullscreen : ""} ${pseudoFullscreen ? styles.theaterPseudoFullscreen : ""}`;
+  const theaterClass = `${styles.theater} ${isFullscreen ? styles.theaterFullscreen : ""} ${pseudoFullscreen ? styles.theaterPseudoFullscreen : ""} ${pseudoFullscreen && pseudoRotated ? styles.theaterPseudoFullscreenRotated : ""}`;
 
   return (
     <div className={styles.hall}>
@@ -305,10 +372,8 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         </Link>
         <div className={styles.topbarTitle}>
           <h1>{hall.roomTitle}</h1>
-          <p>
-            <Crown size={12} aria-hidden /> {isHost ? t("hall.youControl") : t("hall.controlledBy", { name: hostName })}
-            {state.videoTitle ? <span className={styles.topbarVideo}> · {state.videoTitle}</span> : null}
-          </p>
+          {/* Хто керує — вже показано в панелі під екраном (лишається видимим і в fullscreen); тут дублювати не треба. */}
+          {state.videoTitle ? <p className={styles.topbarVideo}>{state.videoTitle}</p> : null}
         </div>
         <button type="button" className={styles.inviteButton} onClick={() => setDialog("invite")}>
           <UserPlus size={16} aria-hidden />
@@ -338,7 +403,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                   <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("changeVideo"); }}>
                     <Clapperboard size={16} aria-hidden /> {t("hall.changeVideo")}
                   </button>
-                ) : null}
+                ) : (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("suggestVideo"); }}>
+                    <Clapperboard size={16} aria-hidden /> {t("hall.suggestVideo")}
+                  </button>
+                )}
                 <button type="button" role="menuitem" onClick={copyLink}>
                   <Link2 size={16} aria-hidden /> {t("hall.copyLink")}
                 </button>
@@ -365,6 +434,40 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         </div>
       ) : null}
 
+      {isHost && hall.suggestions.length > 0 ? (
+        <div className={styles.suggestionsStrip} role="group" aria-label={t("hall.suggestions")}>
+          {hall.suggestions.map((s) => (
+            <div key={s.id} className={styles.suggestionChip}>
+              <span className={styles.suggestionText}>
+                <span className={styles.suggestionTitle}>{s.title}</span>
+                <span className={styles.suggestionFrom}>
+                  {t("hall.suggestionFrom", { name: watchUserName(s.user) })}
+                </span>
+              </span>
+              <button
+                type="button"
+                className={styles.suggestionApply}
+                aria-label={t("hall.applySuggestion")}
+                onClick={() => {
+                  hall.commands.changeVideo(s.videoId);
+                  hall.dismissSuggestion(s.id);
+                }}
+              >
+                <Check size={15} />
+              </button>
+              <button
+                type="button"
+                className={styles.suggestionDismiss}
+                aria-label={t("hall.dismissSuggestion")}
+                onClick={() => hall.dismissSuggestion(s.id)}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className={styles.layout}>
         <div className={styles.stageColumn}>
           <div ref={theaterRef} className={theaterClass}>
@@ -372,7 +475,12 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               <span className={styles.curtainLeft} />
               <span className={styles.curtainRight} />
             </div>
-            <FloatingReactions subscribe={hall.subscribeReactions} />
+            <FloatingReactions
+              ref={reactionsRef}
+              subscribe={hall.subscribeReactions}
+              currentUserId={me}
+              members={hall.members}
+            />
 
             <div className={styles.screenGlow}>
               <div className={styles.screen}>
@@ -395,9 +503,14 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     <img src={youTubeThumbnailUrl(state.videoId, "hq")} alt="" />
                     <span className={styles.enterGateInner}>
                       <span className={styles.enterGateButton}>{t("hall.joinPrompt")}</span>
-                      <span className={styles.enterGateHint}>
-                        {state.isPlaying ? t("statusPlaying") : t("statusPaused")}
-                      </span>
+                      {state.isPlaying ? (
+                        <span className={styles.enterGateLive}>
+                          <span className={styles.enterGateLiveDot} aria-hidden />
+                          {t("hall.liveNow")}
+                        </span>
+                      ) : (
+                        <span className={styles.enterGateHint}>{t("statusPaused")}</span>
+                      )}
                     </span>
                   </button>
                 )}
@@ -427,7 +540,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
             <HostControls
               stageRef={stageRef}
-              isHost={isHost && entered}
+              isHost={isHost}
+              // Play/scrubber для хоста активні одразу: перший дотик і є жестом, що монтує плеєр
+              // (hostPlay/hostPause/hostSeek самі це роблять), тож disabled тут більше не потрібен.
+              entered={entered}
+              onEnter={() => setEntered(true)}
               hostName={hostName}
               isPlaying={state.isPlaying}
               onPlay={hostPlay}
@@ -458,7 +575,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
           hostId={state.hostId}
           reactions={hall.reactionOptions}
           onSend={hall.sendMessage}
-          onReact={hall.sendReaction}
+          onReact={handleReact}
         />
       </div>
 
@@ -494,6 +611,18 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       >
         {dialog === "changeVideo" ? <VideoLinkField onChange={setPendingVideo} autoFocus tone="hall" /> : null}
       </Sheet>
+
+      <YouTubePicker
+        open={dialog === "suggestVideo"}
+        onClose={() => setDialog(null)}
+        mode="suggest"
+        tone="hall"
+        onPick={(video) => {
+          void hall.suggestVideo(video.videoId, video.title);
+          setDialog(null);
+          showToast(t("hall.suggestSent"));
+        }}
+      />
 
       <Sheet
         open={dialog === "leave" || dialog === "delete"}

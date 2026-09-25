@@ -377,7 +377,19 @@
       "inviteLabel": "Кого позовём",
       "submit": "Создать и войти",
       "submitting": "Создаём…",
-      "cancel": "Отмена"
+      "cancel": "Отмена",
+      "browseYoutube": "Выбрать на YouTube"
+    },
+    "picker": {
+      "title": "Выбрать видео",
+      "searchPlaceholder": "Поиск на YouTube",
+      "clear": "Очистить",
+      "popular": "Популярное",
+      "empty": "Ничего не найдено",
+      "error": "Не удалось загрузить видео",
+      "back": "Назад",
+      "watchTogether": "Смотреть вместе",
+      "suggest": "Предложить"
     },
     "errors": {
       "EMPTY": "Вставьте ссылку на видео",
@@ -386,6 +398,9 @@
       "NOT_EMBEDDABLE": "Владелец видео запретил просмотр вне YouTube. Выберите другое видео.",
       "NOT_FOUND": "Видео не найдено или оно приватное",
       "playback": "Не удалось воспроизвести видео. Попробуйте другое.",
+      "YOUTUBE_NOT_CONFIGURED": "Поиск YouTube временно недоступен",
+      "YOUTUBE_UNAVAILABLE": "YouTube временно недоступен, попробуйте позже",
+      "YOUTUBE_QUOTA_EXCEEDED": "Исчерпана дневная квота поиска YouTube, попробуйте завтра",
       "generic": "Что-то пошло не так. Попробуйте ещё раз."
     },
     "people": {
@@ -401,6 +416,7 @@
       "back": "К списку комнат",
       "connecting": "Подключаемся к залу…",
       "joinPrompt": "Войти в зал",
+      "liveNow": "Показ уже идёт — войти в зал",
       "controlledBy": "Управляет: {name}",
       "youControl": "Вы управляете просмотром",
       "play": "Воспроизвести",
@@ -414,6 +430,12 @@
       "exitFullscreen": "Выйти из полноэкранного режима",
       "changeVideo": "Сменить видео",
       "changeVideoSubmit": "Поставить",
+      "suggestVideo": "Предложить видео",
+      "suggestSent": "Предложение отправлено хосту",
+      "suggestions": "Предложения видео",
+      "suggestionFrom": "от {name}",
+      "applySuggestion": "Включить это видео",
+      "dismissSuggestion": "Отклонить предложение",
       "invite": "Пригласить ещё",
       "sendInvites": "Отправить приглашения",
       "invitesSent": "Приглашения отправлены",

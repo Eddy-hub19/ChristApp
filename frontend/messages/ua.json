@@ -377,7 +377,19 @@
       "inviteLabel": "Кого покличемо",
       "submit": "Створити й увійти",
       "submitting": "Створюємо…",
-      "cancel": "Скасувати"
+      "cancel": "Скасувати",
+      "browseYoutube": "Обрати з YouTube"
+    },
+    "picker": {
+      "title": "Обрати відео",
+      "searchPlaceholder": "Пошук на YouTube",
+      "clear": "Очистити",
+      "popular": "Популярне",
+      "empty": "Нічого не знайдено",
+      "error": "Не вдалося завантажити відео",
+      "back": "Назад",
+      "watchTogether": "Дивитися разом",
+      "suggest": "Запропонувати"
     },
     "errors": {
       "EMPTY": "Вставте посилання на відео",
@@ -386,6 +398,9 @@
       "NOT_EMBEDDABLE": "Власник відео заборонив перегляд поза YouTube. Оберіть інше відео.",
       "NOT_FOUND": "Відео не знайдено або воно приватне",
       "playback": "Не вдалося відтворити відео. Спробуйте інше.",
+      "YOUTUBE_NOT_CONFIGURED": "Пошук YouTube тимчасово недоступний",
+      "YOUTUBE_UNAVAILABLE": "YouTube тимчасово недоступний, спробуйте пізніше",
+      "YOUTUBE_QUOTA_EXCEEDED": "Вичерпано денну квоту пошуку YouTube, спробуйте завтра",
       "generic": "Щось пішло не так. Спробуйте ще раз."
     },
     "people": {
@@ -401,6 +416,7 @@
       "back": "До списку кімнат",
       "connecting": "Під'єднуємося до зали…",
       "joinPrompt": "Увійти в залу",
+      "liveNow": "Показ уже йде — увійти в залу",
       "controlledBy": "Керує: {name}",
       "youControl": "Ви керуєте переглядом",
       "play": "Відтворити",
@@ -414,6 +430,12 @@
       "exitFullscreen": "Вийти з повноекранного режиму",
       "changeVideo": "Змінити відео",
       "changeVideoSubmit": "Поставити",
+      "suggestVideo": "Запропонувати відео",
+      "suggestSent": "Пропозицію надіслано хосту",
+      "suggestions": "Пропозиції відео",
+      "suggestionFrom": "від {name}",
+      "applySuggestion": "Увімкнути це відео",
+      "dismissSuggestion": "Відхилити пропозицію",
       "invite": "Запросити ще",
       "sendInvites": "Надіслати запрошення",
       "invitesSent": "Запрошення надіслано",

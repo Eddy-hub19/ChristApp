@@ -377,7 +377,19 @@
       "inviteLabel": "Who's coming",
       "submit": "Create and enter",
       "submitting": "Creating…",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "browseYoutube": "Browse YouTube"
+    },
+    "picker": {
+      "title": "Choose a video",
+      "searchPlaceholder": "Search YouTube",
+      "clear": "Clear",
+      "popular": "Popular",
+      "empty": "Nothing found",
+      "error": "Couldn't load videos",
+      "back": "Back",
+      "watchTogether": "Watch together",
+      "suggest": "Suggest"
     },
     "errors": {
       "EMPTY": "Paste a video link",
@@ -386,6 +398,9 @@
       "NOT_EMBEDDABLE": "The owner doesn't allow this video to be played outside YouTube. Pick another one.",
       "NOT_FOUND": "Video not found or it's private",
       "playback": "Couldn't play this video. Try another one.",
+      "YOUTUBE_NOT_CONFIGURED": "YouTube search is temporarily unavailable",
+      "YOUTUBE_UNAVAILABLE": "YouTube is temporarily unavailable, try again later",
+      "YOUTUBE_QUOTA_EXCEEDED": "Daily YouTube search quota used up, try again tomorrow",
       "generic": "Something went wrong. Please try again."
     },
     "people": {
@@ -401,6 +416,7 @@
       "back": "Back to rooms",
       "connecting": "Connecting to the theater…",
       "joinPrompt": "Enter the theater",
+      "liveNow": "Playing now — join in",
       "controlledBy": "Controlled by {name}",
       "youControl": "You're in control",
       "play": "Play",
@@ -414,6 +430,12 @@
       "exitFullscreen": "Exit fullscreen",
       "changeVideo": "Change video",
       "changeVideoSubmit": "Play this",
+      "suggestVideo": "Suggest a video",
+      "suggestSent": "Suggestion sent to the host",
+      "suggestions": "Video suggestions",
+      "suggestionFrom": "from {name}",
+      "applySuggestion": "Play this video",
+      "dismissSuggestion": "Dismiss suggestion",
       "invite": "Invite more",
       "sendInvites": "Send invites",
       "invitesSent": "Invites sent",

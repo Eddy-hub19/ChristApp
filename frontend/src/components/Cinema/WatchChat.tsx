@@ -13,7 +13,8 @@ type WatchChatProps = {
   hostId: string | undefined;
   reactions: string[];
   onSend: (content: string) => Promise<boolean>;
-  onReact: (emoji: string) => void;
+  /** rect — координати натиснутої кнопки, звідки на екрані стартує власний летючий емодзі. */
+  onReact: (emoji: string, rect: DOMRect) => void;
 };
 
 export default function WatchChat({
@@ -81,7 +82,12 @@ export default function WatchChat({
 
       <div className={styles.reactionBar} role="group" aria-label={t("reactions")}>
         {reactions.map((emoji) => (
-          <button key={emoji} type="button" className={styles.reactionButton} onClick={() => onReact(emoji)}>
+          <button
+            key={emoji}
+            type="button"
+            className={styles.reactionButton}
+            onClick={(e) => onReact(emoji, e.currentTarget.getBoundingClientRect())}
+          >
             {emoji}
           </button>
         ))}

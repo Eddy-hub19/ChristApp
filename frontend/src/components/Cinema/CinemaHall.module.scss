@@ -20,7 +20,15 @@
   --curtain-h: 34px;
 
   position: fixed;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  // На iOS 100dvh не стискається під клавіатуру — стискається лише visual viewport.
+  // useKeyboardInset() тримає --vv-top/--vv-height синхронними з ним (той самий трюк, що й у /chat):
+  // зала завжди рівно по видимій області, плеєр і панель лишаються над клавіатурою, а не під нею.
+  top: var(--vv-top, 0px);
+  height: 100%;
+  height: var(--vv-height, 100dvh);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -32,12 +40,15 @@
     var(--hall-bg);
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0
     env(safe-area-inset-left, 0px);
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   font-family: var(--font-inter), "Inter", Arial, sans-serif;
+  transition:
+    height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  @media (min-width: 768px) {
-    overflow: hidden;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
 
@@ -216,17 +227,91 @@
   border: 1px solid rgba(255, 170, 80, 0.25);
 }
 
+// Пропозиції відео з міні-YouTube (хост бачить, поки не прийме/відхилить).
+.suggestionsStrip {
+  display: flex;
+  gap: 8px;
+  margin: 0 14px 8px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+
+  @media (min-width: 768px) {
+    margin: 0 18px 10px;
+  }
+}
+
+.suggestionChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 280px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: var(--hall-surface);
+  border: 1px solid rgba(230, 191, 115, 0.35);
+  animation: messageIn 0.2s ease;
+}
+
+.suggestionText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.suggestionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hall-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionFrom {
+  font-size: 11px;
+  color: var(--hall-muted);
+}
+
+.suggestionApply,
+.suggestionDismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.suggestionApply {
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+}
+
+.suggestionDismiss {
+  color: var(--hall-muted);
+  background: transparent;
+
+  &:hover {
+    background: var(--hall-surface-strong);
+  }
+}
+
 // ================= РОЗКЛАДКА =================
 
 .layout {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 0 12px 16px;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+  padding: 0 12px 10px;
+  overflow: hidden;
 
   @media (min-width: 768px) {
-    flex: 1;
-    min-height: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
     gap: 18px;
@@ -241,10 +326,12 @@
 .stageColumn {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  flex-shrink: 0;
+  gap: 10px;
   min-width: 0;
 
   @media (min-width: 768px) {
+    flex-shrink: 1;
     min-height: 0;
     overflow-y: auto;
     justify-content: center;
@@ -260,13 +347,15 @@
   gap: 10px;
   padding-top: calc(var(--curtain-h) + 10px);
   width: 100%;
-  // Екран не більший за висоту вікна, щоб під ним лишалися панель і крісла.
+  // Екран не більший за висоту вікна, щоб під ним завжди лишалося місце на панель,
+  // ряд крісел і хоча б трохи чату — інакше сторінці довелося б скролитись.
   max-width: calc((100dvh - 330px) * 16 / 9);
   min-width: min(100%, 300px);
   margin: 0 auto;
 
   @media (max-width: 767px) {
-    max-width: none;
+    max-width: calc((100dvh - 300px) * 16 / 9);
+    min-width: min(100%, 220px);
   }
 }
 
@@ -460,24 +549,146 @@
   color: var(--hall-muted);
 }
 
+// Показ уже йде, а глядач ще не в залі — помітний індикатор із живою точкою,
+// щоб було очевидно: тиснеш "Увійти" — і одразу підхоплюєш поточну позицію.
+.enterGateLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd9a8;
+}
+
+.enterGateLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hall-danger);
+  box-shadow: 0 0 8px var(--hall-danger);
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes liveDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+/*
+ * Летючі емодзі-реакції: шар лежить прямо в .theater, тож у fullscreen (реальному —
+ * бо він рендериться тільки у зафуллскриненому елементі — і в повернутому псевдо-fullscreen,
+ * де .theaterPseudoFullscreenRotated своїм transform стає containing block для position:fixed)
+ * той самий position:fixed;inset:0 щоразу коректно покриває весь видимий екран без жодної
+ * JS-логіки на визначення режиму. У повернутому режимі transform батька обертає весь шар
+ * як одне ціле — емодзі летять «вгору відносно відео» автоматично, у локальних координатах.
+ *
+ * КРИХКО: це працює, лише поки в жодного елемента між .theater і .reactionsLayer (curtain,
+ * screenGlow, screen тощо) НЕМАЄ власного transform, filter або backdrop-filter (наприклад,
+ * майбутній «скляний» ефект на .screenGlow). Будь-яка з цих властивостей теж стає containing
+ * block для position:fixed — і шар почне позиціонуватись відносно НЕЇ, а не всього екрана.
+ * Якщо додаєте таке — перевірте реакції вручну в fullscreen і в повернутому режимі
+ * (скріншот + sips --rotate 270, як у стадії 0), автотесту на це немає.
+ */
 .reactionsLayer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  // Реакції стартують від верхнього краю екрана й летять угору, у смугу завіси.
-  top: calc(var(--curtain-h) + 10px);
-  height: 0;
-  z-index: 4;
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  overflow: hidden;
   pointer-events: none;
 }
 
 .floatingEmoji {
+  // top/left виставляються інлайново з JS: або точка кнопки, з якої натиснули (своя реакція),
+  // або випадковий розкид ближче до низу (чужа реакція) — див. FloatingReactions.tsx.
   position: absolute;
-  bottom: 0;
-  font-size: 28px;
+  will-change: transform, opacity;
+  animation: emojiRise var(--dur, 3s) cubic-bezier(0.22, 0.61, 0.32, 1) forwards;
+}
+
+.floatingEmojiSway {
+  position: relative;
+  font-size: 30px;
   line-height: 1;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-  will-change: transform, opacity;
+  will-change: transform;
+  animation: emojiSway var(--sway-dur, 900ms) ease-in-out infinite;
+}
+
+// Аватарка відправника — тільки для чужих реакцій (для своєї це й так очевидно).
+.floatingEmojiAvatar {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  line-height: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(9, 8, 12, 0.85);
+}
+
+@keyframes emojiRise {
+  0% {
+    transform: translateY(0) rotate(var(--rot-start, -8deg)) scale(0.55);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(calc(var(--rise, 640px) * -0.06)) rotate(calc(var(--rot-start, -8deg) * 0.5))
+      scale(var(--scale-peak, 1.2));
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(var(--rise, 640px) * -1)) rotate(var(--rot-end, 12deg))
+      scale(var(--scale-end, 0.8));
+    opacity: 0;
+  }
+}
+
+// Легке покачування вліво-вправо, накладене на вертикальний політ через вкладений елемент —
+// CSS-трансформи предка й нащадка компонуються, тож обидва рухи йдуть одночасно без JS-кадрів.
+@keyframes emojiSway {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway, 16px) * -1));
+  }
+  50% {
+    transform: translateX(var(--sway, 16px));
+  }
+}
+
+// «Зменшити рух» у системі: без польоту й покачування — просто плавна поява й зникнення на місці.
+@media (prefers-reduced-motion: reduce) {
+  .floatingEmoji {
+    // top/left лишаються ті самі (обчислена точка старту) — просто без підйому й повороту.
+    animation-name: emojiFadeReduced;
+    animation-timing-function: ease-in-out;
+  }
+
+  .floatingEmojiSway {
+    animation: none;
+  }
+}
+
+@keyframes emojiFadeReduced {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .stageStatus {
@@ -712,8 +923,7 @@
   justify-content: center;
   background: #000;
 
-  .curtain,
-  .reactionsLayer {
+  .curtain {
     display: none;
   }
 
@@ -740,6 +950,39 @@
   z-index: 350;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
     max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+// Телефон лишається в портреті, а немає ні fullscreen, ні screen.orientation.lock (iOS Safari) —
+// повертаємо сам контейнер на 90° й міняємо місцями ширину/висоту, щоб він заповнив екран як landscape.
+.theaterPseudoFullscreenRotated {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  overflow: hidden;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+
+  // Локальні top/bottom (виріз камери й смужка home indicator) після повороту опиняються
+  // на бічних краях екрана — лівому чи правому залежно від того, в який бік фізично повернули
+  // телефон (напрямок наперед не знаємо). Резервуємо однаково з обох боків, щоб не гадати.
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: 12px;
+  padding-right: 12px;
+
+  // У повернутому контейнері «висота» на екрані — це його локальна ширина (100dvw), а не 100dvh:
+  // рахуємо екран від неї, інакше він не влізе разом із рештою (статус-рядок + панель керування),
+  // яка при повороті теж займає частку саме цієї осі. 166px — бюджет під них, плюс реальний safe-area.
+  .screen {
+    width: min(
+      100%,
+      calc(
+        (100dvw - 166px - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom))) * 16 / 9
+      )
+    );
+  }
 }
 
 // ================= КРІСЛА =================
@@ -877,14 +1120,17 @@
 .chat {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  height: min(60dvh, 460px);
+  flex: 1;
+  // Мінімум, щоб чат не зникав повністю на дуже низьких екранах — решту віддаємо плеєру.
+  min-height: 110px;
   border-radius: 22px;
   background: var(--hall-surface);
   border: 1px solid var(--hall-line);
   overflow: hidden;
 
   @media (min-width: 768px) {
+    flex: initial;
+    min-height: 0;
     height: auto;
   }
 }
@@ -1158,7 +1404,8 @@
 @media (prefers-reduced-motion: reduce) {
   .screenGlow::before,
   .enterGateButton,
-  .unmuteChip {
+  .unmuteChip,
+  .enterGateLiveDot {
     animation: none;
   }
 }

@@ -7,19 +7,28 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { CreateWatchRoomDto, InviteWatchRoomDto } from './dto/watch-room.dto';
+import {
+  VideoPopularQueryDto,
+  VideoSearchQueryDto,
+} from './dto/video-search.dto';
 import { WatchPartyService } from './watch-party.service';
+import { YoutubeSearchService } from './youtube-search.service';
 
 type AuthedRequest = { user: { id: string } };
 
 @Controller('watch-rooms')
 @UseGuards(JwtAuthGuard)
 export class WatchPartyController {
-  constructor(private readonly watchParty: WatchPartyService) {}
+  constructor(
+    private readonly watchParty: WatchPartyService,
+    private readonly youtubeSearch: YoutubeSearchService,
+  ) {}
 
   @Get()
   list(@Req() req: AuthedRequest) {
@@ -30,6 +39,17 @@ export class WatchPartyController {
   @Get('video-check/:videoId')
   checkVideo(@Param('videoId') videoId: string) {
     return this.watchParty.checkVideo(videoId);
+  }
+
+  /** Міні-YouTube у кінозалі: пошук доступний будь-якому учаснику, не лише хосту. */
+  @Get('video-search')
+  searchVideos(@Query() query: VideoSearchQueryDto) {
+    return this.youtubeSearch.search(query.q);
+  }
+
+  @Get('video-popular')
+  popularVideos(@Query() query: VideoPopularQueryDto) {
+    return this.youtubeSearch.popular(query.region);
   }
 
   @Post()
