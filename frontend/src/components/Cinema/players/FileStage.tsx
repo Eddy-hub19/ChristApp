@@ -52,15 +52,21 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
         hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(Hls.Events.ERROR, (_evt, data) => {
-          if (data.fatal) {
-            onStatus({
-              ready: readyRef.current,
-              buffering: false,
-              autoplayMuted: false,
-              poorConnection: false,
-              error: "HTML5",
-            });
-          }
+          if (!data.fatal) return;
+          // hls.js фетчить маніфест/сегменти сам (XHR) — на відміну від нативного <video src>,
+          // якому CORS для простого відтворення не потрібен. Відсутній/непрочитаний статус
+          // (code 0 чи взагалі немає response) на мережевій помилці — типова ознака CORS-блоку
+          // чужим сервером (хоч так само виглядає й "сервер зараз недоступний").
+          const looksLikeCors =
+            data.type === Hls.ErrorTypes.NETWORK_ERROR &&
+            (data.response == null || data.response.code === 0);
+          onStatus({
+            ready: readyRef.current,
+            buffering: false,
+            autoplayMuted: false,
+            poorConnection: false,
+            error: looksLikeCors ? "CORS" : "HTML5",
+          });
         });
         hlsRef.current = hls;
       } else {

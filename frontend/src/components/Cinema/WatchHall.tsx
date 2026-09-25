@@ -35,6 +35,8 @@ import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReact
 import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
+import ManualStage from "./ManualStage";
+import ManualSyncControls from "./ManualSyncControls";
 import MobileStageControls from "./MobileStageControls";
 import ParticipantsSheet from "./ParticipantsSheet";
 import SeatsRow from "./SeatsRow";
@@ -105,6 +107,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         showToast(t(`errors.${event.code}`));
       } else if (event.code === "NOT_HOST") {
         showToast(t("hall.notHost"));
+      } else if (event.code === "INVALID_PHASE") {
+        // Гонка подвійного тапу (напр. "Почати" двічі поспіль) — стан однаково прийде окремим
+        // watch:state від іншого клієнта чи повторної спроби, тост тут зайвий.
+      } else if (event.type === "commandRejected") {
+        showToast(t("errors.generic"));
       }
     },
     [me, showToast, t],
@@ -379,6 +386,17 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   const theaterClass = `${styles.theater} ${isFullscreen ? styles.theaterFullscreen : ""} ${pseudoFullscreen ? styles.theaterPseudoFullscreen : ""} ${pseudoFullscreen && pseudoRotated ? styles.theaterPseudoFullscreenRotated : ""}`;
 
+  const isAutoSync = AUTO_SYNC_PROVIDERS.has(state.provider);
+  // IFRAME/MANUAL ніколи не мають thumbnailUrl (resolveGeneric() на бекенді) — без цієї перевірки
+  // <img> без src показав би "зламану картинку" замість просто чорного тла воріт входу.
+  const enterGateThumb =
+    state.provider === "YOUTUBE" ? youTubeThumbnailUrl(state.videoId, "hq") : state.thumbnailUrl;
+  // Готовність — лише IFRAME/MANUAL (state.manual === null для інших); присутні, а не всі учасники,
+  // бо готовність про "завантажив сторінку зараз", а не про членство в кімнаті.
+  const readyCount = state.manual?.readyUserIds.length ?? 0;
+  const totalCount = hall.presentIds.size;
+  const isReady = Boolean(me && state.manual?.readyUserIds.includes(me));
+
   return (
     <div className={styles.hall}>
       <header className={styles.topbar}>
@@ -515,7 +533,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
             <div className={styles.screenGlow}>
               <div className={styles.screen}>
-                {entered && AUTO_SYNC_PROVIDERS.has(state.provider) ? (
+                {entered && isAutoSync ? (
                   <StageForProvider
                     stageRef={stageRef}
                     state={state}
@@ -528,34 +546,39 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     onHeartbeat={hall.commands.heartbeat}
                   />
                 ) : entered ? (
-                  // IFRAME/MANUAL: ручна синхронізація ще не реалізована (наступний етап).
-                  <div className={styles.manualStagePlaceholder}>{t("hall.manualSyncComingSoon")}</div>
+                  // isAutoSync — вичерпний по WATCH_PROVIDERS, тож тут завжди IFRAME/MANUAL;
+                  // явна перевірка лишень аби звузити тип для ManualStage, не для розгалуження логіки.
+                  state.provider === "IFRAME" || state.provider === "MANUAL" ? (
+                    <ManualStage provider={state.provider} url={state.videoId} title={state.videoTitle} />
+                  ) : null
                 ) : (
                   // До першого дотику плеєра ще немає: браузер дозволить звук лише після жесту.
                   <button type="button" className={styles.enterGate} onClick={() => setEntered(true)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com чи іншого джерела */}
-                    <img
-                      src={
-                        state.provider === "YOUTUBE"
-                          ? youTubeThumbnailUrl(state.videoId, "hq")
-                          : (state.thumbnailUrl ?? undefined)
-                      }
-                      alt=""
-                    />
+                    {enterGateThumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com чи іншого джерела
+                      <img src={enterGateThumb} alt="" />
+                    ) : null}
                     <span className={styles.enterGateInner}>
                       <span className={styles.enterGateButton}>{t("hall.joinPrompt")}</span>
-                      {state.isPlaying ? (
+                      {isAutoSync ? (
+                        state.isPlaying ? (
+                          <span className={styles.enterGateLive}>
+                            <span className={styles.enterGateLiveDot} aria-hidden />
+                            {t("hall.liveNow")}
+                          </span>
+                        ) : (
+                          <span className={styles.enterGateHint}>{t("statusPaused")}</span>
+                        )
+                      ) : state.manual?.phase === "countdown" || state.manual?.phase === "running" ? (
                         <span className={styles.enterGateLive}>
                           <span className={styles.enterGateLiveDot} aria-hidden />
                           {t("hall.liveNow")}
                         </span>
-                      ) : (
-                        <span className={styles.enterGateHint}>{t("statusPaused")}</span>
-                      )}
+                      ) : null}
                     </span>
                   </button>
                 )}
-                {entered && AUTO_SYNC_PROVIDERS.has(state.provider) ? (
+                {entered && isAutoSync ? (
                   <MobileStageControls
                     stageRef={stageRef}
                     isHost={isHost}
@@ -568,6 +591,22 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     isFullscreen={isFullscreen || pseudoFullscreen}
                     onToggleFullscreen={toggleFullscreen}
                   />
+                ) : entered && state.manual ? (
+                  <ManualSyncControls
+                    compact
+                    manual={state.manual}
+                    clock={hall.clock}
+                    isHost={isHost}
+                    isReady={isReady}
+                    readyCount={readyCount}
+                    totalCount={totalCount}
+                    onToggleReady={() => hall.commands.manualReady(!isReady)}
+                    onStart={hall.commands.manualStart}
+                    onPause={hall.commands.manualPause}
+                    onResume={hall.commands.manualResume}
+                    isFullscreen={isFullscreen || pseudoFullscreen}
+                    onToggleFullscreen={toggleFullscreen}
+                  />
                 ) : null}
               </div>
             </div>
@@ -575,7 +614,13 @@ export default function WatchHall({ roomId }: { roomId: string }) {
             <div className={styles.stageStatus} role="status">
               {stage?.error ? (
                 <span className={styles.stageError}>
-                  {t(`errors.${stage.error === "NOT_EMBEDDABLE" || stage.error === "NOT_FOUND" ? stage.error : "playback"}`)}
+                  {t(
+                    `errors.${
+                      stage.error === "NOT_EMBEDDABLE" || stage.error === "NOT_FOUND" || stage.error === "CORS"
+                        ? stage.error
+                        : "playback"
+                    }`,
+                  )}
                   {isHost ? (
                     <button type="button" onClick={() => setDialog("changeVideo")}>
                       {t("hall.changeVideo")}
@@ -593,26 +638,42 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               ) : null}
             </div>
 
-            <HostControls
-              stageRef={stageRef}
-              isHost={isHost}
-              // Play/scrubber для хоста активні одразу: перший дотик і є жестом, що монтує плеєр
-              // (hostPlay/hostPause/hostSeek самі це роблять), тож disabled тут більше не потрібен.
-              entered={entered}
-              onEnter={() => setEntered(true)}
-              seekable={AUTO_SYNC_PROVIDERS.has(state.provider)}
-              hostName={hostName}
-              isPlaying={state.isPlaying}
-              onPlay={hostPlay}
-              onPause={hostPause}
-              onSeek={hostSeek}
-              volume={volume}
-              muted={muted}
-              onVolume={changeVolume}
-              onToggleMute={toggleMute}
-              isFullscreen={isFullscreen || pseudoFullscreen}
-              onToggleFullscreen={toggleFullscreen}
-            />
+            {isAutoSync ? (
+              <HostControls
+                stageRef={stageRef}
+                isHost={isHost}
+                // Play/scrubber для хоста активні одразу: перший дотик і є жестом, що монтує плеєр
+                // (hostPlay/hostPause/hostSeek самі це роблять), тож disabled тут більше не потрібен.
+                entered={entered}
+                onEnter={() => setEntered(true)}
+                hostName={hostName}
+                isPlaying={state.isPlaying}
+                onPlay={hostPlay}
+                onPause={hostPause}
+                onSeek={hostSeek}
+                volume={volume}
+                muted={muted}
+                onVolume={changeVolume}
+                onToggleMute={toggleMute}
+                isFullscreen={isFullscreen || pseudoFullscreen}
+                onToggleFullscreen={toggleFullscreen}
+              />
+            ) : entered && state.manual ? (
+              <ManualSyncControls
+                manual={state.manual}
+                clock={hall.clock}
+                isHost={isHost}
+                isReady={isReady}
+                readyCount={readyCount}
+                totalCount={totalCount}
+                onToggleReady={() => hall.commands.manualReady(!isReady)}
+                onStart={hall.commands.manualStart}
+                onPause={hall.commands.manualPause}
+                onResume={hall.commands.manualResume}
+                isFullscreen={isFullscreen || pseudoFullscreen}
+                onToggleFullscreen={toggleFullscreen}
+              />
+            ) : null}
           </div>
 
           <SeatsRow
@@ -656,6 +717,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         isHost={isHost}
         onTransfer={(member) => setDialog({ transferTo: member })}
         onInvite={() => setDialog("invite")}
+        readyUserIds={state.manual?.readyUserIds}
       />
 
       <Sheet

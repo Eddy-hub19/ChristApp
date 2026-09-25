@@ -1,8 +1,16 @@
 import {
   applyControlCommand,
   compensateTransit,
+  initialManualState,
+  manualCountdownElapsed,
+  manualDropReady,
+  manualPause,
+  manualResume,
+  manualSetReady,
+  manualStart,
   pickNextHost,
   projectPosition,
+  resetManualState,
   type WatchPlaybackState,
 } from './watch-party.state';
 
@@ -150,5 +158,130 @@ describe('pickNextHost', () => {
 
   it('null, якщо в залі нікого, крім хоста', () => {
     expect(pickNextHost(['host', 'a'], 'host', new Set(['host']))).toBeNull();
+  });
+});
+
+describe('ручна синхронізація (IFRAME/MANUAL)', () => {
+  it('початковий стан — idle, без готових, без відліку, без напрацьованого часу', () => {
+    expect(initialManualState()).toEqual({
+      phase: 'idle',
+      countdownEndsAtMs: null,
+      readyUserIds: new Set(),
+      accumulatedMs: 0,
+      runningSinceMs: null,
+    });
+  });
+
+  it('manualSetReady додає й знімає готовність, не займаючи фазу', () => {
+    let state = initialManualState();
+    state = manualSetReady(state, 'a', true);
+    state = manualSetReady(state, 'b', true);
+    expect([...state.readyUserIds].sort()).toEqual(['a', 'b']);
+    expect(state.phase).toBe('idle');
+
+    state = manualSetReady(state, 'a', false);
+    expect([...state.readyUserIds]).toEqual(['b']);
+  });
+
+  it('manualDropReady прибирає користувача, що вийшов із кімнати', () => {
+    let state = initialManualState();
+    state = manualSetReady(state, 'a', true);
+    state = manualDropReady(state, 'a');
+    expect(state.readyUserIds.size).toBe(0);
+  });
+
+  it('manualStart переводить idle → countdown із дедлайном за 3с', () => {
+    const state = manualStart(initialManualState(), 1_000_000);
+    expect(state).toEqual({
+      phase: 'countdown',
+      countdownEndsAtMs: 1_003_000,
+      readyUserIds: new Set(),
+      accumulatedMs: 0,
+      runningSinceMs: null,
+    });
+  });
+
+  it('manualStart відхиляє повторний виклик поза idle', () => {
+    const started = manualStart(initialManualState(), 1_000_000)!;
+    expect(manualStart(started, 1_000_100)).toBeNull();
+  });
+
+  it('manualCountdownElapsed переводить countdown → running, скидає дедлайн і ставить якір "запізлілого" таймера на момент дедлайну', () => {
+    const started = manualStart(initialManualState(), 1_000_000)!;
+    const running = manualCountdownElapsed(started);
+    expect(running).toEqual({
+      phase: 'running',
+      countdownEndsAtMs: null,
+      readyUserIds: new Set(),
+      accumulatedMs: 0,
+      runningSinceMs: 1_003_000, // = countdownEndsAtMs, не "коли спрацював таймер"
+    });
+  });
+
+  it('manualCountdownElapsed — no-op поза countdown', () => {
+    expect(manualCountdownElapsed(initialManualState())).toBeNull();
+  });
+
+  it('manualPause переводить running або countdown → paused', () => {
+    const started = manualStart(initialManualState(), 1_000_000)!;
+    const running = manualCountdownElapsed(started)!;
+    expect(manualPause(running, 1_010_000)?.phase).toBe('paused');
+    expect(manualPause(started, 1_001_000)?.phase).toBe('paused');
+  });
+
+  it('manualPause відхиляє виклик з idle/paused', () => {
+    expect(manualPause(initialManualState(), 0)).toBeNull();
+    const paused = manualPause(manualCountdownElapsed(manualStart(initialManualState(), 0)!)!, 5_000)!;
+    expect(manualPause(paused, 6_000)).toBeNull();
+  });
+
+  it('manualPause з running накопичує пройдений час показу (accumulatedMs) і знімає якір', () => {
+    const started = manualStart(initialManualState(), 0)!; // countdownEndsAtMs = 3_000
+    const running = manualCountdownElapsed(started)!; // runningSinceMs = 3_000
+    const paused = manualPause(running, 15_000)!; // йшло 12с
+    expect(paused.accumulatedMs).toBe(12_000);
+    expect(paused.runningSinceMs).toBeNull();
+  });
+
+  it('manualPause з countdown (перервали ще до running) не додає час показу', () => {
+    const started = manualStart(initialManualState(), 0)!;
+    const paused = manualPause(started, 1_500)!;
+    expect(paused.accumulatedMs).toBe(0);
+  });
+
+  it('manualResume переводить paused → новий countdown, не чіпаючи вже напрацьований час', () => {
+    const started = manualStart(initialManualState(), 0)!;
+    const running = manualCountdownElapsed(started)!;
+    const paused = manualPause(running, 15_000)!; // accumulatedMs = 12_000
+    const resumed = manualResume(paused, 20_000);
+    expect(resumed).toEqual({
+      phase: 'countdown',
+      countdownEndsAtMs: 23_000,
+      readyUserIds: new Set(),
+      accumulatedMs: 12_000,
+      runningSinceMs: null,
+    });
+  });
+
+  it('manualResume відхиляє виклик поза paused', () => {
+    expect(manualResume(initialManualState(), 0)).toBeNull();
+  });
+
+  it('повторні паузи додають до вже накопиченого часу (кілька відрізків running)', () => {
+    let state = manualStart(initialManualState(), 0)!; // countdownEndsAtMs = 3_000
+    state = manualCountdownElapsed(state)!; // runningSinceMs = 3_000
+    state = manualPause(state, 8_000)!; // +5_000 → accumulatedMs = 5_000
+    state = manualResume(state, 10_000)!; // countdownEndsAtMs = 13_000
+    state = manualCountdownElapsed(state)!; // runningSinceMs = 13_000
+    state = manualPause(state, 20_000)!; // +7_000 → accumulatedMs = 12_000
+    expect(state.accumulatedMs).toBe(12_000);
+  });
+
+  it('resetManualState завжди повертає чистий idle (напр. після зміни відео)', () => {
+    let state = manualStart(initialManualState(), 0)!;
+    state = manualSetReady(state, 'a', true);
+    state = manualCountdownElapsed(state)!;
+    manualPause(state, 10_000);
+    expect(resetManualState()).toEqual(initialManualState());
   });
 });

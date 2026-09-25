@@ -6,7 +6,8 @@
 /**
  * YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (адаптер керує плеєром програмно).
  * IFRAME/MANUAL — ручна: адаптер лише показує вміст (вбудований чи прев'ю-картку), а
- * синхронізація йде окремим протоколом відліку/готовності, не через positionSec/isPlaying.
+ * синхронізація йде окремим протоколом відліку/готовності (`state.manual`, нижче), не через
+ * positionSec/isPlaying.
  */
 export const WATCH_PROVIDERS = [
   "YOUTUBE",
@@ -23,6 +24,22 @@ export const AUTO_SYNC_PROVIDERS: ReadonlySet<WatchProvider> = new Set([
   "DAILYMOTION",
   "FILE",
 ]);
+
+/** Дзеркалить backend/src/watch-party/watch-party.state.ts (ManualPhase/ManualSyncState). */
+export const MANUAL_PHASES = ["idle", "countdown", "running", "paused"] as const;
+export type ManualPhase = (typeof MANUAL_PHASES)[number];
+export const MANUAL_COUNTDOWN_MS = 3_000;
+
+export type ManualSyncState = {
+  phase: ManualPhase;
+  /** Серверний час (мс), коли відлік дійде до нуля. `null` поза фазою countdown. */
+  countdownEndsAt: number | null;
+  readyUserIds: string[];
+  /** Скільки мс показ уже йшов сумарно ДО поточного відрізку running (заморожено під час paused). */
+  accumulatedMs: number;
+  /** Серверний час (мс) початку поточного відрізку running. `null` поза фазою running. */
+  runningSince: number | null;
+};
 
 export type WatchState = {
   roomId: string;
@@ -41,6 +58,8 @@ export type WatchState = {
   actorId: string | null;
   /** Ярлик пристрою, що надіслав команду (див. `DEVICE_TAG`). */
   originTag: string | null;
+  /** Лише для IFRAME/MANUAL — `null` для провайдерів з автосинхронізацією. */
+  manual: ManualSyncState | null;
 };
 
 /** Випадковий ярлик цієї вкладки: свої ж команди, що повернулися від сервера, не «виправляємо». */
@@ -185,6 +204,23 @@ export class SeekGovernor {
   markStable(nowMs: number) {
     this.seeks = this.seeks.filter((t) => nowMs - t < SEEK_WINDOW_MS);
   }
+}
+
+/** Скільки цілих секунд лишилось до кінця відліку — для великого числа "3…2…1" в UI. */
+export function manualSecondsLeft(countdownEndsAt: number, nowMs: number): number {
+  return Math.max(0, Math.ceil((countdownEndsAt - nowMs) / 1000));
+}
+
+/**
+ * Скільки показ уже йде (сек), для запізнілого учасника — "Показ іде 12:34". Під час running
+ * додає час поточного відрізку до вже накопиченого раніше (пред. відрізки до попередніх пауз).
+ */
+export function manualElapsedSec(manual: ManualSyncState, nowMs: number): number {
+  const runningMs =
+    manual.phase === "running" && manual.runningSince !== null
+      ? Math.max(0, nowMs - manual.runningSince)
+      : 0;
+  return Math.floor((manual.accumulatedMs + runningMs) / 1000);
 }
 
 export function formatPlaybackTime(totalSec: number): string {

@@ -579,7 +579,8 @@
 }
 
 .fieldHint,
-.fieldError {
+.fieldError,
+.fieldWarning {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -598,6 +599,12 @@
 
 .fieldError {
   color: var(--c-danger);
+  font-weight: 500;
+}
+
+/** http:// на https-сторінці застосунку (mixed content) — попередження, не блокує вибір відео. */
+.fieldWarning {
+  color: #e6a23c;
   font-weight: 500;
 }
 

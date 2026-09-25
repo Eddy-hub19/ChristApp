@@ -247,6 +247,11 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
         thumbnailUrl?: string,
       ) => control("watch:changeVideo", { videoId, startSec, provider, videoTitle, thumbnailUrl }),
       transferHost: (userId: string) => control("watch:transferHost", { userId }),
+      // Ручна синхронізація (IFRAME/MANUAL) — див. ManualSyncControls.tsx.
+      manualReady: (ready: boolean) => control("watch:manualReady", { ready }),
+      manualStart: () => control("watch:manualStart"),
+      manualPause: () => control("watch:manualPause"),
+      manualResume: () => control("watch:manualResume"),
     }),
     [control],
   );

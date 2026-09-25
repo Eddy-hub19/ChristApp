@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Crown } from "lucide-react";
+import { Check, Crown } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
 import Sheet from "./Sheet";
 import { watchUserName } from "@/lib/queries/watchRoomsQueries";
@@ -18,6 +18,11 @@ type ParticipantsSheetProps = {
   isHost: boolean;
   onTransfer: (member: HallMember) => void;
   onInvite: () => void;
+  /**
+   * Лише для IFRAME/MANUAL у фазі idle (`state.manual.readyUserIds`) — хто вже натиснув
+   * "Я готовий/готова". Дозволяє хосту побачити не лише кількість, а й КОГО саме не вистачає.
+   */
+  readyUserIds?: string[];
 };
 
 /**
@@ -34,8 +39,10 @@ export default function ParticipantsSheet({
   isHost,
   onTransfer,
   onInvite,
+  readyUserIds,
 }: ParticipantsSheetProps) {
   const t = useTranslations("cinema.hall");
+  const ready = new Set(readyUserIds ?? []);
   const joined = members
     .filter((m) => m.status === "JOINED")
     .sort((a, b) => Number(presentIds.has(b.id)) - Number(presentIds.has(a.id)));
@@ -75,7 +82,14 @@ export default function ParticipantsSheet({
                   {name}
                   {member.id === currentUserId ? ` (${t("you")})` : ""}
                 </span>
-                <span className={styles.participantStatus}>{online ? t("online") : t("offline")}</span>
+                <span className={styles.participantStatus}>
+                  {online ? t("online") : t("offline")}
+                  {ready.has(member.id) ? (
+                    <span className={styles.participantReady}>
+                      <Check size={11} aria-hidden /> {t("manualReady")}
+                    </span>
+                  ) : null}
+                </span>
               </span>
               {canTransfer ? (
                 <button

@@ -15,11 +15,6 @@ type HostControlsProps = {
   entered: boolean;
   /** Монтує плеєр без відправки play/pause/seek — викликається з першого дотику до scrubber-а. */
   onEnter: () => void;
-  /**
-   * false для IFRAME/MANUAL — провайдерів без програмного керування: замість шкали й play/pause
-   * показуємо позначку ручної синхронізації (сама вона — предмет наступного етапу).
-   */
-  seekable: boolean;
   hostName: string;
   isPlaying: boolean;
   onPlay: () => void;
@@ -42,7 +37,6 @@ export default function HostControls({
   isHost,
   entered,
   onEnter,
-  seekable,
   hostName,
   isPlaying,
   onPlay,
@@ -106,56 +100,50 @@ export default function HostControls({
 
   return (
     <div className={styles.controls}>
-      {seekable ? (
-        <div className={styles.progressRow}>
-          <span className={styles.time}>{formatPlaybackTime(shown)}</span>
-          <div className={styles.progress}>
-            <div className={styles.progressLoaded} style={{ width: `${loaded * 100}%` }} />
-            <div className={styles.progressPlayed} style={{ width: `${pct}%` }} />
-            <input
-              type="range"
-              min={0}
-              max={Math.max(duration, 1)}
-              step={0.1}
-              value={Math.min(shown, Math.max(duration, 1))}
-              disabled={!isHost || (entered && duration <= 0)}
-              aria-label={t("seek")}
-              aria-valuetext={`${formatPlaybackTime(shown)} / ${formatPlaybackTime(duration)}`}
-              onPointerDown={(e) => handleFirstTouch(e.clientX, e.currentTarget)}
-              onKeyDown={() => {
-                if (!entered) onEnter();
-              }}
-              onChange={(e) => {
-                // До входу в залу шкала ще не має реальної тривалості (max=1) — значення з неї
-                // нічого не означає; ігноруємо, доки не запрацює ефект вище з реальним duration.
-                if (!entered) return;
-                const v = Number(e.target.value);
-                scrubRef.current = v;
-                setScrub(v);
-              }}
-              onPointerUp={commitScrub}
-              onKeyUp={commitScrub}
-              onBlur={() => scrubRef.current !== null && commitScrub()}
-            />
-          </div>
-          <span className={styles.time}>{formatPlaybackTime(duration)}</span>
+      <div className={styles.progressRow}>
+        <span className={styles.time}>{formatPlaybackTime(shown)}</span>
+        <div className={styles.progress}>
+          <div className={styles.progressLoaded} style={{ width: `${loaded * 100}%` }} />
+          <div className={styles.progressPlayed} style={{ width: `${pct}%` }} />
+          <input
+            type="range"
+            min={0}
+            max={Math.max(duration, 1)}
+            step={0.1}
+            value={Math.min(shown, Math.max(duration, 1))}
+            disabled={!isHost || (entered && duration <= 0)}
+            aria-label={t("seek")}
+            aria-valuetext={`${formatPlaybackTime(shown)} / ${formatPlaybackTime(duration)}`}
+            onPointerDown={(e) => handleFirstTouch(e.clientX, e.currentTarget)}
+            onKeyDown={() => {
+              if (!entered) onEnter();
+            }}
+            onChange={(e) => {
+              // До входу в залу шкала ще не має реальної тривалості (max=1) — значення з неї
+              // нічого не означає; ігноруємо, доки не запрацює ефект вище з реальним duration.
+              if (!entered) return;
+              const v = Number(e.target.value);
+              scrubRef.current = v;
+              setScrub(v);
+            }}
+            onPointerUp={commitScrub}
+            onKeyUp={commitScrub}
+            onBlur={() => scrubRef.current !== null && commitScrub()}
+          />
         </div>
-      ) : null}
+        <span className={styles.time}>{formatPlaybackTime(duration)}</span>
+      </div>
 
       <div className={styles.buttonsRow}>
-        {seekable ? (
-          <button
-            type="button"
-            className={styles.playButton}
-            onClick={isPlaying ? onPause : onPlay}
-            disabled={!isHost}
-            aria-label={isPlaying ? t("pause") : t("play")}
-          >
-            {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
-          </button>
-        ) : (
-          <span className={styles.manualSyncBadge}>{t("manualSync")}</span>
-        )}
+        <button
+          type="button"
+          className={styles.playButton}
+          onClick={isPlaying ? onPause : onPlay}
+          disabled={!isHost}
+          aria-label={isPlaying ? t("pause") : t("play")}
+        >
+          {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+        </button>
 
         <span className={`${styles.controlledBy} ${isHost ? styles.controlledByMe : ""}`}>
           <Crown size={14} aria-hidden />

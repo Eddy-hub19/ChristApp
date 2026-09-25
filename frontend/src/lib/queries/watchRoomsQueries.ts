@@ -46,6 +46,8 @@ export type ResolvedVideo =
       videoId: string;
       title: string | null;
       thumbnailUrl: string | null;
+      /** http:// на захищеній (https) сторінці застосунку — браузер може заблокувати завантаження. */
+      mixedContent: boolean;
     }
   | { ok: false; code: "NOT_FOUND" | "NOT_EMBEDDABLE" | "INVALID_VIDEO" | "UNSAFE_URL" };
 
