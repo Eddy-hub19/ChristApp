@@ -555,7 +555,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     </span>
                   </button>
                 )}
-                {entered ? (
+                {entered && AUTO_SYNC_PROVIDERS.has(state.provider) ? (
                   <MobileStageControls
                     stageRef={stageRef}
                     isHost={isHost}
