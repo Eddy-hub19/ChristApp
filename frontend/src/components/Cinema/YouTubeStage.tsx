@@ -12,16 +12,14 @@ import {
   classifyYouTubeError,
   loadYouTubeIframeApi,
   type YTPlayer,
-  type YouTubePlayerErrorKind,
 } from "@/lib/youtube";
 import {
   DEVICE_TAG,
   DRIFT_SEEK_THRESHOLD_SEC,
   SeekGovernor,
   expectedPosition,
-  type ServerClock,
-  type WatchState,
 } from "@/lib/watchSync";
+import type { PlayerAdapterHandle, PlayerAdapterProps, StageStatus } from "./players/types";
 import styles from "./CinemaHall.module.scss";
 
 const SYNC_TICK_MS = 1000;
@@ -37,37 +35,9 @@ const LOCAL_ACTION_WINDOW_MS = 1500;
 /** Після власної команди хост чекає її «відлуння» від сервера й не звіряється зі старим станом. */
 const AWAIT_ECHO_MS = 3000;
 
-export type StageStatus = {
-  ready: boolean;
-  buffering: boolean;
-  /** Браузер не дав запустити звук — граємо беззвучно, поки користувач не торкнеться «Увімкнути звук». */
-  autoplayMuted: boolean;
-  poorConnection: boolean;
-  error: YouTubePlayerErrorKind | null;
-};
-
-export type YouTubeStageHandle = {
-  getCurrentTime(): number;
-  getDuration(): number;
-  getLoadedFraction(): number;
-  /** Дії хоста: одразу застосовуються локально, а сервер отримує команду окремо. */
-  localPlay(): number;
-  localPause(): number;
-  localSeek(sec: number): void;
-  unmuteAfterGesture(): void;
-};
-
-type YouTubeStageProps = {
-  state: WatchState;
-  clock: ServerClock;
-  isHost: boolean;
-  volume: number;
-  muted: boolean;
-  onStatus: (status: StageStatus) => void;
-  /** Хост натиснув на саме відео (не на нашу панель) — це теж команда для всіх. */
-  onHostPlayerAction: (action: { type: "play" | "pause"; positionSec: number }) => void;
-  onHeartbeat: (positionSec: number, isPlaying: boolean) => void;
-};
+export type { StageStatus };
+export type YouTubeStageHandle = PlayerAdapterHandle;
+type YouTubeStageProps = PlayerAdapterProps;
 
 /**
  * Офіційний YouTube IFrame Player + цикл синхронізації.
