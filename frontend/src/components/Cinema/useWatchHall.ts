@@ -7,6 +7,7 @@ import {
   DEVICE_TAG,
   ServerClock,
   emitWithAck,
+  type WatchProvider,
   type WatchState,
 } from "@/lib/watchSync";
 
@@ -238,8 +239,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       seek: (positionSec: number) => control("watch:seek", { positionSec }),
       heartbeat: (positionSec: number, isPlaying: boolean) =>
         control("watch:heartbeat", { positionSec, isPlaying }),
-      changeVideo: (videoId: string, startSec?: number) =>
-        control("watch:changeVideo", { videoId, startSec }),
+      changeVideo: (videoId: string, startSec?: number, provider: WatchProvider = "YOUTUBE") =>
+        control("watch:changeVideo", { videoId, startSec, provider }),
       transferHost: (userId: string) => control("watch:transferHost", { userId }),
     }),
     [control],

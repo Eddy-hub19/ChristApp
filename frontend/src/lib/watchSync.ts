@@ -3,8 +3,30 @@
  * Чисті функції/класи без React, щоб логіку було легко читати й перевіряти.
  */
 
+/**
+ * YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (адаптер керує плеєром програмно).
+ * IFRAME/MANUAL — ручна: адаптер лише показує вміст (вбудований чи прев'ю-картку), а
+ * синхронізація йде окремим протоколом відліку/готовності, не через positionSec/isPlaying.
+ */
+export const WATCH_PROVIDERS = [
+  "YOUTUBE",
+  "VIMEO",
+  "DAILYMOTION",
+  "FILE",
+  "IFRAME",
+  "MANUAL",
+] as const;
+export type WatchProvider = (typeof WATCH_PROVIDERS)[number];
+export const AUTO_SYNC_PROVIDERS: ReadonlySet<WatchProvider> = new Set([
+  "YOUTUBE",
+  "VIMEO",
+  "DAILYMOTION",
+  "FILE",
+]);
+
 export type WatchState = {
   roomId: string;
+  provider: WatchProvider;
   videoId: string;
   videoTitle: string | null;
   isPlaying: boolean;

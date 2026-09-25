@@ -194,13 +194,30 @@ enum WatchMemberStatus {
   JOINED
 }
 
-/// Кімната «Кіношка з Ісусом»: спільний перегляд YouTube. Стан плеєра — єдине джерело правди на сервері.
+/// Джерело відео в кімнаті. YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (програмне
+/// керування плеєром). IFRAME/MANUAL — ручна синхронізація (відлік і "я готовий" замість команд
+/// play/pause/seek): IFRAME показує сторінку у вбудованому iframe, MANUAL — лише прев'ю й посилання
+/// "Відкрити" (сайт заборонив вбудовування). Визначається автоматично сервером при вставці посилання.
+enum WatchProvider {
+  YOUTUBE
+  VIMEO
+  DAILYMOTION
+  FILE
+  IFRAME
+  MANUAL
+}
+
+/// Кімната «Кіношка з Ісусом»: спільний перегляд відео з кількох джерел. Стан плеєра — єдине джерело правди на сервері.
 model WatchRoom {
   id             String            @id @default(uuid())
   title          String            @db.VarChar(80)
-  videoId        String            @db.VarChar(11)
-  /// Назва відео з YouTube oEmbed (для картки); може бути порожньою.
+  provider       WatchProvider     @default(YOUTUBE)
+  /// YouTube/Vimeo/Dailymotion — id відео; FILE/IFRAME/MANUAL — повний URL.
+  videoId        String            @db.VarChar(2048)
+  /// Назва відео (з oEmbed чи іншого джерела метаданих); може бути порожньою.
   videoTitle     String?           @db.VarChar(200)
+  /// Обкладинка для прев'ю картки кімнати; є не в усіх провайдерів (напр. FILE).
+  thumbnailUrl   String?           @db.VarChar(1024)
   isPlaying      Boolean           @default(false)
   /// Позиція (с) на момент `stateUpdatedAt`; під час відтворення поточна = position + (now − stateUpdatedAt).
   positionSec    Float             @default(0)

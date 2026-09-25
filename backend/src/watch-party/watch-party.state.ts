@@ -7,6 +7,31 @@
 
 export const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+/**
+ * YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (сервер може довіряти позиції з команд
+ * play/pause/seek/heartbeat). IFRAME/MANUAL — ручна: цей самий "якір" (positionSec/isPlaying)
+ * тут не використовується, кімната синхронізується окремим протоколом (watch:manualStart тощо,
+ * дивись watch-manual.gateway.ts/watch-manual.service.ts).
+ */
+export const WATCH_PROVIDERS = [
+  'YOUTUBE',
+  'VIMEO',
+  'DAILYMOTION',
+  'FILE',
+  'IFRAME',
+  'MANUAL',
+] as const;
+export type WatchProvider = (typeof WATCH_PROVIDERS)[number];
+export const AUTO_SYNC_PROVIDERS: ReadonlySet<WatchProvider> = new Set([
+  'YOUTUBE',
+  'VIMEO',
+  'DAILYMOTION',
+  'FILE',
+]);
+export function isWatchProvider(value: unknown): value is WatchProvider {
+  return typeof value === 'string' && (WATCH_PROVIDERS as readonly string[]).includes(value);
+}
+
 /** Найдовше відео на YouTube — ~12 год; беремо із запасом, аби відсікати сміття. */
 export const MAX_POSITION_SEC = 24 * 3600;
 
@@ -20,6 +45,7 @@ export const MAX_TRANSIT_COMPENSATION_MS = 2_000;
 export const HEARTBEAT_CORRECTION_THRESHOLD_SEC = 0.35;
 
 export type WatchPlaybackState = {
+  provider: WatchProvider;
   videoId: string;
   isPlaying: boolean;
   positionSec: number;
@@ -28,6 +54,39 @@ export type WatchPlaybackState = {
 
 export function isValidVideoId(value: unknown): value is string {
   return typeof value === 'string' && YOUTUBE_VIDEO_ID_RE.test(value);
+}
+
+export const VIMEO_ID_RE = /^\d{6,12}$/;
+export const DAILYMOTION_ID_RE = /^[A-Za-z0-9]{6,14}$/;
+
+/**
+ * Формальна перевірка "схожості" ref на правильний для цього провайдера (без мережі — це
+ * не резолвінг посилання, а захист про всяк випадок від явно зіпсованих/шкідливих значень,
+ * що надійшли прямо в сокет-команду в обхід звичайного шляху "вставили посилання → resolveLink").
+ * FILE/IFRAME/MANUAL зберігають повний URL — тут лише http/https, без розкодовування хоста.
+ */
+export function isValidProviderRef(
+  provider: WatchProvider,
+  value: unknown,
+): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 2048) return false;
+  switch (provider) {
+    case 'YOUTUBE':
+      return YOUTUBE_VIDEO_ID_RE.test(value);
+    case 'VIMEO':
+      return VIMEO_ID_RE.test(value);
+    case 'DAILYMOTION':
+      return DAILYMOTION_ID_RE.test(value);
+    case 'FILE':
+    case 'IFRAME':
+    case 'MANUAL':
+      try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch {
+        return false;
+      }
+  }
 }
 
 export function clampPosition(value: number): number {
@@ -67,7 +126,15 @@ export type ControlCommand =
   | { type: 'play'; positionSec?: number; sentAt?: number }
   | { type: 'pause'; positionSec?: number; sentAt?: number }
   | { type: 'seek'; positionSec: number; sentAt?: number }
-  | { type: 'changeVideo'; videoId: string; startSec?: number }
+  | {
+      type: 'changeVideo';
+      provider: WatchProvider;
+      videoId: string;
+      startSec?: number;
+      /** Лише для не-YOUTUBE: сервер повторно посилання не тягне, довіряє цим полям з клієнта. */
+      videoTitle?: string;
+      thumbnailUrl?: string;
+    }
   | {
       type: 'heartbeat';
       positionSec: number;
@@ -124,6 +191,7 @@ export function applyControlCommand(
     }
     case 'changeVideo': {
       return {
+        provider: command.provider,
         videoId: command.videoId,
         isPlaying: false,
         positionSec: clampPosition(command.startSec ?? 0),

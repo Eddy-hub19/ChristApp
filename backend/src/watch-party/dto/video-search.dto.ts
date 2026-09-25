@@ -13,3 +13,10 @@ export class VideoPopularQueryDto {
   @Matches(/^[A-Za-z]{2}$/, { message: 'Некоректний код регіону' })
   region?: string;
 }
+
+export class ResolveVideoQueryDto {
+  @IsString()
+  @MinLength(1, { message: 'Вставте посилання' })
+  @MaxLength(2048)
+  url: string;
+}

@@ -7,6 +7,7 @@ import {
 } from './watch-party.state';
 
 const base: WatchPlaybackState = {
+  provider: 'YOUTUBE',
   videoId: 'dQw4w9WgXcQ',
   isPlaying: true,
   positionSec: 10,
@@ -71,15 +72,25 @@ describe('applyControlCommand', () => {
   it('changeVideo ставить нове відео на паузу з таймкоду', () => {
     const next = applyControlCommand(
       base,
-      { type: 'changeVideo', videoId: 'abcdefghijk', startSec: 42 },
+      { type: 'changeVideo', provider: 'YOUTUBE', videoId: 'abcdefghijk', startSec: 42 },
       1_001_000,
     );
     expect(next).toEqual({
+      provider: 'YOUTUBE',
       videoId: 'abcdefghijk',
       isPlaying: false,
       positionSec: 42,
       updatedAtMs: 1_001_000,
     });
+  });
+
+  it('changeVideo дозволяє змінити провайдера (напр. YouTube → Vimeo)', () => {
+    const next = applyControlCommand(
+      base,
+      { type: 'changeVideo', provider: 'VIMEO', videoId: '76979871', startSec: 0 },
+      1_001_000,
+    );
+    expect(next).toMatchObject({ provider: 'VIMEO', videoId: '76979871' });
   });
 
   it('heartbeat у межах похибки нічого не розсилає', () => {
