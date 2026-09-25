@@ -264,6 +264,26 @@ export class WatchPartyGateway
     return this.watchParty.postMessage(roomId, userId, body.content);
   }
 
+  @SubscribeMessage('watch:suggestVideo')
+  handleSuggestVideo(
+    @MessageBody() body: RoomBody & { videoId?: unknown; title?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.videoId !== 'string') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.watchParty.isPresent(roomId, userId)) {
+      return { ok: false, code: 'NOT_IN_ROOM' };
+    }
+    if (!this.limiter.allow(`${client.id}:suggest`, 5, 10_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    const title = typeof body.title === 'string' ? body.title : null;
+    return this.watchParty.suggestVideo(roomId, userId, body.videoId, title);
+  }
+
   @SubscribeMessage('watch:reaction')
   handleReaction(
     @MessageBody() body: RoomBody & { emoji?: unknown },

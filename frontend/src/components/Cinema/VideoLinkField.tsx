@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
 import { checkWatchVideo } from "@/lib/queries/watchRoomsQueries";
 import { parseYouTubeLink, youTubeThumbnailUrl } from "@/lib/youtube";
 import { formatPlaybackTime } from "@/lib/watchSync";
+import YouTubePicker from "./YouTubePicker";
 import styles from "./Cinema.module.scss";
 
 export type PickedVideo = { videoId: string; startSec: number; title: string | null };
@@ -32,6 +33,7 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
   const inputId = useId();
   const [raw, setRaw] = useState("");
   const [check, setCheck] = useState<CheckState>({ kind: "idle" });
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     const trimmed = raw.trim();
@@ -118,6 +120,26 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
           t("create.linkHint")
         )}
       </p>
+
+      <button
+        type="button"
+        className={styles.browseYoutubeButton}
+        onClick={() => setPickerOpen(true)}
+      >
+        <Search size={14} aria-hidden /> {t("create.browseYoutube")}
+      </button>
+
+      <YouTubePicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        mode="select"
+        tone={tone}
+        onPick={(video) => {
+          // Ведемо через той самий раw-пайплайн: миттєвий парсинг + серверна oEmbed-перевірка
+          // (уже й так пройдена на боці пошуку, але кеш на бекенді робить повторний виклик безкоштовним).
+          setRaw(`https://www.youtube.com/watch?v=${video.videoId}`);
+        }}
+      />
 
       {previewId ? (
         <div className={`${styles.videoPreview} ${check.kind === "rejected" ? styles.videoPreviewRejected : ""}`}>

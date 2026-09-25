@@ -24,6 +24,15 @@ export type HallMessage = {
 
 export type HallReaction = { id: string; emoji: string; userId: string };
 
+export type HallSuggestion = {
+  id: string;
+  videoId: string;
+  title: string;
+  user: WatchUser;
+};
+
+const MAX_SUGGESTIONS = 5;
+
 export type HallStatus =
   | "connecting"
   | "ready"
@@ -74,6 +83,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   const [presentIds, setPresentIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<HallMessage[]>([]);
   const [reactionOptions, setReactionOptions] = useState<string[]>([]);
+  /** Пропозиції відео з міні-YouTube від учасників — не з БД, живуть лише в цій сесії. */
+  const [suggestions, setSuggestions] = useState<HallSuggestion[]>([]);
   /** Збільшується, щоб повторно зайти в залу (напр. щойно прийняли запрошення). */
   const [joinEpoch, setJoinEpoch] = useState(0);
 
@@ -128,6 +139,10 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       if (p.roomId !== roomId) return;
       reactionListeners.current.forEach((listener) => listener(p));
     };
+    const onVideoSuggested = (p: HallSuggestion & { roomId: string }) => {
+      if (p.roomId !== roomId) return;
+      setSuggestions((prev) => [...prev.slice(-(MAX_SUGGESTIONS - 1)), p]);
+    };
     const onDeleted = (p: { roomId: string }) => {
       if (p.roomId === roomId) setStatus("deleted");
     };
@@ -140,6 +155,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     socket.on("watch:members", onMembers);
     socket.on("watch:message", onMessage);
     socket.on("watch:reaction", onReaction);
+    socket.on("watch:videoSuggested", onVideoSuggested);
     socket.on("watch:roomDeleted", onDeleted);
     socket.on("watch:removedFromRoom", onRemoved);
 
@@ -189,6 +205,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       socket.off("watch:members", onMembers);
       socket.off("watch:message", onMessage);
       socket.off("watch:reaction", onReaction);
+      socket.off("watch:videoSuggested", onVideoSuggested);
       socket.off("watch:roomDeleted", onDeleted);
       socket.off("watch:removedFromRoom", onRemoved);
       if (socket.connected) socket.emit("watch:leave", { roomId });
@@ -273,6 +290,28 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     };
   }, []);
 
+  /** Будь-хто в кімнаті може запропонувати відео з міні-YouTube — не тільки хост. */
+  const suggestVideo = useCallback(
+    (videoId: string, title: string) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
+        }
+        void emitWithAck<{ ok: boolean }>(
+          socket,
+          "watch:suggestVideo",
+          { roomId, videoId, title },
+          8_000,
+        ).then((res) => resolve(Boolean(res?.ok)));
+      }),
+    [socket, roomId],
+  );
+
+  const dismissSuggestion = useCallback((id: string) => {
+    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
   const rejoin = useCallback(() => {
     setStatus("connecting");
     setJoinEpoch((n) => n + 1);
@@ -294,5 +333,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     sendMessage,
     sendReaction,
     subscribeReactions,
+    suggestions,
+    suggestVideo,
+    dismissSuggestion,
   };
 }

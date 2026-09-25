@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Check,
   Clapperboard,
   ExternalLink,
   Link2,
@@ -15,6 +16,7 @@ import {
   UserPlus,
   Volume2,
   WifiOff,
+  X,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +36,7 @@ import InviteSheet, { buildInviteUrl } from "./InviteSheet";
 import SeatsRow from "./SeatsRow";
 import Sheet from "./Sheet";
 import VideoLinkField, { type PickedVideo } from "./VideoLinkField";
+import YouTubePicker from "./YouTubePicker";
 import WatchChat from "./WatchChat";
 import YouTubeStage, { type StageStatus, type YouTubeStageHandle } from "./YouTubeStage";
 import { useWatchHall, type HallEvent, type HallMember } from "./useWatchHall";
@@ -52,7 +55,14 @@ function readStoredVolume(): number {
   }
 }
 
-type Dialog = "invite" | "changeVideo" | "leave" | "delete" | { transferTo: HallMember } | null;
+type Dialog =
+  | "invite"
+  | "changeVideo"
+  | "suggestVideo"
+  | "leave"
+  | "delete"
+  | { transferTo: HallMember }
+  | null;
 
 export default function WatchHall({ roomId }: { roomId: string }) {
   const t = useTranslations("cinema");
@@ -393,7 +403,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                   <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("changeVideo"); }}>
                     <Clapperboard size={16} aria-hidden /> {t("hall.changeVideo")}
                   </button>
-                ) : null}
+                ) : (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("suggestVideo"); }}>
+                    <Clapperboard size={16} aria-hidden /> {t("hall.suggestVideo")}
+                  </button>
+                )}
                 <button type="button" role="menuitem" onClick={copyLink}>
                   <Link2 size={16} aria-hidden /> {t("hall.copyLink")}
                 </button>
@@ -417,6 +431,40 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       {!hall.isConnected ? (
         <div className={styles.connectionBanner} role="status">
           <WifiOff size={14} aria-hidden /> {t("hall.connectionLost")}
+        </div>
+      ) : null}
+
+      {isHost && hall.suggestions.length > 0 ? (
+        <div className={styles.suggestionsStrip} role="group" aria-label={t("hall.suggestions")}>
+          {hall.suggestions.map((s) => (
+            <div key={s.id} className={styles.suggestionChip}>
+              <span className={styles.suggestionText}>
+                <span className={styles.suggestionTitle}>{s.title}</span>
+                <span className={styles.suggestionFrom}>
+                  {t("hall.suggestionFrom", { name: watchUserName(s.user) })}
+                </span>
+              </span>
+              <button
+                type="button"
+                className={styles.suggestionApply}
+                aria-label={t("hall.applySuggestion")}
+                onClick={() => {
+                  hall.commands.changeVideo(s.videoId);
+                  hall.dismissSuggestion(s.id);
+                }}
+              >
+                <Check size={15} />
+              </button>
+              <button
+                type="button"
+                className={styles.suggestionDismiss}
+                aria-label={t("hall.dismissSuggestion")}
+                onClick={() => hall.dismissSuggestion(s.id)}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
         </div>
       ) : null}
 
@@ -563,6 +611,18 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       >
         {dialog === "changeVideo" ? <VideoLinkField onChange={setPendingVideo} autoFocus tone="hall" /> : null}
       </Sheet>
+
+      <YouTubePicker
+        open={dialog === "suggestVideo"}
+        onClose={() => setDialog(null)}
+        mode="suggest"
+        tone="hall"
+        onPick={(video) => {
+          void hall.suggestVideo(video.videoId, video.title);
+          setDialog(null);
+          showToast(t("hall.suggestSent"));
+        }}
+      />
 
       <Sheet
         open={dialog === "leave" || dialog === "delete"}

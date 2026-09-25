@@ -37,6 +37,15 @@ export type VideoCheck =
   | { ok: true; title: string | null }
   | { ok: false; code: "NOT_EMBEDDABLE" | "NOT_FOUND" };
 
+export type VideoSearchItem = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string | null;
+  durationSec: number | null;
+  isShort: boolean;
+};
+
 /** Помилка API з машинним кодом (`NOT_EMBEDDABLE`, …), щоб показати перекладений текст. */
 export class WatchApiError extends Error {
   constructor(
@@ -96,6 +105,16 @@ export function checkWatchVideo(videoId: string) {
   return request<VideoCheck>(
     `/watch-rooms/video-check/${encodeURIComponent(videoId)}`,
   );
+}
+
+export function searchWatchVideos(query: string) {
+  return request<VideoSearchItem[]>(
+    `/watch-rooms/video-search?q=${encodeURIComponent(query)}`,
+  );
+}
+
+export function fetchPopularWatchVideos() {
+  return request<VideoSearchItem[]>("/watch-rooms/video-popular");
 }
 
 export function createWatchRoom(input: {

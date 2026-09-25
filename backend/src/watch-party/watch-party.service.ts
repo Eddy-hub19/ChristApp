@@ -617,6 +617,43 @@ export class WatchPartyService implements OnModuleDestroy {
     return { ok: true as const };
   }
 
+  /**
+   * Учасник (не обов'язково хост) пропонує відео з міні-YouTube. Хост бачить пропозицію
+   * одразу (ефемерна подія, як реакції) і водночас вона лишається в історії чату як звичайне
+   * повідомлення — так її видно й тим, хто в цей момент офлайн.
+   */
+  async suggestVideo(roomId: string, userId: string, videoId: string, rawTitle: string | null) {
+    if (!isValidVideoId(videoId)) {
+      return { ok: false as const, code: 'INVALID_VIDEO' as const };
+    }
+    const membership = await this.prisma.watchRoomMember.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+      select: { status: true },
+    });
+    if (!membership || membership.status !== WatchMemberStatus.JOINED) {
+      return { ok: false as const, code: 'FORBIDDEN' as const };
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: userPublicSelect,
+    });
+    if (!user) return { ok: false as const, code: 'FORBIDDEN' as const };
+
+    const title = (rawTitle ?? videoId).trim().slice(0, 200) || videoId;
+    this.server?.to(watchSocketRoom(roomId)).emit('watch:videoSuggested', {
+      roomId,
+      id: randomBytes(6).toString('hex'),
+      videoId,
+      title,
+      user,
+    });
+
+    const displayName = user.nickname?.trim() || user.username;
+    await this.postMessage(roomId, userId, `🎬 ${displayName} пропонує: «${title}»`);
+
+    return { ok: true as const };
+  }
+
   emitReaction(roomId: string, userId: string, emoji: string) {
     if (!(WATCH_REACTIONS as readonly string[]).includes(emoji)) {
       return { ok: false as const };

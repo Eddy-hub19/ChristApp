@@ -227,6 +227,79 @@
   border: 1px solid rgba(255, 170, 80, 0.25);
 }
 
+// Пропозиції відео з міні-YouTube (хост бачить, поки не прийме/відхилить).
+.suggestionsStrip {
+  display: flex;
+  gap: 8px;
+  margin: 0 14px 8px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+
+  @media (min-width: 768px) {
+    margin: 0 18px 10px;
+  }
+}
+
+.suggestionChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 280px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: var(--hall-surface);
+  border: 1px solid rgba(230, 191, 115, 0.35);
+  animation: messageIn 0.2s ease;
+}
+
+.suggestionText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.suggestionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hall-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestionFrom {
+  font-size: 11px;
+  color: var(--hall-muted);
+}
+
+.suggestionApply,
+.suggestionDismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.suggestionApply {
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+}
+
+.suggestionDismiss {
+  color: var(--hall-muted);
+  background: transparent;
+
+  &:hover {
+    background: var(--hall-surface-strong);
+  }
+}
+
 // ================= РОЗКЛАДКА =================
 
 .layout {
