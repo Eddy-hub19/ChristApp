@@ -7,6 +7,31 @@
 
 export const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
+/**
+ * YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (сервер може довіряти позиції з команд
+ * play/pause/seek/heartbeat). IFRAME/MANUAL — ручна: цей самий "якір" (positionSec/isPlaying)
+ * тут не використовується, кімната синхронізується окремим протоколом (watch:manualStart тощо,
+ * дивись watch-manual.gateway.ts/watch-manual.service.ts).
+ */
+export const WATCH_PROVIDERS = [
+  'YOUTUBE',
+  'VIMEO',
+  'DAILYMOTION',
+  'FILE',
+  'IFRAME',
+  'MANUAL',
+] as const;
+export type WatchProvider = (typeof WATCH_PROVIDERS)[number];
+export const AUTO_SYNC_PROVIDERS: ReadonlySet<WatchProvider> = new Set([
+  'YOUTUBE',
+  'VIMEO',
+  'DAILYMOTION',
+  'FILE',
+]);
+export function isWatchProvider(value: unknown): value is WatchProvider {
+  return typeof value === 'string' && (WATCH_PROVIDERS as readonly string[]).includes(value);
+}
+
 /** Найдовше відео на YouTube — ~12 год; беремо із запасом, аби відсікати сміття. */
 export const MAX_POSITION_SEC = 24 * 3600;
 
@@ -20,6 +45,7 @@ export const MAX_TRANSIT_COMPENSATION_MS = 2_000;
 export const HEARTBEAT_CORRECTION_THRESHOLD_SEC = 0.35;
 
 export type WatchPlaybackState = {
+  provider: WatchProvider;
   videoId: string;
   isPlaying: boolean;
   positionSec: number;
@@ -67,7 +93,7 @@ export type ControlCommand =
   | { type: 'play'; positionSec?: number; sentAt?: number }
   | { type: 'pause'; positionSec?: number; sentAt?: number }
   | { type: 'seek'; positionSec: number; sentAt?: number }
-  | { type: 'changeVideo'; videoId: string; startSec?: number }
+  | { type: 'changeVideo'; provider: WatchProvider; videoId: string; startSec?: number }
   | {
       type: 'heartbeat';
       positionSec: number;
@@ -124,6 +150,7 @@ export function applyControlCommand(
     }
     case 'changeVideo': {
       return {
+        provider: command.provider,
         videoId: command.videoId,
         isPlaying: false,
         positionSec: clampPosition(command.startSec ?? 0),

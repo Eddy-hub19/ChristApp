@@ -19,6 +19,7 @@ import {
   projectPosition,
   type ControlCommand,
   type WatchPlaybackState,
+  type WatchProvider,
 } from './watch-party.state';
 import type { CreateWatchRoomDto } from './dto/watch-room.dto';
 
@@ -806,6 +807,7 @@ export class WatchPartyService implements OnModuleDestroy {
     const room = await this.prisma.watchRoom.findUnique({
       where: { id: roomId },
       select: {
+        provider: true,
         videoId: true,
         videoTitle: true,
         isPlaying: true,
@@ -820,6 +822,7 @@ export class WatchPartyService implements OnModuleDestroy {
     const stale = room.isPlaying && Date.now() - updatedAtMs > STALE_PLAYING_MS;
     const runtime: RoomRuntime = {
       roomId,
+      provider: room.provider as WatchProvider,
       videoId: room.videoId,
       videoTitle: room.videoTitle,
       // Застарілий «грає» — ознака падіння сервера посеред сеансу: не проєктуємо на години вперед.
@@ -843,6 +846,7 @@ export class WatchPartyService implements OnModuleDestroy {
       await this.prisma.watchRoom.updateMany({
         where: { id: runtime.roomId },
         data: {
+          provider: runtime.provider,
           videoId: runtime.videoId,
           videoTitle: runtime.videoTitle,
           isPlaying: runtime.isPlaying,
@@ -866,6 +870,7 @@ export class WatchPartyService implements OnModuleDestroy {
   ) {
     return {
       roomId: runtime.roomId,
+      provider: runtime.provider,
       videoId: runtime.videoId,
       videoTitle: runtime.videoTitle,
       isPlaying: runtime.isPlaying,

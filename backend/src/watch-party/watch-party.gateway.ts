@@ -15,7 +15,7 @@ import {
   userSocketRoom,
   watchSocketRoom,
 } from './watch-party.service';
-import type { ControlCommand } from './watch-party.state';
+import { isWatchProvider, type ControlCommand } from './watch-party.state';
 
 interface WatchSocket extends Socket {
   data: {
@@ -34,6 +34,7 @@ type ControlBody = RoomBody & {
   sentAt?: unknown;
   videoId?: unknown;
   startSec?: unknown;
+  provider?: unknown;
 };
 
 /** Ковзне вікно: не більше `limit` подій за `windowMs` для ключа. */
@@ -203,8 +204,11 @@ export class WatchPartyGateway
   ) {
     if (typeof body?.videoId !== 'string')
       return { ok: false, code: 'INVALID_VIDEO' };
+    // Старі клієнти не шлють provider — вважаємо YouTube, як і було до мультипровайдерності.
+    const provider = isWatchProvider(body.provider) ? body.provider : 'YOUTUBE';
     return this.runControl(client, body, {
       type: 'changeVideo',
+      provider,
       videoId: body.videoId,
       startSec: readNumber(body?.startSec),
     });
