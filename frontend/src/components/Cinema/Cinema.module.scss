@@ -625,21 +625,22 @@
   filter: grayscale(1) brightness(0.6);
 }
 
+// Немає обкладинки (файл, чужий сайт) — компактна плашка з назвою провайдера замість превʼю.
 .videoPreviewNoThumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 120px;
-  height: 67.5px;
-  border-radius: 10px;
+  width: 60px;
+  aspect-ratio: 16 / 9;
   flex-shrink: 0;
-  background: #000;
+  border-radius: 10px;
+  background: var(--c-surface);
   color: var(--c-muted);
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-align: center;
+  text-transform: uppercase;
 }
 
 .videoPreviewText {
