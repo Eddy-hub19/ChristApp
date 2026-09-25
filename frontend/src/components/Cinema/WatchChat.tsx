@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, Smile } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
 import type { HallMessage } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
@@ -28,6 +28,10 @@ export default function WatchChat({
   const t = useTranslations("cinema.hall");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // Лише мобільний: панель емодзі ховається за кнопкою 😊, не закривається після тапу
+  // (щоб можна було швидко тапати кілька разів) — закриває повторний тап або початок вводу.
+  // На десктопі клас, який ця змінна вмикає, ігнорується CSS-медіазапитом — рядок лишається видимим завжди.
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -80,7 +84,11 @@ export default function WatchChat({
         })}
       </div>
 
-      <div className={styles.reactionBar} role="group" aria-label={t("reactions")}>
+      <div
+        className={`${styles.reactionBar} ${emojiOpen ? styles.reactionBarOpen : ""}`}
+        role="group"
+        aria-label={t("reactions")}
+      >
         {reactions.map((emoji) => (
           <button
             key={emoji}
@@ -100,11 +108,23 @@ export default function WatchChat({
           void submit();
         }}
       >
+        <button
+          type="button"
+          className={`${styles.emojiToggle} ${emojiOpen ? styles.emojiToggleActive : ""}`}
+          onClick={() => setEmojiOpen((v) => !v)}
+          aria-label={t("reactions")}
+          aria-pressed={emojiOpen}
+        >
+          <Smile size={20} />
+        </button>
         <input
           className={styles.chatInput}
           value={draft}
           maxLength={500}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (emojiOpen) setEmojiOpen(false);
+          }}
           placeholder={t("chatPlaceholder")}
           aria-label={t("chatPlaceholder")}
           enterKeyHint="send"

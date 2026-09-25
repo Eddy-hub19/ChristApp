@@ -14,6 +14,7 @@ import {
   MoreVertical,
   Trash2,
   UserPlus,
+  Users,
   Volume2,
   WifiOff,
   X,
@@ -31,8 +32,11 @@ import {
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
 import { expectedPosition } from "@/lib/watchSync";
 import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReactions";
+import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
+import MobileStageControls from "./MobileStageControls";
+import ParticipantsSheet from "./ParticipantsSheet";
 import SeatsRow from "./SeatsRow";
 import Sheet from "./Sheet";
 import VideoLinkField, { type PickedVideo } from "./VideoLinkField";
@@ -61,6 +65,7 @@ type Dialog =
   | "suggestVideo"
   | "leave"
   | "delete"
+  | "participants"
   | { transferTo: HallMember }
   | null;
 
@@ -372,13 +377,23 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         </Link>
         <div className={styles.topbarTitle}>
           <h1>{hall.roomTitle}</h1>
-          {/* Хто керує — вже показано в панелі під екраном (лишається видимим і в fullscreen); тут дублювати не треба. */}
+          {/* Десктоп: хто керує — вже показано в панелі під екраном, тут дублювати не треба. */}
           {state.videoTitle ? <p className={styles.topbarVideo}>{state.videoTitle}</p> : null}
+          {/* Мобільний: панель керування — оверлей на відео, тож статус хоста дублюємо тут. */}
+          <p className={styles.topbarStatusMobile}>
+            {isHost ? t("hall.youControl") : t("hall.hostInControl", { name: hostName })}
+          </p>
         </div>
         <button type="button" className={styles.inviteButton} onClick={() => setDialog("invite")}>
           <UserPlus size={16} aria-hidden />
           <span>{t("hall.invite")}</span>
         </button>
+        <HeaderMemberStack
+          members={hall.members}
+          presentIds={hall.presentIds}
+          onClick={() => setDialog("participants")}
+          label={t("hall.participants")}
+        />
         <div className={styles.menuWrap}>
           <button
             type="button"
@@ -414,6 +429,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 <a role="menuitem" href={youTubeWatchUrl(state.videoId)} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>
                   <ExternalLink size={16} aria-hidden /> {t("hall.onYouTube")}
                 </a>
+                {isHost ? (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("participants"); }}>
+                    <Users size={16} aria-hidden /> {t("hall.transfer")}
+                  </button>
+                ) : null}
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("leave"); }}>
                   <LogOut size={16} aria-hidden /> {t("hall.leave")}
                 </button>
@@ -514,6 +534,20 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     </span>
                   </button>
                 )}
+                {entered ? (
+                  <MobileStageControls
+                    stageRef={stageRef}
+                    isHost={isHost}
+                    isPlaying={state.isPlaying}
+                    onPlay={hostPlay}
+                    onPause={hostPause}
+                    onSeek={hostSeek}
+                    muted={muted}
+                    onToggleMute={toggleMute}
+                    isFullscreen={isFullscreen || pseudoFullscreen}
+                    onToggleFullscreen={toggleFullscreen}
+                  />
+                ) : null}
               </div>
             </div>
 
@@ -588,6 +622,18 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         members={hall.members}
         inviteToken={hall.inviteToken}
         onToast={showToast}
+      />
+
+      <ParticipantsSheet
+        open={dialog === "participants"}
+        onClose={() => setDialog(null)}
+        members={hall.members}
+        hostId={state.hostId}
+        presentIds={hall.presentIds}
+        currentUserId={me}
+        isHost={isHost}
+        onTransfer={(member) => setDialog({ transferTo: member })}
+        onInvite={() => setDialog("invite")}
       />
 
       <Sheet
