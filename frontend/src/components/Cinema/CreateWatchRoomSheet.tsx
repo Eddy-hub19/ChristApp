@@ -56,7 +56,10 @@ export default function CreateWatchRoomSheet({
     try {
       const room = await createWatchRoom({
         title: title.trim(),
+        provider: video.provider,
         videoId: video.videoId,
+        videoTitle: video.title ?? undefined,
+        thumbnailUrl: video.thumbnailUrl ?? undefined,
         startSec: video.startSec || undefined,
         inviteeIds: [...selected],
       });

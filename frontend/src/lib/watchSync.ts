@@ -29,6 +29,7 @@ export type WatchState = {
   provider: WatchProvider;
   videoId: string;
   videoTitle: string | null;
+  thumbnailUrl: string | null;
   isPlaying: boolean;
   positionSec: number;
   /** Серверний час якоря, мс. */

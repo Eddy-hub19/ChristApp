@@ -550,6 +550,12 @@
 .playerMount {
   position: absolute;
   inset: 0;
+  // Сам може бути <video> (FileStage) або обгорткою з <div>/<iframe> усередині
+  // (YouTube/Vimeo/Dailymotion самі вставляють свій iframe дочірнім елементом).
+  width: 100%;
+  height: 100%;
+  background: #000;
+  object-fit: contain;
 
   > div,
   iframe {
@@ -558,6 +564,20 @@
     border: 0;
     display: block;
   }
+}
+
+// Тимчасова заглушка для IFRAME/MANUAL, поки не реалізована ручна синхронізація (наступний етап).
+.manualStagePlaceholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--hall-muted);
+  background: #000;
 }
 
 .enterGate {
@@ -1066,6 +1086,20 @@
   gap: 10px;
 }
 
+.manualSyncBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hall-muted);
+  background: var(--hall-surface-strong);
+}
+
 .playButton {
   display: inline-flex;
   align-items: center;
@@ -1097,6 +1131,23 @@
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
+}
+
+// Замінює play-кнопку для IFRAME/MANUAL — тут немає програмного керування відтворенням.
+.manualSyncBadge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--hall-muted);
+  background: var(--hall-surface-strong);
+  white-space: nowrap;
 }
 
 .controlledBy {

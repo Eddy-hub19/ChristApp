@@ -2,6 +2,7 @@ import { getHttpApiBase } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
 import { getApiErrorMessage } from "@/lib/apiError";
+import type { WatchProvider } from "@/lib/watchSync";
 
 const API_URL = getHttpApiBase();
 
@@ -36,6 +37,17 @@ export type WatchRoomsList = {
 export type VideoCheck =
   | { ok: true; title: string | null }
   | { ok: false; code: "NOT_EMBEDDABLE" | "NOT_FOUND" };
+
+export type ResolvedVideo =
+  | {
+      ok: true;
+      provider: WatchProvider;
+      /** YOUTUBE/VIMEO/DAILYMOTION — id відео. FILE/IFRAME/MANUAL — повний URL. */
+      videoId: string;
+      title: string | null;
+      thumbnailUrl: string | null;
+    }
+  | { ok: false; code: "NOT_FOUND" | "NOT_EMBEDDABLE" | "INVALID_VIDEO" | "UNSAFE_URL" };
 
 export type VideoSearchItem = {
   videoId: string;
@@ -107,6 +119,11 @@ export function checkWatchVideo(videoId: string) {
   );
 }
 
+/** Визначає провайдера з довільного посилання (YouTube/Vimeo/Dailymotion/файл/інше). */
+export function resolveWatchVideoLink(url: string) {
+  return request<ResolvedVideo>(`/watch-rooms/resolve-video?url=${encodeURIComponent(url)}`);
+}
+
 export function searchWatchVideos(query: string) {
   return request<VideoSearchItem[]>(
     `/watch-rooms/video-search?q=${encodeURIComponent(query)}`,
@@ -119,7 +136,10 @@ export function fetchPopularWatchVideos() {
 
 export function createWatchRoom(input: {
   title: string;
+  provider?: WatchProvider;
   videoId: string;
+  videoTitle?: string;
+  thumbnailUrl?: string;
   startSec?: number;
   inviteeIds: string[];
 }) {

@@ -3,13 +3,21 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertCircle, Loader2, Search } from "lucide-react";
-import { checkWatchVideo } from "@/lib/queries/watchRoomsQueries";
+import { resolveWatchVideoLink } from "@/lib/queries/watchRoomsQueries";
 import { parseYouTubeLink, youTubeThumbnailUrl } from "@/lib/youtube";
 import { formatPlaybackTime } from "@/lib/watchSync";
+import type { WatchProvider } from "@/lib/watchSync";
 import YouTubePicker from "./YouTubePicker";
 import styles from "./Cinema.module.scss";
 
-export type PickedVideo = { videoId: string; startSec: number; title: string | null };
+export type PickedVideo = {
+  provider: WatchProvider;
+  /** YOUTUBE/VIMEO/DAILYMOTION — id відео. FILE/IFRAME/MANUAL — повний URL. */
+  videoId: string;
+  startSec: number;
+  title: string | null;
+  thumbnailUrl: string | null;
+};
 
 type VideoLinkFieldProps = {
   onChange: (video: PickedVideo | null) => void;
@@ -19,17 +27,30 @@ type VideoLinkFieldProps = {
 
 type CheckState =
   | { kind: "idle" }
-  | { kind: "invalid"; error: string }
-  | { kind: "checking"; videoId: string; startSec: number }
+  | { kind: "checking" }
   | { kind: "ok"; video: PickedVideo }
-  | { kind: "rejected"; videoId: string; error: string };
+  | { kind: "rejected"; error: string };
+
+const RESOLVE_DEBOUNCE_MS = 450;
+const KNOWN_ERROR_CODES = new Set([
+  "NOT_EMBEDDABLE",
+  "NOT_FOUND",
+  "INVALID_VIDEO",
+  "UNSAFE_URL",
+  "YOUTUBE_NOT_CONFIGURED",
+  "YOUTUBE_UNAVAILABLE",
+  "YOUTUBE_QUOTA_EXCEEDED",
+]);
 
 /**
- * Поле посилання на YouTube: миттєво розбирає будь-який формат і показує прев'ю,
- * а сервер (oEmbed) підтверджує, що відео існує й дозволене для вбудовування.
+ * Поле посилання на відео: сервер сам визначає провайдера (YouTube/Vimeo/Dailymotion/файл/
+ * інший сайт — GET /watch-rooms/resolve-video, єдине SSRF-захищене місце мережевого виклику за
+ * довільним URL від користувача) і повертає готове прев'ю. Таймкод (`?t=90`) підтримуємо лише
+ * для YouTube — інші провайдери не мають єдиного стандарту глибокого посилання на позицію.
  */
 export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: VideoLinkFieldProps) {
   const t = useTranslations("cinema");
+  const tErr = useTranslations("cinema.errors");
   const inputId = useId();
   const [raw, setRaw] = useState("");
   const [check, setCheck] = useState<CheckState>({ kind: "idle" });
@@ -42,38 +63,38 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
       onChange(null);
       return;
     }
-    const parsed = parseYouTubeLink(trimmed);
-    if (!parsed.ok) {
-      setCheck({ kind: "invalid", error: t(`errors.${parsed.error}`) });
-      onChange(null);
-      return;
-    }
-
-    const { videoId, startSec } = parsed.value;
-    setCheck({ kind: "checking", videoId, startSec });
+    setCheck({ kind: "checking" });
     onChange(null);
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      checkWatchVideo(videoId)
+      resolveWatchVideoLink(trimmed)
         .then((result) => {
           if (cancelled) return;
-          if (result.ok) {
-            const video = { videoId, startSec, title: result.title };
-            setCheck({ kind: "ok", video });
-            onChange(video);
-          } else {
-            setCheck({ kind: "rejected", videoId, error: t(`errors.${result.code}`) });
+          if (!result.ok) {
+            const message = KNOWN_ERROR_CODES.has(result.code)
+              ? tErr(result.code as Parameters<typeof tErr>[0])
+              : t("errors.generic");
+            setCheck({ kind: "rejected", error: message });
+            return;
           }
+          const startSec =
+            result.provider === "YOUTUBE" ? parseYoutubeStartSec(trimmed) : 0;
+          const video: PickedVideo = {
+            provider: result.provider,
+            videoId: result.videoId,
+            startSec,
+            title: result.title,
+            thumbnailUrl: result.thumbnailUrl,
+          };
+          setCheck({ kind: "ok", video });
+          onChange(video);
         })
         .catch(() => {
           if (cancelled) return;
-          // Перевірка недоступна (мережа) — не блокуємо: плеєр сам покаже помилку, якщо що.
-          const video = { videoId, startSec, title: null };
-          setCheck({ kind: "ok", video });
-          onChange(video);
+          setCheck({ kind: "rejected", error: t("errors.generic") });
         });
-    }, 350);
+    }, RESOLVE_DEBOUNCE_MS);
 
     return () => {
       cancelled = true;
@@ -81,17 +102,14 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
     };
     // onChange навмисно не в залежностях: батьки передають інлайн-функції.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, t]);
+  }, [raw, t, tErr]);
 
-  const previewId =
-    check.kind === "checking" || check.kind === "rejected"
-      ? check.videoId
-      : check.kind === "ok"
-        ? check.video.videoId
-        : null;
-  const startSec =
-    check.kind === "checking" ? check.startSec : check.kind === "ok" ? check.video.startSec : 0;
-  const error = check.kind === "invalid" || check.kind === "rejected" ? check.error : null;
+  const error = check.kind === "rejected" ? check.error : null;
+  const previewThumb =
+    check.kind === "ok"
+      ? check.video.thumbnailUrl ??
+        (check.video.provider === "YOUTUBE" ? youTubeThumbnailUrl(check.video.videoId, "mq") : null)
+      : null;
 
   return (
     <div className={`${styles.field} ${tone === "hall" ? styles.fieldHall : ""}`}>
@@ -135,27 +153,36 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
         mode="select"
         tone={tone}
         onPick={(video) => {
-          // Ведемо через той самий раw-пайплайн: миттєвий парсинг + серверна oEmbed-перевірка
-          // (уже й так пройдена на боці пошуку, але кеш на бекенді робить повторний виклик безкоштовним).
+          // Ведемо через той самий raw-пайплайн: сервер уже кешував цей videoId під час пошуку,
+          // тож повторний виклик resolve-video тут практично безкоштовний.
           setRaw(`https://www.youtube.com/watch?v=${video.videoId}`);
         }}
       />
 
-      {previewId ? (
-        <div className={`${styles.videoPreview} ${check.kind === "rejected" ? styles.videoPreviewRejected : ""}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com, next/image тут зайвий */}
-          <img src={youTubeThumbnailUrl(previewId, "mq")} alt="" loading="lazy" />
+      {check.kind === "checking" ? (
+        <div className={styles.videoPreview}>
+          <span className={styles.muted}>
+            <Loader2 size={14} className={styles.spin} aria-hidden /> {t("create.checking")}
+          </span>
+        </div>
+      ) : check.kind === "ok" ? (
+        <div className={styles.videoPreview}>
+          {previewThumb ? (
+            // eslint-disable-next-line @next/next/no-img-element -- прев'ю із зовнішнього хоста
+            <img src={previewThumb} alt="" loading="lazy" />
+          ) : (
+            <span className={styles.videoPreviewNoThumb} aria-hidden>
+              {check.video.provider}
+            </span>
+          )}
           <div className={styles.videoPreviewText}>
-            {check.kind === "checking" ? (
-              <span className={styles.muted}>
-                <Loader2 size={14} className={styles.spin} aria-hidden /> {t("create.checking")}
-              </span>
-            ) : check.kind === "ok" ? (
-              <span className={styles.videoPreviewTitle}>{check.video.title ?? previewId}</span>
+            <span className={styles.videoPreviewTitle}>{check.video.title ?? check.video.videoId}</span>
+            {check.video.provider !== "YOUTUBE" && check.video.provider !== "VIMEO" && check.video.provider !== "DAILYMOTION" ? (
+              <span className={styles.muted}>{t(`create.provider${capitalize(check.video.provider)}`)}</span>
             ) : null}
-            {startSec > 0 && check.kind !== "rejected" ? (
+            {check.video.startSec > 0 ? (
               <span className={styles.muted}>
-                {t("create.startsAt", { time: formatPlaybackTime(startSec) })}
+                {t("create.startsAt", { time: formatPlaybackTime(check.video.startSec) })}
               </span>
             ) : null}
           </div>
@@ -163,4 +190,13 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
       ) : null}
     </div>
   );
+}
+
+function parseYoutubeStartSec(raw: string): number {
+  const parsed = parseYouTubeLink(raw);
+  return parsed.ok ? parsed.value.startSec : 0;
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0) + s.slice(1).toLowerCase();
 }

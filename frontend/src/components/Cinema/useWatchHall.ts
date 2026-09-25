@@ -239,8 +239,13 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       seek: (positionSec: number) => control("watch:seek", { positionSec }),
       heartbeat: (positionSec: number, isPlaying: boolean) =>
         control("watch:heartbeat", { positionSec, isPlaying }),
-      changeVideo: (videoId: string, startSec?: number, provider: WatchProvider = "YOUTUBE") =>
-        control("watch:changeVideo", { videoId, startSec, provider }),
+      changeVideo: (
+        videoId: string,
+        startSec?: number,
+        provider: WatchProvider = "YOUTUBE",
+        videoTitle?: string,
+        thumbnailUrl?: string,
+      ) => control("watch:changeVideo", { videoId, startSec, provider, videoTitle, thumbnailUrl }),
       transferHost: (userId: string) => control("watch:transferHost", { userId }),
     }),
     [control],
