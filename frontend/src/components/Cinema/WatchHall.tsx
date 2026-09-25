@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -30,7 +30,7 @@ import {
   watchUserName,
 } from "@/lib/queries/watchRoomsQueries";
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
-import { expectedPosition } from "@/lib/watchSync";
+import { expectedPosition, AUTO_SYNC_PROVIDERS, type ServerClock, type WatchState } from "@/lib/watchSync";
 import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReactions";
 import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
@@ -42,7 +42,11 @@ import Sheet from "./Sheet";
 import VideoLinkField, { type PickedVideo } from "./VideoLinkField";
 import YouTubePicker from "./YouTubePicker";
 import WatchChat from "./WatchChat";
-import YouTubeStage, { type StageStatus, type YouTubeStageHandle } from "./YouTubeStage";
+import YouTubeStage from "./YouTubeStage";
+import VimeoStage from "./players/VimeoStage";
+import DailymotionStage from "./players/DailymotionStage";
+import FileStage from "./players/FileStage";
+import type { PlayerAdapterHandle, StageStatus } from "./players/types";
 import { useWatchHall, type HallEvent, type HallMember } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
 
@@ -127,7 +131,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
   const [pseudoRotated, setPseudoRotated] = useState(false);
 
-  const stageRef = useRef<YouTubeStageHandle | null>(null);
+  const stageRef = useRef<PlayerAdapterHandle | null>(null);
   const theaterRef = useRef<HTMLDivElement>(null);
   const reactionsRef = useRef<FloatingReactionsHandle>(null);
 
@@ -295,7 +299,13 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   const applyNewVideo = () => {
     if (!pendingVideo) return;
-    hall.commands.changeVideo(pendingVideo.videoId, pendingVideo.startSec || undefined);
+    hall.commands.changeVideo(
+      pendingVideo.videoId,
+      pendingVideo.startSec || undefined,
+      pendingVideo.provider,
+      pendingVideo.title ?? undefined,
+      pendingVideo.thumbnailUrl ?? undefined,
+    );
     setPendingVideo(null);
     setDialog(null);
   };
@@ -426,8 +436,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 <button type="button" role="menuitem" onClick={copyLink}>
                   <Link2 size={16} aria-hidden /> {t("hall.copyLink")}
                 </button>
-                <a role="menuitem" href={youTubeWatchUrl(state.videoId)} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>
-                  <ExternalLink size={16} aria-hidden /> {t("hall.onYouTube")}
+                <a role="menuitem" href={sourceUrlFor(state)} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}>
+                  <ExternalLink size={16} aria-hidden />{" "}
+                  {state.provider === "YOUTUBE" ? t("hall.onYouTube") : t("hall.openSource")}
                 </a>
                 {isHost ? (
                   <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("participants"); }}>
@@ -504,9 +515,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
             <div className={styles.screenGlow}>
               <div className={styles.screen}>
-                {entered ? (
-                  <YouTubeStage
-                    ref={stageRef}
+                {entered && AUTO_SYNC_PROVIDERS.has(state.provider) ? (
+                  <StageForProvider
+                    stageRef={stageRef}
                     state={state}
                     clock={hall.clock}
                     isHost={isHost}
@@ -516,11 +527,21 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     onHostPlayerAction={onHostPlayerAction}
                     onHeartbeat={hall.commands.heartbeat}
                   />
+                ) : entered ? (
+                  // IFRAME/MANUAL: ручна синхронізація ще не реалізована (наступний етап).
+                  <div className={styles.manualStagePlaceholder}>{t("hall.manualSyncComingSoon")}</div>
                 ) : (
                   // До першого дотику плеєра ще немає: браузер дозволить звук лише після жесту.
                   <button type="button" className={styles.enterGate} onClick={() => setEntered(true)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com */}
-                    <img src={youTubeThumbnailUrl(state.videoId, "hq")} alt="" />
+                    {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com чи іншого джерела */}
+                    <img
+                      src={
+                        state.provider === "YOUTUBE"
+                          ? youTubeThumbnailUrl(state.videoId, "hq")
+                          : (state.thumbnailUrl ?? undefined)
+                      }
+                      alt=""
+                    />
                     <span className={styles.enterGateInner}>
                       <span className={styles.enterGateButton}>{t("hall.joinPrompt")}</span>
                       {state.isPlaying ? (
@@ -579,6 +600,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               // (hostPlay/hostPause/hostSeek самі це роблять), тож disabled тут більше не потрібен.
               entered={entered}
               onEnter={() => setEntered(true)}
+              seekable={AUTO_SYNC_PROVIDERS.has(state.provider)}
               hostName={hostName}
               isPlaying={state.isPlaying}
               onPlay={hostPlay}
@@ -732,6 +754,49 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       <Toast toast={toast} />
     </div>
   );
+}
+
+type StageForProviderProps = {
+  stageRef: RefObject<PlayerAdapterHandle | null>;
+  state: WatchState;
+  clock: ServerClock;
+  isHost: boolean;
+  volume: number;
+  muted: boolean;
+  onStatus: (status: StageStatus) => void;
+  onHostPlayerAction: (action: { type: "play" | "pause"; positionSec: number }) => void;
+  onHeartbeat: (positionSec: number, isPlaying: boolean) => void;
+};
+
+/** Посилання на оригінал для пункту меню "Відкрити на …" — по-своєму для кожного провайдера. */
+function sourceUrlFor(state: WatchState): string {
+  switch (state.provider) {
+    case "YOUTUBE":
+      return youTubeWatchUrl(state.videoId);
+    case "VIMEO":
+      return `https://vimeo.com/${state.videoId}`;
+    case "DAILYMOTION":
+      return `https://www.dailymotion.com/video/${state.videoId}`;
+    case "FILE":
+    case "IFRAME":
+    case "MANUAL":
+      return state.videoId;
+  }
+}
+
+/** Вибирає адаптер плеєра за `state.provider` — лише для провайдерів з повною синхронізацією. */
+function StageForProvider({ stageRef, ...props }: StageForProviderProps) {
+  switch (props.state.provider) {
+    case "VIMEO":
+      return <VimeoStage ref={stageRef} {...props} />;
+    case "DAILYMOTION":
+      return <DailymotionStage ref={stageRef} {...props} />;
+    case "FILE":
+      return <FileStage ref={stageRef} {...props} />;
+    case "YOUTUBE":
+    default:
+      return <YouTubeStage ref={stageRef} {...props} />;
+  }
 }
 
 function Toast({ toast }: { toast: { id: number; text: string } | null }) {
