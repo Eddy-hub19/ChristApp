@@ -27,6 +27,7 @@ import {
   watchUserName,
 } from "@/lib/queries/watchRoomsQueries";
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
+import { expectedPosition } from "@/lib/watchSync";
 import FloatingReactions from "./FloatingReactions";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
@@ -206,15 +207,23 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     }
   };
 
+  // Натискання хоста на play/scrubber ДО того, як плеєр змонтований (ще не було жесту
+  // для автоплею) — саме є тим жестом: монтуємо плеєр і одразу шлемо команду з позиції
+  // з серверного стану (stageRef ще порожній). Плеєр, щойно змонтувавшись, сам підхопить
+  // щойно надіслану позицію — той самий шлях, яким і глядач приєднується до вже активного показу.
   const hostPlay = () => {
-    const pos = stageRef.current?.localPlay() ?? 0;
+    if (!entered) setEntered(true);
+    const pos = stageRef.current?.localPlay() ?? state?.positionSec ?? 0;
     hall.commands.play(pos);
   };
   const hostPause = () => {
-    const pos = stageRef.current?.localPause() ?? 0;
+    if (!entered) setEntered(true);
+    const pos =
+      stageRef.current?.localPause() ?? (state ? expectedPosition(state, hall.clock.now()) : 0);
     hall.commands.pause(pos);
   };
   const hostSeek = (sec: number) => {
+    if (!entered) setEntered(true);
     stageRef.current?.localSeek(sec);
     hall.commands.seek(sec);
   };
@@ -429,9 +438,14 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     <img src={youTubeThumbnailUrl(state.videoId, "hq")} alt="" />
                     <span className={styles.enterGateInner}>
                       <span className={styles.enterGateButton}>{t("hall.joinPrompt")}</span>
-                      <span className={styles.enterGateHint}>
-                        {state.isPlaying ? t("statusPlaying") : t("statusPaused")}
-                      </span>
+                      {state.isPlaying ? (
+                        <span className={styles.enterGateLive}>
+                          <span className={styles.enterGateLiveDot} aria-hidden />
+                          {t("hall.liveNow")}
+                        </span>
+                      ) : (
+                        <span className={styles.enterGateHint}>{t("statusPaused")}</span>
+                      )}
                     </span>
                   </button>
                 )}
@@ -461,7 +475,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
             <HostControls
               stageRef={stageRef}
-              isHost={isHost && entered}
+              isHost={isHost}
+              // Play/scrubber для хоста активні одразу: перший дотик і є жестом, що монтує плеєр
+              // (hostPlay/hostPause/hostSeek самі це роблять), тож disabled тут більше не потрібен.
+              entered={entered}
+              onEnter={() => setEntered(true)}
               hostName={hostName}
               isPlaying={state.isPlaying}
               onPlay={hostPlay}

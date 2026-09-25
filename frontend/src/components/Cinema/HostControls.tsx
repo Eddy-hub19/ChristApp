@@ -9,7 +9,12 @@ import styles from "./CinemaHall.module.scss";
 
 type HostControlsProps = {
   stageRef: RefObject<YouTubeStageHandle | null>;
+  /** Чи цей користувач — хост кімнати. Визначає підпис, корону і доступність кнопок. */
   isHost: boolean;
+  /** Чи плеєр уже змонтований (був жест користувача). До цього play/scrubber самі це виправляють. */
+  entered: boolean;
+  /** Монтує плеєр без відправки play/pause/seek — викликається з першого дотику до scrubber-а. */
+  onEnter: () => void;
   hostName: string;
   isPlaying: boolean;
   onPlay: () => void;
@@ -30,6 +35,8 @@ type HostControlsProps = {
 export default function HostControls({
   stageRef,
   isHost,
+  entered,
+  onEnter,
   hostName,
   isPlaying,
   onPlay,
@@ -49,6 +56,9 @@ export default function HostControls({
   /** Під час перетягування показуємо позицію повзунка, а seek надсилаємо лише на відпускання. */
   const [scrub, setScrub] = useState<number | null>(null);
   const scrubRef = useRef<number | null>(null);
+  /** Торкнулись повзунка до входу в залу: справжню тривалість ще не знаємо, тож запам'ятовуємо
+   *  ЧАСТКУ шкали (0..1), а не секунди — і домотуємо, щойно плеєр змонтується й повідомить duration. */
+  const pendingSeekFractionRef = useRef<number | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -61,6 +71,13 @@ export default function HostControls({
     return () => clearInterval(id);
   }, [stageRef]);
 
+  useEffect(() => {
+    if (pendingSeekFractionRef.current === null || duration <= 0) return;
+    const target = pendingSeekFractionRef.current * duration;
+    pendingSeekFractionRef.current = null;
+    onSeek(target);
+  }, [duration, onSeek]);
+
   const shown = scrub ?? time;
   const pct = duration > 0 ? Math.min(100, (shown / duration) * 100) : 0;
   const commitScrub = () => {
@@ -68,6 +85,15 @@ export default function HostControls({
     scrubRef.current = null;
     setScrub(null);
     if (value !== null) onSeek(value);
+  };
+  /** Перший дотик до ще незмонтованого плеєра: тільки заходимо в залу й запам'ятовуємо,
+   *  куди саме торкнулись (часткою довжини шкали) — сам seek піде, щойно відомою стане duration. */
+  const handleFirstTouch = (clientX: number, target: HTMLElement) => {
+    if (entered) return;
+    const rect = target.getBoundingClientRect();
+    pendingSeekFractionRef.current =
+      rect.width > 0 ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)) : 0;
+    onEnter();
   };
 
   const VolumeIcon = muted || volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
@@ -85,10 +111,17 @@ export default function HostControls({
             max={Math.max(duration, 1)}
             step={0.1}
             value={Math.min(shown, Math.max(duration, 1))}
-            disabled={!isHost || duration <= 0}
+            disabled={!isHost || (entered && duration <= 0)}
             aria-label={t("seek")}
             aria-valuetext={`${formatPlaybackTime(shown)} / ${formatPlaybackTime(duration)}`}
+            onPointerDown={(e) => handleFirstTouch(e.clientX, e.currentTarget)}
+            onKeyDown={() => {
+              if (!entered) onEnter();
+            }}
             onChange={(e) => {
+              // До входу в залу шкала ще не має реальної тривалості (max=1) — значення з неї
+              // нічого не означає; ігноруємо, доки не запрацює ефект вище з реальним duration.
+              if (!entered) return;
               const v = Number(e.target.value);
               scrubRef.current = v;
               setScrub(v);

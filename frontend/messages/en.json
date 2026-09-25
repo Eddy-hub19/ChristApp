@@ -401,6 +401,7 @@
       "back": "Back to rooms",
       "connecting": "Connecting to the theater…",
       "joinPrompt": "Enter the theater",
+      "liveNow": "Playing now — join in",
       "controlledBy": "Controlled by {name}",
       "youControl": "You're in control",
       "play": "Play",

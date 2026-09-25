@@ -476,6 +476,38 @@
   color: var(--hall-muted);
 }
 
+// Показ уже йде, а глядач ще не в залі — помітний індикатор із живою точкою,
+// щоб було очевидно: тиснеш "Увійти" — і одразу підхоплюєш поточну позицію.
+.enterGateLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd9a8;
+}
+
+.enterGateLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hall-danger);
+  box-shadow: 0 0 8px var(--hall-danger);
+  animation: liveDotPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes liveDotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
 .reactionsLayer {
   position: absolute;
   left: 0;
@@ -1210,7 +1242,8 @@
 @media (prefers-reduced-motion: reduce) {
   .screenGlow::before,
   .enterGateButton,
-  .unmuteChip {
+  .unmuteChip,
+  .enterGateLiveDot {
     animation: none;
   }
 }
