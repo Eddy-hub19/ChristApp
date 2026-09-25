@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { lookup as dnsLookup } from 'dns/promises';
-import { isIP } from 'net';
+import type { LookupAddress } from 'dns';
+import { isIP, type LookupFunction } from 'net';
+import { Agent, fetch as undiciFetch, type Headers as UndiciHeaders } from 'undici';
 
 const logger = new Logger('UrlSafety');
 
@@ -65,12 +67,50 @@ function isPrivateOrReservedIp(ip: string): boolean {
 }
 
 /**
+ * DNS-резолв хоста (або перевірка літеральної IP) з перевіркою кожної адреси. Повертає
+ * список резолвнутих адрес, аби виклик, що встановлює з'єднання, міг "прип'яти" його саме до
+ * НИХ (а не резолвити хост іще раз) — інакше лишається вікно для DNS rebinding: атакуючий сервер
+ * повертає публічну адресу під час цієї перевірки, а вже на реальному TCP-конекті (секунди по
+ * тому) — іншу відповідь на той самий хост, що резолвиться у приватну мережу. `null` означає, що
+ * хост — уже літеральна публічна IP: резолвити нема чого, "пінити" з'єднання нема від чого захищати.
+ */
+async function resolveAndValidateHost(
+  hostname: string,
+  bareHost: string,
+): Promise<LookupAddress[] | null> {
+  if (isIP(bareHost)) {
+    if (isPrivateOrReservedIp(bareHost)) {
+      throw new UnsafeUrlError('Посилання на приватну адресу заборонене');
+    }
+    return null;
+  }
+  let addresses: LookupAddress[];
+  try {
+    addresses = await dnsLookup(hostname, { all: true });
+  } catch {
+    throw new UnsafeUrlError('Не вдалося визначити адресу хоста');
+  }
+  if (addresses.length === 0) {
+    throw new UnsafeUrlError('Не вдалося визначити адресу хоста');
+  }
+  for (const { address } of addresses) {
+    if (isPrivateOrReservedIp(address)) {
+      throw new UnsafeUrlError('Посилання веде на приватну мережу');
+    }
+  }
+  return addresses;
+}
+
+export type PinnedUrl = { url: URL; addresses: LookupAddress[] | null };
+
+/**
  * Перевіряє протокол (лише http/https), забороняє localhost/приватні/link-local адреси —
  * ПІСЛЯ DNS-резолву, не лише за виглядом рядка. Кидає `UnsafeUrlError`, якщо посилання небезпечне
  * чи адресу хоста не вдалося визначити (тоді викликач має вважати перевірку невдалою, а не
- * "пощастило — вважаємо безпечним").
+ * "пощастило — вважаємо безпечним"). Повертає й резолвнуті адреси — див. `resolveAndValidateHost`
+ * і `buildPinnedLookup` про те, навіщо (захист від DNS rebinding).
  */
-export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
+export async function assertPublicHttpUrlPinned(rawUrl: string): Promise<PinnedUrl> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -89,32 +129,35 @@ export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
   // й розрахунку на конкретний код помилки — теж, тому знімаємо дужки явно).
   const bareHost =
     hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
-  if (isIP(bareHost)) {
-    if (isPrivateOrReservedIp(bareHost)) {
-      throw new UnsafeUrlError('Посилання на приватну адресу заборонене');
-    }
-    return url;
-  }
-  let addresses: { address: string }[];
-  try {
-    addresses = await dnsLookup(hostname, { all: true });
-  } catch {
-    throw new UnsafeUrlError('Не вдалося визначити адресу хоста');
-  }
-  if (addresses.length === 0) {
-    throw new UnsafeUrlError('Не вдалося визначити адресу хоста');
-  }
-  // DNS rebinding: сервер може повернути щось інше вже на етапі TCP-конекту. Це прийнятний
-  // компроміс для прев'ю посилань (не платіжний шлюз) — перевіряємо все, що зараз резолвиться.
-  for (const { address } of addresses) {
-    if (isPrivateOrReservedIp(address)) {
-      throw new UnsafeUrlError('Посилання веде на приватну мережу');
-    }
-  }
-  return url;
+  const addresses = await resolveAndValidateHost(hostname, bareHost);
+  return { url, addresses };
 }
 
-async function readBodyCapped(res: Response, maxBytes: number): Promise<string> {
+/** Сумісний вигляд для простих викликів, яким не треба пінити з'єднання (лише сама перевірка). */
+export async function assertPublicHttpUrl(rawUrl: string): Promise<URL> {
+  return (await assertPublicHttpUrlPinned(rawUrl)).url;
+}
+
+/**
+ * dns.lookup-сумісна функція, що завжди повертає ЗАЗДАЛЕГІДЬ перевірені адреси замість нового
+ * резолву — саме це "пінить" реальне TCP/TLS-з'єднання до хосту, який ми перевірили, і закриває
+ * вікно для DNS rebinding (сервер не встигає підмінити відповідь між перевіркою і конектом,
+ * бо другого резолву просто не відбувається).
+ */
+export function buildPinnedLookup(addresses: LookupAddress[]): LookupFunction {
+  return (_hostname, options, callback) => {
+    if (options?.all) {
+      callback(null, addresses);
+    } else {
+      const first = addresses[0];
+      callback(null, first.address, first.family);
+    }
+  };
+}
+
+type UndiciResponse = Awaited<ReturnType<typeof undiciFetch>>;
+
+async function readBodyCapped(res: UndiciResponse, maxBytes: number): Promise<string> {
   const reader = res.body?.getReader();
   if (!reader) return '';
   const chunks: Uint8Array[] = [];
@@ -137,7 +180,7 @@ async function readBodyCapped(res: Response, maxBytes: number): Promise<string> 
 
 export type SafeFetchResult = {
   status: number;
-  headers: Headers;
+  headers: UndiciHeaders;
   /** Порожній рядок для HEAD або якщо тіло не читали. */
   bodyText: string;
   finalUrl: string;
@@ -159,14 +202,19 @@ export async function safeFetch(
   let currentUrl = rawUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
-    const safeUrl = await assertPublicHttpUrl(currentUrl);
-    let res: Response;
+    const { url: safeUrl, addresses } = await assertPublicHttpUrlPinned(currentUrl);
+    // Пінимо з'єднання до вже перевірених адрес (undici, не глобальний fetch, — лише undici's
+    // fetch приймає `dispatcher`) — без цього fetch() резолвив би хост іще раз просто зараз,
+    // залишаючи вікно для DNS rebinding між перевіркою й конектом.
+    const dispatcher = addresses ? new Agent({ connect: { lookup: buildPinnedLookup(addresses) } }) : undefined;
+    let res: UndiciResponse;
     try {
-      res = await fetch(safeUrl, {
+      res = await undiciFetch(safeUrl, {
         method,
         redirect: 'manual',
         signal: AbortSignal.timeout(timeoutMs),
         headers: { 'User-Agent': USER_AGENT },
+        dispatcher,
       });
     } catch (err) {
       logger.debug(`fetch(${safeUrl}) failed: ${String(err)}`);
