@@ -203,9 +203,13 @@ export async function safeFetch(
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
     const { url: safeUrl, addresses } = await assertPublicHttpUrlPinned(currentUrl);
-    // Пінимо з'єднання до вже перевірених адрес (undici, не глобальний fetch, — лише undici's
-    // fetch приймає `dispatcher`) — без цього fetch() резолвив би хост іще раз просто зараз,
-    // залишаючи вікно для DNS rebinding між перевіркою й конектом.
+    // Свідомо undiciFetch (fetch САМЕ з npm-пакета 'undici'), а не глобальний Node fetch: глобальний
+    // fetch — це ВБУДОВАНА в Node копія undici, яка може відрізнятись версією від встановленого
+    // пакета, — а `dispatcher` з Agent одного undici, переданий у fetch іншого, ненадійний
+    // (внутрішні перевірки типу можуть не збігтись). Fetch і Agent тут — з одного й того самого
+    // модуля, тож сумісність гарантована. Пінимо з'єднання до вже перевірених адрес — без цього
+    // fetch() резолвив би хост іще раз просто зараз, залишаючи вікно для DNS rebinding між
+    // перевіркою й конектом.
     const dispatcher = addresses ? new Agent({ connect: { lookup: buildPinnedLookup(addresses) } }) : undefined;
     let res: UndiciResponse;
     try {
