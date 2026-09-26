@@ -183,6 +183,10 @@ export class VideoResolverService {
    */
   private async resolveGeneric(url: string, mixedContent = false): Promise<ResolvedVideo> {
     const check = await checkEmbeddable(url);
+    // 'unsafe' — наш SSRF-фільтр відхилив посилання ще до спроби з'єднання; це не те саме, що
+    // "сайт не відповів" (null нижче), тож користувач має побачити чітку відмову, а не тихий
+    // перехід у MANUAL, ніби перевірка просто не вдалася.
+    if (check === 'unsafe') return { ok: false, code: 'UNSAFE_URL' };
     const provider: WatchProvider = check?.embeddable ? 'IFRAME' : 'MANUAL';
     let title: string | null = null;
     try {

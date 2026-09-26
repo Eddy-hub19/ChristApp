@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { Crown, Pause, Play, Users } from "lucide-react";
+import { Crown, FileVideo, Globe, Pause, Play, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import {
   watchUserName,
@@ -22,15 +23,46 @@ type WatchRoomCardProps = {
   };
 };
 
+/** Лише FILE/IFRAME/MANUAL зберігають у videoId повний URL — решта провайдерів лише голий id. */
+function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
 export default function WatchRoomCard({ room, index, invitation }: WatchRoomCardProps) {
   const t = useTranslations("cinema");
   const invitedBy = "invitedBy" in room ? room.invitedBy : null;
+  // onError теж зводить до заглушки — окрема, окремо триггерована умова (не showPlaceholder
+  // напряму), інакше React перезаходив би в img після кожного ре-рендеру з тим самим "битим" src.
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const thumbSrc =
+    room.thumbnailUrl ?? (room.provider === "YOUTUBE" ? youTubeThumbnailUrl(room.videoId, "mq") : null);
+  const showPlaceholder = !thumbSrc || imgFailed;
+  const placeholderLabel = showPlaceholder
+    ? hostnameOf(room.videoId) ?? t(`roomCard.provider${capitalize(room.provider)}`)
+    : null;
+  const PlaceholderIcon = room.provider === "FILE" ? FileVideo : Globe;
 
   const body = (
     <>
       <div className={styles.cardThumb}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю з i.ytimg.com */}
-        <img src={youTubeThumbnailUrl(room.videoId, "mq")} alt="" loading="lazy" />
+        {showPlaceholder ? (
+          <div className={styles.cardThumbPlaceholder}>
+            <PlaceholderIcon size={22} aria-hidden />
+            <span>{placeholderLabel}</span>
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- прев'ю із зовнішніх джерел (i.ytimg.com, vimeocdn, dailymotion тощо)
+          <img src={thumbSrc} alt="" loading="lazy" onError={() => setImgFailed(true)} />
+        )}
         <span className={`${styles.cardStatus} ${room.isPlaying ? styles.cardStatusLive : ""}`}>
           {room.isPlaying ? <Play size={11} fill="currentColor" /> : <Pause size={11} fill="currentColor" />}
           {room.isPlaying ? t("statusPlaying") : t("statusPaused")}

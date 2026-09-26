@@ -164,3 +164,50 @@ describe('WatchPartyService', () => {
     expect(service.currentState(ROOM)?.hostId).toBe('bob');
   });
 });
+
+describe('WatchPartyService.listForUser', () => {
+  afterEach(() => {
+    services.splice(0).forEach((s) => s.onModuleDestroy());
+  });
+
+  it('віддає provider і thumbnailUrl кімнати з БД (не лише videoId/videoTitle)', async () => {
+    const dbRoom = {
+      id: ROOM,
+      title: 'Вечірній перегляд',
+      provider: 'VIMEO',
+      videoId: '76979871',
+      videoTitle: 'DB title',
+      thumbnailUrl: 'https://i.vimeocdn.com/video/db.jpg',
+      isPlaying: false,
+      stateUpdatedAt: new Date(),
+      createdAt: new Date(),
+      host: { id: 'host', username: 'host', nickname: null, avatarUrl: null },
+      _count: { members: 2 },
+    };
+    const prisma = {
+      watchRoomMember: {
+        findMany: jest.fn(async () => [
+          { status: 'JOINED', invitedById: null, room: dbRoom },
+        ]),
+      },
+      user: { findMany: jest.fn(async () => []) },
+    };
+    const server = {
+      to: () => ({ emit: () => undefined }),
+      in: () => ({ socketsLeave: () => undefined }),
+    } as unknown as Server;
+    const service = new WatchPartyService(
+      prisma as unknown as PrismaService,
+      { sendWatchInvitePush: jest.fn() } as unknown as PushService,
+    );
+    service.attachServer(server);
+    services.push(service);
+
+    const { rooms } = await service.listForUser('host');
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0]).toMatchObject({
+      provider: 'VIMEO',
+      thumbnailUrl: 'https://i.vimeocdn.com/video/db.jpg',
+    });
+  });
+});

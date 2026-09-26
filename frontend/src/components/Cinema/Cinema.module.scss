@@ -343,6 +343,34 @@
   }
 }
 
+// Немає обкладинки (IFRAME/MANUAL/FILE без превʼю, чи `<img>` не завантажилась) —
+// замість битої іконки показуємо іконку джерела й домен, в стилі кінозалу.
+.cardThumbPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--c-muted);
+  background: radial-gradient(120% 100% at 50% 0%, rgba(230, 191, 115, 0.1), transparent 60%);
+
+  svg {
+    color: var(--c-accent);
+    opacity: 0.85;
+  }
+
+  span {
+    max-width: 88%;
+    font-size: 12px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .cardStatus {
   position: absolute;
   z-index: 1;
