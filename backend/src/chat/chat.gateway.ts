@@ -8,6 +8,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
+import type { OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -127,7 +128,9 @@ type RoomGameSession = {
 @WebSocketGateway({
   cors: { origin: '*' },
 })
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+{
   @WebSocketServer()
   server!: Server;
 
@@ -201,6 +204,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     string,
     ReturnType<typeof setTimeout>
   >();
+
+  /** true після onModuleDestroy — див. пояснення там і в handleDisconnect. */
+  private destroyed = false;
+
+  /**
+   * Без цього "м'які" таймери офлайну з `pendingDisconnectTimers` лишаються висіти після
+   * зупинки застосунку (напр. graceful shutdown при деплої) і згодом намагаються писати в БД,
+   * якої вже нема — саме такий "тестовий" симптом (`this.prisma.user.update is not a function`
+   * вже після завершення тестів) і виявив цю прогалину.
+   */
+  onModuleDestroy() {
+    this.destroyed = true;
+    for (const timer of this.pendingDisconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.pendingDisconnectTimers.clear();
+  }
 
   private emitOnlinePresence() {
     this.server.emit('onlineCount', this.onlineUsers.size);
@@ -474,6 +494,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!currentConnections) return;
 
     if (currentConnections === 1) {
+      // Застосунок уже завершує роботу (onModuleDestroy) — новий "м'який" таймер офлайну більше
+      // нікому не прибрати: сокети реально відключаються асинхронно й можуть встигнути дійти сюди
+      // вже ПІСЛЯ onModuleDestroy (саме так виявили — таймер лишався висіти й після завершення
+      // тестів). Просто прибираємо користувача одразу, без відкладеного запису в БД.
+      if (this.destroyed) {
+        this.onlineUsers.delete(userId);
+        return;
+      }
       // Трохи чекаємо перед видаленням (якщо вкладка перезавантажується)
       const timer = setTimeout(() => {
         this.pendingDisconnectTimers.delete(userId);

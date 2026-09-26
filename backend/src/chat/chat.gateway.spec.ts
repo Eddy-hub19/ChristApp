@@ -202,6 +202,7 @@ describe('ChatGateway', () => {
       fileUrl: undefined,
       username: 'sender',
       handle: 'sender',
+      senderIsVip: false,
       senderId: 'u1',
       createdAt: savedMessage.createdAt,
       roomId: 'room-1',
@@ -217,6 +218,7 @@ describe('ChatGateway', () => {
       messageType: MessageType.TEXT,
       fileUrl: null,
       createdAt: savedMessage.createdAt,
+      excludeUserIds: [],
     });
   });
 

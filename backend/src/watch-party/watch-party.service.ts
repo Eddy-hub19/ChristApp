@@ -12,13 +12,23 @@ import type { Server } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
 import {
+  AUTO_SYNC_PROVIDERS,
   applyControlCommand,
   clampPosition,
+  initialManualState,
   isValidProviderRef,
   isValidVideoId,
+  manualCountdownElapsed,
+  manualDropReady,
+  manualPause,
+  manualResume,
+  manualSetReady,
+  manualStart,
   pickNextHost,
   projectPosition,
+  resetManualState,
   type ControlCommand,
+  type ManualSyncState,
   type WatchPlaybackState,
   type WatchProvider,
 } from './watch-party.state';
@@ -71,6 +81,10 @@ type RoomRuntime = WatchPlaybackState & {
   hostGraceTimer: ReturnType<typeof setTimeout> | null;
   /** Хост пішов, а передати не було кому — перший, хто зайде, отримає керування. */
   hostAway: boolean;
+  /** Лише для IFRAME/MANUAL — див. watch-party.state.ts. Для інших провайдерів завжди idle/порожній. */
+  manual: ManualSyncState;
+  /** Таймер, що переводить countdown → running рівно в countdownEndsAtMs. */
+  manualCountdownTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const userPublicSelect = {
@@ -117,6 +131,7 @@ export class WatchPartyService implements OnModuleDestroy {
   onModuleDestroy() {
     for (const runtime of this.runtimes.values()) {
       if (runtime.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
+      if (runtime.manualCountdownTimer) clearTimeout(runtime.manualCountdownTimer);
     }
   }
 
@@ -553,7 +568,15 @@ export class WatchPartyService implements OnModuleDestroy {
     const sockets = users?.get(userId);
     if (!users || !sockets) return;
     sockets.delete(socketId);
-    if (sockets.size === 0) users.delete(userId);
+    if (sockets.size === 0) {
+      users.delete(userId);
+      // Вийшов з кімнати цілком (не просто ще одна вкладка) — "готовність" уже не інформативна.
+      const runtime = this.runtimes.get(roomId);
+      if (runtime && runtime.manual.readyUserIds.has(userId)) {
+        runtime.manual = manualDropReady(runtime.manual, userId);
+        this.broadcastManualState(runtime, 'sync');
+      }
+    }
     this.onPresenceChanged(roomId);
   }
 
@@ -606,6 +629,9 @@ export class WatchPartyService implements OnModuleDestroy {
         runtime.videoTitle = command.videoTitle?.trim().slice(0, 200) || null;
         runtime.thumbnailUrl = command.thumbnailUrl?.trim().slice(0, 1024) || null;
       }
+      // Нове відео — попередній відлік/готовність більше не мають сенсу.
+      this.clearManualCountdownTimer(runtime);
+      runtime.manual = resetManualState();
     }
 
     const now = Date.now();
@@ -639,6 +665,94 @@ export class WatchPartyService implements OnModuleDestroy {
     }
     await this.setHost(roomId, targetUserId, 'host');
     return { ok: true as const };
+  }
+
+  // ================= РУЧНА СИНХРОНІЗАЦІЯ (IFRAME/MANUAL) =================
+
+  /** Будь-хто присутній у залі відмічає "Я готовий/готова" — не лише хост. */
+  manualSetReady(roomId: string, userId: string, ready: boolean) {
+    const runtime = this.runtimes.get(roomId);
+    if (!runtime || !this.isPresent(roomId, userId)) {
+      return { ok: false as const, code: 'NOT_IN_ROOM' as const };
+    }
+    if (AUTO_SYNC_PROVIDERS.has(runtime.provider)) {
+      return { ok: false as const, code: 'NOT_MANUAL' as const };
+    }
+    runtime.manual = manualSetReady(runtime.manual, userId, ready);
+    return { ok: true as const, state: this.broadcastManualState(runtime, 'sync') };
+  }
+
+  /** Хост: "Почати перегляд" — лише з idle, дає всім спільний відлік 3-2-1. */
+  manualStart(roomId: string, userId: string) {
+    return this.runManualTransition(roomId, userId, (runtime) =>
+      manualStart(runtime.manual, Date.now()),
+    );
+  }
+
+  /** Хост: "Пауза для всіх" — з running чи countdown, миттєво (без відліку). */
+  manualPause(roomId: string, userId: string) {
+    return this.runManualTransition(roomId, userId, (runtime) =>
+      manualPause(runtime.manual, Date.now()),
+    );
+  }
+
+  /** Хост: "Продовжуємо" після паузи для всіх — новий відлік 3-2-1, лише з paused. */
+  manualResume(roomId: string, userId: string) {
+    return this.runManualTransition(roomId, userId, (runtime) =>
+      manualResume(runtime.manual, Date.now()),
+    );
+  }
+
+  private runManualTransition(
+    roomId: string,
+    userId: string,
+    transition: (runtime: RoomRuntime) => ManualSyncState | null,
+  ) {
+    const runtime = this.runtimes.get(roomId);
+    if (!runtime || !this.isPresent(roomId, userId)) {
+      return { ok: false as const, code: 'NOT_IN_ROOM' as const };
+    }
+    if (runtime.hostId !== userId) {
+      return {
+        ok: false as const,
+        code: 'NOT_HOST' as const,
+        state: this.serializeState(runtime, 'sync'),
+      };
+    }
+    if (AUTO_SYNC_PROVIDERS.has(runtime.provider)) {
+      return { ok: false as const, code: 'NOT_MANUAL' as const };
+    }
+    const next = transition(runtime);
+    if (!next) return { ok: false as const, code: 'INVALID_PHASE' as const };
+
+    this.clearManualCountdownTimer(runtime);
+    runtime.manual = next;
+    if (next.phase === 'countdown' && next.countdownEndsAtMs !== null) {
+      const delay = Math.max(0, next.countdownEndsAtMs - Date.now());
+      runtime.manualCountdownTimer = setTimeout(() => {
+        runtime.manualCountdownTimer = null;
+        const elapsed = manualCountdownElapsed(runtime.manual);
+        if (!elapsed) return;
+        runtime.manual = elapsed;
+        this.broadcastManualState(runtime, 'sync');
+      }, delay);
+    }
+
+    return { ok: true as const, state: this.broadcastManualState(runtime, 'sync') };
+  }
+
+  private clearManualCountdownTimer(runtime: RoomRuntime) {
+    if (runtime.manualCountdownTimer) {
+      clearTimeout(runtime.manualCountdownTimer);
+      runtime.manualCountdownTimer = null;
+    }
+  }
+
+  private broadcastManualState(runtime: RoomRuntime, reason: WatchStateReason) {
+    runtime.version += 1;
+    const state = this.serializeState(runtime, reason);
+    this.server?.to(watchSocketRoom(runtime.roomId)).emit('watch:state', state);
+    return state;
   }
 
   /** Сервер зараз вважає цього користувача хостом кімнати (для перевірок без БД). */
@@ -834,6 +948,7 @@ export class WatchPartyService implements OnModuleDestroy {
     const runtime = this.runtimes.get(roomId);
     if (!runtime) return;
     if (runtime.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
+    if (runtime.manualCountdownTimer) clearTimeout(runtime.manualCountdownTimer);
     this.runtimes.delete(roomId);
     this.presence.delete(roomId);
     void this.persist(runtime);
@@ -887,6 +1002,8 @@ export class WatchPartyService implements OnModuleDestroy {
       lastPersistAt: Date.now(),
       hostGraceTimer: null,
       hostAway: false,
+      manual: initialManualState(),
+      manualCountdownTimer: null,
     };
     this.runtimes.set(roomId, runtime);
     return runtime;
@@ -936,6 +1053,17 @@ export class WatchPartyService implements OnModuleDestroy {
       reason,
       actorId: actorId ?? null,
       originTag: originTag ?? null,
+      manual: AUTO_SYNC_PROVIDERS.has(runtime.provider)
+        ? null
+        : {
+            phase: runtime.manual.phase,
+            // Дзеркалить updatedAt/serverNow вище: "Ms" — лише у внутрішній назві поля, назовні
+            // так само як усі інші серверні мітки часу в цьому payload.
+            countdownEndsAt: runtime.manual.countdownEndsAtMs,
+            readyUserIds: [...runtime.manual.readyUserIds],
+            accumulatedMs: runtime.manual.accumulatedMs,
+            runningSince: runtime.manual.runningSinceMs,
+          },
     };
   }
 

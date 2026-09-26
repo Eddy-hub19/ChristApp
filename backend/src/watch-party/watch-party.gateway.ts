@@ -253,6 +253,70 @@ export class WatchPartyGateway
     return this.watchParty.transferHost(roomId, userId, body.userId);
   }
 
+  /** Ручна синхронізація (IFRAME/MANUAL) — "Я готовий/готова", доступно будь-кому в залі. */
+  @SubscribeMessage('watch:manualReady')
+  handleManualReady(
+    @MessageBody() body: RoomBody & { ready?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.ready !== 'boolean') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.limiter.allow(`${client.id}:manualReady`, 10, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.manualSetReady(roomId, userId, body.ready);
+  }
+
+  /** Ручна синхронізація: хост оголошує старт — усі отримують спільний відлік 3-2-1. */
+  @SubscribeMessage('watch:manualStart')
+  handleManualStart(
+    @MessageBody() body: RoomBody,
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    return this.runManual(client, body, (roomId, userId) =>
+      this.watchParty.manualStart(roomId, userId),
+    );
+  }
+
+  /** Ручна синхронізація: хост ставить на паузу для всіх (без відліку — миттєво). */
+  @SubscribeMessage('watch:manualPause')
+  handleManualPause(
+    @MessageBody() body: RoomBody,
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    return this.runManual(client, body, (roomId, userId) =>
+      this.watchParty.manualPause(roomId, userId),
+    );
+  }
+
+  /** Ручна синхронізація: хост знімає з паузи — новий відлік 3-2-1. */
+  @SubscribeMessage('watch:manualResume')
+  handleManualResume(
+    @MessageBody() body: RoomBody,
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    return this.runManual(client, body, (roomId, userId) =>
+      this.watchParty.manualResume(roomId, userId),
+    );
+  }
+
+  private runManual(
+    client: WatchSocket,
+    body: RoomBody,
+    run: (roomId: string, userId: string) => unknown,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId) return { ok: false, code: 'BAD_REQUEST' };
+    if (!this.limiter.allow(`${client.id}:ctl`, 10, 2_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return run(roomId, userId);
+  }
+
   @SubscribeMessage('watch:message')
   handleMessage(
     @MessageBody() body: RoomBody & { content?: unknown },

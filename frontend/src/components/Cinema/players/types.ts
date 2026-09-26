@@ -2,10 +2,14 @@ import type { ServerClock, WatchState } from "@/lib/watchSync";
 
 /**
  * Спільний для всіх провайдерів набір помилок плеєра — кожен адаптер мапить свої власні коди
- * в ці чотири (`classifyYouTubeError` у lib/youtube.ts — приклад для YouTube). Збігаються з
- * ключами cinema.errors.NOT_EMBEDDABLE/NOT_FOUND/playback(=HTML5)/generic(=INVALID) в messages/*.json.
+ * в ці (`classifyYouTubeError` у lib/youtube.ts — приклад для YouTube). Збігаються з ключами
+ * cinema.errors.NOT_EMBEDDABLE/NOT_FOUND/CORS/playback(=HTML5)/generic(=INVALID) в messages/*.json.
+ * CORS — окремо від HTML5: hls.js сам фетчить маніфест/сегменти через XHR (на відміну від
+ * нативного <video src>, якому CORS для простого відтворення не потрібен) і саме тут
+ * найчастіше ловить помилку через відсутні Access-Control-Allow-Origin на чужому сервері —
+ * повідомлення "не вдалось програти" тут оманливе, людині потрібно сказати, що річ у CORS.
  */
-export type StageErrorKind = "NOT_EMBEDDABLE" | "NOT_FOUND" | "HTML5" | "INVALID";
+export type StageErrorKind = "NOT_EMBEDDABLE" | "NOT_FOUND" | "HTML5" | "CORS" | "INVALID";
 
 export type StageStatus = {
   ready: boolean;

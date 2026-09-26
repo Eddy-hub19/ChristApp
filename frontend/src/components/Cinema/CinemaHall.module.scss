@@ -566,18 +566,75 @@
   }
 }
 
-// Тимчасова заглушка для IFRAME/MANUAL, поки не реалізована ручна синхронізація (наступний етап).
-.manualStagePlaceholder {
+// ================= IFRAME/MANUAL: ПОКАЗ БЕЗ ПРОГРАМНОГО КЕРУВАННЯ =================
+
+.iframeStageWrap {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.iframeStage {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+// Cross-origin iframe не дає надійної JS-події на "заблоковано" (X-Frame-Options) — це посилання
+// лишається доступним завжди, а не тільки як реакція на таймаут/помилку.
+.iframeFallbackLink {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--hall-text);
+  background: rgba(9, 8, 12, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.manualPreviewCard {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: 24px;
   text-align: center;
-  font-size: 14px;
-  color: var(--hall-muted);
   background: #000;
+}
+
+.manualPreviewHost {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--hall-text);
+}
+
+.manualPreviewHint {
+  max-width: 320px;
+  font-size: 13px;
+  color: var(--hall-muted);
+}
+
+.manualOpenButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
 }
 
 .enterGate {
@@ -1086,18 +1143,136 @@
   gap: 10px;
 }
 
-.manualSyncBadge {
+// ================= РУЧНА СИНХРОНІЗАЦІЯ: ПАНЕЛЬ (IFRAME/MANUAL) =================
+// Займає те саме місце, що й .controls (десктоп, у потоці) чи .mobileStage (мобільний, оверлей
+// на відео, компактний варіант через .manualControlsCompact) — play/scrubber тут не мають сенсу.
+
+.manualControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--hall-surface);
+  border: 1px solid var(--hall-line);
+
+  // Мобільний: замінюється компактним оверлеєм на відео (.manualControlsCompact нижче) —
+  // те саме правило, що ховає .controls (HostControls) на мобільному в іншому місці файлу.
+  @media (max-width: 767px) {
+    display: none;
+  }
+}
+
+// Мобільний оверлей на відео (як .mobileStage у MobileStageControls) — на десктопі та сама панель
+// уже стоїть у потоці під екраном (звичайний .manualControls, рендериться окремо в WatchHall.tsx),
+// тож тут ховаємо, щоб не показувати панель двічі.
+.manualControlsCompact {
+  display: none;
+
+  @media (max-width: 767px) {
+    display: flex;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(9, 8, 12, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.manualBadge {
   display: inline-flex;
   align-items: center;
-  height: 46px;
-  padding: 0 14px;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--hall-muted);
   background: var(--hall-surface-strong);
+  white-space: nowrap;
+
+  svg {
+    color: var(--hall-gold);
+  }
+}
+
+.manualMain {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.manualCountdown {
+  min-width: 40px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--hall-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.manualReadyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hall-text);
+  background: var(--hall-surface-strong);
+  border: 1px solid var(--hall-line);
+  cursor: pointer;
+}
+
+.manualReadyActive {
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  border-color: transparent;
+}
+
+.manualReadyCount {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--hall-muted);
+  white-space: nowrap;
+}
+
+.manualPrimaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
+  cursor: pointer;
+}
+
+.manualStatusText {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--hall-muted);
 }
 
 .playButton {
@@ -1131,23 +1306,6 @@
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
-}
-
-// Замінює play-кнопку для IFRAME/MANUAL — тут немає програмного керування відтворенням.
-.manualSyncBadge {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  height: 46px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--hall-muted);
-  background: var(--hall-surface-strong);
-  white-space: nowrap;
 }
 
 .controlledBy {
@@ -1460,8 +1618,20 @@
 }
 
 .participantStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--c-muted, rgba(244, 238, 230, 0.62));
+}
+
+/** Лише в фазі idle ручної синхронізації — хто вже натиснув "Я готовий/готова". */
+.participantReady {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #45d18b;
+  font-weight: 600;
 }
 
 .participantTransfer {

@@ -19,6 +19,11 @@ export type ResolvedVideo =
       videoId: string;
       title: string | null;
       thumbnailUrl: string | null;
+      /**
+       * http:// (не https) — на захищеній сторінці застосунку браузер може заблокувати або
+       * автоапгрейднути таке посилання (mixed content). Лише попередження для UI, не блокує.
+       */
+      mixedContent: boolean;
     }
   | { ok: false; code: 'NOT_FOUND' | 'NOT_EMBEDDABLE' | 'INVALID_VIDEO' | 'UNSAFE_URL' };
 
@@ -47,7 +52,7 @@ export class VideoResolverService {
   }
 
   private async resolveUncached(input: string): Promise<ResolvedVideo> {
-    // "Голий" YouTube videoId (як і раніше приймали в DTO) — без URL.
+    // "Голий" YouTube videoId (як і раніше приймали в DTO) — без URL, mixed content неможливий.
     if (YOUTUBE_VIDEO_ID_RE.test(input)) {
       return this.resolveYoutube(input);
     }
@@ -61,9 +66,11 @@ export class VideoResolverService {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       return { ok: false, code: 'INVALID_VIDEO' };
     }
-    // http-посилання на https-сторінці браузер однаково заблокує (mixed content) — краще
-    // сказати про це одразу, ніж дати "не вдалось" без пояснення.
-    if (url.protocol === 'http:') {
+    // http-посилання на захищеній (https) сторінці застосунку браузер може заблокувати чи
+    // автоапгрейднути (mixed content) — прапорець нижче попереджає про це в UI, не блокує сам
+    // resolve (FILE/IFRAME все одно можуть з нього завантажитись, залежно від браузера).
+    const mixedContent = url.protocol === 'http:';
+    if (mixedContent) {
       this.logger.debug(`resolveLink: http (mixed-content risk) url=${input}`);
     }
 
@@ -72,35 +79,35 @@ export class VideoResolverService {
     if (host === 'youtube.com' || host === 'youtu.be' || host === 'm.youtube.com') {
       const videoId = extractYoutubeId(url, host);
       if (!videoId) return { ok: false, code: 'INVALID_VIDEO' };
-      return this.resolveYoutube(videoId);
+      return this.resolveYoutube(videoId, mixedContent);
     }
 
     if (host === 'vimeo.com' || host === 'player.vimeo.com') {
       const videoId = extractVimeoId(url);
       if (!videoId) return { ok: false, code: 'INVALID_VIDEO' };
-      return this.resolveVimeo(videoId);
+      return this.resolveVimeo(videoId, mixedContent);
     }
 
     if (host === 'dailymotion.com' || host === 'dai.ly') {
       const videoId = extractDailymotionId(url, host);
       if (!videoId) return { ok: false, code: 'INVALID_VIDEO' };
-      return this.resolveDailymotion(videoId);
+      return this.resolveDailymotion(videoId, mixedContent);
     }
 
     const extMatch = /\.(mp4|webm|m3u8)(?:$|[?#])/i.exec(url.pathname);
     if (extMatch) {
-      return this.resolveFile(url.toString());
+      return this.resolveFile(url.toString(), mixedContent);
     }
     // Розширення не видно з посилання (напр. підписаний URL із токеном у query) — питаємо сервер.
     const contentType = await safeFetchContentType(url.toString());
     if (contentType && Object.values(FILE_EXTENSIONS).some((t) => contentType.startsWith(t))) {
-      return this.resolveFile(url.toString());
+      return this.resolveFile(url.toString(), mixedContent);
     }
 
-    return this.resolveGeneric(url.toString());
+    return this.resolveGeneric(url.toString(), mixedContent);
   }
 
-  private async resolveYoutube(videoId: string): Promise<ResolvedVideo> {
+  private async resolveYoutube(videoId: string, mixedContent = false): Promise<ResolvedVideo> {
     if (!YOUTUBE_VIDEO_ID_RE.test(videoId)) return { ok: false, code: 'INVALID_VIDEO' };
     const oembed = await safeFetchJson<OembedResponse>(
       `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(
@@ -120,10 +127,11 @@ export class VideoResolverService {
       title: typeof oembed.title === 'string' ? oembed.title.slice(0, 200) : null,
       thumbnailUrl:
         typeof oembed.thumbnail_url === 'string' ? oembed.thumbnail_url.slice(0, 1024) : null,
+      mixedContent,
     };
   }
 
-  private async resolveVimeo(videoId: string): Promise<ResolvedVideo> {
+  private async resolveVimeo(videoId: string, mixedContent = false): Promise<ResolvedVideo> {
     if (!VIMEO_ID_RE.test(videoId)) return { ok: false, code: 'INVALID_VIDEO' };
     const oembed = await safeFetchJson<OembedResponse>(
       `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(`https://vimeo.com/${videoId}`)}`,
@@ -136,10 +144,11 @@ export class VideoResolverService {
       title: typeof oembed.title === 'string' ? oembed.title.slice(0, 200) : null,
       thumbnailUrl:
         typeof oembed.thumbnail_url === 'string' ? oembed.thumbnail_url.slice(0, 1024) : null,
+      mixedContent,
     };
   }
 
-  private async resolveDailymotion(videoId: string): Promise<ResolvedVideo> {
+  private async resolveDailymotion(videoId: string, mixedContent = false): Promise<ResolvedVideo> {
     if (!DAILYMOTION_ID_RE.test(videoId)) return { ok: false, code: 'INVALID_VIDEO' };
     const oembed = await safeFetchJson<OembedResponse>(
       `https://www.dailymotion.com/services/oembed?url=${encodeURIComponent(
@@ -154,6 +163,7 @@ export class VideoResolverService {
       title: typeof oembed.title === 'string' ? oembed.title.slice(0, 200) : null,
       thumbnailUrl:
         typeof oembed.thumbnail_url === 'string' ? oembed.thumbnail_url.slice(0, 1024) : null,
+      mixedContent,
     };
   }
 
@@ -162,8 +172,8 @@ export class VideoResolverService {
    * в resolveUncached() — тут повторного мережевого запиту не робимо. Сам файл однаково
    * спробує програти клієнтський <video>/hls.js — тут лише прев'ю, не гарантія відтворюваності.
    */
-  private resolveFile(url: string): ResolvedVideo {
-    return { ok: true, provider: 'FILE', videoId: url, title: null, thumbnailUrl: null };
+  private resolveFile(url: string, mixedContent = false): ResolvedVideo {
+    return { ok: true, provider: 'FILE', videoId: url, title: null, thumbnailUrl: null, mixedContent };
   }
 
   /**
@@ -171,7 +181,7 @@ export class VideoResolverService {
    * (X-Frame-Options/CSP). Дозволяє — IFRAME (показуємо вбудованим), ні або перевірка не
    * вдалася — MANUAL (лише прев'ю-картка й посилання "Відкрити"). Обидва — ручна синхронізація.
    */
-  private async resolveGeneric(url: string): Promise<ResolvedVideo> {
+  private async resolveGeneric(url: string, mixedContent = false): Promise<ResolvedVideo> {
     const check = await checkEmbeddable(url);
     const provider: WatchProvider = check?.embeddable ? 'IFRAME' : 'MANUAL';
     let title: string | null = null;
@@ -180,7 +190,7 @@ export class VideoResolverService {
     } catch {
       title = null;
     }
-    return { ok: true, provider, videoId: url, title, thumbnailUrl: null };
+    return { ok: true, provider, videoId: url, title, thumbnailUrl: null, mixedContent };
   }
 }
 

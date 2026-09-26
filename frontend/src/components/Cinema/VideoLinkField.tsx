@@ -17,6 +17,7 @@ export type PickedVideo = {
   startSec: number;
   title: string | null;
   thumbnailUrl: string | null;
+  mixedContent: boolean;
 };
 
 type VideoLinkFieldProps = {
@@ -86,6 +87,7 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
             startSec,
             title: result.title,
             thumbnailUrl: result.thumbnailUrl,
+            mixedContent: result.mixedContent,
           };
           setCheck({ kind: "ok", video });
           onChange(video);
@@ -183,6 +185,11 @@ export default function VideoLinkField({ onChange, autoFocus, tone = "app" }: Vi
             {check.video.startSec > 0 ? (
               <span className={styles.muted}>
                 {t("create.startsAt", { time: formatPlaybackTime(check.video.startSec) })}
+              </span>
+            ) : null}
+            {check.video.mixedContent ? (
+              <span className={styles.fieldWarning}>
+                <AlertCircle size={13} aria-hidden /> {t("create.mixedContentWarning")}
               </span>
             ) : null}
           </div>

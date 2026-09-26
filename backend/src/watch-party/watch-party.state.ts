@@ -10,8 +10,9 @@ export const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 /**
  * YOUTUBE/VIMEO/DAILYMOTION/FILE — повна синхронізація (сервер може довіряти позиції з команд
  * play/pause/seek/heartbeat). IFRAME/MANUAL — ручна: цей самий "якір" (positionSec/isPlaying)
- * тут не використовується, кімната синхронізується окремим протоколом (watch:manualStart тощо,
- * дивись watch-manual.gateway.ts/watch-manual.service.ts).
+ * тут не використовується, кімната синхронізується окремим протоколом відліку/готовності
+ * (watch:manualReady/Start/Pause/Resume у watch-party.gateway.ts/watch-party.service.ts,
+ * чиста логіка фаз — нижче, ManualSyncState/manualStart/manualPause/manualResume тощо).
  */
 export const WATCH_PROVIDERS = [
   'YOUTUBE',
@@ -228,4 +229,101 @@ export function pickNextHost(
     if (userId !== currentHostId && presentUserIds.has(userId)) return userId;
   }
   return null;
+}
+
+/*
+ * ================= РУЧНА СИНХРОНІЗАЦІЯ (IFRAME/MANUAL) =================
+ *
+ * Немає програмного керування чужим плеєром (вбудована сторінка або взагалі не вбудовується),
+ * тож синхронізуємо не позицію, а МОМЕНТ: хост оголошує старт → усі бачать однаковий відлік
+ * 3-2-1 за серверним годинником → у нуль кожен сам натискає play у себе. Той самий відлік
+ * використовується і для "Продовжуємо" після паузи для всіх.
+ */
+
+export const MANUAL_PHASES = ['idle', 'countdown', 'running', 'paused'] as const;
+export type ManualPhase = (typeof MANUAL_PHASES)[number];
+
+/** 3-2-1: три секунди дають людям встигнути натиснути play рівно в момент "0". */
+export const MANUAL_COUNTDOWN_MS = 3_000;
+
+export type ManualSyncState = {
+  phase: ManualPhase;
+  /** Серверний час (мс), коли відлік дійде до нуля. `null` поза фазою countdown. */
+  countdownEndsAtMs: number | null;
+  readyUserIds: ReadonlySet<string>;
+  /**
+   * Скільки мс показ уже йшов сумарно ДО поточного відрізку running — заморожено під час paused,
+   * щоб запізлілий учасник побачив коректний "Показ іде 12:34" з урахуванням попередніх пауз.
+   */
+  accumulatedMs: number;
+  /** Серверний час (мс) початку поточного відрізку running. `null` поза фазою running. */
+  runningSinceMs: number | null;
+};
+
+export function initialManualState(): ManualSyncState {
+  return {
+    phase: 'idle',
+    countdownEndsAtMs: null,
+    readyUserIds: new Set(),
+    accumulatedMs: 0,
+    runningSinceMs: null,
+  };
+}
+
+/** Скидається щоразу, коли хост міняє відео — попередня готовність/відлік більше не мають сенсу. */
+export function resetManualState(): ManualSyncState {
+  return initialManualState();
+}
+
+export function manualSetReady(
+  state: ManualSyncState,
+  userId: string,
+  ready: boolean,
+): ManualSyncState {
+  const next = new Set(state.readyUserIds);
+  if (ready) next.add(userId);
+  else next.delete(userId);
+  return { ...state, readyUserIds: next };
+}
+
+/** Хтось вийшов із кімнати — його "готовність" більше не інформативна. */
+export function manualDropReady(state: ManualSyncState, userId: string): ManualSyncState {
+  if (!state.readyUserIds.has(userId)) return state;
+  const next = new Set(state.readyUserIds);
+  next.delete(userId);
+  return { ...state, readyUserIds: next };
+}
+
+/** Хост натиснув "Почати" — лише з idle. `null` — команда зараз не має сенсу (вже почато). */
+export function manualStart(state: ManualSyncState, nowMs: number): ManualSyncState | null {
+  if (state.phase !== 'idle') return null;
+  return { ...state, phase: 'countdown', countdownEndsAtMs: nowMs + MANUAL_COUNTDOWN_MS };
+}
+
+/** Хост натиснув "Пауза для всіх" — з running або просто щоб перервати відлік. */
+export function manualPause(state: ManualSyncState, nowMs: number): ManualSyncState | null {
+  if (state.phase !== 'running' && state.phase !== 'countdown') return null;
+  // Заморожуємо накопичений час поточного відрізку running (якщо він був) — countdown, який
+  // перервали, ще не встиг додати жодної секунди "показу", тож accumulatedMs не чіпаємо.
+  const accumulatedMs =
+    state.phase === 'running' && state.runningSinceMs !== null
+      ? state.accumulatedMs + Math.max(0, nowMs - state.runningSinceMs)
+      : state.accumulatedMs;
+  return { ...state, phase: 'paused', countdownEndsAtMs: null, runningSinceMs: null, accumulatedMs };
+}
+
+/** Хост натиснув "Продовжуємо" — новий відлік 3-2-1, лише з paused. */
+export function manualResume(state: ManualSyncState, nowMs: number): ManualSyncState | null {
+  if (state.phase !== 'paused') return null;
+  return { ...state, phase: 'countdown', countdownEndsAtMs: nowMs + MANUAL_COUNTDOWN_MS };
+}
+
+/** Відлік сам дійшов до нуля (серверний таймер) — countdown → running. */
+export function manualCountdownElapsed(state: ManualSyncState): ManualSyncState | null {
+  if (state.phase !== 'countdown') return null;
+  // Якір "початку" цього відрізку — саме момент, коли відлік мав дійти до нуля (той самий
+  // серверний час, під який усі клієнти вже підлаштували свій локальний "0"), а не момент,
+  // коли спрацював цей таймер на сервері (він може спізнитись на кілька мс через event loop).
+  const runningSinceMs = state.countdownEndsAtMs ?? Date.now();
+  return { ...state, phase: 'running', countdownEndsAtMs: null, runningSinceMs };
 }

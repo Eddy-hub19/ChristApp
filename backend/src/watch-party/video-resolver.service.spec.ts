@@ -100,6 +100,24 @@ describe('VideoResolverService', () => {
     expect(result).toMatchObject({ ok: false, code: 'NOT_FOUND' });
   });
 
+  it('позначає http-посилання прапорцем mixedContent для попередження в UI', async () => {
+    mockedSafeFetchContentType.mockResolvedValue('video/mp4');
+    const result = await service.resolveLink('http://cdn.example.com/file?token=abc');
+    expect(result).toMatchObject({ ok: true, provider: 'FILE', mixedContent: true });
+  });
+
+  it('https-посилання — mixedContent: false', async () => {
+    mockedSafeFetchJson.mockResolvedValue({ title: 'T' });
+    const result = await service.resolveLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(result).toMatchObject({ mixedContent: false });
+  });
+
+  it('"голий" YouTube videoId (без URL) — mixedContent завжди false', async () => {
+    mockedSafeFetchJson.mockResolvedValue({ title: 'Rick Astley' });
+    const result = await service.resolveLink('dQw4w9WgXcQ');
+    expect(result).toMatchObject({ mixedContent: false });
+  });
+
   it('відхиляє некоректний ввід (порожній рядок)', async () => {
     const result = await service.resolveLink('   ');
     expect(result).toMatchObject({ ok: false, code: 'INVALID_VIDEO' });
