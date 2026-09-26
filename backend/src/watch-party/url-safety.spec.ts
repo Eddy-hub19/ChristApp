@@ -5,6 +5,7 @@ import {
   assertPublicHttpUrl,
   assertPublicHttpUrlPinned,
   buildPinnedLookup,
+  checkEmbeddable,
   safeFetch,
 } from './url-safety';
 
@@ -165,5 +166,29 @@ describe('DNS rebinding: safeFetch пінує реальне зʼєднання 
 
     expect(mockedAgent).not.toHaveBeenCalled();
     expect(mockedUndiciFetch.mock.calls[0][1].dispatcher).toBeUndefined();
+  });
+});
+
+describe('checkEmbeddable', () => {
+  beforeEach(() => {
+    // mockedUndiciFetch/mockedAgent — спільні на весь файл jest.fn(); чистимо історію викликів
+    // (не імплементацію), щоб "not.toHaveBeenCalled()" нижче не рахував виклики з інших describe.
+    mockedUndiciFetch.mockClear();
+    mockedAgent.mockClear();
+  });
+
+  it('SSRF-фільтр відхилив адресу (метадані хмари) → "unsafe", а не null — це не "сайт не відповів"', async () => {
+    mockedLookup.mockResolvedValueOnce([{ address: '169.254.169.254', family: 4 }]);
+    const result = await checkEmbeddable('http://cloud-metadata.example/latest/meta-data/');
+    expect(result).toBe('unsafe');
+    // Жодного реального запиту — assertPublicHttpUrl впав ще до fetch().
+    expect(mockedUndiciFetch).not.toHaveBeenCalled();
+  });
+
+  it('справжня мережева помилка (публічна адреса, з\'єднання впало) → null, не "unsafe"', async () => {
+    mockedLookup.mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }]);
+    mockedUndiciFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+    const result = await checkEmbeddable('https://example.com/watch');
+    expect(result).toBeNull();
   });
 });

@@ -14,6 +14,15 @@ const USER_AGENT = 'ChristApp-WatchParty/1.0 (+link preview; contact: see repo)'
 
 export class UnsafeUrlError extends Error {}
 
+/**
+ * Підклас для "ми АФІРМАТИВНО визначили, що ціль небезпечна" (заборонений протокол,
+ * localhost, приватна/зарезервована IP — до чи після DNS-резолву) — на відміну від решти
+ * `UnsafeUrlError` (DNS не резолвився, з'єднання впало, забагато редиректів тощо), де ми просто
+ * НЕ ЗМОГЛИ перевірити ціль. Розрізнення потрібне для checkEmbeddable(): "посилання відхилено
+ * як небезпечне" — інакша, чіткіша відповідь користувачу, ніж "сайт не відповів".
+ */
+export class UnsafeUrlBlockedError extends UnsafeUrlError {}
+
 /** IPv4 у вигляді `a.b.c.d` — приватні/зарезервовані/link-local діапазони (RFC 1918, 3927, 5735). */
 function isPrivateIPv4(a: number, b: number): boolean {
   if (a === 127) return true; // loopback 127.0.0.0/8
@@ -80,7 +89,7 @@ async function resolveAndValidateHost(
 ): Promise<LookupAddress[] | null> {
   if (isIP(bareHost)) {
     if (isPrivateOrReservedIp(bareHost)) {
-      throw new UnsafeUrlError('Посилання на приватну адресу заборонене');
+      throw new UnsafeUrlBlockedError('Посилання на приватну адресу заборонене');
     }
     return null;
   }
@@ -95,7 +104,7 @@ async function resolveAndValidateHost(
   }
   for (const { address } of addresses) {
     if (isPrivateOrReservedIp(address)) {
-      throw new UnsafeUrlError('Посилання веде на приватну мережу');
+      throw new UnsafeUrlBlockedError('Посилання веде на приватну мережу');
     }
   }
   return addresses;
@@ -118,11 +127,11 @@ export async function assertPublicHttpUrlPinned(rawUrl: string): Promise<PinnedU
     throw new UnsafeUrlError('Некоректне посилання');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new UnsafeUrlError('Підтримуються лише http/https посилання');
+    throw new UnsafeUrlBlockedError('Підтримуються лише http/https посилання');
   }
   const hostname = url.hostname.toLowerCase();
   if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '0.0.0.0') {
-    throw new UnsafeUrlError('Посилання на локальну адресу заборонене');
+    throw new UnsafeUrlBlockedError('Посилання на локальну адресу заборонене');
   }
   // URL.hostname для IPv6-літералів лишає квадратні дужки ("[::1]") — isIP() з ними не розпізнає
   // адресу і код провалився б у DNS-резолв (там для дужок він просто впаде, тож дірки нема, але
@@ -247,8 +256,12 @@ export type EmbedCheckResult = { embeddable: boolean; finalUrl: string };
  * Чи дозволяє сторінка вбудовування в iframe (X-Frame-Options / CSP frame-ancestors).
  * `null` — перевірку не вдалося провести (мережа/таймаут/незрозуміла відповідь): викликач має
  * вважати джерело НЕ вбудовуваним (MANUAL), а не "пощастило — вважаємо, що можна".
+ * `'unsafe'` — до мережі взагалі не дійшло: посилання відхилив наш власний SSRF-фільтр
+ * (кинуто `UnsafeUrlBlockedError`). Це принципово інше, ніж "сайт не відповів" — викликач має
+ * повідомити про це окремо (`UNSAFE_URL`), а не тихо впасти в MANUAL так, ніби просто не
+ * вдалося перевірити.
  */
-export async function checkEmbeddable(rawUrl: string): Promise<EmbedCheckResult | null> {
+export async function checkEmbeddable(rawUrl: string): Promise<EmbedCheckResult | null | 'unsafe'> {
   try {
     let result = await safeFetch(rawUrl, { method: 'HEAD', timeoutMs: DEFAULT_TIMEOUT_MS });
     // Деякі сервери не підтримують HEAD (405/501) або не повертають потрібні заголовки — пробуємо
@@ -274,6 +287,7 @@ export async function checkEmbeddable(rawUrl: string): Promise<EmbedCheckResult 
     }
     return { embeddable: !blocked, finalUrl: result.finalUrl };
   } catch (err) {
+    if (err instanceof UnsafeUrlBlockedError) return 'unsafe';
     logger.debug(`checkEmbeddable(${rawUrl}) failed: ${String(err)}`);
     return null;
   }

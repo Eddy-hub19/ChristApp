@@ -94,6 +94,12 @@ describe('VideoResolverService', () => {
     expect(result).toMatchObject({ ok: true, provider: 'MANUAL' });
   });
 
+  it('посилання відхилив SSRF-фільтр (checkEmbeddable → "unsafe") → UNSAFE_URL, а не тихий MANUAL', async () => {
+    mockedCheckEmbeddable.mockResolvedValue('unsafe');
+    const result = await service.resolveLink('http://169.254.169.254/latest/meta-data/');
+    expect(result).toEqual({ ok: false, code: 'UNSAFE_URL' });
+  });
+
   it('YouTube oEmbed не відповів → NOT_FOUND', async () => {
     mockedSafeFetchJson.mockResolvedValue(null);
     const result = await service.resolveLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
