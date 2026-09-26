@@ -16,8 +16,10 @@ export type WatchUser = {
 export type WatchRoomCard = {
   id: string;
   title: string;
+  provider: WatchProvider;
   videoId: string;
   videoTitle: string | null;
+  thumbnailUrl: string | null;
   isPlaying: boolean;
   host: WatchUser;
   memberCount: number;

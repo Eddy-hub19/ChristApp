@@ -239,8 +239,10 @@ export class WatchPartyService implements OnModuleDestroy {
           select: {
             id: true,
             title: true,
+            provider: true,
             videoId: true,
             videoTitle: true,
+            thumbnailUrl: true,
             isPlaying: true,
             stateUpdatedAt: true,
             createdAt: true,
@@ -273,8 +275,10 @@ export class WatchPartyService implements OnModuleDestroy {
       return {
         id: row.room.id,
         title: row.room.title,
+        provider: runtime?.provider ?? row.room.provider,
         videoId: runtime?.videoId ?? row.room.videoId,
         videoTitle: runtime?.videoTitle ?? row.room.videoTitle,
+        thumbnailUrl: runtime?.thumbnailUrl ?? row.room.thumbnailUrl,
         isPlaying: runtime
           ? runtime.isPlaying
           : row.room.isPlaying &&

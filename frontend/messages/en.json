@@ -364,6 +364,14 @@
     "invitedBy": "{name} invites you",
     "accept": "Accept",
     "decline": "Decline",
+    "roomCard": {
+      "providerYoutube": "YouTube",
+      "providerVimeo": "Vimeo",
+      "providerDailymotion": "Dailymotion",
+      "providerFile": "Video file",
+      "providerIframe": "Website",
+      "providerManual": "Website"
+    },
     "create": {
       "title": "New room",
       "nameLabel": "Room name",

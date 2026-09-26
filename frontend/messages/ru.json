@@ -364,6 +364,14 @@
     "invitedBy": "{name} приглашает вас",
     "accept": "Принять",
     "decline": "Отклонить",
+    "roomCard": {
+      "providerYoutube": "YouTube",
+      "providerVimeo": "Vimeo",
+      "providerDailymotion": "Dailymotion",
+      "providerFile": "Видеофайл",
+      "providerIframe": "Сайт",
+      "providerManual": "Сайт"
+    },
     "create": {
       "title": "Новая комната",
       "nameLabel": "Название комнаты",
