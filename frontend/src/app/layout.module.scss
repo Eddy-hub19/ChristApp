@@ -5,6 +5,16 @@
   // height: calc(100dvh - 0px);
   display: flex;
   flex-direction: column;
+  /*
+   * body/html більше не прокручуються як ціле (globals.scss) — екрани без власного
+   * внутрішнього скрол-контейнера (дашборд, адмінка, контакти, нотатки) досі мають
+   * прокручуватись, тож фолбек-скрол тепер тут. Екрани з власним скролом (чати,
+   * Біблія, кінозала) це не зачіпає: їхній вміст і так вкладається в `.main` точно.
+   */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 
   /* Резерв під фіксований island-tabbar (80px висота + 12px bottom + повітря). */
   @media (min-width: 768px) {
