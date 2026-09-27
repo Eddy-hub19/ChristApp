@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { appleStartupImages } from "./appleSplash";
 
 export const globalSeo: Metadata = {
   title: "Bible Chat MVP",
@@ -7,8 +8,10 @@ export const globalSeo: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    /** Тёмна тема застосунку — статус-бар зливається з екраном завантаження/чатами, а не білою плашкою. */
+    statusBarStyle: "black-translucent",
     title: "Christ App",
+    startupImage: appleStartupImages,
   },
   icons: {
     icon: [

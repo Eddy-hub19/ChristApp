@@ -35,10 +35,28 @@ export default function WatchChat({
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
+  const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  };
+
+  useEffect(() => {
+    if (stickToBottom.current) scrollToBottom("smooth");
+  }, [messages]);
+
+  // Клавіатура відкривається/закривається — .chatList міняє висоту (див. useKeyboardInset
+  // у WatchHall). Якщо користувач і так стежив за низом стрічки, не даємо клавіатурі
+  // «підняти» останні повідомлення за межі видимої області: доганяємо низ на кожному ресайзі.
   useEffect(() => {
     const el = listRef.current;
-    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottom.current) scrollToBottom("auto");
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const submit = async () => {
     const content = draft.trim();
@@ -49,6 +67,7 @@ export default function WatchChat({
     if (ok) {
       setDraft("");
       stickToBottom.current = true;
+      scrollToBottom("smooth");
     }
   };
 
@@ -124,6 +143,12 @@ export default function WatchChat({
           onChange={(e) => {
             setDraft(e.target.value);
             if (emojiOpen) setEmojiOpen(false);
+          }}
+          onFocus={() => {
+            // Фокус на полі — саме тоді відкривається клавіатура: одразу показуємо
+            // останні повідомлення, не чекаючи, доки користувач сам гортоне вниз.
+            stickToBottom.current = true;
+            scrollToBottom("smooth");
           }}
           placeholder={t("chatPlaceholder")}
           aria-label={t("chatPlaceholder")}

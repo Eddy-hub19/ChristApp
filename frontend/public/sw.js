@@ -1,11 +1,18 @@
-const STATIC_CACHE = "christapp-static-v7";
-const RUNTIME_CACHE = "christapp-runtime-v7";
+const STATIC_CACHE = "christapp-static-v8";
+const RUNTIME_CACHE = "christapp-runtime-v8";
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v7";
+const API_SWR_CACHE = "christapp-api-swr-v8";
 const OFFLINE_URL = "/offline";
 
+/**
+ * Локалізовані корені застосунку (той самий екран, що й `start_url` у manifest) —
+ * кешуємо саму HTML-оболонку, щоб при повторному запуску вона малювалась миттєво
+ * з кешу, а не чекала на мережу (див. `SHELL_URLS` нижче).
+ */
+const SHELL_URLS = ["/en", "/ru", "/ua"];
+
 const APP_SHELL = [
-  "/",
+  ...SHELL_URLS,
   OFFLINE_URL,
   "/icon-192x192.png",
   "/icon-512x512.png",
@@ -75,6 +82,22 @@ self.addEventListener("message", (event) => {
         ? Math.max(0, Math.floor(badgeRaw))
         : undefined;
     event.waitUntil(dismissRoomNotifications(roomId, badgeCount));
+  }
+
+  /**
+   * Клієнт зловив ChunkLoadError (сторінка з кешу посилається на JS/CSS чанки
+   * старого білда, яких вже нема на сервері після нового деплою) — прибираємо
+   * закешовану оболонку, щоб наступний reload забрав свіжий HTML з мережі,
+   * а не ту саму застарілу відповідь.
+   */
+  if (event.data?.type === "INVALIDATE_SHELL") {
+    event.waitUntil(
+      caches
+        .open(STATIC_CACHE)
+        .then((cache) =>
+          Promise.all(SHELL_URLS.map((shellUrl) => cache.delete(shellUrl))),
+        ),
+    );
   }
 });
 
@@ -210,6 +233,13 @@ async function staleWhileRevalidate(request) {
     return networkResponse;
   }
 
+  if (isNavigationRequest(request)) {
+    const offlinePage = await caches.match(OFFLINE_URL);
+    if (offlinePage) {
+      return offlinePage;
+    }
+  }
+
   return new Response("", { status: 504, statusText: "Gateway Timeout" });
 }
 
@@ -252,6 +282,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (isNavigationRequest(request)) {
+    // Оболонка застосунку (екран завантаження) — миттєво з кешу, оновлення тихо в фоні:
+    // на повторному запуску користувач не чекає мережу заради того самого HTML.
+    if (SHELL_URLS.includes(url.pathname)) {
+      event.respondWith(staleWhileRevalidate(request));
+      return;
+    }
     event.respondWith(networkFirst(request));
     return;
   }
