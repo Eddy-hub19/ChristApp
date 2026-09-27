@@ -1,6 +1,7 @@
 .hanger {
   position: fixed;
-  top: 0;
+  /* Статус-бар тепер прозорий (black-translucent) і малюється поверх контенту — не ховаємо лампочку під годинник/батарею. */
+  top: env(safe-area-inset-top, 0px);
   right: 10px;
   z-index: 120;
   width: 30px;

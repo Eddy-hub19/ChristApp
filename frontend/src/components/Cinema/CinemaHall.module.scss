@@ -78,6 +78,20 @@
   flex-shrink: 0;
   position: relative;
   z-index: 5;
+  transition: padding 0.2s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/* Клавіатура відкрита (мобільний): шапка стає компактним одним рядком — без
+   другого рядка "хто керує" під заголовком, який на телефоні й так дублюється
+   оверлеєм на самому відео. */
+:global(html[data-keyboard-open]) .topbar {
+  @media (max-width: 767px) {
+    padding: 6px 14px;
+  }
 }
 
 .hallIconButton {
@@ -160,6 +174,12 @@
 .topbarVideo {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+:global(html[data-keyboard-open]) .topbarTitle .topbarStatusMobile {
+  @media (max-width: 767px) {
+    display: none;
+  }
 }
 
 .inviteButton {
@@ -425,10 +445,38 @@
   max-width: calc((100dvh - 330px) * 16 / 9);
   min-width: min(100%, 300px);
   margin: 0 auto;
+  transition:
+    max-width 0.2s ease,
+    padding-top 0.2s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 
   @media (max-width: 767px) {
     max-width: calc((100dvh - 300px) * 16 / 9);
     min-width: min(100%, 220px);
+  }
+}
+
+/*
+ * Клавіатура відкрита (мобільний, поле чату у фокусі): плеєр стискається по висоті
+ * (не по ширині 16:9 на весь екран), завіса ховається — інакше під клавіатурою не
+ * лишалось би місця навіть на 3–4 останні повідомлення. Рахуємо від --vv-height
+ * (видима область без клавіатури й панелі Safari), а не від 100dvh.
+ */
+:global(html[data-keyboard-open]) .theater {
+  @media (max-width: 767px) {
+    align-items: center;
+    padding-top: 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+:global(html[data-keyboard-open]) .curtain {
+  @media (max-width: 767px) {
+    display: none;
   }
 }
 
@@ -541,9 +589,30 @@
     0 0 0 1px rgba(255, 236, 205, 0.08),
     0 0 40px rgba(255, 220, 170, 0.14),
     0 30px 60px -20px rgba(0, 0, 0, 0.9);
+  transition:
+    height 0.2s ease,
+    max-width 0.2s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 
   @media (max-width: 767px) {
     border-radius: 14px;
+  }
+}
+
+/*
+ * Клавіатура відкрита: висота — частка видимої області (--vv-height), а не похідна
+ * від ширини (aspect-ratio тут і далі підганяє під неї ширину, а не навпаки) — тому
+ * й вертикальне відео (з чорними смугами по боках через object-fit: contain на
+ * .playerMount) більше не тримає повну ширину екрана під час набору тексту.
+ */
+:global(html[data-keyboard-open]) .screen {
+  @media (max-width: 767px) {
+    width: auto;
+    max-width: 100%;
+    height: max(96px, calc(var(--vv-height, 100dvh) * 0.38));
   }
 }
 
@@ -991,6 +1060,12 @@
   min-height: 20px;
   font-size: 12px;
   color: var(--hall-muted);
+
+  // Немає ні помилки, ні буферизації, ні unmute-чипа — рядок порожній, але
+  // `min-height` усе одно тримав порожній проміжок між екраном і чатом.
+  &:empty {
+    display: none;
+  }
 
   > span {
     display: inline-flex;
@@ -1810,6 +1885,14 @@
 
   @media (min-width: 768px) {
     padding-bottom: 10px;
+  }
+}
+
+/* Клавіатура відкрита: вона й так закриває смужку «додому» — зайвий відступ над нею не потрібен
+   (той самий підхід, що й у /chat/[roomId], див. .composerDock у chatRoom.module.scss). */
+:global(html[data-keyboard-open]) .chatForm {
+  @media (max-width: 767px) {
+    padding-bottom: 8px;
   }
 }
 

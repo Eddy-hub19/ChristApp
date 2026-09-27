@@ -16,7 +16,8 @@
 
 .minimizeButton {
   position: absolute;
-  top: 18px;
+  /* Повноекранний оверлей дзвінка під прозорим статус-баром — кнопка не повинна ховатись під годинник/камеру. */
+  top: calc(18px + env(safe-area-inset-top, 0px));
   right: 18px;
   width: 44px;
   height: 44px;

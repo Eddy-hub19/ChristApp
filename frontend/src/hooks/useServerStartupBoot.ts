@@ -1,10 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getHttpApiBase } from "@/lib/apiBase";
 import { checkBackendHealth } from "@/lib/backendHealth";
 import { getAuthSessionSnapshot, initializeApp } from "@/lib/authSession";
 import { hasPersistedAccessTokenInWebStorage } from "@/lib/auth";
+
+/**
+ * Заповнюється блокуючим скриптом у `app/layout.tsx`: health-check стартує в <head>,
+ * ще до завантаження React, щоб не втрачати час хендшейка на парсинг/гідратацію бандла.
+ */
+declare global {
+  interface Window {
+    __earlyHealthCheck?: {
+      startedAt: number;
+      promise: Promise<boolean>;
+    };
+  }
+}
 
 export type ServerBootPhase =
   /** Сервер ще не відповідає — іде холодний старт хостингу. */
@@ -43,18 +56,26 @@ export function useServerStartupBoot() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [graceElapsed, setGraceElapsed] = useState(false);
 
-  const startedAtRef = useRef<number>(Date.now());
+  // Якщо ранній health-check у <head> вже стартував, рахуємо очікування від нього,
+  // а не від моменту, коли встиг змонтуватись React (інакше на повільному завантаженні
+  // JS «безкоштовна» пауза до гідратації непомітно з'їдала грейс-період нижче).
+  // Лениве обчислення один раз через useState (а не useRef(Date.now())) — виклик Date.now()
+  // безпосередньо в аргументі був би нечистим викликом під час рендеру.
+  const [startedAt] = useState<number>(() =>
+    typeof window !== "undefined" && window.__earlyHealthCheck
+      ? window.__earlyHealthCheck.startedAt
+      : Date.now(),
+  );
   const isSettled = phase === "authenticated" || phase === "anonymous";
 
   const skip = useCallback(() => setSkipped(true), []);
 
   useEffect(() => {
-    const id = window.setTimeout(
-      () => setGraceElapsed(true),
-      SHOW_SCREEN_AFTER_MS,
-    );
+    const elapsedSinceStart = Date.now() - startedAt;
+    const remaining = Math.max(0, SHOW_SCREEN_AFTER_MS - elapsedSinceStart);
+    const id = window.setTimeout(() => setGraceElapsed(true), remaining);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [startedAt]);
 
   // Таймер потрібен лише поки чекаємо — не крутимо інтервал даремно.
   useEffect(() => {
@@ -62,10 +83,10 @@ export function useServerStartupBoot() {
       return;
     }
     const id = window.setInterval(() => {
-      setElapsedMs(Date.now() - startedAtRef.current);
+      setElapsedMs(Date.now() - startedAt);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [isSettled, skipped]);
+  }, [isSettled, skipped, startedAt]);
 
   useEffect(() => {
     if (isSettled) {
@@ -75,14 +96,25 @@ export function useServerStartupBoot() {
     const apiBase = getHttpApiBase();
     let cancelled = false;
     let timeoutId: number | null = null;
+    // Ранній health-check використовуємо лише один раз — на першій спробі.
+    let earlyCheckConsumed = false;
 
     const settleFromSession = () => {
       const snapshot = getAuthSessionSnapshot();
       setPhase(snapshot.user ? "authenticated" : "anonymous");
     };
 
+    const runHealthCheck = (): Promise<boolean> => {
+      const early = window.__earlyHealthCheck;
+      if (early && !earlyCheckConsumed) {
+        earlyCheckConsumed = true;
+        return early.promise;
+      }
+      return checkBackendHealth(apiBase, HEALTH_TIMEOUT_MS);
+    };
+
     const attempt = async () => {
-      const isReachable = await checkBackendHealth(apiBase, HEALTH_TIMEOUT_MS);
+      const isReachable = await runHealthCheck();
       if (cancelled) return;
 
       if (!isReachable) {
