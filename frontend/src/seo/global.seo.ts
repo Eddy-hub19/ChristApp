@@ -8,8 +8,14 @@ export const globalSeo: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    /** Тёмна тема застосунку — статус-бар зливається з екраном завантаження/чатами, а не білою плашкою. */
-    statusBarStyle: "black-translucent",
+    /**
+     * "black-translucent" ламало всю розкладку: вебвʼю тоді малюється під статус-баром
+     * на весь екран (viewport «виростає» на висоту статус-бара), а вся верстка застосунку
+     * розрахована на старий, не-оверлейний режим (`.main`, TabBar, шапки екранів — без
+     * жодного запасу під статус-бар). "black" лишає темний колір статус-бара, але
+     * контент, як і раніше, починається під ним — safe-area-inset-top знову 0.
+     */
+    statusBarStyle: "black",
     title: "Christ App",
     startupImage: appleStartupImages,
   },
