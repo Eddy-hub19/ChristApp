@@ -1004,3 +1004,14 @@ html[data-theme="dark"] .profile {
     }
   }
 }
+
+.buildInfo {
+  margin: 18px 0 6px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  text-align: center;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  opacity: 0.55;
+  user-select: text;
+}
