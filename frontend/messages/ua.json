@@ -129,6 +129,7 @@
     "menuEditHint": "Нік і @username",
     "menuNotifications": "Сповіщення",
     "menuLogout": "Вийти з акаунта",
+    "buildInfo": "збірка {sha} · {date}",
     "avatarChange": "Змінити фото профілю",
     "avatarUpload": "Завантажити фото профілю",
     "nick": "Нік",

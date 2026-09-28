@@ -1,8 +1,15 @@
-const STATIC_CACHE = "christapp-static-v8";
-const RUNTIME_CACHE = "christapp-runtime-v8";
+// v8 → v9: HTML-оболонка з v8 могла містити застарілі <head> (напр. інший
+// apple-mobile-web-app-status-bar-style) і жила вічно через stale-while-revalidate,
+// бо сам sw.js між релізами не мінявся — версію піднімайте щоразу, коли міняється
+// що-небудь у SHELL_URLS/APP_SHELL чи стратегії кешування, інакше browser не
+// побачить новий service worker і не оновить кеш.
+const STATIC_CACHE = "christapp-static-v9";
+const RUNTIME_CACHE = "christapp-runtime-v9";
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v8";
+const API_SWR_CACHE = "christapp-api-swr-v9";
 const OFFLINE_URL = "/offline";
+/** Скільки чекати мережу для HTML-оболонки, перш ніж повернути закешовану версію. */
+const SHELL_NETWORK_TIMEOUT_MS = 1500;
 
 /**
  * Локалізовані корені застосунку (той самий екран, що й `start_url` у manifest) —
@@ -208,6 +215,40 @@ async function networkFirst(request) {
   }
 }
 
+/**
+ * Мережа першою (з коротким таймаутом), кеш — лише як фолбек. На відміну від
+ * stale-while-revalidate, зміни в <head> (напр. statusBarStyle) доходять до
+ * користувача одразу при нормальній мережі, а не залишаються непоміченими,
+ * доки хтось не спіймає помилку чи не перевстановить застосунок.
+ */
+async function networkFirstWithTimeout(request, timeoutMs) {
+  const cache = await caches.open(STATIC_CACHE);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(request, { signal: controller.signal });
+    if (response && response.ok) {
+      cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) {
+      return cached;
+    }
+    if (isNavigationRequest(request)) {
+      const offlinePage = await caches.match(OFFLINE_URL);
+      if (offlinePage) {
+        return offlinePage;
+      }
+    }
+    return new Response("", { status: 504, statusText: "Gateway Timeout" });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function staleWhileRevalidate(request) {
   const requestUrl = new URL(request.url);
   const canUseCacheApi = isHttpOrHttps(requestUrl);
@@ -282,10 +323,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (isNavigationRequest(request)) {
-    // Оболонка застосунку (екран завантаження) — миттєво з кешу, оновлення тихо в фоні:
-    // на повторному запуску користувач не чекає мережу заради того самого HTML.
+    // Оболонка застосунку: мережа першою (до ~1.5с) — зміни в <head> (мета-теги,
+    // тема) доходять одразу. Кеш — тільки фолбек на офлайн/повільну мережу,
+    // не основне джерело даних (раніше тут був stale-while-revalidate, і саме
+    // тому оновлення statusBarStyle «застрягло» в кеші попередньої версії).
     if (SHELL_URLS.includes(url.pathname)) {
-      event.respondWith(staleWhileRevalidate(request));
+      event.respondWith(
+        networkFirstWithTimeout(request, SHELL_NETWORK_TIMEOUT_MS),
+      );
       return;
     }
     event.respondWith(networkFirst(request));

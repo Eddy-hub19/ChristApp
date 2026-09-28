@@ -129,6 +129,7 @@
     "menuEditHint": "Ник и @username",
     "menuNotifications": "Уведомления",
     "menuLogout": "Выйти из аккаунта",
+    "buildInfo": "сборка {sha} · {date}",
     "avatarChange": "Сменить фото профиля",
     "avatarUpload": "Загрузить фото профиля",
     "nick": "Ник",

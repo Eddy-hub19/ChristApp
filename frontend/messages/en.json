@@ -129,6 +129,7 @@
     "menuEditHint": "Nickname and @username",
     "menuNotifications": "Notifications",
     "menuLogout": "Log out",
+    "buildInfo": "build {sha} · {date}",
     "avatarChange": "Change profile photo",
     "avatarUpload": "Upload profile photo",
     "nick": "Nickname",

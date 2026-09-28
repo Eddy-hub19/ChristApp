@@ -1,9 +1,35 @@
+import { execSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
+/**
+ * Короткий хеш коміту білда — щоб на телефоні в профілі бачити, яка саме версія
+ * відкрита (актуально для PWA: service worker інколи довше показує старий кеш).
+ * На Vercel беремо готовий `VERCEL_GIT_COMMIT_SHA`; локально — з git напряму.
+ */
+function resolveBuildSha(): string {
+  const vercelSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
+  if (vercelSha) {
+    return vercelSha.slice(0, 7);
+  }
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      cwd: __dirname,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return "dev";
+  }
+}
+
+const BUILD_SHA = resolveBuildSha();
+const BUILD_DATE = new Date().toISOString().slice(0, 10);
 
 function isPrivateLanIPv4(host: string): boolean {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
@@ -170,6 +196,10 @@ const workspaceRoot = path.resolve(__dirname, "..");
 const nextConfig: NextConfig = {
   turbopack: {
     root: workspaceRoot,
+  },
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: BUILD_SHA,
+    NEXT_PUBLIC_BUILD_DATE: BUILD_DATE,
   },
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   /** HTTP к Nest без CORS: браузер бьёт в тот же origin, Next проксирует на бэкенд. */
