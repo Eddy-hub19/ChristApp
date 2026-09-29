@@ -103,12 +103,10 @@ type IncomingSocketMessage = {
   username?: string;
   handle?: string;
   senderId?: string;
-  senderIsVip?: boolean;
   sender?: {
     id?: string;
     username?: string;
     nickname?: string;
-    isVip?: boolean;
   };
   reactions?: Array<{
     id?: string;
@@ -485,11 +483,6 @@ function normalizeIncomingMessage(
     (displayName === currentUsername ||
       raw?.sender?.username === currentUsername);
 
-  const senderIsVip = Boolean(
-    (raw as { senderIsVip?: boolean }).senderIsVip ??
-    (raw?.sender as { isVip?: boolean } | undefined)?.isVip,
-  );
-
   return {
     id: String(raw?.id ?? Date.now()),
     content,
@@ -499,7 +492,6 @@ function normalizeIncomingMessage(
     username: displayName,
     handle,
     senderId,
-    senderIsVip,
     sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
     reactions,

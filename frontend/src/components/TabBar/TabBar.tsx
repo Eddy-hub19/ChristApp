@@ -12,12 +12,7 @@ import {
   fetchUnreadSummaryForQuery,
   pushUnreadSummaryQueryKey,
 } from "@/lib/queries/pushQueries";
-import { canSeeDashboardNav } from "@/lib/adminDashboardNav";
-import {
-  getIsVipFromJwt,
-  getUserIdFromJwt,
-  getUsernameFromJwt,
-} from "@/lib/jwtUser";
+import { getUserIdFromJwt } from "@/lib/jwtUser";
 import {
   prefetchTabBibleData,
   prefetchTabChatData,
@@ -30,7 +25,6 @@ import {
   useMediaQuery,
 } from "@/hooks/useMediaQuery";
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge";
-import { useAuth } from "@/hooks/useAuth";
 import {
   fetchWatchRooms,
   watchRoomsQueryKey,
@@ -42,7 +36,6 @@ export default function TabBar() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const { user: authUser } = useAuth();
   const { socket } = usePresenceSocket();
   const tabBarOverlay = useTabBarOverlayOptional();
   const narrowForChatComposer = useMediaQuery(
@@ -54,12 +47,7 @@ export default function TabBar() {
 
   const token = getAuthToken();
   const userId = token ? getUserIdFromJwt(token) : undefined;
-  const jwtUsername = token ? getUsernameFromJwt(token) : undefined;
-  const jwtIsVip = token ? getIsVipFromJwt(token) : false;
-  const dashboardUsername = jwtUsername ?? authUser?.username;
-  const dashboardIsVip = jwtIsVip || Boolean(authUser?.isVip);
-  const showDashboardTab =
-    tabBarClientReady && canSeeDashboardNav(dashboardUsername, dashboardIsVip);
+  const showDashboardTab = tabBarClientReady;
 
   const unreadQuery = useQuery({
     queryKey: pushUnreadSummaryQueryKey(userId),

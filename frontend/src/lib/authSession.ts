@@ -17,7 +17,6 @@ export type AuthUser = {
   createdAt: string;
   lastSeenAt?: string | null;
   isActive: boolean;
-  isVip?: boolean;
   avatarUrl?: string | null;
   themeForegroundHex?: string | null;
   themeBackgroundHex?: string | null;

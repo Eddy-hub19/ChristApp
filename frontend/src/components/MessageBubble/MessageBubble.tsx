@@ -348,24 +348,9 @@ function AudioFileBubble({ src, filename }: { src: string; filename: string }) {
   );
 }
 
-function SenderName({
-  name,
-  isVip,
-  as,
-}: {
-  name: string;
-  isVip: boolean;
-  as: "strong" | "span";
-}) {
+function SenderName({ name, as }: { name: string; as: "strong" | "span" }) {
   const Tag = as;
-  if (!isVip) {
-    return <Tag>{name}</Tag>;
-  }
-  return (
-    <Tag>
-      <span className={styles.vipName}>{name}</span>
-    </Tag>
-  );
+  return <Tag>{name}</Tag>;
 }
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
@@ -674,7 +659,6 @@ function MessageBubble({
 
       {(() => {
         const senderName = message.username || "Unknown";
-        const senderVip = Boolean(message.senderIsVip) && !isOwnMessage;
         const canShowSenderName =
           !hideSenderName && !(hideOwnSenderName && isOwnMessage);
         const showCompactSender =
@@ -707,12 +691,12 @@ function MessageBubble({
             <div className={styles.imageMessage}>
               {showCompactSender ? (
                 <p className={styles.senderCompact}>
-                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                  <SenderName name={senderName} as="span" />
                 </p>
               ) : null}
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.imageMessageMeta}>
-                  <SenderName name={senderName} isVip={senderVip} as="strong" />
+                  <SenderName name={senderName} as="strong" />
                   <span> — видео-овечка</span>
                 </p>
               ) : null}
@@ -726,12 +710,12 @@ function MessageBubble({
             <div className={styles.imageMessage}>
               {showCompactSender ? (
                 <p className={styles.senderCompact}>
-                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                  <SenderName name={senderName} as="span" />
                 </p>
               ) : null}
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.imageMessageMeta}>
-                  <SenderName name={senderName} isVip={senderVip} as="strong" />
+                  <SenderName name={senderName} as="strong" />
                   <span> — фото</span>
                 </p>
               ) : null}
@@ -774,14 +758,13 @@ function MessageBubble({
               <div className={styles.fileMessage}>
                 {showCompactSender ? (
                   <p className={styles.senderCompact}>
-                    <SenderName name={senderName} isVip={senderVip} as="span" />
+                    <SenderName name={senderName} as="span" />
                   </p>
                 ) : null}
                 {canShowSenderName && !showCompactSender ? (
                   <p className={styles.fileMessageMeta}>
                     <SenderName
                       name={senderName}
-                      isVip={senderVip}
                       as="strong"
                     />
                     <span> — музыка</span>
@@ -797,14 +780,13 @@ function MessageBubble({
               <div className={styles.fileMessage}>
                 {showCompactSender ? (
                   <p className={styles.senderCompact}>
-                    <SenderName name={senderName} isVip={senderVip} as="span" />
+                    <SenderName name={senderName} as="span" />
                   </p>
                 ) : null}
                 {canShowSenderName && !showCompactSender ? (
                   <p className={styles.fileMessageMeta}>
                     <SenderName
                       name={senderName}
-                      isVip={senderVip}
                       as="strong"
                     />
                     <span> — книга</span>
@@ -819,12 +801,12 @@ function MessageBubble({
             <div className={styles.fileMessage}>
               {showCompactSender ? (
                 <p className={styles.senderCompact}>
-                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                  <SenderName name={senderName} as="span" />
                 </p>
               ) : null}
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.fileMessageMeta}>
-                  <SenderName name={senderName} isVip={senderVip} as="strong" />
+                  <SenderName name={senderName} as="strong" />
                   <span> — файл</span>
                 </p>
               ) : null}
@@ -863,7 +845,6 @@ function MessageBubble({
               message={message}
               hideSenderName={showCompactSender || !canShowSenderName}
               compactSenderLabel={showCompactSender ? senderName : undefined}
-              senderIsVip={senderVip}
             />
           );
         }
@@ -886,7 +867,7 @@ function MessageBubble({
             <>
               {showCompactSender ? (
                 <p className={styles.senderCompact}>
-                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                  <SenderName name={senderName} as="span" />
                 </p>
               ) : null}
               <p className={styles.messageContent}>
@@ -894,7 +875,6 @@ function MessageBubble({
                   <>
                     <SenderName
                       name={senderName}
-                      isVip={senderVip}
                       as="strong"
                     />
                     <span>:</span>
@@ -934,7 +914,7 @@ function MessageBubble({
           <>
             {showCompactSender ? (
               <p className={styles.senderCompact}>
-                <SenderName name={senderName} isVip={senderVip} as="span" />
+                <SenderName name={senderName} as="span" />
               </p>
             ) : null}
             {verseShare.payload.bookId ? (
@@ -944,7 +924,7 @@ function MessageBubble({
               >
                 {canShowSenderName && !showCompactSender ? (
                   <p className={styles.verseShareAuthor}>
-                    <SenderName name={senderName} isVip={senderVip} as="span" />{" "}
+                    <SenderName name={senderName} as="span" />{" "}
                     поделился стихом
                   </p>
                 ) : null}
@@ -960,7 +940,7 @@ function MessageBubble({
               <div className={styles.verseShareCard}>
                 {canShowSenderName && !showCompactSender ? (
                   <p className={styles.verseShareAuthor}>
-                    <SenderName name={senderName} isVip={senderVip} as="span" />{" "}
+                    <SenderName name={senderName} as="span" />{" "}
                     поделился стихом
                   </p>
                 ) : null}

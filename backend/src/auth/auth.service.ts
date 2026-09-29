@@ -27,7 +27,6 @@ const USER_SAFE_SELECT = {
   themeForegroundHex: true,
   themeBackgroundHex: true,
   themeFontKey: true,
-  isVip: true,
   bio: true,
 } as const;
 
@@ -496,7 +495,6 @@ export class AuthService {
     const payload = {
       sub: safe.id,
       username: safe.username,
-      isVip: Boolean(safe.isVip),
     };
     const signedToken = this.jwt.sign(payload, {
       expiresIn: this

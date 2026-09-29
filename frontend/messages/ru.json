@@ -93,15 +93,13 @@
   },
   "admin": {
     "title": "Админ",
-    "subtitle": "Участники (сначала новые). VIP подсвечивает ник в чате.",
+    "subtitle": "Участники (сначала новые).",
     "backToChat": "← Чат",
     "loading": "Загрузка…",
     "loadingList": "Загрузка списка…",
     "noToken": "Нет авторизации.",
     "loadFailed": "Не удалось загрузить список (HTTP {status}).",
     "loadFailedGeneric": "Не удалось загрузить список.",
-    "vipFailed": "Не удалось обновить VIP (HTTP {status}).",
-    "vipFailedGeneric": "Не удалось обновить VIP.",
     "deleteConfirm": "Удалить пользователя {name} (@{username}) из базы? Это действие необратимо.",
     "deleteFailed": "Не удалось удалить пользователя (HTTP {status}).",
     "deleteFailedGeneric": "Не удалось удалить пользователя.",
@@ -114,9 +112,7 @@
     "labelId": "ID:",
     "labelEmail": "Email:",
     "labelJoined": "Регистрация:",
-    "labelLastSeen": "Был(а) в сети:",
-    "setVip": "Дать VIP",
-    "removeVip": "Снять VIP"
+    "labelLastSeen": "Был(а) в сети:"
   },
   "profile": {
     "title": "Профиль",
@@ -195,7 +191,6 @@
     "anonymousUser": "пользователя",
     "peerInNotification": "собеседника",
     "listSearchPlaceholder": "Найти по чату, имени или username",
-    "listVipModeBanner": "Вы в VIP-режиме",
     "userPickerAria": "Выбор пользователя для нового чата",
     "userPickerTitle": "Новый чат",
     "userPickerSubtitle": "Выберите пользователя, которому хотите написать",

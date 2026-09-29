@@ -19,19 +19,6 @@
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 
-  .vipModeBanner {
-    width: 100%;
-    margin-bottom: 10px;
-    padding: 4px 8px;
-    text-align: center;
-    font-family: "Inter", sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    line-height: 1.4;
-    color: var(--text-muted);
-  }
-
   .chatListWrapper {
     display: flex;
     flex-direction: column;
@@ -787,23 +774,6 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-          }
-
-          .vipBadge {
-            flex-shrink: 0;
-            padding: 1px 6px;
-            border-radius: 6px;
-            font-family: "Inter", sans-serif;
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: #f5f3ff;
-            border: 1px solid color-mix(in srgb, #a78bfa 55%, transparent);
-            background: color-mix(in srgb, #4c1d95 35%, var(--surface-elevated));
-            box-shadow:
-              0 0 8px rgba(168, 85, 247, 0.55),
-              0 0 16px rgba(56, 189, 248, 0.25);
           }
 
           .presenceSubtitle {
