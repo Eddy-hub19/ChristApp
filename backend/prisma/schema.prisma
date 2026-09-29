@@ -42,6 +42,7 @@ model User {
   hostedWatchRooms    WatchRoom[]       @relation("WatchRoomHost")
   watchMemberships    WatchRoomMember[] @relation("WatchRoomMemberUser")
   watchMessages       WatchMessage[]
+  watchMessageReactions WatchMessageReaction[]
 }
 
 /// Лайк аватара: кто (liker) поставил кому (target).
@@ -241,6 +242,10 @@ model WatchRoomMember {
   createdAt   DateTime          @default(now())
   /// Коли прийняв запрошення — порядок для автопередачі керування.
   joinedAt    DateTime?
+  /// До якого моменту учасник переглянув повідомлення чату кімнати (як RoomReadState.lastReadAt).
+  lastReadAt         DateTime  @default(dbgenerated("to_timestamp((0)::double precision)"))
+  /// Учасник вимкнув пуш-сповіщення для цієї кімнати.
+  notificationsMuted Boolean   @default(false)
   room        WatchRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user        User              @relation("WatchRoomMemberUser", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -256,6 +261,20 @@ model WatchMessage {
   createdAt DateTime  @default(now())
   room      WatchRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions WatchMessageReaction[]
 
   @@index([roomId, createdAt])
+}
+
+model WatchMessageReaction {
+  id        String       @id @default(uuid())
+  userId    String
+  messageId String
+  type      String
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   WatchMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, type])
+  @@index([messageId, createdAt])
 }

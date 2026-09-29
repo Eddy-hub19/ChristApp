@@ -441,8 +441,14 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  const tag =
-    payload.messageId && payload.messageId.length > 0
+  // Кіношка: усі повідомлення чату кімнати групуємо в одне сповіщення (тег по кімнаті),
+  // щоб не сипати десятками окремих пушів — на відміну від основного чату (тег по повідомленню).
+  const isWatchRoomMessage =
+    typeof payload.roomId === "string" && payload.roomId.startsWith("watch-");
+
+  const tag = isWatchRoomMessage
+    ? `christ-watch-room-${payload.roomId}`
+    : payload.messageId && payload.messageId.length > 0
       ? `christ-msg-${payload.messageId}`
       : `room-${payload.roomId}`;
 

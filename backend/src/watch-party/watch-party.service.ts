@@ -56,6 +56,8 @@ export const WATCH_REACTIONS = [
   '🕊️',
 ] as const;
 
+export type WatchMessageReactionSummary = { userId: string; type: string };
+
 export type VideoCheckResult =
   | { ok: true; title: string | null }
   | { ok: false; code: 'NOT_EMBEDDABLE' | 'NOT_FOUND' };
@@ -511,6 +513,7 @@ export class WatchPartyService implements OnModuleDestroy {
       where: { roomId_userId: { roomId, userId } },
       select: {
         status: true,
+        notificationsMuted: true,
         room: { select: { title: true } },
       },
     });
@@ -564,6 +567,7 @@ export class WatchPartyService implements OnModuleDestroy {
       presentUserIds: [...this.presentUserIds(roomId)],
       messages,
       reactions: WATCH_REACTIONS,
+      notificationsMuted: membership.notificationsMuted,
     };
   }
 
@@ -776,13 +780,38 @@ export class WatchPartyService implements OnModuleDestroy {
         content: true,
         createdAt: true,
         user: { select: userPublicSelect },
+        room: { select: { title: true } },
       },
     });
     const payload = {
       roomId,
-      message: { ...message, createdAt: message.createdAt.toISOString() },
+      message: {
+        id: message.id,
+        content: message.content,
+        createdAt: message.createdAt.toISOString(),
+        user: message.user,
+        reactions: [] as WatchMessageReactionSummary[],
+      },
     };
     this.server?.to(watchSocketRoom(roomId)).emit('watch:message', payload);
+
+    const senderName = message.user.nickname?.trim() || message.user.username;
+    this.pushService
+      .sendWatchMessagePush({
+        messageId: message.id,
+        roomId,
+        roomTitle: message.room.title,
+        senderId: userId,
+        senderName,
+        content,
+        createdAt: message.createdAt,
+        excludeUserIds: [...this.presentUserIds(roomId)],
+      })
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Не вдалося надіслати push чату Киношки: ${reason}`);
+      });
+
     return { ok: true as const };
   }
 
@@ -834,6 +863,94 @@ export class WatchPartyService implements OnModuleDestroy {
       id: randomBytes(6).toString('hex'),
     });
     return { ok: true as const };
+  }
+
+  /** Реакція на конкретне повідомлення чату (не плутати з ефемерними `emitReaction` на кімнату). */
+  async toggleMessageReaction(
+    roomId: string,
+    userId: string,
+    messageId: string,
+    emoji: string,
+  ) {
+    if (!(WATCH_REACTIONS as readonly string[]).includes(emoji)) {
+      return { ok: false as const, code: 'BAD_REQUEST' as const };
+    }
+    const message = await this.prisma.watchMessage.findUnique({
+      where: { id: messageId },
+      select: { roomId: true },
+    });
+    if (!message || message.roomId !== roomId) {
+      return { ok: false as const, code: 'NOT_FOUND' as const };
+    }
+
+    const existing = await this.prisma.watchMessageReaction.findUnique({
+      where: { userId_messageId_type: { userId, messageId, type: emoji } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.watchMessageReaction.delete({
+        where: { id: existing.id },
+      });
+    } else {
+      await this.prisma.watchMessageReaction.create({
+        data: { userId, messageId, type: emoji },
+      });
+    }
+
+    const reactions = await this.loadMessageReactions(messageId);
+    this.server?.to(watchSocketRoom(roomId)).emit('watch:messageReactions', {
+      roomId,
+      messageId,
+      reactions,
+    });
+    return { ok: true as const, reactions };
+  }
+
+  private async loadMessageReactions(
+    messageId: string,
+  ): Promise<WatchMessageReactionSummary[]> {
+    const rows = await this.prisma.watchMessageReaction.findMany({
+      where: { messageId },
+      orderBy: { createdAt: 'asc' },
+      select: { userId: true, type: true },
+    });
+    return rows;
+  }
+
+  /** Позначає, що учасник переглянув чат кімнати до поточного моменту (як RoomReadState у чаті). */
+  async markRead(roomId: string, userId: string) {
+    const lastReadAt = new Date();
+    const { count } = await this.prisma.watchRoomMember.updateMany({
+      where: { roomId, userId, status: WatchMemberStatus.JOINED },
+      data: { lastReadAt },
+    });
+    if (!count) return { ok: false as const, code: 'FORBIDDEN' as const };
+
+    this.server?.to(watchSocketRoom(roomId)).emit('watch:readUpdated', {
+      roomId,
+      userId,
+      lastReadAt: lastReadAt.toISOString(),
+    });
+
+    this.pushService
+      .sendReadSyncPush({ userId, roomId: `watch-${roomId}` })
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Не вдалося синхронізувати read-sync Киношки: ${reason}`);
+      });
+
+    return { ok: true as const, lastReadAt: lastReadAt.toISOString() };
+  }
+
+  /** Учасник вимикає/вмикає пуш-сповіщення для цієї кімнати. Приватне налаштування — не транслюємо іншим. */
+  async setNotificationsMuted(roomId: string, userId: string, muted: boolean) {
+    const { count } = await this.prisma.watchRoomMember.updateMany({
+      where: { roomId, userId },
+      data: { notificationsMuted: muted },
+    });
+    if (!count) return { ok: false as const, code: 'FORBIDDEN' as const };
+    return { ok: true as const, muted };
   }
 
   // ================= ВНУТРІШНЄ: ХОСТ І ПРИСУТНІСТЬ =================
@@ -1132,6 +1249,7 @@ export class WatchPartyService implements OnModuleDestroy {
       select: {
         status: true,
         joinedAt: true,
+        lastReadAt: true,
         user: { select: userPublicSelect },
       },
     });
@@ -1139,6 +1257,7 @@ export class WatchPartyService implements OnModuleDestroy {
       ...row.user,
       status: row.status,
       joinedAt: row.joinedAt?.toISOString() ?? null,
+      lastReadAt: row.lastReadAt.toISOString(),
     }));
   }
 
@@ -1164,6 +1283,10 @@ export class WatchPartyService implements OnModuleDestroy {
         content: true,
         createdAt: true,
         user: { select: userPublicSelect },
+        reactions: {
+          orderBy: { createdAt: 'asc' },
+          select: { userId: true, type: true },
+        },
       },
     });
     return rows

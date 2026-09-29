@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
+import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
 import type { WatchUser } from "@/lib/queries/watchRoomsQueries";
 import {
   DEVICE_TAG,
@@ -14,13 +15,18 @@ import {
 export type HallMember = WatchUser & {
   status: "INVITED" | "JOINED";
   joinedAt: string | null;
+  /** До якого моменту учасник переглянув чат кімнати — для аватарок "прочитано". */
+  lastReadAt: string;
 };
+
+export type HallMessageReaction = { userId: string; type: string };
 
 export type HallMessage = {
   id: string;
   content: string;
   createdAt: string;
   user: WatchUser;
+  reactions: HallMessageReaction[];
 };
 
 export type HallReaction = { id: string; emoji: string; userId: string };
@@ -52,6 +58,7 @@ type JoinAck =
       presentUserIds: string[];
       messages: HallMessage[];
       reactions: string[];
+      notificationsMuted: boolean;
     }
   | { ok: false; code: string; title?: string };
 
@@ -84,6 +91,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   const [presentIds, setPresentIds] = useState<Set<string>>(() => new Set());
   const [messages, setMessages] = useState<HallMessage[]>([]);
   const [reactionOptions, setReactionOptions] = useState<string[]>([]);
+  const [typingUserIds, setTypingUserIds] = useState<Set<string>>(() => new Set());
+  const [notificationsMuted, setNotificationsMutedState] = useState(false);
   /** Пропозиції відео з міні-YouTube від учасників — не з БД, живуть лише в цій сесії. */
   const [suggestions, setSuggestions] = useState<HallSuggestion[]>([]);
   /** Збільшується, щоб повторно зайти в залу (напр. щойно прийняли запрошення). */
@@ -91,6 +100,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
 
   const stateRef = useRef<WatchState | null>(null);
   const reactionListeners = useRef(new Set<(r: HallReaction) => void>());
+  /** Автоприховування чужого "друкує…", якщо не прийшло явне isTyping:false (напр. клієнт впав). */
+  const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const onEventRef = useRef(onEvent);
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -122,6 +133,9 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     if (!socket || !isConnected) return;
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    // Той самий Map упродовж усього життя компонента — читаємо на старті ефекту,
+    // а не в cleanup, щоб не чіпати `.current` у момент, коли рушій уже його прибирає.
+    const typingTimersMap = typingTimers.current;
 
     const onState = (s: WatchState) => applyState(s);
     const onPresence = (p: { roomId: string; presentUserIds: string[] }) => {
@@ -150,6 +164,50 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     const onRemoved = (p: { roomId: string }) => {
       if (p.roomId === roomId) setStatus("removed");
     };
+    const onMessageReactions = (p: {
+      roomId: string;
+      messageId: string;
+      reactions: HallMessageReaction[];
+    }) => {
+      if (p.roomId !== roomId) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === p.messageId ? { ...m, reactions: p.reactions } : m)),
+      );
+    };
+    const onReadUpdated = (p: { roomId: string; userId: string; lastReadAt: string }) => {
+      if (p.roomId !== roomId) return;
+      setMembers((prev) =>
+        prev.map((m) => (m.id === p.userId ? { ...m, lastReadAt: p.lastReadAt } : m)),
+      );
+    };
+    const onUserTyping = (p: { roomId: string; userId: string; isTyping: boolean }) => {
+      if (p.roomId !== roomId) return;
+      const existingTimer = typingTimersMap.get(p.userId);
+      if (existingTimer) clearTimeout(existingTimer);
+      typingTimersMap.delete(p.userId);
+
+      if (!p.isTyping) {
+        setTypingUserIds((prev) => {
+          if (!prev.has(p.userId)) return prev;
+          const next = new Set(prev);
+          next.delete(p.userId);
+          return next;
+        });
+        return;
+      }
+
+      setTypingUserIds((prev) => new Set(prev).add(p.userId));
+      const timer = setTimeout(() => {
+        typingTimersMap.delete(p.userId);
+        setTypingUserIds((prev) => {
+          if (!prev.has(p.userId)) return prev;
+          const next = new Set(prev);
+          next.delete(p.userId);
+          return next;
+        });
+      }, 4_000);
+      typingTimersMap.set(p.userId, timer);
+    };
 
     socket.on("watch:state", onState);
     socket.on("watch:presence", onPresence);
@@ -159,6 +217,9 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     socket.on("watch:videoSuggested", onVideoSuggested);
     socket.on("watch:roomDeleted", onDeleted);
     socket.on("watch:removedFromRoom", onRemoved);
+    socket.on("watch:messageReactions", onMessageReactions);
+    socket.on("watch:readUpdated", onReadUpdated);
+    socket.on("watch:userTyping", onUserTyping);
 
     const join = () => {
       void emitWithAck<JoinAck>(socket, "watch:join", { roomId }, 10_000).then((res) => {
@@ -186,6 +247,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
         setPresentIds(new Set(res.presentUserIds));
         setMessages(res.messages);
         setReactionOptions(res.reactions);
+        setNotificationsMutedState(res.notificationsMuted);
         // Перепідключення: стан сервера — істина, навіть якщо його версія «старша» (рестарт).
         stateRef.current = null;
         applyState(res.state);
@@ -209,6 +271,12 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       socket.off("watch:videoSuggested", onVideoSuggested);
       socket.off("watch:roomDeleted", onDeleted);
       socket.off("watch:removedFromRoom", onRemoved);
+      socket.off("watch:messageReactions", onMessageReactions);
+      socket.off("watch:readUpdated", onReadUpdated);
+      socket.off("watch:userTyping", onUserTyping);
+      for (const timer of typingTimersMap.values()) clearTimeout(timer);
+      typingTimersMap.clear();
+      setTypingUserIds(new Set());
       if (socket.connected) socket.emit("watch:leave", { roomId });
     };
   }, [socket, isConnected, roomId, clock, applyState, joinEpoch]);
@@ -323,6 +391,49 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     setSuggestions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  /** Емодзі-реакція на конкретне повідомлення (не плутати з летючими реакціями на кімнату). */
+  const toggleMessageReaction = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!socket?.connected) return;
+      socket.emit("watch:toggleReaction", { roomId, messageId, emoji });
+    },
+    [socket, roomId],
+  );
+
+  const sendTyping = useCallback(
+    (isTyping: boolean) => {
+      if (!socket?.connected) return;
+      socket.emit("watch:typing", { roomId, isTyping });
+    },
+    [socket, roomId],
+  );
+
+  const markRead = useCallback(() => {
+    if (!socket?.connected) return;
+    void dismissRoomNotificationsLocally(`watch-${roomId}`);
+    socket.emit("watch:markRead", { roomId });
+  }, [socket, roomId]);
+
+  const setNotificationsMuted = useCallback(
+    (muted: boolean) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
+        }
+        void emitWithAck<{ ok: boolean; muted?: boolean }>(
+          socket,
+          "watch:setMuted",
+          { roomId, muted },
+          8_000,
+        ).then((res) => {
+          if (res?.ok) setNotificationsMutedState(muted);
+          resolve(Boolean(res?.ok));
+        });
+      }),
+    [socket, roomId],
+  );
+
   const rejoin = useCallback(() => {
     setStatus("connecting");
     setJoinEpoch((n) => n + 1);
@@ -347,5 +458,11 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     suggestions,
     suggestVideo,
     dismissSuggestion,
+    typingUserIds,
+    sendTyping,
+    toggleMessageReaction,
+    markRead,
+    notificationsMuted,
+    setNotificationsMuted,
   };
 }

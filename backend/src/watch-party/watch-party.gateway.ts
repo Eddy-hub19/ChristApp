@@ -373,6 +373,87 @@ export class WatchPartyGateway
     return this.watchParty.emitReaction(roomId, userId, body.emoji);
   }
 
+  @SubscribeMessage('watch:toggleReaction')
+  handleToggleReaction(
+    @MessageBody() body: RoomBody & { messageId?: unknown; emoji?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (
+      !userId ||
+      !roomId ||
+      typeof body?.messageId !== 'string' ||
+      typeof body?.emoji !== 'string'
+    ) {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.watchParty.isPresent(roomId, userId)) {
+      return { ok: false, code: 'NOT_IN_ROOM' };
+    }
+    if (!this.limiter.allow(`${client.id}:msgReaction`, 10, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.toggleMessageReaction(
+      roomId,
+      userId,
+      body.messageId,
+      body.emoji,
+    );
+  }
+
+  /** "Друкує…" у чаті кімнати — ефемерний ретранслятор без запису в БД, як у основному чаті. */
+  @SubscribeMessage('watch:typing')
+  handleTyping(
+    @MessageBody() body: RoomBody & { isTyping?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.isTyping !== 'boolean') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.watchParty.isPresent(roomId, userId)) {
+      return { ok: false, code: 'NOT_IN_ROOM' };
+    }
+    if (!this.limiter.allow(`${client.id}:typing`, 3, 2_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    client.to(watchSocketRoom(roomId)).emit('watch:userTyping', {
+      roomId,
+      userId,
+      isTyping: body.isTyping,
+    });
+    return { ok: true };
+  }
+
+  @SubscribeMessage('watch:markRead')
+  handleMarkRead(
+    @MessageBody() body: RoomBody,
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId) return { ok: false, code: 'BAD_REQUEST' };
+    if (!this.limiter.allow(`${client.id}:markRead`, 5, 2_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.markRead(roomId, userId);
+  }
+
+  @SubscribeMessage('watch:setMuted')
+  handleSetMuted(
+    @MessageBody() body: RoomBody & { muted?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.muted !== 'boolean') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    return this.watchParty.setNotificationsMuted(roomId, userId, body.muted);
+  }
+
   private runControl(
     client: WatchSocket,
     body: ControlBody,

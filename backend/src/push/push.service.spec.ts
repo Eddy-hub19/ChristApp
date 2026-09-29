@@ -45,6 +45,10 @@ type PrismaMock = {
     update: jest.Mock;
     delete: jest.Mock;
   };
+  watchRoomMember: {
+    findMany: jest.Mock;
+  };
+  $queryRaw: jest.Mock;
 };
 
 const GLOBAL_ROOM = '00000000-0000-0000-0000-000000000001';
@@ -68,6 +72,10 @@ function createPrismaMock(): PrismaMock {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    watchRoomMember: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
 }
 
