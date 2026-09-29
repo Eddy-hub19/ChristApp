@@ -36,7 +36,6 @@ export type ChatListItem = {
   isOnline?: boolean;
   /** ISO час останньої активності в мережі (співрозмовник у приватному чаті). */
   lastSeenAt?: string | null;
-  peerIsVip?: boolean;
   /** Показати меню «⋯» з видаленням (загальний чат і службові рядки — без меню). */
   deletable?: boolean;
 };
@@ -656,17 +655,7 @@ const ChatList = ({
                                   aria-hidden
                                 />
                               ) : (
-                                <>
-                                  <h3 className={styles.title}>{safeTitle}</h3>
-                                  {chat.peerIsVip ? (
-                                    <span
-                                      className={styles.vipBadge}
-                                      title="VIP"
-                                    >
-                                      vip
-                                    </span>
-                                  ) : null}
-                                </>
+                                <h3 className={styles.title}>{safeTitle}</h3>
                               )}
                             </div>
                             <span className={styles.chatTime}>

@@ -93,15 +93,13 @@
   },
   "admin": {
     "title": "Admin",
-    "subtitle": "Members (newest first). Toggle VIP for highlighted users in chat.",
+    "subtitle": "Members (newest first).",
     "backToChat": "← Chat",
     "loading": "Loading…",
     "loadingList": "Loading members…",
     "noToken": "Not signed in.",
     "loadFailed": "Could not load members (HTTP {status}).",
     "loadFailedGeneric": "Could not load members.",
-    "vipFailed": "Could not update VIP (HTTP {status}).",
-    "vipFailedGeneric": "Could not update VIP.",
     "deleteConfirm": "Delete user {name} (@{username}) from the database? This action cannot be undone.",
     "deleteFailed": "Could not delete user (HTTP {status}).",
     "deleteFailedGeneric": "Could not delete user.",
@@ -114,9 +112,7 @@
     "labelId": "ID:",
     "labelEmail": "Email:",
     "labelJoined": "Joined:",
-    "labelLastSeen": "Last seen:",
-    "setVip": "Set VIP",
-    "removeVip": "Remove VIP"
+    "labelLastSeen": "Last seen:"
   },
   "profile": {
     "title": "Profile",
@@ -195,7 +191,6 @@
     "anonymousUser": "someone",
     "peerInNotification": "someone",
     "listSearchPlaceholder": "Search chats, names, or usernames",
-    "listVipModeBanner": "You're in VIP mode",
     "userPickerAria": "Choose a user to start a chat",
     "userPickerTitle": "New chat",
     "userPickerSubtitle": "Pick who you want to message",

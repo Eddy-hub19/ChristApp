@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { canSeeDashboardNav } from "@/lib/adminDashboardNav";
 import RandomVerseWidget from "@/components/RandomVerseWidget/RandomVerseWidget";
 import { getAppStreak } from "@/lib/appStreak";
 import {
@@ -35,10 +34,6 @@ export default function DashboardPage() {
     if (loading) return;
     if (!user) {
       router.replace("/");
-      return;
-    }
-    if (!canSeeDashboardNav(user.username, user.isVip)) {
-      router.replace("/bible");
     }
   }, [user, loading, router]);
 
@@ -81,7 +76,7 @@ export default function DashboardPage() {
     [user?.id],
   );
 
-  if (loading || !user || !canSeeDashboardNav(user.username, user.isVip)) {
+  if (loading || !user) {
     return (
       <div className={styles.page} aria-busy="true">
         <div className={styles.appBrand} aria-label="ChristApp">

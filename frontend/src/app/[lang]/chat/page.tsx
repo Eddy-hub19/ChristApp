@@ -89,7 +89,6 @@ type DirectRoomItemInput = {
   lastActivityAt?: string;
   avatarUrl?: string | null;
   lastSeenAt?: string | null;
-  peerIsVip?: boolean;
 };
 
 function getGlobalRoomFromPrevious(rooms: ChatListItem[], globalTitle: string) {
@@ -111,7 +110,6 @@ function createDirectRoomItem({
   lastActivityAt,
   avatarUrl,
   lastSeenAt,
-  peerIsVip,
 }: DirectRoomItemInput): ChatListItem {
   let avatarImage: string | undefined;
   if (avatarUrl !== undefined) {
@@ -133,7 +131,6 @@ function createDirectRoomItem({
     unread: previous?.unread ?? 0,
     isOnline,
     lastSeenAt: lastSeenAt ?? previous?.lastSeenAt,
-    peerIsVip: peerIsVip ?? previous?.peerIsVip,
   };
 }
 
@@ -255,7 +252,6 @@ type RoomSocketItem = {
     nickname?: string | null;
     avatarUrl?: string | null;
     lastSeenAt?: string | null;
-    isVip?: boolean;
   };
 };
 
@@ -623,7 +619,6 @@ export default function ChatPage() {
             timeLabel: nextTimeLabel,
             lastActivityAt: nextLastActivityAt,
             lastSeenAt: room.lastSeenAt,
-            peerIsVip: room.peerIsVip,
           };
         });
 
@@ -1061,7 +1056,6 @@ export default function ChatPage() {
                 lastActivityAt: previous?.lastActivityAt ?? room.createdAt,
                 avatarUrl: resolvedAvatarUrl,
                 lastSeenAt: directPeer?.lastSeenAt ?? null,
-                peerIsVip: Boolean(directPeer?.isVip),
               }),
             );
           }
@@ -1301,14 +1295,6 @@ export default function ChatPage() {
                           canonicalChatUuidKey(existingUser.id) ===
                             canonicalChatUuidKey(String(mappedId)),
                       )?.avatarUrl,
-                      peerIsVip: Boolean(
-                        usersRef.current.find(
-                          (existingUser) =>
-                            existingUser.id === mappedId ||
-                            canonicalChatUuidKey(existingUser.id) ===
-                              canonicalChatUuidKey(String(mappedId)),
-                        )?.isVip,
-                      ),
                     },
                     chatI18nRef.current.globalTitle,
                     chatI18nRef.current.shareTitle,
@@ -1532,7 +1518,6 @@ export default function ChatPage() {
               onlineUserIdsRef.current.has(targetUser.id) ||
               onlineUserIdsRef.current.has(peerId),
             avatarUrl: targetUser.avatarUrl,
-            peerIsVip: Boolean(targetUser.isVip),
           },
           i18n.globalTitle,
           i18n.shareTitle,

@@ -1,7 +1,6 @@
 type JwtPayloadPreview = {
   sub?: unknown;
   username?: unknown;
-  isVip?: unknown;
   exp?: unknown;
 };
 
@@ -34,12 +33,6 @@ export function getUsernameFromJwt(token: string): string | undefined {
   return typeof parsedPayload?.username === "string"
     ? parsedPayload.username
     : undefined;
-}
-
-/** VIP з access_token (без перевірки підпису) — для TabBar до /auth/me. */
-export function getIsVipFromJwt(token: string): boolean {
-  const parsedPayload = parseJwtPayload(token);
-  return parsedPayload?.isVip === true;
 }
 
 /** UTC time in ms when JWT expires. Useful for proactive refresh on client/PWA. */

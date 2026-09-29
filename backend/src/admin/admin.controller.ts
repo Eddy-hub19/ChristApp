@@ -1,13 +1,11 @@
 import {
   BadRequestException,
-  Body,
   Controller,
   Delete,
   ForbiddenException,
   Get,
   NotFoundException,
   Param,
-  Patch,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -38,29 +36,8 @@ export class AdminController {
         nickname: true,
         createdAt: true,
         isActive: true,
-        isVip: true,
         lastSeenAt: true,
         avatarUrl: true,
-      },
-    });
-  }
-
-  @Patch('members/:id/vip')
-  async setMemberVip(
-    @Param('id') id: string,
-    @Body() body: { isVip?: boolean },
-  ) {
-    const isVip = Boolean(body?.isVip);
-    return this.prisma.user.update({
-      where: { id },
-      data: { isVip },
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        isVip: true,
-        isActive: true,
-        lastSeenAt: true,
       },
     });
   }

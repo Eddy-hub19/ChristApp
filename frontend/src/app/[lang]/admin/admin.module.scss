@@ -117,12 +117,6 @@
   color: color-mix(in srgb, #166534 90%, var(--foreground));
 }
 
-.badgeVip {
-  color: #f5f3ff;
-  border-color: color-mix(in srgb, #a78bfa 55%, transparent);
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
-}
-
 .badgeOff {
   opacity: 0.65;
 }
@@ -167,32 +161,3 @@
   }
 }
 
-.vipBtn {
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
-  background: var(--surface);
-  color: var(--foreground);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
-    border-color: color-mix(in srgb, var(--accent) 28%, var(--line-soft));
-  }
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-}
-
-.vipBtnOn {
-  border-color: color-mix(in srgb, #a78bfa 55%, transparent);
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
-}

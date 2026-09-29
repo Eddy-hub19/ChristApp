@@ -27,7 +27,6 @@ interface SocketUser {
   username: string;
   nickname: string;
   email?: string;
-  isVip?: boolean;
 }
 
 interface SocketWithUser extends Socket {
@@ -2083,7 +2082,7 @@ export class ChatGateway
       fileUrl: string | null;
       createdAt: Date;
       senderId: string;
-      sender: { username: string; nickname: string | null; isVip?: boolean };
+      sender: { username: string; nickname: string | null };
     },
   ) {
     await this.messagesService.markRoomAsRead(
@@ -2100,7 +2099,6 @@ export class ChatGateway
       username: message.sender.nickname || message.sender.username,
       handle: message.sender.username,
       senderId: message.senderId,
-      senderIsVip: Boolean(message.sender.isVip),
       createdAt: message.createdAt,
       roomId,
       reactions: [],
@@ -2168,7 +2166,6 @@ export class ChatGateway
                   nickname: true,
                   avatarUrl: true,
                   lastSeenAt: true,
-                  isVip: true,
                 },
               },
             },
@@ -2197,7 +2194,6 @@ export class ChatGateway
                     nickname: directPeer.nickname,
                     avatarUrl: directPeer.avatarUrl,
                     lastSeenAt: directPeer.lastSeenAt?.toISOString() ?? null,
-                    isVip: directPeer.isVip,
                   },
                 }
               : {}),

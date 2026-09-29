@@ -17,8 +17,6 @@ export type Message = {
   /** Унікальний @username (латиниця, нижній регістр). */
   handle?: string;
   senderId?: string;
-  /** Підсвітка VIP біля імені в чаті (з сокета / історії). */
-  senderIsVip?: boolean;
   content: string;
   type?: AppMessageType;
   fileUrl?: string | null;

@@ -17,7 +17,6 @@ type AdminMember = {
   nickname: string | null;
   createdAt: string;
   isActive: boolean;
-  isVip: boolean;
   lastSeenAt: string | null;
   avatarUrl: string | null;
 };
@@ -31,7 +30,6 @@ export default function AdminPage() {
   const [members, setMembers] = useState<AdminMember[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(false);
-  const [patchingId, setPatchingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,45 +72,6 @@ export default function AdminPage() {
     if (loading || !user || !canSeeAdminPanelNav(user.username)) return;
     void loadMembers();
   }, [loadMembers, loading, user]);
-
-  const toggleVip = useCallback(
-    async (member: AdminMember, nextVip: boolean) => {
-      const token = getAuthToken();
-      if (!token) return;
-      setPatchingId(member.id);
-      try {
-        const res = await apiFetch(
-          `${getHttpApiBase()}/admin/members/${member.id}/vip`,
-          {
-            method: "PATCH",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ isVip: nextVip }),
-          },
-        );
-        if (!res.ok) {
-          throw new Error(t("vipFailed", { status: res.status }));
-        }
-        const updated = (await res.json()) as Partial<AdminMember> & {
-          id: string;
-        };
-        setMembers((prev) =>
-          prev.map((row) =>
-            row.id === updated.id
-              ? { ...row, isVip: Boolean(updated.isVip) }
-              : row,
-          ),
-        );
-      } catch (e) {
-        window.alert(e instanceof Error ? e.message : t("vipFailedGeneric"));
-      } finally {
-        setPatchingId(null);
-      }
-    },
-    [t],
-  );
 
   const deleteMember = useCallback(
     async (member: AdminMember) => {
@@ -214,11 +173,6 @@ export default function AdminPage() {
                       {t("badgeNew")}
                     </span>
                   ) : null}
-                  {m.isVip ? (
-                    <span className={`${styles.badge} ${styles.badgeVip}`}>
-                      VIP
-                    </span>
-                  ) : null}
                   <span
                     className={`${styles.badge} ${m.isActive ? "" : styles.badgeOff}`}
                   >
@@ -239,18 +193,10 @@ export default function AdminPage() {
                 <button
                   type="button"
                   className={styles.deleteBtn}
-                  disabled={patchingId === m.id || deletingId === m.id}
+                  disabled={deletingId === m.id}
                   onClick={() => void deleteMember(m)}
                 >
                   {deletingId === m.id ? t("deleting") : t("deleteMember")}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.vipBtn} ${m.isVip ? styles.vipBtnOn : ""}`}
-                  disabled={patchingId === m.id || deletingId === m.id}
-                  onClick={() => void toggleVip(m, !m.isVip)}
-                >
-                  {m.isVip ? t("removeVip") : t("setVip")}
                 </button>
               </div>
             </li>

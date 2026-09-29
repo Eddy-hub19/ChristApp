@@ -93,15 +93,13 @@
   },
   "admin": {
     "title": "Адмін",
-    "subtitle": "Учасники (спочатку нові). VIP підсвічує нік у чаті.",
+    "subtitle": "Учасники (спочатку нові).",
     "backToChat": "← Чат",
     "loading": "Завантаження…",
     "loadingList": "Завантаження списку…",
     "noToken": "Немає авторизації.",
     "loadFailed": "Не вдалося завантажити список (HTTP {status}).",
     "loadFailedGeneric": "Не вдалося завантажити список.",
-    "vipFailed": "Не вдалося оновити VIP (HTTP {status}).",
-    "vipFailedGeneric": "Не вдалося оновити VIP.",
     "deleteConfirm": "Видалити користувача {name} (@{username}) з бази? Цю дію неможливо скасувати.",
     "deleteFailed": "Не вдалося видалити користувача (HTTP {status}).",
     "deleteFailedGeneric": "Не вдалося видалити користувача.",
@@ -114,9 +112,7 @@
     "labelId": "ID:",
     "labelEmail": "Email:",
     "labelJoined": "Реєстрація:",
-    "labelLastSeen": "Був(ла) в мережі:",
-    "setVip": "Дати VIP",
-    "removeVip": "Зняти VIP"
+    "labelLastSeen": "Був(ла) в мережі:"
   },
   "profile": {
     "title": "Профіль",
@@ -195,7 +191,6 @@
     "anonymousUser": "користувача",
     "peerInNotification": "співрозмовника",
     "listSearchPlaceholder": "Пошук за чатом, ім’ям або username",
-    "listVipModeBanner": "Ви в VIP-режимі",
     "userPickerAria": "Вибір користувача для нового чату",
     "userPickerTitle": "Новий чат",
     "userPickerSubtitle": "Оберіть, кому хочете написати",
