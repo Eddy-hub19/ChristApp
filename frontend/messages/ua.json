@@ -5,7 +5,7 @@
     "profile": "Профіль",
     "dashboard": "Огляд",
     "unreadMessages": "Непрочитаних повідомлень: {count}",
-    "cinema": "Кіношка з Ісусом",
+    "cinema": "Кіношка",
     "cinemaInvites": "Запрошень у Кіношку: {count}"
   },
   "login": {
@@ -350,7 +350,7 @@
     "showLoginAnyway": "Усе одно показати вхід"
   },
   "cinema": {
-    "title": "Кіношка з Ісусом",
+    "title": "Кіношка",
     "subtitle": "Дивіться YouTube разом — синхронно, як в одному залі",
     "createRoom": "Створити кімнату",
     "myRooms": "Мої кімнати",
@@ -506,7 +506,15 @@
       "chatEmpty": "Тут поки тихо. Скажіть щось першим!",
       "send": "Надіслати",
       "reactions": "Реакції",
-      "connectionLost": "Немає з'єднання з сервером — перепідключаємося…"
+      "connectionLost": "Немає з'єднання з сервером — перепідключаємося…",
+      "muteNotifications": "Вимкнути сповіщення",
+      "unmuteNotifications": "Увімкнути сповіщення",
+      "typingOne": "{name} друкує…",
+      "typingTwo": "{first} і {second} друкують…",
+      "typingMany": "Кілька людей друкують…",
+      "seenBy": "Переглянули: {names}",
+      "seenByMore": "і ще {count}",
+      "reactedBy": "Відреагували: {names}"
     },
     "join": {
       "joining": "Заходимо в кімнату…",

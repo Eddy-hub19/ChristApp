@@ -5,7 +5,7 @@
     "profile": "Profile",
     "dashboard": "Dashboard",
     "unreadMessages": "Unread messages: {count}",
-    "cinema": "Movies with Jesus",
+    "cinema": "Cinema",
     "cinemaInvites": "Movie invites: {count}"
   },
   "login": {
@@ -350,7 +350,7 @@
     "showLoginAnyway": "Show the sign-in form anyway"
   },
   "cinema": {
-    "title": "Movies with Jesus",
+    "title": "Cinema",
     "subtitle": "Watch YouTube together — in sync, like in one theater",
     "createRoom": "Create room",
     "myRooms": "My rooms",
@@ -506,7 +506,15 @@
       "chatEmpty": "It's quiet here. Say something first!",
       "send": "Send",
       "reactions": "Reactions",
-      "connectionLost": "No connection to the server — reconnecting…"
+      "connectionLost": "No connection to the server — reconnecting…",
+      "muteNotifications": "Mute notifications",
+      "unmuteNotifications": "Unmute notifications",
+      "typingOne": "{name} is typing…",
+      "typingTwo": "{first} and {second} are typing…",
+      "typingMany": "Several people are typing…",
+      "seenBy": "Seen by: {names}",
+      "seenByMore": "and {count} more",
+      "reactedBy": "Reacted: {names}"
     },
     "join": {
       "joining": "Joining the room…",

@@ -6,7 +6,7 @@ import { MessagesService } from 'src/messages/messages.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
-import { MessageType } from '@prisma/client';
+import { MessageType, Prisma } from '@prisma/client';
 
 const REPLY_META_PREFIX = '[[reply:';
 const REPLY_META_SUFFIX = ']]';
@@ -226,7 +226,7 @@ export class PushService {
     let badgeByUserId = new Map<string, number>();
     try {
       badgeByUserId =
-        await this.messagesService.getUnreadTotalsForUsers(uniqueRecipientIds);
+        await this.getCombinedUnreadBadgeCounts(uniqueRecipientIds);
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Не удалось посчитать badge для push: ${reason}`);
@@ -569,9 +569,7 @@ export class PushService {
 
     let badgeCount = 0;
     try {
-      const totals = await this.messagesService.getUnreadTotalsForUsers([
-        input.userId,
-      ]);
+      const totals = await this.getCombinedUnreadBadgeCounts([input.userId]);
       badgeCount = totals.get(input.userId) ?? 0;
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -643,7 +641,7 @@ export class PushService {
     );
   }
 
-  /** Запрошення до «Кіношки з Ісусом»: клік відкриває список кімнат, де чекає «Прийняти». */
+  /** Запрошення до «Киношки»: клік відкриває список кімнат, де чекає «Прийняти». */
   async sendWatchInvitePush(input: {
     targetUserIds: string[];
     inviterName: string;
@@ -678,13 +676,167 @@ export class PushService {
     await Promise.allSettled(
       subscriptions.map((sub) =>
         this.sendToSubscription(sub, {
-          title: '🎬 Кіношка з Ісусом',
+          title: '🎬 Киношка',
           body,
           targetUrl: '/cinema',
           roomId: `watch-${input.roomId}`,
           senderId: '',
           createdAt,
           messageId: '',
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Бейдж на іконці застосунку — сума непрочитаного в основному чаті й у чатах Киношки.
+   * Підрахунок Киношки — окремий try/catch: якщо він впаде, бейдж чату все одно порахується
+   * (як і до появи Киношки), а не обнулиться через побічну фічу.
+   */
+  private async getCombinedUnreadBadgeCounts(
+    userIds: string[],
+  ): Promise<Map<string, number>> {
+    const [chatTotals, watchTotals] = await Promise.all([
+      this.messagesService.getUnreadTotalsForUsers(userIds),
+      this.getWatchUnreadTotalsForUsers(userIds).catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        this.logger.warn(`Не удалось посчитать badge Киношки: ${reason}`);
+        return new Map<string, number>();
+      }),
+    ]);
+
+    const combined = new Map<string, number>();
+    for (const userId of new Set([...chatTotals.keys(), ...watchTotals.keys()])) {
+      combined.set(
+        userId,
+        (chatTotals.get(userId) ?? 0) + (watchTotals.get(userId) ?? 0),
+      );
+    }
+    return combined;
+  }
+
+  private async getWatchUnreadTotalsForUsers(
+    userIds: string[],
+  ): Promise<Map<string, number>> {
+    const totals = new Map<string, number>();
+    const uniqueUserIds = Array.from(new Set(userIds.filter(Boolean)));
+    if (!uniqueUserIds.length) {
+      return totals;
+    }
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ userId: string; unreadCount: number }>
+    >`
+      SELECT
+        wrm."userId" AS "userId",
+        COUNT(wm.id)::int AS "unreadCount"
+      FROM "WatchRoomMember" wrm
+      JOIN "WatchMessage" wm
+        ON wm."roomId" = wrm."roomId"
+       AND wm."userId" <> wrm."userId"
+       AND wm."createdAt" > wrm."lastReadAt"
+      WHERE wrm."userId" IN (${Prisma.join(uniqueUserIds)})
+        AND wrm.status = 'JOINED'
+      GROUP BY wrm."userId"
+    `;
+
+    for (const row of rows) {
+      totals.set(String(row.userId), Number(row.unreadCount) || 0);
+    }
+
+    return totals;
+  }
+
+  /** Нове повідомлення в чаті кімнати Киношки — пуш усім учасникам, крім автора й тих, хто зараз у залі. */
+  async sendWatchMessagePush(input: {
+    messageId: string;
+    roomId: string;
+    roomTitle: string;
+    senderId: string;
+    senderName: string;
+    content: string;
+    createdAt: Date;
+    /** Учасники, які зараз присутні в залі — їм пуш не потрібен, вони й так бачать повідомлення. */
+    excludeUserIds?: string[];
+  }) {
+    if (!this.isConfigured) {
+      return;
+    }
+
+    const normalizedBody = this.truncatePushText(
+      this.normalizeMessageBody(input.content),
+      PUSH_BODY_MAX_LEN,
+    );
+    if (!normalizedBody) {
+      return;
+    }
+
+    const members = await this.prisma.watchRoomMember.findMany({
+      where: {
+        roomId: input.roomId,
+        userId: { not: input.senderId },
+        status: 'JOINED',
+        notificationsMuted: false,
+      },
+      select: { userId: true },
+    });
+
+    const excluded = new Set(input.excludeUserIds ?? []);
+    const deliverableUserIds = members
+      .map((member) => member.userId)
+      .filter((userId) => !excluded.has(userId));
+
+    if (!deliverableUserIds.length) {
+      return;
+    }
+
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId: { in: deliverableUserIds } },
+      select: {
+        id: true,
+        userId: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+      },
+    });
+
+    if (!subscriptions.length) {
+      return;
+    }
+
+    const uniqueRecipientIds = [
+      ...new Set(subscriptions.map((sub) => sub.userId)),
+    ];
+
+    let badgeByUserId = new Map<string, number>();
+    try {
+      badgeByUserId =
+        await this.getCombinedUnreadBadgeCounts(uniqueRecipientIds);
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Не удалось посчитать badge для push Киношки: ${reason}`);
+    }
+
+    const title = `🎬 ${input.roomTitle}`.trim();
+    const body = this.truncatePushText(
+      `${input.senderName}: ${normalizedBody}`,
+      PUSH_BODY_MAX_LEN,
+    );
+    const createdAt = input.createdAt.toISOString();
+    const roomId = `watch-${input.roomId}`;
+
+    await Promise.allSettled(
+      subscriptions.map((subscription) =>
+        this.sendToSubscription(subscription, {
+          title,
+          body,
+          targetUrl: `/cinema/${input.roomId}`,
+          roomId,
+          senderId: input.senderId,
+          createdAt,
+          messageId: input.messageId,
+          badgeCount: badgeByUserId.get(subscription.userId),
         }),
       ),
     );

@@ -19,9 +19,9 @@ function createFakePrisma() {
     inviteToken: 'token',
   };
   const members = [
-    { userId: 'host', status: 'JOINED', joinedAt: new Date(1) },
-    { userId: 'alice', status: 'JOINED', joinedAt: new Date(2) },
-    { userId: 'bob', status: 'JOINED', joinedAt: new Date(3) },
+    { userId: 'host', status: 'JOINED', joinedAt: new Date(1), lastReadAt: new Date(0) },
+    { userId: 'alice', status: 'JOINED', joinedAt: new Date(2), lastReadAt: new Date(0) },
+    { userId: 'bob', status: 'JOINED', joinedAt: new Date(3), lastReadAt: new Date(0) },
   ];
 
   const prisma = {
@@ -42,7 +42,13 @@ function createFakePrisma() {
           const m = members.find(
             (x) => x.userId === where.roomId_userId.userId,
           );
-          return m ? { status: m.status, room: { title: room.title } } : null;
+          return m
+            ? {
+                status: m.status,
+                notificationsMuted: false,
+                room: { title: room.title },
+              }
+            : null;
         },
       ),
       findMany: jest.fn(async () =>
@@ -50,6 +56,7 @@ function createFakePrisma() {
           userId: m.userId,
           status: m.status,
           joinedAt: m.joinedAt,
+          lastReadAt: m.lastReadAt,
           user: {
             id: m.userId,
             username: m.userId,

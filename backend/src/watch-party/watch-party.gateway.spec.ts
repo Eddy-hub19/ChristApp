@@ -55,7 +55,13 @@ function createFakePrisma() {
           const m = members.find(
             (x) => x.userId === where.roomId_userId.userId,
           );
-          return m ? { status: m.status, room: { title: room.title } } : null;
+          return m
+            ? {
+                status: m.status,
+                notificationsMuted: false,
+                room: { title: room.title },
+              }
+            : null;
         },
       ),
       findMany: jest.fn(async () =>
@@ -63,6 +69,7 @@ function createFakePrisma() {
           userId: m.userId,
           status: m.status,
           joinedAt: new Date(i),
+          lastReadAt: new Date(0),
           user: {
             id: m.userId,
             username: m.userId,

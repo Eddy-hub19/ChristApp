@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Bell,
+  BellOff,
   Check,
   Clapperboard,
   ExternalLink,
@@ -463,6 +465,21 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     <Users size={16} aria-hidden /> {t("hall.transfer")}
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void hall.setNotificationsMuted(!hall.notificationsMuted);
+                  }}
+                >
+                  {hall.notificationsMuted ? (
+                    <Bell size={16} aria-hidden />
+                  ) : (
+                    <BellOff size={16} aria-hidden />
+                  )}{" "}
+                  {hall.notificationsMuted ? t("hall.unmuteNotifications") : t("hall.muteNotifications")}
+                </button>
                 <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialog("leave"); }}>
                   <LogOut size={16} aria-hidden /> {t("hall.leave")}
                 </button>
@@ -688,11 +705,16 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
         <WatchChat
           messages={hall.messages}
+          members={hall.members}
           currentUserId={me}
           hostId={state.hostId}
           reactions={hall.reactionOptions}
           onSend={hall.sendMessage}
           onReact={handleReact}
+          typingUserIds={hall.typingUserIds}
+          onTyping={hall.sendTyping}
+          onToggleMessageReaction={hall.toggleMessageReaction}
+          onMarkRead={hall.markRead}
         />
       </div>
 
