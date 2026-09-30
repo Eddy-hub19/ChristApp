@@ -520,6 +520,63 @@
   }
 }
 
+// Повноекранний лист на телефоні (YouTubePicker): на всю видиму область під safe-area зверху.
+// Висота — з visualViewport (useKeyboardInset): з клавіатурою лист стискається, а не ховається
+// під нею; шапка й пошук (.sheetPinned) лишаються вгорі, прокручується лише .sheetBody.
+.sheetFullMobile {
+  @media (max-width: 767px) {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--vv-top, 0px) + env(safe-area-inset-top, 0px));
+    width: auto;
+    max-height: none;
+    height: calc(var(--vv-height, 100dvh) - env(safe-area-inset-top, 0px));
+    border-radius: 18px 18px 0 0;
+    padding-bottom: 0;
+    overflow: hidden;
+
+    .sheetHeader {
+      flex-shrink: 0;
+      padding: 14px 14px 8px 18px;
+    }
+
+    .sheetBody {
+      flex: 1 1 auto;
+      gap: 12px;
+      padding: 4px 18px 12px;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .sheetFooter {
+      flex-shrink: 0;
+    }
+  }
+}
+
+// Закріплений блок під заголовком (пошук): не прокручується разом із результатами.
+.sheetPinned {
+  flex-shrink: 0;
+  padding: 0 18px 8px;
+
+  .pickerSearchRow {
+    margin-bottom: 0;
+  }
+}
+
+// Низ прокручуваного тіла: смужка home indicator, але не коли клавіатура вже закриває її.
+.sheetFullMobile .sheetBody::after {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: env(safe-area-inset-bottom, 0px);
+}
+
+:global(html[data-keyboard-open]) .sheetFullMobile .sheetBody::after {
+  height: 0;
+}
+
 .sheetHall {
   @include hall-tokens;
   box-shadow:
@@ -935,9 +992,10 @@
 }
 
 .pickerLoading {
+  // Спінер — угорі області результатів (не по центру): її висоту з клавіатурою часто майже нема.
   display: flex;
   justify-content: center;
-  padding: 40px 0;
+  padding: 10px 0;
   color: var(--c-muted);
 }
 

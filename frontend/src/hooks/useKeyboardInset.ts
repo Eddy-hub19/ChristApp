@@ -7,6 +7,9 @@ const VV_HEIGHT_VAR = "--vv-height";
 const VV_TOP_VAR = "--vv-top";
 const KEYBOARD_OPEN_ATTR = "data-keyboard-open";
 
+/** Скільки екземплярів хука зараз активні: змінні прибираємо лише коли згас останній. */
+let activeInstances = 0;
+
 /**
  * Геометрія видимої області (visual viewport) у CSS-змінних на `<html>`:
  * - `--vv-height` — висота видимої частини екрана (без клавіатури та панелі ^ ∨ ✓ Safari);
@@ -34,7 +37,7 @@ export function useKeyboardInset(enabled = true) {
     };
 
     if (!enabled) {
-      clear();
+      if (activeInstances === 0) clear();
       return;
     }
 
@@ -42,6 +45,10 @@ export function useKeyboardInset(enabled = true) {
     if (!viewport) {
       return;
     }
+
+    // Хук викликають і сторінка (чат, зала), і вкладені шторки — щоб закриття шторки не
+    // стирало змінні, на які ще спирається сторінка, прибираємо їх лише за останнього.
+    activeInstances += 1;
 
     let frame: number | null = null;
 
@@ -79,7 +86,8 @@ export function useKeyboardInset(enabled = true) {
       viewport.removeEventListener("resize", schedule);
       viewport.removeEventListener("scroll", schedule);
       window.removeEventListener("orientationchange", schedule);
-      clear();
+      activeInstances -= 1;
+      if (activeInstances === 0) clear();
     };
   }, [enabled]);
 }

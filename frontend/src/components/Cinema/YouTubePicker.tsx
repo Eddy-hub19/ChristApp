@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Search, X } from "lucide-react";
 import {
@@ -10,6 +10,7 @@ import {
   type VideoSearchItem,
 } from "@/lib/queries/watchRoomsQueries";
 import { formatPlaybackTime } from "@/lib/watchSync";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import Sheet from "./Sheet";
 import styles from "./Cinema.module.scss";
 
@@ -37,6 +38,13 @@ export default function YouTubePicker({ open, onClose, onPick, mode, tone = "app
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<VideoSearchItem | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  /** Enter на клавіатурі: наступний запуск пошуку — без debounce. */
+  const searchNowRef = useRef(false);
+  const [searchNonce, setSearchNonce] = useState(0);
+
+  // Повноекранний лист рахує висоту за visualViewport (--vv-height/--vv-top) — як чат.
+  useKeyboardInset(open);
 
   // Шторку закрили — наступного відкриття починаємо чисто (знову покажемо популярні).
   useEffect(() => {
@@ -46,6 +54,12 @@ export default function YouTubePicker({ open, onClose, onPick, mode, tone = "app
       setError(null);
       setSelected(null);
     }
+  }, [open]);
+
+  // Шторку відкрили без запиту — одразу даємо фокус у пошук (автофокус з лише-що-змонтованим input).
+  useEffect(() => {
+    if (open && !query) inputRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- лише момент відкриття
   }, [open]);
 
   useEffect(() => {
@@ -80,18 +94,20 @@ export default function YouTubePicker({ open, onClose, onPick, mode, tone = "app
       };
     }
 
+    const delay = searchNowRef.current ? 0 : SEARCH_DEBOUNCE_MS;
+    searchNowRef.current = false;
     const timer = window.setTimeout(() => {
       searchWatchVideos(trimmed)
         .then((res) => !cancelled && setItems(res))
         .catch(handleError)
         .finally(() => !cancelled && setLoading(false));
-    }, SEARCH_DEBOUNCE_MS);
+    }, delay);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, query, t, tErr]);
+  }, [open, query, searchNonce, t, tErr]);
 
   const confirm = () => {
     if (!selected) return;
@@ -99,12 +115,61 @@ export default function YouTubePicker({ open, onClose, onPick, mode, tone = "app
     onClose();
   };
 
+  const closeKeyboard = () => {
+    if (document.activeElement instanceof HTMLElement && document.activeElement === inputRef.current) {
+      inputRef.current.blur();
+    }
+  };
+
+  const searchRow = (
+    <div className={styles.pickerSearchRow}>
+      <Search size={16} aria-hidden className={styles.pickerSearchIcon} />
+      <input
+        ref={inputRef}
+        className={styles.pickerSearchInput}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+          e.preventDefault();
+          // "Пошук" на клавіатурі: шукаємо одразу, без debounce, і ховаємо клавіатуру.
+          if (query.trim()) {
+            searchNowRef.current = true;
+            setSearchNonce((n) => n + 1);
+          }
+          closeKeyboard();
+        }}
+        placeholder={t("searchPlaceholder")}
+        aria-label={t("searchPlaceholder")}
+        autoComplete="off"
+        enterKeyHint="search"
+      />
+      {query ? (
+        <button
+          type="button"
+          className={styles.pickerClearButton}
+          onClick={() => {
+            setQuery("");
+            inputRef.current?.focus({ preventScroll: true });
+          }}
+          aria-label={t("clear")}
+        >
+          <X size={14} />
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <Sheet
       open={open}
       title={t("title")}
       onClose={onClose}
       tone={tone}
+      fullscreenOnMobile
+      pinned={selected ? undefined : searchRow}
+      // Гортання результатів пальцем ховає клавіатуру — видно більше відео.
+      onBodyTouchMove={closeKeyboard}
       footer={
         selected ? (
           <div className={styles.sheetActions}>
@@ -129,28 +194,6 @@ export default function YouTubePicker({ open, onClose, onPick, mode, tone = "app
         </div>
       ) : (
         <>
-          <div className={styles.pickerSearchRow}>
-            <Search size={16} aria-hidden className={styles.pickerSearchIcon} />
-            <input
-              className={styles.pickerSearchInput}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("searchPlaceholder")}
-              aria-label={t("searchPlaceholder")}
-              autoComplete="off"
-            />
-            {query ? (
-              <button
-                type="button"
-                className={styles.pickerClearButton}
-                onClick={() => setQuery("")}
-                aria-label={t("clear")}
-              >
-                <X size={14} />
-              </button>
-            ) : null}
-          </div>
-
           {!query.trim() && !loading && !error ? (
             <p className={styles.pickerSectionLabel}>{t("popular")}</p>
           ) : null}
