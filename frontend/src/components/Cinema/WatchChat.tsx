@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SendHorizontal, Smile } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
 import { watchUserName } from "@/lib/queries/watchRoomsQueries";
-import { useLongPress } from "@/hooks/useLongPress";
-import { useDoubleTap } from "@/hooks/useDoubleTap";
+import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
+import MessageActionMenu from "@/components/ChatShared/MessageActionMenu";
+import ReactionPills from "@/components/ChatShared/ReactionPills";
+import ReplyBanner from "@/components/ChatShared/ReplyBanner";
+import ReplyQuote from "@/components/ChatShared/ReplyQuote";
+import { HEART_REACTION } from "@/components/ChatShared/chatReactions";
+import { useMessageGestures } from "@/components/ChatShared/useMessageGestures";
+import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
 import type { HallMember, HallMessage } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
 
-const HEART_EMOJI = "❤️";
+const HIGHLIGHT_MS = 1_700;
+const NOTICE_MS = 3_000;
+/** Після переходу до цитати автопрокрутка "до низу" не має перебивати плавну прокрутку до оригіналу. */
+const JUMP_STICK_SUPPRESS_MS = 2_500;
 /** Скільки чекати без нової активності вводу, перш ніж самим сказати "я більше не друкую". */
 const TYPING_STOP_DELAY_MS = 2_200;
 /** Не частіше цього — навіть якщо людина друкує безперервно. */
@@ -23,7 +32,11 @@ type WatchChatProps = {
   currentUserId: string | undefined;
   hostId: string | undefined;
   reactions: string[];
-  onSend: (content: string) => Promise<boolean>;
+  onSend: (content: string, replyToId?: string) => Promise<boolean>;
+  onDeleteMessage: (messageId: string) => Promise<boolean>;
+  onEditMessage: (messageId: string, content: string) => Promise<boolean>;
+  /** Дозавантажити історію старішу за beforeId (до untilId включно). */
+  onLoadOlder: (beforeId: string, untilId?: string) => Promise<boolean>;
   /** rect — координати натиснутої кнопки, звідки на екрані стартує власний летючий емодзі. */
   onReact: (emoji: string, rect: DOMRect) => void;
   typingUserIds: Set<string>;
@@ -31,23 +44,6 @@ type WatchChatProps = {
   onToggleMessageReaction: (messageId: string, emoji: string) => void;
   onMarkRead: () => void;
 };
-
-function groupMessageReactions(message: HallMessage, currentUserId: string | undefined) {
-  const grouped = new Map<string, { emoji: string; userIds: string[] }>();
-  for (const reaction of message.reactions) {
-    const existing = grouped.get(reaction.type);
-    if (existing) {
-      existing.userIds.push(reaction.userId);
-    } else {
-      grouped.set(reaction.type, { emoji: reaction.type, userIds: [reaction.userId] });
-    }
-  }
-  return Array.from(grouped.values()).map((g) => ({
-    ...g,
-    count: g.userIds.length,
-    reactedByMe: Boolean(currentUserId && g.userIds.includes(currentUserId)),
-  }));
-}
 
 function formatTypingLine(
   t: ReturnType<typeof useTranslations>,
@@ -66,6 +62,9 @@ export default function WatchChat({
   hostId,
   reactions,
   onSend,
+  onDeleteMessage,
+  onEditMessage,
+  onLoadOlder,
   onReact,
   typingUserIds,
   onTyping,
@@ -75,15 +74,49 @@ export default function WatchChat({
   const t = useTranslations("cinema.hall");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [openPickerMessageId, setOpenPickerMessageId] = useState<string | null>(null);
+  const [replyTargetRaw, setReplyTarget] = useState<HallMessage | null>(null);
+  const [editingRaw, setEditing] = useState<HallMessage | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const jumpAttemptedRef = useRef<Set<string>>(new Set());
+  const inputRef = useRef<HTMLInputElement>(null);
   // Лише мобільний: панель емодзі ховається за кнопкою 😊, не закривається після тапу
   // (щоб можна було швидко тапати кілька разів) — закриває повторний тап або початок вводу.
   // На десктопі клас, який ця змінна вмикає, ігнорується CSS-медіазапитом — рядок лишається видимим завжди.
   const [emojiOpen, setEmojiOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const suppressStickUntilRef = useRef(0);
+  const stickSuppressed = () => Date.now() < suppressStickUntilRef.current;
 
   const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const tShared = useTranslations("chatShared");
+
+  // Повідомлення, на яке відповідаємо/яке редагуємо, могли видалити — тоді плашку не показуємо.
+  const replyTarget =
+    replyTargetRaw && messages.some((m) => m.id === replyTargetRaw.id) ? replyTargetRaw : null;
+  const editing = editingRaw && messages.some((m) => m.id === editingRaw.id) ? editingRaw : null;
+
+  // Автори реакцій/повідомлень можуть уже не бути учасниками — беремо їх і з самих повідомлень.
+  const usersById = useMemo(() => {
+    const map = new Map<string, HallMessage["user"]>();
+    for (const m of messages) map.set(m.user.id, m.user);
+    for (const member of members) map.set(member.id, member);
+    return map;
+  }, [messages, members]);
+
+  const resolveReactionUser = useCallback(
+    (userId: string) => {
+      const user = usersById.get(userId);
+      return {
+        avatarSrc: resolvePublicAvatarUrl(user?.avatarUrl),
+        label: user ? watchUserName(user) : "",
+      };
+    },
+    [usersById],
+  );
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     const el = listRef.current;
@@ -92,7 +125,7 @@ export default function WatchChat({
   };
 
   useEffect(() => {
-    if (stickToBottom.current) scrollToBottom("smooth");
+    if (stickToBottom.current && Date.now() >= suppressStickUntilRef.current) scrollToBottom("smooth");
   }, [messages]);
 
   // Клавіатура відкривається/закривається — .chatList міняє висоту (див. useKeyboardInset
@@ -102,7 +135,7 @@ export default function WatchChat({
     const el = listRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
-      if (stickToBottom.current) scrollToBottom("auto");
+      if (stickToBottom.current && Date.now() >= suppressStickUntilRef.current) scrollToBottom("auto");
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -188,14 +221,96 @@ export default function WatchChat({
   }, [typingUserIds, membersById, currentUserId]);
   const typingLine = formatTypingLine(t, typingNames);
 
+  const showNotice = (text: string) => {
+    setNotice(text);
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), NOTICE_MS);
+  };
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    },
+    [],
+  );
+
+  const findMessageElement = (messageId: string) =>
+    listRef.current?.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(messageId)}"]`) ?? null;
+
+  const scrollToMessage = (messageId: string): boolean => {
+    const target = findMessageElement(messageId);
+    const list = listRef.current;
+    if (!target || !list) return false;
+    const targetRect = target.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    const top =
+      list.scrollTop + (targetRect.top - listRect.top) - (list.clientHeight - targetRect.height) / 2;
+    stickToBottom.current = false;
+    list.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    setHighlightedId(messageId);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(
+      () => setHighlightedId((prev) => (prev === messageId ? null : prev)),
+      HIGHLIGHT_MS,
+    );
+    return true;
+  };
+
+  /** Тап по цитаті: гортаємо до оригіналу; якщо його ще немає у списку — дозавантажуємо історію. */
+  const jumpToMessage = async (messageId: string) => {
+    stickToBottom.current = false;
+    suppressStickUntilRef.current = Date.now() + JUMP_STICK_SUPPRESS_MS;
+    if (scrollToMessage(messageId)) return;
+    const oldest = messages[0];
+    if (!oldest || jumpAttemptedRef.current.has(messageId)) {
+      showNotice(tShared("quoteOriginalNotFound"));
+      return;
+    }
+    jumpAttemptedRef.current.add(messageId);
+    showNotice(tShared("quoteOriginalLoading"));
+    const ok = await onLoadOlder(oldest.id, messageId);
+    if (!ok) {
+      showNotice(tShared("quoteOriginalNotFound"));
+      return;
+    }
+    // Дати React домалювати дозавантажені рядки, тоді гортати.
+    window.setTimeout(() => {
+      if (scrollToMessage(messageId)) setNotice(null);
+      else showNotice(tShared("quoteOriginalNotFound"));
+    }, 80);
+  };
+
+  const startReply = (message: HallMessage) => {
+    setEditing(null);
+    setReplyTarget(message);
+    inputRef.current?.focus();
+  };
+
+  const startEdit = (message: HallMessage) => {
+    setReplyTarget(null);
+    setEditing(message);
+    setDraft(message.content);
+    inputRef.current?.focus();
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setDraft("");
+  };
+
   const submit = async () => {
     const content = draft.trim();
     if (!content || sending) return;
     setSending(true);
-    const ok = await onSend(content);
+    const ok = editing
+      ? await onEditMessage(editing.id, content)
+      : await onSend(content, replyTarget?.id);
     setSending(false);
     if (ok) {
       setDraft("");
+      setReplyTarget(null);
+      setEditing(null);
       stopTyping();
       stickToBottom.current = true;
       scrollToBottom("smooth");
@@ -210,38 +325,34 @@ export default function WatchChat({
         className={styles.chatList}
         onScroll={(e) => {
           const el = e.currentTarget;
+          if (stickSuppressed()) return;
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
         aria-live="polite"
       >
         {messages.length === 0 ? <p className={styles.chatEmpty}>{t("chatEmpty")}</p> : null}
-        {openPickerMessageId ? (
-          <div
-            className={styles.reactionPickerBackdrop}
-            onClick={() => setOpenPickerMessageId(null)}
-            aria-hidden
-          />
-        ) : null}
         {messages.map((m) => {
-          const mine = m.user.id === currentUserId;
-          const reactionGroups = groupMessageReactions(m, currentUserId);
           const readers = readReceiptsByMessageId.get(m.id) ?? [];
           const visibleReaders = readers.slice(0, READ_AVATAR_LIMIT);
           const extraReadersCount = readers.length - visibleReaders.length;
-          const isPickerOpen = openPickerMessageId === m.id;
 
           return (
             <WatchChatMessage
               key={m.id}
               message={m}
-              mine={mine}
+              mine={m.user.id === currentUserId}
+              currentUserId={currentUserId}
               hostId={hostId}
-              reactionGroups={reactionGroups}
               reactionOptions={reactions}
-              isPickerOpen={isPickerOpen}
-              onOpenPicker={() => setOpenPickerMessageId(m.id)}
-              onClosePicker={() => setOpenPickerMessageId(null)}
+              highlighted={highlightedId === m.id}
+              resolveReactionUser={resolveReactionUser}
               onToggleReaction={(emoji) => onToggleMessageReaction(m.id, emoji)}
+              onReply={() => startReply(m)}
+              onEdit={() => startEdit(m)}
+              onDelete={() => {
+                if (window.confirm(tShared("deleteConfirm"))) void onDeleteMessage(m.id);
+              }}
+              onQuoteClick={(id) => void jumpToMessage(id)}
               visibleReaders={visibleReaders}
               extraReadersCount={extraReadersCount}
               t={t}
@@ -277,6 +388,23 @@ export default function WatchChat({
         ))}
       </div>
 
+      {notice ? (
+        <p className={styles.chatNotice} role="status">
+          {notice}
+        </p>
+      ) : null}
+
+      {replyTarget || editing ? (
+        <div className={styles.chatBanner}>
+          <ReplyBanner
+            mode={editing ? "edit" : "reply"}
+            username={replyTarget ? watchUserName(replyTarget.user) : ""}
+            text={(editing ?? replyTarget)?.content.slice(0, 140) ?? ""}
+            onCancel={editing ? cancelEdit : () => setReplyTarget(null)}
+          />
+        </div>
+      ) : null}
+
       <form
         className={styles.chatForm}
         onSubmit={(e) => {
@@ -294,6 +422,7 @@ export default function WatchChat({
           <Smile size={20} />
         </button>
         <input
+          ref={inputRef}
           className={styles.chatInput}
           value={draft}
           maxLength={500}
@@ -327,13 +456,16 @@ export default function WatchChat({
 type WatchChatMessageProps = {
   message: HallMessage;
   mine: boolean;
+  currentUserId: string | undefined;
   hostId: string | undefined;
-  reactionGroups: Array<{ emoji: string; count: number; reactedByMe: boolean; userIds: string[] }>;
   reactionOptions: string[];
-  isPickerOpen: boolean;
-  onOpenPicker: () => void;
-  onClosePicker: () => void;
+  highlighted: boolean;
+  resolveReactionUser: (userId: string) => { avatarSrc?: string; label: string };
   onToggleReaction: (emoji: string) => void;
+  onReply: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onQuoteClick: (messageId: string) => void;
   visibleReaders: HallMember[];
   extraReadersCount: number;
   t: ReturnType<typeof useTranslations>;
@@ -342,45 +474,49 @@ type WatchChatMessageProps = {
 function WatchChatMessage({
   message: m,
   mine,
+  currentUserId,
   hostId,
-  reactionGroups,
   reactionOptions,
-  isPickerOpen,
-  onOpenPicker,
-  onClosePicker,
+  highlighted,
+  resolveReactionUser,
   onToggleReaction,
+  onReply,
+  onEdit,
+  onDelete,
+  onQuoteClick,
   visibleReaders,
   extraReadersCount,
   t,
 }: WatchChatMessageProps) {
-  const suppressClickRef = useRef(false);
+  const tShared = useTranslations("chatShared");
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
+  const closeMenu = useCallback(() => setMenuRect(null), []);
 
-  const longPress = useLongPress<HTMLDivElement>(
-    () => {
-      suppressClickRef.current = true;
-      onOpenPicker();
-    },
-    { ms: 360, moveThreshold: 24 },
+  const gestures = useMessageGestures<HTMLDivElement>({
+    onReply,
+    onDoubleTap: () => onToggleReaction(HEART_REACTION),
+    onOpenMenu: setMenuRect,
+  });
+
+  const myReactions = useMemo(
+    () =>
+      new Set(
+        m.reactions.filter((r) => currentUserId && r.userId === currentUserId).map((r) => r.type),
+      ),
+    [m.reactions, currentUserId],
   );
 
-  const doubleTap = useDoubleTap<HTMLDivElement>(() => onToggleReaction(HEART_EMOJI));
-
-  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    doubleTap.onClick(event);
-  };
-
   return (
-    <div className={`${styles.chatMessage} ${mine ? styles.chatMessageMine : ""}`}>
+    <div
+      className={`${styles.chatMessage} ${mine ? styles.chatMessageMine : ""}`}
+      data-message-id={m.id}
+    >
       {!mine ? <PersonAvatar user={m.user} size={26} /> : null}
       <div className={styles.chatMessageBody}>
         <div
-          className={styles.chatBubble}
-          {...longPress}
-          onClick={handleClick}
+          ref={gestures.setElement}
+          className={`${styles.chatBubble} ${sharedStyles.gestureSurface} ${highlighted ? sharedStyles.highlight : ""}`}
+          {...gestures.handlers}
           role="button"
           tabIndex={-1}
         >
@@ -390,50 +526,29 @@ function WatchChatMessage({
               {m.user.id === hostId ? " 👑" : ""}
             </span>
           ) : null}
-          <span className={styles.chatText}>{m.content}</span>
-
-          {isPickerOpen ? (
-            <div className={styles.reactionPickerPopup} role="menu">
-              {reactionOptions.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  className={styles.reactionPickerButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleReaction(emoji);
-                    onClosePicker();
-                  }}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+          {m.replyTo ? (
+            <ReplyQuote
+              username={m.replyTo.deleted ? undefined : m.replyTo.username}
+              text={m.replyTo.deleted ? undefined : m.replyTo.content}
+              deleted={m.replyTo.deleted}
+              onClick={() => onQuoteClick(m.replyTo!.id)}
+            />
           ) : null}
+          <span className={styles.chatText}>
+            {m.content}
+            {m.editedAt ? <span className={styles.chatEdited}> · {tShared("edited")}</span> : null}
+          </span>
         </div>
 
-        {(reactionGroups.length > 0 || visibleReaders.length > 0) && (
+        {(m.reactions.length > 0 || visibleReaders.length > 0) && (
           <div className={styles.chatMessageFooter}>
-            {reactionGroups.length > 0 ? (
-              <div
-                className={styles.reactionPillRow}
-                title={t("reactedBy", {
-                  names: reactionGroups.map((g) => `${g.emoji}×${g.count}`).join(" "),
-                })}
-              >
-                {reactionGroups.map((g) => (
-                  <button
-                    key={g.emoji}
-                    type="button"
-                    className={`${styles.reactionPill} ${g.reactedByMe ? styles.reactionPillActive : ""}`}
-                    onClick={() => onToggleReaction(g.emoji)}
-                  >
-                    <span>{g.emoji}</span>
-                    <span className={styles.reactionPillCount}>{g.count}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            <ReactionPills
+              reactions={m.reactions}
+              currentUserId={currentUserId}
+              resolveUser={resolveReactionUser}
+              onToggle={onToggleReaction}
+              align={mine ? "end" : "start"}
+            />
 
             {visibleReaders.length > 0 ? (
               <div
@@ -458,6 +573,20 @@ function WatchChatMessage({
           </div>
         )}
       </div>
+
+      {menuRect ? (
+        <MessageActionMenu
+          anchorRect={menuRect}
+          reactions={reactionOptions}
+          myReactions={myReactions}
+          onReact={onToggleReaction}
+          onReply={onReply}
+          copyText={m.content}
+          onEdit={mine ? onEdit : undefined}
+          onDelete={mine ? onDelete : undefined}
+          onClose={closeMenu}
+        />
+      ) : null}
     </div>
   );
 }

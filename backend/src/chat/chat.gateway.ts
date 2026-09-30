@@ -10,7 +10,10 @@ import {
 } from '@nestjs/websockets';
 import type { OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { MessagesService } from 'src/messages/messages.service';
+import {
+  MessagesService,
+  type MessageReplyPreview,
+} from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
@@ -21,6 +24,7 @@ import {
 } from 'src/chat/room-access.util';
 import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
 import { MessageType } from '@prisma/client';
+import { ACCEPTED_CHAT_REACTIONS } from 'src/common/chat-reactions';
 
 interface SocketUser {
   id: string;
@@ -159,15 +163,7 @@ export class ChatGateway
   private static readonly READ_SYNC_THROTTLE_MS = 15_000;
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set([
-    '😂',
-    '❤️',
-    '🤍',
-    '🔥',
-    '🥲',
-    '😭',
-    '🙏🏻',
-  ]);
+  private static readonly ALLOWED_REACTIONS = ACCEPTED_CHAT_REACTIONS;
   private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
   private static readonly SOCKET_BAN_MS = 15 * 60 * 1000;
 
@@ -1027,12 +1023,7 @@ export class ChatGateway
       return;
     }
 
-    const scoreSession = this.recordGameScore(
-      roomId,
-      'doodle',
-      user.id,
-      score,
-    );
+    const scoreSession = this.recordGameScore(roomId, 'doodle', user.id, score);
 
     this.server.to(roomId).emit('doodle-state-updated', {
       roomId,
@@ -1167,12 +1158,7 @@ export class ChatGateway
           .slice(0, 180)
       : [];
 
-    const scoreSession = this.recordGameScore(
-      roomId,
-      'snake',
-      user.id,
-      score,
-    );
+    const scoreSession = this.recordGameScore(roomId, 'snake', user.id, score);
 
     this.server.to(roomId).emit('snake-state-updated', {
       roomId,
@@ -1742,7 +1728,13 @@ export class ChatGateway
   @SubscribeMessage('sendMessage')
   async handleMessage(
     @MessageBody()
-    body: { roomId: string; content?: string; type?: string; fileUrl?: string },
+    body: {
+      roomId: string;
+      content?: string;
+      type?: string;
+      fileUrl?: string;
+      replyToId?: string;
+    },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
@@ -1805,21 +1797,31 @@ export class ChatGateway
         return;
       }
 
+      // Некоректний replyToId (чужа кімната, видалене) тихо ігноруємо — це звичайне повідомлення.
+      const replyTarget = await this.messagesService.resolveReplyTarget(
+        roomId,
+        body?.replyToId,
+      );
+
       const message = isVideoNote
         ? await this.messagesService.createRoomMessage({
             type: 'VIDEO_NOTE',
             fileUrl: normalizedFileUrl,
             senderId: user.id,
             roomId,
+            replyToId: replyTarget?.id,
           })
         : await this.messagesService.createRoomMessage({
             type: 'TEXT',
             content: normalizedContent,
             senderId: user.id,
             roomId,
+            replyToId: replyTarget?.id,
           });
 
-      await this.broadcastNewChatMessage(roomId, message);
+      await this.broadcastNewChatMessage(roomId, message, {
+        repliedToUserId: replyTarget?.senderId,
+      });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] sendMessage failed:', {
@@ -2083,7 +2085,10 @@ export class ChatGateway
       createdAt: Date;
       senderId: string;
       sender: { username: string; nickname: string | null };
+      replyToId?: string | null;
+      replyTo?: MessageReplyPreview | null;
     },
+    options: { repliedToUserId?: string } = {},
   ) {
     await this.messagesService.markRoomAsRead(
       roomId,
@@ -2102,6 +2107,8 @@ export class ChatGateway
       createdAt: message.createdAt,
       roomId,
       reactions: [],
+      replyToId: message.replyToId ?? undefined,
+      replyTo: message.replyTo ?? undefined,
     });
 
     void this.pushService
@@ -2115,6 +2122,7 @@ export class ChatGateway
         fileUrl: message.fileUrl,
         createdAt: message.createdAt,
         excludeUserIds: this.getActiveRoomViewerIds(roomId),
+        repliedToUserId: options.repliedToUserId,
       })
       .catch((error: unknown) => {
         const reason = error instanceof Error ? error.message : String(error);

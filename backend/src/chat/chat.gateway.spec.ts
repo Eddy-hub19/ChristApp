@@ -75,6 +75,7 @@ describe('ChatGateway', () => {
     markRoomAsRead: jest.Mock;
     getRoomMessages: jest.Mock;
     deleteMessageForUser: jest.Mock;
+    resolveReplyTarget: jest.Mock;
   };
   let pushService: {
     sendChatMessagePush: jest.Mock;
@@ -99,6 +100,7 @@ describe('ChatGateway', () => {
       markRoomAsRead: jest.fn().mockResolvedValue(undefined),
       getRoomMessages: jest.fn(),
       deleteMessageForUser: jest.fn(),
+      resolveReplyTarget: jest.fn().mockResolvedValue(null),
     };
 
     pushService = {
@@ -219,6 +221,52 @@ describe('ChatGateway', () => {
       createdAt: savedMessage.createdAt,
       excludeUserIds: [],
     });
+  });
+
+  it('stores replyToId and pushes "replied to you" for the original author', async () => {
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
+    const client = createClient(sender);
+    const savedMessage = {
+      id: 'm4',
+      type: MessageType.TEXT,
+      content: 'Согласен',
+      fileUrl: null,
+      createdAt: new Date('2026-03-13T10:03:00.000Z'),
+      senderId: 'u1',
+      sender: { username: 'sender', nickname: 'sender' },
+      replyToId: 'm1',
+      replyTo: { id: 'm1', deleted: true as const },
+    };
+
+    prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+    messagesService.resolveReplyTarget.mockResolvedValue({
+      id: 'm1',
+      senderId: 'u2',
+    });
+    messagesService.createRoomMessage.mockResolvedValue(savedMessage);
+
+    await gateway.handleMessage(
+      { roomId: 'room-1', content: 'Согласен', replyToId: 'm1' },
+      client as never,
+    );
+
+    expect(messagesService.resolveReplyTarget).toHaveBeenCalledWith(
+      'room-1',
+      'm1',
+    );
+    expect(messagesService.createRoomMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ replyToId: 'm1' }),
+    );
+    expect(roomEmit).toHaveBeenCalledWith(
+      'newMessage',
+      expect.objectContaining({
+        replyToId: 'm1',
+        replyTo: savedMessage.replyTo,
+      }),
+    );
+    expect(pushService.sendChatMessagePush).toHaveBeenCalledWith(
+      expect.objectContaining({ repliedToUserId: 'u2' }),
+    );
   });
 
   it('does not send message when user has no room access', async () => {

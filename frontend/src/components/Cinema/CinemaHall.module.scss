@@ -1723,6 +1723,16 @@
 // ================= ЧАТ =================
 
 .chat {
+  // Кольори спільних елементів повідомлень (ChatShared) під темну залу.
+  --cs-accent: var(--hall-gold);
+  --cs-text: var(--hall-text);
+  --cs-muted: var(--hall-muted);
+  --cs-pill-bg: var(--hall-surface-strong);
+  --cs-pill-active-bg: rgba(230, 191, 115, 0.22);
+  --cs-pill-border: var(--hall-line);
+  --cs-quote-bg: rgba(230, 191, 115, 0.12);
+  --cs-avatar-ring: var(--hall-bg);
+
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -1841,35 +1851,6 @@
   padding: 0 4px;
 }
 
-.reactionPillRow {
-  display: flex;
-  gap: 4px;
-}
-
-.reactionPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 11px;
-  line-height: 1.6;
-  background: var(--hall-surface-strong);
-  border: 1px solid var(--hall-line);
-  color: var(--hall-muted);
-  cursor: pointer;
-}
-
-.reactionPillActive {
-  background: rgba(230, 191, 115, 0.22);
-  border-color: rgba(230, 191, 115, 0.4);
-  color: var(--hall-gold);
-}
-
-.reactionPillCount {
-  font-weight: 700;
-}
-
 .readReceiptRow {
   display: flex;
   align-items: center;
@@ -1889,46 +1870,6 @@
   margin-left: 2px;
   font-size: 10px;
   color: var(--hall-muted);
-}
-
-.reactionPickerBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 4;
-  background: transparent;
-  cursor: default;
-}
-
-.reactionPickerPopup {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 5;
-  display: flex;
-  gap: 2px;
-  padding: 4px 6px;
-  border-radius: 999px;
-  background: var(--hall-surface-strong);
-  border: 1px solid var(--hall-line);
-  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.6);
-}
-
-.reactionPickerButton {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  font-size: 16px;
-  background: transparent;
-  cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  &:active {
-    transform: scale(1.2);
-  }
 }
 
 .typingRow {
@@ -2240,4 +2181,21 @@
   .enterGateLiveDot {
     animation: none;
   }
+}
+
+.chatNotice {
+  margin: 0;
+  padding: 2px 12px;
+  font-size: 11px;
+  color: var(--hall-muted);
+  text-align: center;
+}
+
+.chatBanner {
+  padding: 0 10px 4px;
+}
+
+.chatEdited {
+  font-size: 10px;
+  color: var(--hall-muted);
 }

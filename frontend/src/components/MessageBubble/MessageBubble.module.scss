@@ -6,9 +6,6 @@
   position: relative;
   z-index: 0;
 
-  &[data-reaction-picker-open] {
-    z-index: 48;
-  }
 }
 
 .avatarBtn {
@@ -88,9 +85,6 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 
-  &[data-reaction-picker-open] {
-    z-index: 48;
-  }
 }
 
 .stickerBubble {
@@ -117,40 +111,6 @@
 .stickerFallback {
   font-size: 48px;
   line-height: 1;
-}
-
-.replyPreview {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  border-left: 2px solid var(--accent);
-  background: color-mix(in srgb, var(--accent-soft) 62%, transparent);
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-}
-
-.replyAuthor {
-  color: var(--accent);
-  font-family: "Inter", sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.replyText {
-  color: var(--text-muted);
-  font-family: "Inter", sans-serif;
-  font-size: 11px;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .voiceMessage {
@@ -504,9 +464,6 @@ html[data-theme="light"] .verseShareReference {
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
   word-break: break-word;
 
-  .replyPreview {
-    background: color-mix(in srgb, var(--surface-elevated) 45%, var(--accent-soft) 55%);
-  }
 }
 
 html[data-theme="light"] .myBubble {
@@ -544,14 +501,6 @@ html[data-theme="dark"] .myBubble {
   overflow: visible;
 }
 
-.metaActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  min-width: 0;
-}
-
 .metaRowTrailing {
   display: inline-flex;
   align-items: center;
@@ -560,221 +509,11 @@ html[data-theme="dark"] .myBubble {
   margin-left: auto;
 }
 
-.metaActionIcon {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-  transition: color 0.15s ease, background-color 0.15s ease;
-
-  &:hover {
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-  }
-}
-
-.reactionAnchor {
-  position: relative;
-  z-index: 12;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  pointer-events: auto;
-}
-
-.reactionTrigger {
-  position: relative;
-  z-index: 13;
-  border: none;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.72) 82%, transparent);
-  color: color-mix(in srgb, var(--foreground) 70%, #6d655d 30%);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 9999px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.88) 66%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 10px 24px -20px rgba(74, 58, 40, 0.55);
-}
-
-.reactionOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 190;
-  border: none;
-  padding: 0;
-  background: transparent;
-}
-
-.reactionPicker {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 8px);
-  left: auto;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-content: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  box-sizing: border-box;
-  width: min(220px, calc(100vw - 24px));
-  min-width: 190px;
-  max-width: min(380px, calc(100vw - 24px));
-  max-height: min(220px, 45vh);
-  overflow: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.88) 72%, transparent);
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.76) 80%, transparent);
-  backdrop-filter: blur(24px) saturate(170%);
-  -webkit-backdrop-filter: blur(24px) saturate(170%);
-  box-shadow:
-    0 22px 48px -28px rgba(91, 75, 55, 0.38),
-    0 8px 18px -14px rgba(91, 75, 55, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.58);
-  z-index: 200;
-  transform-origin: 100% 100%;
-}
-
-.emojiButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border: 1px solid transparent;
-  background: color-mix(in srgb, rgba(255, 255, 255, 0.62) 78%, transparent);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 0;
-  border-radius: 9999px;
-  transition:
-    transform 0.16s ease,
-    background-color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease;
-
-  &:hover,
-  &:focus-visible {
-    transform: translateY(-1px);
-    background: color-mix(in srgb, rgba(255, 255, 255, 0.9) 82%, transparent);
-    border-color: color-mix(in srgb, rgba(255, 255, 255, 0.92) 72%, transparent);
-    box-shadow: 0 10px 20px -18px rgba(91, 75, 55, 0.46);
-    outline: none;
-  }
-}
-
-.messageReactions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-width: 100%;
-  margin-top: 10px;
-}
-
-.messageReactionsOwn {
-  justify-content: flex-start;
-  align-self: flex-start;
-}
-
-.messageReactionsPeer {
-  justify-content: flex-end;
-  align-self: flex-end;
-}
-
 @media (max-width: 720px) {
   .inlineLink {
     font-size: 12px;
     line-height: 1.25;
   }
-
-  .reactionAnchor {
-    justify-content: center;
-  }
-
-  .reactionPicker {
-    left: 50%;
-    right: auto;
-    bottom: calc(100% + 10px);
-    transform: translateX(-50%);
-    transform-origin: 50% 100%;
-    width: min(190px, calc(100vw - 24px));
-    min-width: 0;
-    justify-content: center;
-    align-content: center;
-  }
-
-  .messageReactions {
-    align-self: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    max-width: min(190px, 100%);
-  }
-
-  .messageReactionsOwn,
-  .messageReactionsPeer {
-    align-self: center;
-    justify-content: center;
-  }
-}
-
-.reactionBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  border: none;
-  background: color-mix(in srgb, var(--surface-elevated) 86%, transparent);
-  border-radius: 10px;
-  padding: 2px 6px;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--foreground);
-  cursor: pointer;
-
-  span {
-    font-size: 10px;
-    color: var(--text-muted);
-  }
-}
-
-.reactionAvatarImg {
-  width: 12px;
-  height: 12px;
-  border-radius: 9999px;
-  object-fit: cover;
-}
-
-.reactionAvatarFallback {
-  width: 12px;
-  height: 12px;
-  border-radius: 9999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8px;
-  line-height: 1;
-}
-
-.reactionBadgeActive {
-  background: color-mix(in srgb, var(--accent-soft) 85%, transparent);
 }
 
 .readReceiptRow {
@@ -851,9 +590,6 @@ html[data-theme="dark"] .bubble {
     0 4px 15px rgba(0, 0, 0, 0.2);
   color: #f5f5f5;
 
-  .replyPreview {
-    background: color-mix(in srgb, var(--my-bubble-dark-bg) 26%, var(--surface) 74%);
-  }
 }
 
 html[data-theme="dark"] .stickerBubble {
@@ -882,29 +618,6 @@ html[data-theme="dark"] .fileLink:hover {
 
 html[data-theme="dark"] .senderCompact {
   color: color-mix(in srgb, var(--text-muted) 82%, #ffffff 18%);
-}
-
-html[data-theme="dark"] .reactionTrigger,
-html[data-theme="dark"] .reactionPicker,
-html[data-theme="dark"] .emojiButton {
-  border-color: color-mix(in srgb, rgba(255, 255, 255, 0.18) 84%, transparent);
-}
-
-html[data-theme="dark"] .reactionTrigger {
-  background: color-mix(in srgb, rgba(34, 29, 24, 0.7) 86%, transparent);
-  color: color-mix(in srgb, #f8ecd2 72%, #fff 28%);
-}
-
-html[data-theme="dark"] .reactionPicker {
-  background: color-mix(in srgb, rgba(34, 29, 24, 0.82) 90%, transparent);
-  box-shadow:
-    0 22px 48px -28px rgba(0, 0, 0, 0.55),
-    0 8px 18px -14px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-html[data-theme="dark"] .emojiButton {
-  background: color-mix(in srgb, rgba(48, 41, 34, 0.82) 88%, transparent);
 }
 
 @keyframes verse-card-fly-in {

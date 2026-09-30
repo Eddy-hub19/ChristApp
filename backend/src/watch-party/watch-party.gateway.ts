@@ -213,8 +213,10 @@ export class WatchPartyGateway
       provider,
       videoId: body.videoId,
       startSec: readNumber(body?.startSec),
-      videoTitle: typeof body.videoTitle === 'string' ? body.videoTitle : undefined,
-      thumbnailUrl: typeof body.thumbnailUrl === 'string' ? body.thumbnailUrl : undefined,
+      videoTitle:
+        typeof body.videoTitle === 'string' ? body.videoTitle : undefined,
+      thumbnailUrl:
+        typeof body.thumbnailUrl === 'string' ? body.thumbnailUrl : undefined,
     });
   }
 
@@ -319,7 +321,7 @@ export class WatchPartyGateway
 
   @SubscribeMessage('watch:message')
   handleMessage(
-    @MessageBody() body: RoomBody & { content?: unknown },
+    @MessageBody() body: RoomBody & { content?: unknown; replyToId?: unknown },
     @ConnectedSocket() client: WatchSocket,
   ) {
     const userId = client.data.watchUserId;
@@ -333,7 +335,83 @@ export class WatchPartyGateway
     if (!this.limiter.allow(`${client.id}:msg`, 5, 5_000)) {
       return { ok: false, code: 'RATE_LIMITED' };
     }
-    return this.watchParty.postMessage(roomId, userId, body.content);
+    return this.watchParty.postMessage(
+      roomId,
+      userId,
+      body.content,
+      typeof body.replyToId === 'string' ? body.replyToId : null,
+    );
+  }
+
+  @SubscribeMessage('watch:deleteMessage')
+  handleDeleteMessage(
+    @MessageBody() body: RoomBody & { messageId?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.messageId !== 'string') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.watchParty.isPresent(roomId, userId)) {
+      return { ok: false, code: 'NOT_IN_ROOM' };
+    }
+    if (!this.limiter.allow(`${client.id}:msgEdit`, 10, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.deleteMessage(roomId, userId, body.messageId);
+  }
+
+  @SubscribeMessage('watch:editMessage')
+  handleEditMessage(
+    @MessageBody()
+    body: RoomBody & { messageId?: unknown; content?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (
+      !userId ||
+      !roomId ||
+      typeof body?.messageId !== 'string' ||
+      typeof body?.content !== 'string'
+    ) {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.watchParty.isPresent(roomId, userId)) {
+      return { ok: false, code: 'NOT_IN_ROOM' };
+    }
+    if (!this.limiter.allow(`${client.id}:msgEdit`, 10, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.editMessage(
+      roomId,
+      userId,
+      body.messageId,
+      body.content,
+    );
+  }
+
+  @SubscribeMessage('watch:loadOlder')
+  handleLoadOlder(
+    @MessageBody()
+    body: RoomBody & { beforeId?: unknown; untilId?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId || typeof body?.beforeId !== 'string') {
+      return { ok: false, code: 'BAD_REQUEST' };
+    }
+    if (!this.limiter.allow(`${client.id}:older`, 5, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    return this.watchParty.loadOlderMessages(
+      roomId,
+      userId,
+      body.beforeId,
+      typeof body.untilId === 'string' ? body.untilId : undefined,
+    );
   }
 
   @SubscribeMessage('watch:suggestVideo')

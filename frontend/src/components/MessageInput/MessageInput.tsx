@@ -14,6 +14,8 @@ import {
   type PointerEvent,
 } from "react";
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
+import ReplyBanner from "@/components/ChatShared/ReplyBanner";
+import { replyPreviewText } from "@/components/ChatShared/replyPreview";
 import styles from "@/components/MessageInput/MessageInput.module.scss";
 import Image from "next/image";
 import type { Message } from "@/types/message";
@@ -45,7 +47,10 @@ type MessageInputProps = {
   /** Зображення в чат (кнопка скріпки ліворуч). */
   onSendImage?: (file: File) => void | Promise<boolean>;
   onSelectFiles?: (files: File[]) => void | Promise<void>;
-  onSendSticker?: (sticker: StickerItem) => void | Promise<boolean>;
+  onSendSticker?: (
+    sticker: StickerItem,
+    replyToMessage?: Message | null,
+  ) => void | Promise<boolean>;
   onVoiceRecordingActivity?: (active: boolean) => void;
   onStartVideoRecording?: () => void | Promise<void>;
   onStopVideoRecording?: () => void | Promise<void>;
@@ -96,6 +101,7 @@ export default function MessageInput({
   isVideoRecording = false,
 }: MessageInputProps) {
   const t = useTranslations("chat");
+  const tShared = useTranslations("chatShared");
   const tabBarOverlay = useTabBarOverlayOptional();
   const tabBarOverlayRef = useRef(tabBarOverlay);
   tabBarOverlayRef.current = tabBarOverlay;
@@ -209,10 +215,18 @@ export default function MessageInput({
     }
   }, [isVoiceRecordingActive, mode]);
 
+  // Підставляємо текст у поле лише при вході в редагування. Інакше "messageEdited" з сервера
+  // (оновлює editingMessage вже після збереження) повторно заливав би старий текст у поле.
+  const syncedEditIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!editingMessage) {
+      syncedEditIdRef.current = null;
       return;
     }
+    if (syncedEditIdRef.current === editingMessage.id) {
+      return;
+    }
+    syncedEditIdRef.current = editingMessage.id;
     setMode("text");
     setIsStickerPickerOpen(false);
     setValue(editingMessage.content);
@@ -447,9 +461,12 @@ export default function MessageInput({
   const handleStickerSelect = async (sticker: StickerItem) => {
     if (!onSendSticker || disabled) return;
     try {
-      const result = await Promise.resolve(onSendSticker(sticker));
+      const result = await Promise.resolve(
+        onSendSticker(sticker, replyToMessage),
+      );
       if (result !== false) {
         setIsStickerPickerOpen(false);
+        if (replyToMessage) onCancelReply?.();
       }
     } catch {
       // помилку показуємо зовні
@@ -457,14 +474,11 @@ export default function MessageInput({
   };
 
   const replyText = replyToMessage
-    ? chatMessagePreview({
+    ? replyPreviewText(tShared, {
         content: replyToMessage.content,
         type: replyToMessage.type,
         fileUrl: replyToMessage.fileUrl,
       })
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 180)
     : "";
 
   const messageRowClass =
@@ -498,23 +512,12 @@ export default function MessageInput({
           </button>
         </div>
       ) : null}
-      {replyToMessage ? (
-        <div className={styles.replyingTo}>
-          <div className={styles.replyingToMeta}>
-            <span className={styles.replyingToLabel}>
-              {t("replyToBanner", { name: replyToMessage.username })}
-            </span>
-            <span className={styles.replyingToText}>{replyText}</span>
-          </div>
-          <button
-            type="button"
-            className={styles.replyingToClose}
-            aria-label={t("cancelReplyAria")}
-            onClick={onCancelReply}
-          >
-            ×
-          </button>
-        </div>
+      {replyToMessage && onCancelReply ? (
+        <ReplyBanner
+          username={replyToMessage.username}
+          text={replyText}
+          onCancel={onCancelReply}
+        />
       ) : null}
 
       {voiceRecorder.error ? (

@@ -1,0 +1,312 @@
+// Спільні стилі повідомлень (основні чати + Киношка). Кольори беруться зі змінних --cs-*;
+// кожен чат може перевизначити їх на своєму контейнері (Киношка — під темну "залу").
+
+$accent: var(--cs-accent, var(--accent, #c9a24b));
+$text: var(--cs-text, var(--foreground, #2a241c));
+$muted: var(--cs-muted, var(--text-muted, #7a7065));
+$pill-bg: var(--cs-pill-bg, color-mix(in srgb, var(--surface-elevated, #fff) 86%, transparent));
+$pill-active-bg: var(--cs-pill-active-bg, color-mix(in srgb, var(--accent-soft, #f3e3b8) 85%, transparent));
+$pill-border: var(--cs-pill-border, transparent);
+$quote-bg: var(--cs-quote-bg, color-mix(in srgb, var(--accent, #c9a24b) 16%, transparent));
+
+// ===== Меню дій (у порталі — змінні беруться з глобальної теми) =====
+.menuLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+}
+
+.menuBackdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.18);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  // Ширина не має залежати від left (shrink-to-fit стискав би меню біля правого краю).
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  animation: menuIn 0.14s ease-out;
+}
+
+.menuReactions,
+.menuActions {
+  border-radius: 18px;
+  background: var(--surface-elevated, #fff);
+  color: var(--foreground, #2a241c);
+  border: 1px solid color-mix(in srgb, var(--foreground, #2a241c) 12%, transparent);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.45);
+}
+
+.menuReactions {
+  display: flex;
+  gap: 2px;
+  padding: 5px 6px;
+  align-self: center;
+}
+
+.menuReaction {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+
+  &:active {
+    transform: scale(1.25);
+  }
+}
+
+.menuReactionActive {
+  background: color-mix(in srgb, $accent 26%, transparent);
+}
+
+.menuActions {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  min-width: 190px;
+}
+
+.menuAction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+
+  &:active,
+  &:hover {
+    background: color-mix(in srgb, var(--foreground, #2a241c) 8%, transparent);
+  }
+}
+
+.menuActionDanger {
+  color: #d64545;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+// ===== Реакції під повідомленням =====
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 2px;
+}
+
+.pillsEnd {
+  justify-content: flex-end;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 6px;
+  border-radius: 999px;
+  border: 1px solid $pill-border;
+  background: $pill-bg;
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.pillActive {
+  background: $pill-active-bg;
+  color: $text;
+}
+
+.pillEmoji {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pillAvatars {
+  display: inline-flex;
+  align-items: center;
+
+  > * + * {
+    margin-left: -4px;
+  }
+}
+
+.pillAvatarImg,
+.pillAvatarFallback {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--cs-avatar-ring, var(--surface-elevated, #fff));
+  object-fit: cover;
+  box-sizing: border-box;
+}
+
+.pillAvatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  line-height: 1;
+}
+
+.pillCount {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+// ===== Цитата в пузирі =====
+.quote {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-left: 2px solid $accent;
+  border-radius: 8px;
+  background: $quote-bg;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.quoteDeleted {
+  cursor: default;
+  border-left-color: $muted;
+
+  .quoteText {
+    font-style: italic;
+  }
+}
+
+.quoteAuthor {
+  color: $accent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quoteText {
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+// ===== Плашка "відповідь" над полем вводу =====
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 10px;
+  border-left: 2px solid $accent;
+  border-radius: 8px;
+  background: $quote-bg;
+}
+
+.bannerMeta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bannerLabel {
+  color: $accent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bannerText {
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bannerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $muted;
+  cursor: pointer;
+}
+
+// ===== Жести =====
+// Горизонтальний жест віддаємо нам, вертикальну прокрутку лишаємо браузеру.
+.gestureSurface {
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  will-change: transform;
+
+  &[data-swipe-armed] {
+    box-shadow: 0 0 0 2px color-mix(in srgb, $accent 45%, transparent);
+  }
+}
+
+@media (pointer: coarse) {
+  .gestureSurface {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.highlight {
+  animation: messageHighlight 1.8s ease;
+}
+
+@keyframes messageHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.6);
+  }
+  35% {
+    box-shadow: 0 0 0 5px rgba(212, 175, 55, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+  }
+}

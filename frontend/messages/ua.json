@@ -516,5 +516,30 @@
       "invalid": "Запрошення недійсне або застаріло",
       "toList": "До кімнат"
     }
+  },
+  "chatShared": {
+    "reply": "Відповісти",
+    "copy": "Копіювати",
+    "edit": "Редагувати",
+    "delete": "Видалити",
+    "copied": "Скопійовано",
+    "replyingTo": "Відповідь для {name}",
+    "cancelReply": "Скасувати відповідь",
+    "messageDeleted": "Повідомлення видалено",
+    "previewSticker": "Стікер",
+    "previewPhoto": "Фото",
+    "previewVoice": "Голосове",
+    "previewVideoNote": "Відеоовечка",
+    "previewFile": "Файл",
+    "messageMenu": "Дії з повідомленням",
+    "closeMenu": "Закрити меню",
+    "reactionAria": "Реакція {emoji}, {count}",
+    "quoteOriginalLoading": "Шукаємо повідомлення…",
+    "quoteOriginalNotFound": "Не вдалося знайти оригінальне повідомлення",
+    "reactedBy": "Реакція {emoji}",
+    "edited": "змінено",
+    "editing": "Редагування повідомлення",
+    "cancelEdit": "Скасувати редагування",
+    "deleteConfirm": "Видалити це повідомлення?"
   }
 }

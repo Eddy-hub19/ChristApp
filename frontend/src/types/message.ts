@@ -1,5 +1,6 @@
 export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE" | "VIDEO_NOTE";
-export type AppReactionType = "😂" | "❤️" | "🤍" | "🔥" | "🥲" | "😭" | "🙏🏻";
+/** Емодзі реакції. Набір, що пропонується, — CHAT_REACTIONS; старі реакції (напр. 🤍) теж відображаються. */
+export type AppReactionType = string;
 
 export type MessageReply = {
   id: string;
@@ -7,6 +8,8 @@ export type MessageReply = {
   content: string;
   type?: AppMessageType;
   fileUrl?: string | null;
+  /** Оригінал видалено — цитата показує "Повідомлення видалено". */
+  deleted?: boolean;
 };
 
 export type Message = {
