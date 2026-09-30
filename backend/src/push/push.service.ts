@@ -1,3 +1,4 @@
+import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
@@ -8,8 +9,6 @@ import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
 
-const REPLY_META_PREFIX = '[[reply:';
-const REPLY_META_SUFFIX = ']]';
 const VOICE_META_PREFIX = '[[voice:';
 const VOICE_META_SUFFIX = ']]';
 
@@ -391,23 +390,7 @@ export class PushService {
       return 'Голосовое сообщение';
     }
 
-    if (!rawContent.startsWith(REPLY_META_PREFIX)) {
-      return rawContent.replace(/\s+/g, ' ').trim();
-    }
-
-    const suffixIndex = rawContent.indexOf(
-      REPLY_META_SUFFIX,
-      REPLY_META_PREFIX.length,
-    );
-
-    if (suffixIndex === -1) {
-      return rawContent.replace(/\s+/g, ' ').trim();
-    }
-
-    return rawContent
-      .slice(suffixIndex + REPLY_META_SUFFIX.length)
-      .replace(/\s+/g, ' ')
-      .trim();
+    return stripLegacyReplyPrefix(rawContent).replace(/\s+/g, ' ').trim();
   }
 
   private async sendToSubscription(

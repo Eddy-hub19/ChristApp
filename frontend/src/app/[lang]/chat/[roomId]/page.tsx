@@ -34,6 +34,10 @@ import {
   SHARE_WITH_JESUS_SLUG,
 } from "@/lib/chatRooms";
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
+import {
+  parseLegacyReplyPrefix,
+  stripLegacyReplyPrefix,
+} from "@/lib/legacyReplyPrefix";
 import { buildStickerMessagePayload } from "@/lib/stickerMessage";
 import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
 import { type StickerItem } from "@/components/StickerPicker/StickerPicker";
@@ -76,8 +80,6 @@ const CHAT_SOCKET_URL = getDirectApiOrigin();
 const CHAT_HTTP_API = getHttpApiBase();
 const HISTORY_PAGE_SIZE = 250;
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews";
-const REPLY_META_PREFIX = "[[reply:";
-const REPLY_META_SUFFIX = "]]";
 const MAX_REPLY_PREVIEW_LENGTH = 180;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_IMAGE_ATTACHMENT_TYPES = new Set([
@@ -313,54 +315,18 @@ function normalizeReplyContent(content: string) {
 }
 
 function parseMessageWithReply(rawContent: string) {
-  if (!rawContent.startsWith(REPLY_META_PREFIX)) {
-    return {
-      content: rawContent,
-      replyTo: undefined as MessageReply | undefined,
-    };
-  }
-
-  const suffixIndex = rawContent.indexOf(
-    REPLY_META_SUFFIX,
-    REPLY_META_PREFIX.length,
-  );
-  if (suffixIndex === -1) {
-    return {
-      content: rawContent,
-      replyTo: undefined as MessageReply | undefined,
-    };
-  }
-
-  const encodedMeta = rawContent.slice(REPLY_META_PREFIX.length, suffixIndex);
-  const messageContent = rawContent.slice(
-    suffixIndex + REPLY_META_SUFFIX.length,
-  );
-
-  try {
-    const parsedMeta = JSON.parse(
-      decodeURIComponent(encodedMeta),
-    ) as Partial<MessageReply>;
-    if (!parsedMeta?.id || !parsedMeta?.username) {
-      return {
-        content: rawContent,
-        replyTo: undefined as MessageReply | undefined,
-      };
-    }
-
-    return {
-      content: messageContent || rawContent,
-      replyTo: {
-        id: String(parsedMeta.id),
-        username: String(parsedMeta.username),
-        content: normalizeReplyContent(String(parsedMeta.content ?? "")),
-      },
-    };
-  } catch {
-    return {
-      content: rawContent,
-      replyTo: undefined as MessageReply | undefined,
-    };
-  }
+  const { text, meta } = parseLegacyReplyPrefix(rawContent);
+  return {
+    content: text,
+    replyTo: meta
+      ? ({
+          id: meta.id,
+          username: meta.username,
+          // Цитата теж могла бути збережена "брудною" — чистимо й її.
+          content: normalizeReplyContent(stripLegacyReplyPrefix(meta.content)),
+        } satisfies MessageReply)
+      : (undefined as MessageReply | undefined),
+  };
 }
 
 function areSetsEqual<T>(left: Set<T>, right: Set<T>) {

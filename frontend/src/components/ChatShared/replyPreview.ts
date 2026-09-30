@@ -1,4 +1,5 @@
 import type { useTranslations } from "next-intl";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
@@ -22,7 +23,8 @@ export function replyPreviewText(
   if (m.type === "VOICE") return t("previewVoice");
   if (m.type === "IMAGE" || Boolean(m.fileUrl?.trim())) return t("previewPhoto");
 
-  const text = (m.content ?? "").trim();
+  // Оригінал може бути старою відповіддю з префіксом [[reply:…]] — цитуємо лише текст.
+  const text = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(text)) return t("previewSticker");
   if (parseVoiceMessageUrl(text)) return t("previewVoice");
   const verse = parseVerseSharePayload(text);

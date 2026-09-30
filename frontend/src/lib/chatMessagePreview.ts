@@ -1,6 +1,7 @@
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
 
 export type ChatMessagePreviewInput = {
@@ -21,7 +22,8 @@ export function chatMessagePreview(m: ChatMessagePreviewInput): string {
   if (m.type === "IMAGE" || Boolean(url)) {
     return "Фото";
   }
-  const t = (m.content ?? "").trim();
+  // Старі відповіді несуть цитату префіксом [[reply:…]] — у превʼю йде лише сам текст.
+  const t = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(t)) {
     return "Стикер";
   }
@@ -32,5 +34,5 @@ export function chatMessagePreview(m: ChatMessagePreviewInput): string {
   if (verseShare.payload) {
     return scripturePlainText(verseShare.payload.text) || t;
   }
-  return m.content ?? "";
+  return t;
 }
