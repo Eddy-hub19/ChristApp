@@ -24,6 +24,8 @@ type ChatPushNotificationInput = {
   fileUrl?: string | null;
   /** Користувачі, у яких ця кімната зараз відкрита на екрані — їм пуш не потрібен. */
   excludeUserIds?: string[];
+  /** Автор повідомлення, на яке це відповідь: йому пуш приходить у вигляді "<імʼя> відповів(ла) вам: …". */
+  repliedToUserId?: string;
 };
 
 const PUSH_BODY_MAX_LEN = 220;
@@ -218,6 +220,13 @@ export class PushService {
       displayBody,
     );
 
+    const replyBody = input.repliedToUserId
+      ? this.truncatePushText(
+          `${input.senderUsername.trim() || 'ChristApp'} відповів(ла) вам: ${normalizedBody}`,
+          PUSH_BODY_MAX_LEN,
+        )
+      : null;
+
     const uniqueRecipientIds = [
       ...new Set(subscriptions.map((sub) => sub.userId)),
     ];
@@ -245,7 +254,10 @@ export class PushService {
 
         return this.sendToSubscription(subscription, {
           title,
-          body,
+          body:
+            replyBody && subscription.userId === input.repliedToUserId
+              ? replyBody
+              : body,
           targetUrl,
           roomId: input.roomId,
           senderId: input.senderId,
@@ -758,6 +770,8 @@ export class PushService {
     createdAt: Date;
     /** Учасники, які зараз присутні в залі — їм пуш не потрібен, вони й так бачать повідомлення. */
     excludeUserIds?: string[];
+    /** Автор повідомлення, на яке це відповідь: йому пуш приходить як "<імʼя> відповів(ла) вам: …". */
+    repliedToUserId?: string;
   }) {
     if (!this.isConfigured) {
       return;
@@ -823,6 +837,12 @@ export class PushService {
       `${input.senderName}: ${normalizedBody}`,
       PUSH_BODY_MAX_LEN,
     );
+    const replyBody = input.repliedToUserId
+      ? this.truncatePushText(
+          `${input.senderName} відповів(ла) вам: ${normalizedBody}`,
+          PUSH_BODY_MAX_LEN,
+        )
+      : null;
     const createdAt = input.createdAt.toISOString();
     const roomId = `watch-${input.roomId}`;
 
@@ -830,7 +850,10 @@ export class PushService {
       subscriptions.map((subscription) =>
         this.sendToSubscription(subscription, {
           title,
-          body,
+          body:
+            replyBody && subscription.userId === input.repliedToUserId
+              ? replyBody
+              : body,
           targetUrl: `/cinema/${input.roomId}`,
           roomId,
           senderId: input.senderId,

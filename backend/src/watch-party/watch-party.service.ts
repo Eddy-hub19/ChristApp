@@ -11,6 +11,7 @@ import { randomBytes } from 'crypto';
 import type { Server } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
+import { CHAT_REACTIONS } from 'src/common/chat-reactions';
 import {
   AUTO_SYNC_PROVIDERS,
   applyControlCommand,
@@ -45,16 +46,18 @@ const MAX_INVITEES = 50;
 const OEMBED_CACHE_MS = 10 * 60 * 1000;
 const OEMBED_TIMEOUT_MS = 4_000;
 
-export const WATCH_REACTIONS = [
-  '❤️',
-  '😂',
-  '🔥',
-  '🙏',
-  '😮',
-  '👏',
-  '😭',
-  '🕊️',
-] as const;
+export const WATCH_REACTIONS = CHAT_REACTIONS;
+
+/** Знімок оригіналу для цитати у відповіді; `deleted` — оригінал уже видалено. */
+export type WatchReplyPreview =
+  | { id: string; deleted: true }
+  | {
+      id: string;
+      deleted: false;
+      userId: string;
+      username: string;
+      content: string;
+    };
 
 export type WatchMessageReactionSummary = { userId: string; type: string };
 
@@ -94,6 +97,19 @@ const userPublicSelect = {
   username: true,
   nickname: true,
   avatarUrl: true,
+} as const;
+
+const WATCH_MESSAGE_SELECT = {
+  id: true,
+  content: true,
+  replyToId: true,
+  editedAt: true,
+  createdAt: true,
+  user: { select: userPublicSelect },
+  reactions: {
+    orderBy: { createdAt: 'asc' },
+    select: { userId: true, type: true },
+  },
 } as const;
 
 export function watchSocketRoom(roomId: string) {
@@ -769,15 +785,31 @@ export class WatchPartyService implements OnModuleDestroy {
     return runtime ? this.serializeState(runtime, 'sync') : null;
   }
 
-  async postMessage(roomId: string, userId: string, rawContent: string) {
+  async postMessage(
+    roomId: string,
+    userId: string,
+    rawContent: string,
+    replyToId?: string | null,
+  ) {
     const content = rawContent.replace(/\s+/g, ' ').trim().slice(0, 500);
     if (!content) return { ok: false as const, code: 'EMPTY' as const };
 
+    // Некоректний replyToId (інша кімната, видалене) тихо ігноруємо — це звичайне повідомлення.
+    const replyTarget =
+      typeof replyToId === 'string' && replyToId
+        ? await this.prisma.watchMessage.findFirst({
+            where: { id: replyToId, roomId },
+            select: { id: true, userId: true },
+          })
+        : null;
+
     const message = await this.prisma.watchMessage.create({
-      data: { roomId, userId, content },
+      data: { roomId, userId, content, replyToId: replyTarget?.id ?? null },
       select: {
         id: true,
         content: true,
+        replyToId: true,
+        editedAt: true,
         createdAt: true,
         user: { select: userPublicSelect },
         room: { select: { title: true } },
@@ -791,6 +823,8 @@ export class WatchPartyService implements OnModuleDestroy {
         createdAt: message.createdAt.toISOString(),
         user: message.user,
         reactions: [] as WatchMessageReactionSummary[],
+        editedAt: null,
+        replyTo: (await this.attachReplies([message]))[0].replyTo,
       },
     };
     this.server?.to(watchSocketRoom(roomId)).emit('watch:message', payload);
@@ -806,6 +840,7 @@ export class WatchPartyService implements OnModuleDestroy {
         content,
         createdAt: message.createdAt,
         excludeUserIds: [...this.presentUserIds(roomId)],
+        repliedToUserId: replyTarget?.userId,
       })
       .catch((error: unknown) => {
         const reason = error instanceof Error ? error.message : String(error);
@@ -1278,20 +1313,163 @@ export class WatchPartyService implements OnModuleDestroy {
       where: { roomId },
       orderBy: { createdAt: 'desc' },
       take: CHAT_HISTORY_LIMIT,
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        user: { select: userPublicSelect },
-        reactions: {
-          orderBy: { createdAt: 'asc' },
-          select: { userId: true, type: true },
+      select: WATCH_MESSAGE_SELECT,
+    });
+    return this.serializeMessages(rows.reverse());
+  }
+
+  /** Додає `replyTo` (знімок оригіналу або позначку "видалено") до повідомлень із `replyToId`. */
+  private async attachReplies<T extends { replyToId: string | null }>(
+    rows: T[],
+  ): Promise<Array<T & { replyTo: WatchReplyPreview | null }>> {
+    const ids = [
+      ...new Set(rows.map((row) => row.replyToId).filter(Boolean)),
+    ] as string[];
+    const originals = ids.length
+      ? await this.prisma.watchMessage.findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            content: true,
+            userId: true,
+            user: { select: userPublicSelect },
+          },
+        })
+      : [];
+    const byId = new Map(originals.map((row) => [row.id, row]));
+    return rows.map((row) => {
+      if (!row.replyToId) return { ...row, replyTo: null };
+      const original = byId.get(row.replyToId);
+      const replyTo: WatchReplyPreview = original
+        ? {
+            id: original.id,
+            deleted: false,
+            userId: original.userId,
+            username: original.user.nickname?.trim() || original.user.username,
+            content: original.content,
+          }
+        : { id: row.replyToId, deleted: true };
+      return { ...row, replyTo };
+    });
+  }
+
+  private async serializeMessages<
+    T extends { replyToId: string | null; createdAt: Date; editedAt: Date | null },
+  >(rows: T[]) {
+    const withReplies = await this.attachReplies(rows);
+    return withReplies.map((m) => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+      editedAt: m.editedAt ? m.editedAt.toISOString() : null,
+    }));
+  }
+
+  private async assertJoined(roomId: string, userId: string) {
+    const membership = await this.prisma.watchRoomMember.findUnique({
+      where: { roomId_userId: { roomId, userId } },
+      select: { status: true },
+    });
+    return membership?.status === WatchMemberStatus.JOINED;
+  }
+
+  /**
+   * Старіша частина чату: повідомлення суворо раніше `beforeId`. З `untilId` читає стільки,
+   * скільки треба, щоб дійти до цього повідомлення (але не більше `limit`).
+   */
+  async loadOlderMessages(
+    roomId: string,
+    userId: string,
+    beforeId: string,
+    untilId?: string,
+    rawLimit = 50,
+  ) {
+    if (!(await this.assertJoined(roomId, userId))) {
+      return { ok: false as const, code: 'FORBIDDEN' as const };
+    }
+    const limit = Math.min(Math.max(rawLimit, 1), 300);
+    const [before, until] = await Promise.all([
+      this.prisma.watchMessage.findFirst({
+        where: { id: beforeId, roomId },
+        select: { createdAt: true },
+      }),
+      untilId
+        ? this.prisma.watchMessage.findFirst({
+            where: { id: untilId, roomId },
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    if (!before) return { ok: true as const, messages: [], hasMore: false };
+
+    const rows = await this.prisma.watchMessage.findMany({
+      where: {
+        roomId,
+        createdAt: {
+          lt: before.createdAt,
+          ...(until ? { gte: until.createdAt } : {}),
         },
       },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      select: WATCH_MESSAGE_SELECT,
     });
-    return rows
-      .reverse()
-      .map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }));
+    const hasMore = rows.length > limit;
+    const messages = await this.serializeMessages(
+      rows.slice(0, limit).reverse(),
+    );
+    return { ok: true as const, messages, hasMore };
+  }
+
+  /** Видалення власного повідомлення чату Киношки. */
+  async deleteMessage(roomId: string, userId: string, messageId: string) {
+    const message = await this.prisma.watchMessage.findUnique({
+      where: { id: messageId },
+      select: { roomId: true, userId: true },
+    });
+    if (!message || message.roomId !== roomId) {
+      return { ok: false as const, code: 'NOT_FOUND' as const };
+    }
+    if (message.userId !== userId) {
+      return { ok: false as const, code: 'FORBIDDEN' as const };
+    }
+    await this.prisma.watchMessage.delete({ where: { id: messageId } });
+    this.server
+      ?.to(watchSocketRoom(roomId))
+      .emit('watch:messageDeleted', { roomId, messageId });
+    return { ok: true as const };
+  }
+
+  /** Редагування власного повідомлення чату Киношки. */
+  async editMessage(
+    roomId: string,
+    userId: string,
+    messageId: string,
+    rawContent: string,
+  ) {
+    const content = rawContent.replace(/\s+/g, ' ').trim().slice(0, 500);
+    if (!content) return { ok: false as const, code: 'EMPTY' as const };
+    const message = await this.prisma.watchMessage.findUnique({
+      where: { id: messageId },
+      select: { roomId: true, userId: true },
+    });
+    if (!message || message.roomId !== roomId) {
+      return { ok: false as const, code: 'NOT_FOUND' as const };
+    }
+    if (message.userId !== userId) {
+      return { ok: false as const, code: 'FORBIDDEN' as const };
+    }
+    const editedAt = new Date();
+    await this.prisma.watchMessage.update({
+      where: { id: messageId },
+      data: { content, editedAt },
+    });
+    this.server?.to(watchSocketRoom(roomId)).emit('watch:messageEdited', {
+      roomId,
+      messageId,
+      content,
+      editedAt: editedAt.toISOString(),
+    });
+    return { ok: true as const };
   }
 
   private async notifyInvited(

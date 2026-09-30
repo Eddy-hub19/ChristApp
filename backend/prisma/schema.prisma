@@ -87,6 +87,8 @@ model Message {
   content   String?
   fileUrl   String?
   voiceDuration Float?
+  /// Повідомлення, на яке це є відповіддю (без FK: після видалення оригіналу цитата лишається з позначкою "видалено").
+  replyToId String?
   senderId  String
   createdAt DateTime    @default(now())
   roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
@@ -256,6 +258,10 @@ model WatchMessage {
   roomId    String
   userId    String
   content   String    @db.VarChar(500)
+  /// Повідомлення чату Киношки, на яке це є відповіддю (без FK — як Message.replyToId).
+  replyToId String?
+  /// Коли автор востаннє редагував повідомлення (null — не редагувалось).
+  editedAt  DateTime?
   createdAt DateTime  @default(now())
   room      WatchRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

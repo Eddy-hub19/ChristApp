@@ -56,6 +56,21 @@ export type EditOwnMessageResult =
       reason: 'not-found' | 'not-owner' | 'no-access' | 'invalid-content';
     };
 
+/** Знімок оригіналу для цитати у відповіді; `deleted` — оригінал уже видалено. */
+export type MessageReplyPreview =
+  | { id: string; deleted: true }
+  | {
+      id: string;
+      deleted: false;
+      username: string;
+      senderId: string;
+      type: MessageType;
+      content: string;
+      fileUrl: string | null;
+    };
+
+const REPLY_PREVIEW_CONTENT_MAX = 300;
+
 /** @deprecated використовуйте DeleteOwnMessageResult */
 export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
@@ -89,7 +104,7 @@ export class MessagesService {
   }
 
   async createRoomMessage(
-    params:
+    params: { replyToId?: string | null } & (
       | {
           roomId: string;
           senderId: string;
@@ -121,7 +136,8 @@ export class MessagesService {
           senderId: string;
           type: 'VIDEO_NOTE';
           fileUrl: string;
-        },
+        }
+    ),
   ) {
     const { roomId, senderId, type } = params;
     const content =
@@ -131,12 +147,13 @@ export class MessagesService {
         ? params.fileUrl
         : null;
     const voiceDuration = type === 'VOICE' ? params.voiceDuration : null;
-    return this.prisma.message.create({
+    const created = await this.prisma.message.create({
       data: {
         type: type as MessageType,
         content,
         fileUrl,
         voiceDuration: voiceDuration || null,
+        replyToId: params.replyToId ?? null,
         senderId,
         roomId,
       },
@@ -144,6 +161,112 @@ export class MessagesService {
         sender: true,
       },
     });
+    const [withReply] = await this.attachReplies([created]);
+    return withReply;
+  }
+
+  /**
+   * Перевіряє, що `replyToId` — існуюче повідомлення тієї ж кімнати; повертає його
+   * автора (для пуша "відповів вам") або null, якщо відповідь некоректна.
+   */
+  async resolveReplyTarget(
+    roomId: string,
+    replyToId: string | null | undefined,
+  ): Promise<{ id: string; senderId: string } | null> {
+    const id = typeof replyToId === 'string' ? replyToId.trim() : '';
+    if (!id) return null;
+    const target = await this.prisma.message.findUnique({
+      where: { id },
+      select: { id: true, roomId: true, senderId: true },
+    });
+    if (!target || target.roomId !== roomId) return null;
+    return { id: target.id, senderId: target.senderId };
+  }
+
+  /** Додає `replyTo` (знімок оригіналу або позначку "видалено") до повідомлень із `replyToId`. */
+  async attachReplies<T extends { replyToId: string | null }>(
+    rows: T[],
+  ): Promise<Array<T & { replyTo: MessageReplyPreview | null }>> {
+    const ids = [
+      ...new Set(rows.map((row) => row.replyToId).filter(Boolean)),
+    ] as string[];
+    const originals = ids.length
+      ? await this.prisma.message.findMany({
+          where: { id: { in: ids } },
+          select: {
+            id: true,
+            type: true,
+            content: true,
+            fileUrl: true,
+            senderId: true,
+            sender: { select: { username: true, nickname: true } },
+          },
+        })
+      : [];
+    const byId = new Map(originals.map((row) => [row.id, row]));
+    return rows.map((row) => {
+      if (!row.replyToId) return { ...row, replyTo: null };
+      const original = byId.get(row.replyToId);
+      const replyTo: MessageReplyPreview = original
+        ? {
+            id: original.id,
+            deleted: false,
+            username: original.sender.nickname || original.sender.username,
+            senderId: original.senderId,
+            type: original.type,
+            content: (original.content ?? '').slice(
+              0,
+              REPLY_PREVIEW_CONTENT_MAX,
+            ),
+            fileUrl: original.fileUrl,
+          }
+        : { id: row.replyToId, deleted: true };
+      return { ...row, replyTo };
+    });
+  }
+
+  /**
+   * Старіша частина історії: повідомлення суворо раніше `beforeId`. З `untilId` читає
+   * стільки, скільки треба, щоб дійти до цього повідомлення (але не більше `limit`).
+   */
+  async getRoomMessagesBefore(
+    roomId: string,
+    beforeId: string,
+    options: { limit?: number; untilId?: string } = {},
+  ) {
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 500);
+    const [before, until] = await Promise.all([
+      this.prisma.message.findFirst({
+        where: { id: beforeId, roomId },
+        select: { createdAt: true },
+      }),
+      options.untilId
+        ? this.prisma.message.findFirst({
+            where: { id: options.untilId, roomId },
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    if (!before) return { messages: [], hasMore: false };
+
+    const rows = await this.prisma.message.findMany({
+      where: {
+        roomId,
+        createdAt: {
+          lt: before.createdAt,
+          ...(until ? { gte: until.createdAt } : {}),
+        },
+      },
+      include: {
+        sender: true,
+        reactions: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit).reverse();
+    return { messages: await this.attachReplies(page), hasMore };
   }
 
   /**
@@ -164,7 +287,7 @@ export class MessagesService {
       take: limit,
       skip,
     });
-    return rows.reverse();
+    return this.attachReplies(rows.reverse());
   }
 
   async getAll(limit = 50, skip = 0) {

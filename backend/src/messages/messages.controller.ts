@@ -121,6 +121,38 @@ export class MessagesController {
     return this.messagesService.getRoomMessages(rid, parsedLimit, parsedSkip);
   }
 
+  /** Старша історія кімнати (для переходу до цитати, якої ще немає в завантаженому списку). */
+  @UseGuards(JwtAuthGuard)
+  @Get('room/older')
+  async getOlderRoomMessages(
+    @Req() req: AuthenticatedRequest,
+    @Query('roomId') roomId?: string,
+    @Query('beforeId') beforeId?: string,
+    @Query('untilId') untilId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+
+    const rid = (roomId ?? '').trim();
+    const before = (beforeId ?? '').trim();
+    if (!rid || !before) {
+      throw new BadRequestException('roomId и beforeId обязательны');
+    }
+
+    const mayAccess = await this.messagesService.userCanPostToRoom(userId, rid);
+    if (!mayAccess) {
+      throw new ForbiddenException('Нет доступа к комнате');
+    }
+
+    return this.messagesService.getRoomMessagesBefore(rid, before, {
+      limit: parseInt(limit ?? '50', 10) || 50,
+      untilId: (untilId ?? '').trim() || undefined,
+    });
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body('content') content: string, @Req() req: AuthenticatedRequest) {
