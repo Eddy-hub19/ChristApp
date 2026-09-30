@@ -5,6 +5,12 @@ import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
+import {
+  LEGACY_REPLY_PREFIX,
+  LEGACY_REPLY_SUFFIX,
+  parseLegacyReplyPrefix,
+  stripLegacyReplyPrefix,
+} from 'src/common/legacy-reply-prefix';
 
 type UnreadRoomSummaryRow = {
   roomId: string;
@@ -78,9 +84,6 @@ export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
-
-  private readonly REPLY_META_PREFIX = '[[reply:';
-  private readonly REPLY_META_SUFFIX = ']]';
 
   constructor(private prisma: PrismaService) {}
 
@@ -214,7 +217,9 @@ export class MessagesService {
             username: original.sender.nickname || original.sender.username,
             senderId: original.senderId,
             type: original.type,
-            content: (original.content ?? '').slice(
+            // Спочатку чистимо старий префікс [[reply:…]], і лише потім обрізаємо: префікс довший
+            // за ліміт, тож зворотний порядок лишав у цитаті обрізок службового тексту.
+            content: stripLegacyReplyPrefix(original.content).slice(
               0,
               REPLY_PREVIEW_CONTENT_MAX,
             ),
@@ -391,7 +396,8 @@ export class MessagesService {
     userId: string,
     nextContent: string,
   ): Promise<EditOwnMessageResult> {
-    const normalizedContent = nextContent.trim();
+    // Клієнт не має надсилати службовий префікс, але якщо надіслав — не зберігаємо його двічі.
+    const normalizedContent = stripLegacyReplyPrefix(nextContent).trim();
     if (!normalizedContent) {
       return { ok: false, reason: 'invalid-content' };
     }
@@ -403,6 +409,7 @@ export class MessagesService {
         roomId: true,
         senderId: true,
         type: true,
+        content: true,
       },
     });
 
@@ -442,10 +449,21 @@ export class MessagesService {
       }
     }
 
+    // Старе повідомлення-відповідь тримає цитату префіксом у тексті: при редагуванні лишаємо її,
+    // інакше після правки цитата зникла б. Користувач бачить і редагує лише чистий текст.
+    const existingRaw = existingMessage.content ?? '';
+    const prefixEnd = existingRaw.startsWith(LEGACY_REPLY_PREFIX)
+      ? existingRaw.indexOf(LEGACY_REPLY_SUFFIX, LEGACY_REPLY_PREFIX.length)
+      : -1;
+    const keptPrefix =
+      prefixEnd === -1 || !parseLegacyReplyPrefix(existingRaw).meta
+        ? ''
+        : existingRaw.slice(0, prefixEnd + LEGACY_REPLY_SUFFIX.length);
+
     const updated = await this.prisma.message.update({
       where: { id: existingMessage.id },
       data: {
-        content: normalizedContent,
+        content: `${keptPrefix}${normalizedContent}`,
       },
       select: {
         id: true,
@@ -458,7 +476,7 @@ export class MessagesService {
       ok: true,
       messageId: updated.id,
       roomId: updated.roomId,
-      content: updated.content ?? normalizedContent,
+      content: normalizedContent,
     };
   }
 
@@ -790,22 +808,6 @@ export class MessagesService {
       return 'Голосовое сообщение';
     }
 
-    if (!rawContent.startsWith(this.REPLY_META_PREFIX)) {
-      return rawContent.replace(/\s+/g, ' ').trim();
-    }
-
-    const suffixIndex = rawContent.indexOf(
-      this.REPLY_META_SUFFIX,
-      this.REPLY_META_PREFIX.length,
-    );
-
-    if (suffixIndex === -1) {
-      return rawContent.replace(/\s+/g, ' ').trim();
-    }
-
-    return rawContent
-      .slice(suffixIndex + this.REPLY_META_SUFFIX.length)
-      .replace(/\s+/g, ' ')
-      .trim();
+    return stripLegacyReplyPrefix(rawContent).replace(/\s+/g, ' ').trim();
   }
 }

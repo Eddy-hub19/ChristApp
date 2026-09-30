@@ -1,8 +1,7 @@
 import { hasActivePushSubscription } from "@/lib/push";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
 
-const REPLY_META_PREFIX = "[[reply:";
-const REPLY_META_SUFFIX = "]]";
 const VERSE_SHARE_META_PREFIX = "[[verse-share:";
 const VERSE_SHARE_META_SUFFIX = "]]";
 
@@ -13,24 +12,8 @@ type ChatNotificationPayload = {
   tag?: string;
 };
 
-function stripReplyMetadata(rawBody: string) {
-  if (!rawBody.startsWith(REPLY_META_PREFIX)) {
-    return rawBody;
-  }
-
-  const suffixIndex = rawBody.indexOf(
-    REPLY_META_SUFFIX,
-    REPLY_META_PREFIX.length,
-  );
-  if (suffixIndex === -1) {
-    return rawBody;
-  }
-
-  return rawBody.slice(suffixIndex + REPLY_META_SUFFIX.length);
-}
-
 export function normalizeNotificationBody(rawBody: string) {
-  const withoutReply = stripReplyMetadata(String(rawBody ?? ""));
+  const withoutReply = stripLegacyReplyPrefix(String(rawBody ?? ""));
   if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
     const suffixIndex = withoutReply.indexOf(
       VERSE_SHARE_META_SUFFIX,
