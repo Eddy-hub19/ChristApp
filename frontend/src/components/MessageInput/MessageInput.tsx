@@ -215,10 +215,18 @@ export default function MessageInput({
     }
   }, [isVoiceRecordingActive, mode]);
 
+  // Підставляємо текст у поле лише при вході в редагування. Інакше "messageEdited" з сервера
+  // (оновлює editingMessage вже після збереження) повторно заливав би старий текст у поле.
+  const syncedEditIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!editingMessage) {
+      syncedEditIdRef.current = null;
       return;
     }
+    if (syncedEditIdRef.current === editingMessage.id) {
+      return;
+    }
+    syncedEditIdRef.current = editingMessage.id;
     setMode("text");
     setIsStickerPickerOpen(false);
     setValue(editingMessage.content);

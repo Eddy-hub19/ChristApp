@@ -537,6 +537,8 @@
     "quoteOriginalLoading": "Looking for the message…",
     "quoteOriginalNotFound": "Couldn't find the original message",
     "reactedBy": "Reaction {emoji}",
-    "edited": "edited"
+    "edited": "edited",
+    "editing": "Editing message",
+    "cancelEdit": "Cancel editing"
   }
 }

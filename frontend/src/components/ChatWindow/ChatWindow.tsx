@@ -368,6 +368,9 @@ function ChatWindow({
 
   const navigateToReferencedMessage = useCallback(
     (messageId: string) => {
+      // Користувач свідомо йде до цитати — не даємо автопрокрутці "до низу" перебити це,
+      // коли нові (дозавантажені) повідомлення змінять messages.length.
+      shouldFollowBottomRef.current = false;
       const target = messageRefs.current.get(messageId);
       if (!target) {
         onMissingReferencedMessage?.(messageId);

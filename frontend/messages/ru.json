@@ -537,6 +537,8 @@
     "quoteOriginalLoading": "Ищем сообщение…",
     "quoteOriginalNotFound": "Не удалось найти исходное сообщение",
     "reactedBy": "Реакция {emoji}",
-    "edited": "изменено"
+    "edited": "изменено",
+    "editing": "Редактирование сообщения",
+    "cancelEdit": "Отменить редактирование"
   }
 }

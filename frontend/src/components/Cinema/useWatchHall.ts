@@ -21,13 +21,23 @@ export type HallMember = WatchUser & {
 
 export type HallMessageReaction = { userId: string; type: string };
 
+/** Знімок оригіналу для цитати; `deleted` — оригінал уже видалено. */
+export type HallReplyPreview =
+  | { id: string; deleted: true }
+  | { id: string; deleted: false; userId: string; username: string; content: string };
+
 export type HallMessage = {
   id: string;
   content: string;
   createdAt: string;
   user: WatchUser;
   reactions: HallMessageReaction[];
+  replyTo?: HallReplyPreview | null;
+  editedAt?: string | null;
 };
+
+/** Скільки повідомлень тримаємо в памʼяті (разом із дозавантаженою історією). */
+const MAX_LOADED_MESSAGES = 500;
 
 export type HallReaction = { id: string; emoji: string; userId: string };
 
@@ -147,7 +157,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     const onMessage = (p: { roomId: string; message: HallMessage }) => {
       if (p.roomId !== roomId) return;
       setMessages((prev) =>
-        prev.some((m) => m.id === p.message.id) ? prev : [...prev.slice(-199), p.message],
+        prev.some((m) => m.id === p.message.id) ? prev : [...prev.slice(-(MAX_LOADED_MESSAGES - 1)), p.message],
       );
     };
     const onReaction = (p: HallReaction & { roomId: string }) => {
@@ -172,6 +182,35 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       if (p.roomId !== roomId) return;
       setMessages((prev) =>
         prev.map((m) => (m.id === p.messageId ? { ...m, reactions: p.reactions } : m)),
+      );
+    };
+    const onMessageDeleted = (p: { roomId: string; messageId: string }) => {
+      if (p.roomId !== roomId) return;
+      setMessages((prev) =>
+        prev
+          .filter((m) => m.id !== p.messageId)
+          .map((m) =>
+            m.replyTo?.id === p.messageId
+              ? { ...m, replyTo: { id: p.messageId, deleted: true as const } }
+              : m,
+          ),
+      );
+    };
+    const onMessageEdited = (p: {
+      roomId: string;
+      messageId: string;
+      content: string;
+      editedAt: string;
+    }) => {
+      if (p.roomId !== roomId) return;
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id === p.messageId) return { ...m, content: p.content, editedAt: p.editedAt };
+          if (m.replyTo && !m.replyTo.deleted && m.replyTo.id === p.messageId) {
+            return { ...m, replyTo: { ...m.replyTo, content: p.content } };
+          }
+          return m;
+        }),
       );
     };
     const onReadUpdated = (p: { roomId: string; userId: string; lastReadAt: string }) => {
@@ -218,6 +257,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     socket.on("watch:roomDeleted", onDeleted);
     socket.on("watch:removedFromRoom", onRemoved);
     socket.on("watch:messageReactions", onMessageReactions);
+    socket.on("watch:messageDeleted", onMessageDeleted);
+    socket.on("watch:messageEdited", onMessageEdited);
     socket.on("watch:readUpdated", onReadUpdated);
     socket.on("watch:userTyping", onUserTyping);
 
@@ -325,7 +366,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   );
 
   const sendMessage = useCallback(
-    (content: string) =>
+    (content: string, replyToId?: string) =>
       new Promise<boolean>((resolve) => {
         if (!socket?.connected) {
           resolve(false);
@@ -334,7 +375,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
         void emitWithAck<{ ok: boolean }>(
           socket,
           "watch:message",
-          { roomId, content },
+          { roomId, content, replyToId },
           8_000,
         ).then((res) => resolve(Boolean(res?.ok)));
       }),
@@ -400,6 +441,70 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     [socket, roomId],
   );
 
+  const deleteMessage = useCallback(
+    (messageId: string) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
+        }
+        void emitWithAck<{ ok: boolean }>(
+          socket,
+          "watch:deleteMessage",
+          { roomId, messageId },
+          8_000,
+        ).then((res) => resolve(Boolean(res?.ok)));
+      }),
+    [socket, roomId],
+  );
+
+  const editMessage = useCallback(
+    (messageId: string, content: string) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
+        }
+        void emitWithAck<{ ok: boolean }>(
+          socket,
+          "watch:editMessage",
+          { roomId, messageId, content },
+          8_000,
+        ).then((res) => resolve(Boolean(res?.ok)));
+      }),
+    [socket, roomId],
+  );
+
+  /** Дозавантажує історію чату старішу за `beforeId` (до `untilId` включно, якщо задано). */
+  const loadOlderMessages = useCallback(
+    (beforeId: string, untilId?: string) =>
+      new Promise<boolean>((resolve) => {
+        if (!socket?.connected) {
+          resolve(false);
+          return;
+        }
+        void emitWithAck<{ ok: boolean; messages?: HallMessage[] }>(
+          socket,
+          "watch:loadOlder",
+          { roomId, beforeId, untilId },
+          10_000,
+        ).then((res) => {
+          if (!res?.ok || !res.messages) {
+            resolve(false);
+            return;
+          }
+          const older = res.messages;
+          setMessages((prev) => {
+            const known = new Set(prev.map((m) => m.id));
+            const fresh = older.filter((m) => !known.has(m.id));
+            return fresh.length ? [...fresh, ...prev] : prev;
+          });
+          resolve(true);
+        });
+      }),
+    [socket, roomId],
+  );
+
   const sendTyping = useCallback(
     (isTyping: boolean) => {
       if (!socket?.connected) return;
@@ -453,6 +558,9 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     clock,
     commands,
     sendMessage,
+    deleteMessage,
+    editMessage,
+    loadOlderMessages,
     sendReaction,
     subscribeReactions,
     suggestions,

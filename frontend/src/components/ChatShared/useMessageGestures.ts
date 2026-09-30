@@ -208,7 +208,7 @@ export function useMessageGestures<T extends HTMLElement>({
   };
 
   return {
-    ref,
+    setElement: ref,
     handlers: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onContextMenu, onClick },
   };
 }

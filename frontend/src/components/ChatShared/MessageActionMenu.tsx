@@ -15,6 +15,7 @@ import styles from "./ChatShared.module.scss";
 
 const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 8;
+const BACKDROP_GRACE_MS = 400;
 
 type MessageActionMenuProps = {
   /** Прямокутник бульбашки, біля якої відкривається меню. */
@@ -69,6 +70,16 @@ export default function MessageActionMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
   const [copied, setCopied] = useState(false);
+  const openedAtRef = useRef(0);
+  useEffect(() => {
+    openedAtRef.current = Date.now();
+  }, []);
+
+  // Відпускання пальця після довгого тапу може віддати click прямо в підкладку — не закриваємо меню одразу.
+  const handleBackdropClick = () => {
+    if (Date.now() - openedAtRef.current < BACKDROP_GRACE_MS) return;
+    onClose();
+  };
 
   useLayoutEffect(() => {
     const menu = menuRef.current;
@@ -132,7 +143,7 @@ export default function MessageActionMenu({
 
   return createPortal(
     <div className={styles.menuLayer} data-app-overlay>
-      <button type="button" className={styles.menuBackdrop} aria-label={t("closeMenu")} onClick={onClose} />
+      <button type="button" className={styles.menuBackdrop} aria-label={t("closeMenu")} onClick={handleBackdropClick} />
       <div ref={menuRef} className={styles.menu} style={style} role="menu" aria-label={t("messageMenu")}>
         <div className={styles.menuReactions}>
           {reactions.map((emoji) => (

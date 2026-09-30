@@ -438,7 +438,7 @@ function MessageBubble({
 
   const bubbleClassName = `${bubble} ${sharedStyles.gestureSurface} ${isHighlighted ? styles.highlightedBubble : ""}`;
   const interactiveBubbleProps = {
-    ref: gestures.ref,
+    ref: gestures.setElement,
     ...gestures.handlers,
   };
 

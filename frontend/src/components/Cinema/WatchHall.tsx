@@ -710,6 +710,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
           hostId={state.hostId}
           reactions={hall.reactionOptions}
           onSend={hall.sendMessage}
+          onDeleteMessage={hall.deleteMessage}
+          onEditMessage={hall.editMessage}
+          onLoadOlder={hall.loadOlderMessages}
           onReact={handleReact}
           typingUserIds={hall.typingUserIds}
           onTyping={hall.sendTyping}

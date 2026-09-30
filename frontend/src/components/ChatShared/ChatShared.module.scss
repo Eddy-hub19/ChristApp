@@ -7,7 +7,7 @@ $muted: var(--cs-muted, var(--text-muted, #7a7065));
 $pill-bg: var(--cs-pill-bg, color-mix(in srgb, var(--surface-elevated, #fff) 86%, transparent));
 $pill-active-bg: var(--cs-pill-active-bg, color-mix(in srgb, var(--accent-soft, #f3e3b8) 85%, transparent));
 $pill-border: var(--cs-pill-border, transparent);
-$quote-bg: var(--cs-quote-bg, color-mix(in srgb, var(--accent-soft, #f3e3b8) 62%, transparent));
+$quote-bg: var(--cs-quote-bg, color-mix(in srgb, var(--accent, #c9a24b) 16%, transparent));
 
 // ===== Меню дій (у порталі — змінні беруться з глобальної теми) =====
 .menuLayer {
@@ -30,6 +30,8 @@ $quote-bg: var(--cs-quote-bg, color-mix(in srgb, var(--accent-soft, #f3e3b8) 62%
   display: flex;
   flex-direction: column;
   gap: 6px;
+  // Ширина не має залежати від left (shrink-to-fit стискав би меню біля правого краю).
+  width: max-content;
   max-width: calc(100vw - 16px);
   animation: menuIn 0.14s ease-out;
 }
