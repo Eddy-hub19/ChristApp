@@ -550,9 +550,7 @@ export class MessagesService {
     }
 
     const pairValues = Prisma.join(
-      pairs.map(
-        (pair) => Prisma.sql`(${pair.userId}, ${pair.roomId}::uuid)`,
-      ),
+      pairs.map((pair) => Prisma.sql`(${pair.userId}, ${pair.roomId}::uuid)`),
     );
 
     const rows = await this.prisma.$queryRaw<

@@ -539,6 +539,7 @@
     "reactedBy": "Reaction {emoji}",
     "edited": "edited",
     "editing": "Editing message",
-    "cancelEdit": "Cancel editing"
+    "cancelEdit": "Cancel editing",
+    "deleteConfirm": "Delete this message?"
   }
 }

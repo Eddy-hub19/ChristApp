@@ -1023,12 +1023,7 @@ export class ChatGateway
       return;
     }
 
-    const scoreSession = this.recordGameScore(
-      roomId,
-      'doodle',
-      user.id,
-      score,
-    );
+    const scoreSession = this.recordGameScore(roomId, 'doodle', user.id, score);
 
     this.server.to(roomId).emit('doodle-state-updated', {
       roomId,
@@ -1163,12 +1158,7 @@ export class ChatGateway
           .slice(0, 180)
       : [];
 
-    const scoreSession = this.recordGameScore(
-      roomId,
-      'snake',
-      user.id,
-      score,
-    );
+    const scoreSession = this.recordGameScore(roomId, 'snake', user.id, score);
 
     this.server.to(roomId).emit('snake-state-updated', {
       roomId,

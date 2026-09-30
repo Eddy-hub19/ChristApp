@@ -104,11 +104,7 @@ export default function MessageActionMenu({
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onClose);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onClose);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const run = (action: () => void) => () => {

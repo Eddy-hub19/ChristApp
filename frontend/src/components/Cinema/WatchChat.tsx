@@ -18,6 +18,8 @@ import styles from "./CinemaHall.module.scss";
 
 const HIGHLIGHT_MS = 1_700;
 const NOTICE_MS = 3_000;
+/** Після переходу до цитати автопрокрутка "до низу" не має перебивати плавну прокрутку до оригіналу. */
+const JUMP_STICK_SUPPRESS_MS = 2_500;
 /** Скільки чекати без нової активності вводу, перш ніж самим сказати "я більше не друкую". */
 const TYPING_STOP_DELAY_MS = 2_200;
 /** Не частіше цього — навіть якщо людина друкує безперервно. */
@@ -86,6 +88,8 @@ export default function WatchChat({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  const suppressStickUntilRef = useRef(0);
+  const stickSuppressed = () => Date.now() < suppressStickUntilRef.current;
 
   const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const tShared = useTranslations("chatShared");
@@ -121,7 +125,7 @@ export default function WatchChat({
   };
 
   useEffect(() => {
-    if (stickToBottom.current) scrollToBottom("smooth");
+    if (stickToBottom.current && Date.now() >= suppressStickUntilRef.current) scrollToBottom("smooth");
   }, [messages]);
 
   // Клавіатура відкривається/закривається — .chatList міняє висоту (див. useKeyboardInset
@@ -131,7 +135,7 @@ export default function WatchChat({
     const el = listRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
-      if (stickToBottom.current) scrollToBottom("auto");
+      if (stickToBottom.current && Date.now() >= suppressStickUntilRef.current) scrollToBottom("auto");
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -255,6 +259,8 @@ export default function WatchChat({
 
   /** Тап по цитаті: гортаємо до оригіналу; якщо його ще немає у списку — дозавантажуємо історію. */
   const jumpToMessage = async (messageId: string) => {
+    stickToBottom.current = false;
+    suppressStickUntilRef.current = Date.now() + JUMP_STICK_SUPPRESS_MS;
     if (scrollToMessage(messageId)) return;
     const oldest = messages[0];
     if (!oldest || jumpAttemptedRef.current.has(messageId)) {
@@ -319,6 +325,7 @@ export default function WatchChat({
         className={styles.chatList}
         onScroll={(e) => {
           const el = e.currentTarget;
+          if (stickSuppressed()) return;
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
         aria-live="polite"
@@ -342,7 +349,9 @@ export default function WatchChat({
               onToggleReaction={(emoji) => onToggleMessageReaction(m.id, emoji)}
               onReply={() => startReply(m)}
               onEdit={() => startEdit(m)}
-              onDelete={() => void onDeleteMessage(m.id)}
+              onDelete={() => {
+                if (window.confirm(tShared("deleteConfirm"))) void onDeleteMessage(m.id);
+              }}
               onQuoteClick={(id) => void jumpToMessage(id)}
               visibleReaders={visibleReaders}
               extraReadersCount={extraReadersCount}

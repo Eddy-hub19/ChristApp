@@ -718,7 +718,10 @@ export class PushService {
     ]);
 
     const combined = new Map<string, number>();
-    for (const userId of new Set([...chatTotals.keys(), ...watchTotals.keys()])) {
+    for (const userId of new Set([
+      ...chatTotals.keys(),
+      ...watchTotals.keys(),
+    ])) {
       combined.set(
         userId,
         (chatTotals.get(userId) ?? 0) + (watchTotals.get(userId) ?? 0),
@@ -829,7 +832,9 @@ export class PushService {
         await this.getCombinedUnreadBadgeCounts(uniqueRecipientIds);
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Не удалось посчитать badge для push Киношки: ${reason}`);
+      this.logger.warn(
+        `Не удалось посчитать badge для push Киношки: ${reason}`,
+      );
     }
 
     const title = `🎬 ${input.roomTitle}`.trim();

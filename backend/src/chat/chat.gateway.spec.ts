@@ -259,7 +259,10 @@ describe('ChatGateway', () => {
     );
     expect(roomEmit).toHaveBeenCalledWith(
       'newMessage',
-      expect.objectContaining({ replyToId: 'm1', replyTo: savedMessage.replyTo }),
+      expect.objectContaining({
+        replyToId: 'm1',
+        replyTo: savedMessage.replyTo,
+      }),
     );
     expect(pushService.sendChatMessagePush).toHaveBeenCalledWith(
       expect.objectContaining({ repliedToUserId: 'u2' }),

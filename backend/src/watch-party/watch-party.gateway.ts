@@ -213,8 +213,10 @@ export class WatchPartyGateway
       provider,
       videoId: body.videoId,
       startSec: readNumber(body?.startSec),
-      videoTitle: typeof body.videoTitle === 'string' ? body.videoTitle : undefined,
-      thumbnailUrl: typeof body.thumbnailUrl === 'string' ? body.thumbnailUrl : undefined,
+      videoTitle:
+        typeof body.videoTitle === 'string' ? body.videoTitle : undefined,
+      thumbnailUrl:
+        typeof body.thumbnailUrl === 'string' ? body.thumbnailUrl : undefined,
     });
   }
 

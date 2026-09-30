@@ -149,7 +149,8 @@ export class WatchPartyService implements OnModuleDestroy {
   onModuleDestroy() {
     for (const runtime of this.runtimes.values()) {
       if (runtime.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
-      if (runtime.manualCountdownTimer) clearTimeout(runtime.manualCountdownTimer);
+      if (runtime.manualCountdownTimer)
+        clearTimeout(runtime.manualCountdownTimer);
     }
   }
 
@@ -651,7 +652,8 @@ export class WatchPartyService implements OnModuleDestroy {
           return { ok: false as const, code: 'INVALID_VIDEO' as const };
         }
         runtime.videoTitle = command.videoTitle?.trim().slice(0, 200) || null;
-        runtime.thumbnailUrl = command.thumbnailUrl?.trim().slice(0, 1024) || null;
+        runtime.thumbnailUrl =
+          command.thumbnailUrl?.trim().slice(0, 1024) || null;
       }
       // Нове відео — попередній відлік/готовність більше не мають сенсу.
       this.clearManualCountdownTimer(runtime);
@@ -703,7 +705,10 @@ export class WatchPartyService implements OnModuleDestroy {
       return { ok: false as const, code: 'NOT_MANUAL' as const };
     }
     runtime.manual = manualSetReady(runtime.manual, userId, ready);
-    return { ok: true as const, state: this.broadcastManualState(runtime, 'sync') };
+    return {
+      ok: true as const,
+      state: this.broadcastManualState(runtime, 'sync'),
+    };
   }
 
   /** Хост: "Почати перегляд" — лише з idle, дає всім спільний відлік 3-2-1. */
@@ -762,7 +767,10 @@ export class WatchPartyService implements OnModuleDestroy {
       }, delay);
     }
 
-    return { ok: true as const, state: this.broadcastManualState(runtime, 'sync') };
+    return {
+      ok: true as const,
+      state: this.broadcastManualState(runtime, 'sync'),
+    };
   }
 
   private clearManualCountdownTimer(runtime: RoomRuntime) {
@@ -855,7 +863,12 @@ export class WatchPartyService implements OnModuleDestroy {
    * одразу (ефемерна подія, як реакції) і водночас вона лишається в історії чату як звичайне
    * повідомлення — так її видно й тим, хто в цей момент офлайн.
    */
-  async suggestVideo(roomId: string, userId: string, videoId: string, rawTitle: string | null) {
+  async suggestVideo(
+    roomId: string,
+    userId: string,
+    videoId: string,
+    rawTitle: string | null,
+  ) {
     if (!isValidVideoId(videoId)) {
       return { ok: false as const, code: 'INVALID_VIDEO' as const };
     }
@@ -882,7 +895,11 @@ export class WatchPartyService implements OnModuleDestroy {
     });
 
     const displayName = user.nickname?.trim() || user.username;
-    await this.postMessage(roomId, userId, `🎬 ${displayName} пропонує: «${title}»`);
+    await this.postMessage(
+      roomId,
+      userId,
+      `🎬 ${displayName} пропонує: «${title}»`,
+    );
 
     return { ok: true as const };
   }
@@ -972,7 +989,9 @@ export class WatchPartyService implements OnModuleDestroy {
       .sendReadSyncPush({ userId, roomId: `watch-${roomId}` })
       .catch((error: unknown) => {
         const reason = error instanceof Error ? error.message : String(error);
-        this.logger.warn(`Не вдалося синхронізувати read-sync Киношки: ${reason}`);
+        this.logger.warn(
+          `Не вдалося синхронізувати read-sync Киношки: ${reason}`,
+        );
       });
 
     return { ok: true as const, lastReadAt: lastReadAt.toISOString() };
@@ -1104,7 +1123,8 @@ export class WatchPartyService implements OnModuleDestroy {
     const runtime = this.runtimes.get(roomId);
     if (!runtime) return;
     if (runtime.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
-    if (runtime.manualCountdownTimer) clearTimeout(runtime.manualCountdownTimer);
+    if (runtime.manualCountdownTimer)
+      clearTimeout(runtime.manualCountdownTimer);
     this.runtimes.delete(roomId);
     this.presence.delete(roomId);
     void this.persist(runtime);
@@ -1354,7 +1374,11 @@ export class WatchPartyService implements OnModuleDestroy {
   }
 
   private async serializeMessages<
-    T extends { replyToId: string | null; createdAt: Date; editedAt: Date | null },
+    T extends {
+      replyToId: string | null;
+      createdAt: Date;
+      editedAt: Date | null;
+    },
   >(rows: T[]) {
     const withReplies = await this.attachReplies(rows);
     return withReplies.map((m) => ({
