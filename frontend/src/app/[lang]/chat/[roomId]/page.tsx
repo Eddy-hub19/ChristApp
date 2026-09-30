@@ -37,7 +37,10 @@ import { chatMessagePreview } from "@/lib/chatMessagePreview";
 import { buildStickerMessagePayload } from "@/lib/stickerMessage";
 import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
 import { type StickerItem } from "@/components/StickerPicker/StickerPicker";
-import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi";
+import {
+  fetchOlderRoomMessages,
+  fetchRoomMessagesOrThrow,
+} from "@/lib/chatMessagesApi";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
@@ -115,6 +118,14 @@ type IncomingSocketMessage = {
     createdAt?: string | Date;
   }>;
   isEdited?: boolean;
+  replyTo?: {
+    id?: string;
+    deleted?: boolean;
+    username?: string;
+    type?: string;
+    content?: string;
+    fileUrl?: string | null;
+  } | null;
 };
 
 type MyRoomItem = {
@@ -301,39 +312,6 @@ function normalizeReplyContent(content: string) {
   return content.replace(/\s+/g, " ").trim().slice(0, MAX_REPLY_PREVIEW_LENGTH);
 }
 
-function serializeMessageWithReply(
-  content: string,
-  replyTo?: MessageReply | null,
-) {
-  const normalizedContent = content.trim();
-  if (!normalizedContent || !replyTo) {
-    return normalizedContent;
-  }
-
-  const replySnippet =
-    chatMessagePreview({
-      content: replyTo.content,
-      type: replyTo.type,
-      fileUrl: replyTo.fileUrl,
-    }) || replyTo.content;
-
-  const safeReply: MessageReply = {
-    id: String(replyTo.id),
-    username: (String(replyTo.username || "Unknown").trim() || "Unknown").slice(
-      0,
-      60,
-    ),
-    content: normalizeReplyContent(String(replySnippet || "")),
-  };
-
-  try {
-    const encodedMeta = encodeURIComponent(JSON.stringify(safeReply));
-    return `${REPLY_META_PREFIX}${encodedMeta}${REPLY_META_SUFFIX}${normalizedContent}`;
-  } catch {
-    return normalizedContent;
-  }
-}
-
 function parseMessageWithReply(rawContent: string) {
   if (!rawContent.startsWith(REPLY_META_PREFIX)) {
     return {
@@ -429,6 +407,17 @@ function normalizeRoomHistory(
   };
 }
 
+function normalizeMessageType(raw: unknown): Message["type"] {
+  const value = typeof raw === "string" ? raw.trim().toUpperCase() : "";
+  return value === "TEXT" ||
+    value === "VOICE" ||
+    value === "IMAGE" ||
+    value === "FILE" ||
+    value === "VIDEO_NOTE"
+    ? value
+    : undefined;
+}
+
 function normalizeIncomingMessage(
   raw: IncomingSocketMessage | null | undefined,
   currentUsername?: string,
@@ -441,32 +430,25 @@ function normalizeIncomingMessage(
     raw?.sender?.username ??
     "Unknown";
   const rawContent = String(raw?.content ?? "");
-  const { content, replyTo } = parseMessageWithReply(rawContent);
-  const normalizedTypeRaw =
-    typeof raw?.type === "string" ? raw.type.trim().toUpperCase() : "";
-  const type =
-    normalizedTypeRaw === "TEXT" ||
-    normalizedTypeRaw === "VOICE" ||
-    normalizedTypeRaw === "IMAGE" ||
-    normalizedTypeRaw === "FILE" ||
-    normalizedTypeRaw === "VIDEO_NOTE"
-      ? normalizedTypeRaw
-      : undefined;
+  // Нові відповіді приходять з БД (raw.replyTo); старі зберігали цитату префіксом у тексті.
+  const legacy = parseMessageWithReply(rawContent);
+  const content = legacy.content;
+  const replyTo: MessageReply | undefined = raw?.replyTo?.id
+    ? {
+        id: String(raw.replyTo.id),
+        username: String(raw.replyTo.username ?? ""),
+        content: String(raw.replyTo.content ?? ""),
+        type: normalizeMessageType(raw.replyTo.type),
+        fileUrl: raw.replyTo.fileUrl ?? undefined,
+        deleted: Boolean(raw.replyTo.deleted),
+      }
+    : legacy.replyTo;
+  const type = normalizeMessageType(raw?.type);
   const fileUrl = raw?.fileUrl?.trim() ? raw.fileUrl.trim() : undefined;
   const reactions = (raw?.reactions ?? [])
     .map((reaction) => {
       if (!reaction?.id || !reaction.userId) return null;
-      if (
-        reaction.type !== "😂" &&
-        reaction.type !== "❤️" &&
-        reaction.type !== "🤍" &&
-        reaction.type !== "🔥" &&
-        reaction.type !== "🥲" &&
-        reaction.type !== "😭" &&
-        reaction.type !== "🙏🏻"
-      ) {
-        return null;
-      }
+      if (typeof reaction.type !== "string" || !reaction.type) return null;
       return {
         id: String(reaction.id),
         userId: String(reaction.userId),
@@ -1191,7 +1173,7 @@ export default function ChatPageDetails() {
             messageItem.replyTo?.id === deletedMessageId
               ? {
                   ...messageItem,
-                  replyTo: undefined,
+                  replyTo: { ...messageItem.replyTo, deleted: true },
                 }
               : messageItem,
           ),
@@ -1553,17 +1535,7 @@ export default function ChatPageDetails() {
       const normalizedReactions = (payload.reactions ?? [])
         .map((reaction) => {
           if (!reaction?.id || !reaction.userId) return null;
-          if (
-            reaction.type !== "😂" &&
-            reaction.type !== "❤️" &&
-            reaction.type !== "🤍" &&
-            reaction.type !== "🔥" &&
-            reaction.type !== "🥲" &&
-            reaction.type !== "😭" &&
-            reaction.type !== "🙏🏻"
-          ) {
-            return null;
-          }
+          if (typeof reaction.type !== "string" || !reaction.type) return null;
           return {
             id: String(reaction.id),
             userId: String(reaction.userId),
@@ -2498,9 +2470,61 @@ export default function ChatPageDetails() {
     focusChatComposer();
   };
 
-  const handleMissingReferencedMessage = useCallback(() => {
-    setSendNotice(t("replyOriginalMissing"));
-  }, [t]);
+  /**
+   * Оригінал цитати ще не в списку: дозавантажуємо історію до нього і гортаємо.
+   * Повторний промах за той самий id (повідомлення немає навіть у БД) — лише повідомляємо.
+   */
+  const olderLoadAttemptedRef = useRef<Set<string>>(new Set());
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const handleMissingReferencedMessage = useCallback(
+    async (referencedMessageId: string) => {
+      const targetRoomId = joinedRoomRef.current;
+      const token = getAuthToken();
+      const oldest = messagesRef.current[0];
+      if (
+        !targetRoomId ||
+        !token ||
+        !oldest ||
+        olderLoadAttemptedRef.current.has(referencedMessageId)
+      ) {
+        setSendNotice(t("replyOriginalMissing"));
+        return;
+      }
+      olderLoadAttemptedRef.current.add(referencedMessageId);
+
+      try {
+        const { messages: older } = await fetchOlderRoomMessages({
+          token,
+          roomId: targetRoomId,
+          beforeId: oldest.id,
+          untilId: referencedMessageId,
+        });
+        if (joinedRoomRef.current !== targetRoomId) return;
+        const { uniqueHistory } = normalizeRoomHistory(
+          older as IncomingSocketMessage[],
+          user?.username,
+        );
+        const fresh = uniqueHistory.filter(
+          (item) => !messageIdsRef.current.has(item.id),
+        );
+        if (fresh.length > 0) {
+          for (const item of fresh) messageIdsRef.current.add(item.id);
+          setMessages((prev) => [...fresh, ...prev]);
+        }
+        // Дочекатись рендеру нових рядків, тоді гортати.
+        window.setTimeout(() => {
+          jumpToMessageRef.current?.(referencedMessageId);
+        }, 80);
+      } catch {
+        setSendNotice(t("replyOriginalMissing"));
+      }
+    },
+    [t, user?.username],
+  );
 
   const handleStartEditMessage = useCallback(
     (message: Message) => {
@@ -2881,22 +2905,10 @@ export default function ChatPageDetails() {
       directChatTargetUserId,
     );
 
-    const serializedContent = serializeMessageWithReply(
-      normalizedText,
-      replyTarget
-        ? {
-            id: replyTarget.id,
-            username: replyTarget.username,
-            content: replyTarget.content,
-            type: replyTarget.type,
-            fileUrl: replyTarget.fileUrl,
-          }
-        : null,
-    );
-
     socketRef.current.emit("sendMessage", {
       roomId: targetRoomId,
-      content: serializedContent,
+      content: normalizedText,
+      replyToId: replyTarget?.id,
     });
     return true;
   }
@@ -3222,7 +3234,10 @@ export default function ChatPageDetails() {
   );
 
   const handleSendSticker = useCallback(
-    async (sticker: StickerItem): Promise<boolean> => {
+    async (
+      sticker: StickerItem,
+      replyTarget?: Message | null,
+    ): Promise<boolean> => {
       const targetRoomId = effectiveSocketRoomId;
       const socket = socketRef.current;
       if (!socket || !targetRoomId) {
@@ -3257,7 +3272,11 @@ export default function ChatPageDetails() {
         t("stickerLabel"),
         directChatTargetUserId,
       );
-      socket.emit("sendMessage", { roomId: targetRoomId, content: payload });
+      socket.emit("sendMessage", {
+        roomId: targetRoomId,
+        content: payload,
+        replyToId: replyTarget?.id,
+      });
       return true;
     },
     [

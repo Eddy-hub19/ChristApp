@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import {
   memo,
   useCallback,
@@ -10,7 +9,6 @@ import {
   useState,
   type ChangeEvent,
   type MouseEvent,
-  type TouchEvent,
 } from "react";
 import Image from "next/image";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
@@ -21,11 +19,15 @@ import {
 } from "@/types/message";
 import { useTranslations } from "next-intl";
 import { useHydrated } from "@/hooks/useHydrated";
-import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX } from "@/hooks/useMediaQuery";
-import { PenLine, Trash2 } from "lucide-react";
-import { useLongPress } from "@/hooks/useLongPress";
 import { getInitials } from "@/lib/utils";
 import styles from "@/components/MessageBubble/MessageBubble.module.scss";
+import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
+import MessageActionMenu from "@/components/ChatShared/MessageActionMenu";
+import ReactionPills from "@/components/ChatShared/ReactionPills";
+import ReplyQuote from "@/components/ChatShared/ReplyQuote";
+import { CHAT_REACTIONS, HEART_REACTION } from "@/components/ChatShared/chatReactions";
+import { replyPreviewText } from "@/components/ChatShared/replyPreview";
+import { useMessageGestures } from "@/components/ChatShared/useMessageGestures";
 import {
   buildVerseReference,
   parseVerseSharePayload,
@@ -33,6 +35,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
+import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
@@ -62,26 +65,11 @@ type MessageBubbleProps = {
   senderNameMode?: "inline" | "compact-above";
 };
 
-const SWIPE_REPLY_THRESHOLD = 56;
-const SWIPE_MAX_VERTICAL_DELTA = 42;
-const REACTION_OPTIONS: AppReactionType[] = [
-  "😂",
-  "❤️",
-  "🤍",
-  "🔥",
-  "🥲",
-  "😭",
-  "🙏🏻",
-];
 const URL_REGEX = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
 
 type LinkChunk =
   | { type: "text"; value: string }
   | { type: "link"; value: string; href: string };
-
-function renderReactionPickerOption(reaction: AppReactionType) {
-  return reaction;
-}
 
 function isAudioFileName(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -353,18 +341,6 @@ function SenderName({ name, as }: { name: string; as: "strong" | "span" }) {
   return <Tag>{name}</Tag>;
 }
 
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) {
-    return false;
-  }
-
-  return Boolean(
-    target.closest(
-      "button, a, input, textarea, select, audio, video, iframe, [data-bubble-control]",
-    ),
-  );
-}
-
 function MessageBubble({
   message,
   currentUsername,
@@ -389,19 +365,9 @@ function MessageBubble({
   hideOwnSenderName = false,
   senderNameMode = "inline",
 }: MessageBubbleProps) {
-  const t = useTranslations("chat");
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const skipNextClickRef = useRef(false);
+  const tShared = useTranslations("chatShared");
   const hydrated = useHydrated();
-  const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
-  /** Кнопка «+» для реакцій на всіх ширинах; звичайний тап по бульбашці — відповідь. */
-  const showReactionPlusButton = Boolean(onToggleReaction);
-
-  const isNarrowViewport = () =>
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia(`(max-width: ${CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX}px)`)
-      .matches;
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
 
   const date = new Date(message.createdAt);
   const formattedDate = hydrated
@@ -426,192 +392,36 @@ function MessageBubble({
   const canDeleteThisMessage =
     canDeleteOwnMessage && (isOwnMessage || canDeleteAnyMessage);
 
-  const reactionGroups = useMemo(() => {
-    const grouped = new Map<
-      AppReactionType,
-      {
-        emoji: AppReactionType;
-        count: number;
-        reactedByMe: boolean;
-        latestUserId: string;
-      }
-    >();
-    const currentUserId = currentUser?.id;
-    const allowed = new Set(REACTION_OPTIONS);
-    for (const reaction of message.reactions ?? []) {
-      if (!allowed.has(reaction.type)) continue;
-      const emoji = reaction.type as AppReactionType;
-      const existing = grouped.get(emoji);
-      if (existing) {
-        existing.count += 1;
-        existing.latestUserId = reaction.userId;
-        if (currentUserId && reaction.userId === currentUserId) {
-          existing.reactedByMe = true;
-        }
-        continue;
-      }
-      grouped.set(emoji, {
-        emoji,
-        count: 1,
-        reactedByMe: Boolean(
-          currentUserId && reaction.userId === currentUserId,
-        ),
-        latestUserId: reaction.userId,
-      });
-    }
-    return REACTION_OPTIONS.map((emoji) => grouped.get(emoji)).filter(
-      Boolean,
-    ) as Array<{
-      emoji: AppReactionType;
-      count: number;
-      reactedByMe: boolean;
-      latestUserId: string;
-    }>;
-  }, [currentUser?.id, message.reactions]);
+  const isPlainText =
+    (!message.type || message.type === "TEXT") &&
+    !stickerPayload &&
+    !parseVoiceMessageUrl(message.content);
+  const canEditThisMessage = Boolean(isOwnMessage && onEdit && isPlainText);
+  const copyText = isPlainText ? message.content.trim() : "";
 
-  const closeOtherReactionPickers = useCallback(() => {
-    window.dispatchEvent(new Event("chat:close-reaction-pickers"));
-  }, []);
-
-  useEffect(() => {
-    const onCloseAll = () => setIsReactionPickerOpen(false);
-    window.addEventListener("chat:close-reaction-pickers", onCloseAll);
-    return () =>
-      window.removeEventListener("chat:close-reaction-pickers", onCloseAll);
-  }, []);
-
-  const openReactionPickerFromGesture = useCallback(() => {
-    if (!onToggleReaction || isReactionPickerOpen) return;
-
-    skipNextClickRef.current = true;
-    if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.vibrate === "function"
-    ) {
-      navigator.vibrate(50);
-    }
-    closeOtherReactionPickers();
-    setIsReactionPickerOpen(true);
-  }, [closeOtherReactionPickers, isReactionPickerOpen, onToggleReaction]);
-
-  const longPressHandlers = useLongPress<HTMLElement>(
-    openReactionPickerFromGesture,
-    {
-      ms: 360,
-      moveThreshold: 24,
-    },
+  const currentUserId = currentUser?.id;
+  const myReactions = useMemo(
+    () =>
+      new Set(
+        (message.reactions ?? [])
+          .filter((reaction) => currentUserId && reaction.userId === currentUserId)
+          .map((reaction) => reaction.type),
+      ),
+    [currentUserId, message.reactions],
   );
 
-  const handleReplyIntent = () => {
-    onReply?.(message);
-  };
+  const gestures = useMessageGestures<HTMLElement>({
+    onReply: onReply ? () => onReply(message) : undefined,
+    onDoubleTap: onToggleReaction
+      ? () => onToggleReaction(message, HEART_REACTION)
+      : undefined,
+    onOpenMenu: setMenuRect,
+  });
 
-  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
-    if (isInteractiveTarget(event.target)) {
-      touchStartRef.current = null;
-      return;
-    }
+  const closeMenu = useCallback(() => setMenuRect(null), []);
 
-    longPressHandlers.onTouchStart(event);
-
-    const firstTouch = event.touches[0];
-    if (!firstTouch) return;
-
-    touchStartRef.current = { x: firstTouch.clientX, y: firstTouch.clientY };
-  };
-
-  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
-    if (isInteractiveTarget(event.target)) {
-      return;
-    }
-
-    longPressHandlers.onTouchMove(event);
-  };
-
-  const handleTouchEnd = (event: TouchEvent<HTMLElement>) => {
-    if (isInteractiveTarget(event.target)) {
-      touchStartRef.current = null;
-      return;
-    }
-
-    longPressHandlers.onTouchEnd(event);
-
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    if (!start) return;
-
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    const isHorizontalSwipe = Math.abs(deltaY) < SWIPE_MAX_VERTICAL_DELTA;
-
-    if (deltaX > SWIPE_REPLY_THRESHOLD && isHorizontalSwipe) {
-      skipNextClickRef.current = true;
-      handleReplyIntent();
-    }
-  };
-
-  const handleTouchCancel = (event: TouchEvent<HTMLElement>) => {
-    longPressHandlers.onTouchCancel(event);
-    touchStartRef.current = null;
-  };
-
-  const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
-    if (!isNarrowViewport()) {
-      return;
-    }
-
-    if (isInteractiveTarget(event.target)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  const handleClick = (event: MouseEvent<HTMLElement>) => {
-    if (isInteractiveTarget(event.target)) {
-      return;
-    }
-
-    if (skipNextClickRef.current) {
-      skipNextClickRef.current = false;
-      return;
-    }
-
-    handleReplyIntent();
-  };
-
-  const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    onDelete?.(message);
-  };
-
-  const handleReactionPickerToggle = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (isReactionPickerOpen) {
-      setIsReactionPickerOpen(false);
-      return;
-    }
-    closeOtherReactionPickers();
-    setIsReactionPickerOpen(true);
-  };
-
-  const handleReactionPickerClose = (event: MouseEvent<HTMLElement>) => {
-    event.stopPropagation();
-    setIsReactionPickerOpen(false);
-  };
-
-  const handleReactionClick = (
-    event: MouseEvent<HTMLButtonElement>,
-    reaction: AppReactionType,
-  ) => {
-    event.stopPropagation();
-    onToggleReaction?.(message, reaction);
-    setIsReactionPickerOpen(false);
-  };
+  const handleDeleteClick = () => onDelete?.(message);
+  const handleEditClick = () => onEdit?.(message);
 
   const handleAvatarClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -620,41 +430,31 @@ function MessageBubble({
     }
   };
 
-  const handleEditClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    onEdit?.(message);
-  };
-
-  const handleReplyPreviewClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
+  const handleReplyPreviewClick = () => {
     if (message.replyTo?.id) {
       onReplyPreviewClick?.(message.replyTo.id);
     }
   };
 
-  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`;
-  const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen);
-  const reactionsClassName = `${styles.messageReactions} ${isOwnMessage ? styles.messageReactionsOwn : styles.messageReactionsPeer}`;
+  const bubbleClassName = `${bubble} ${sharedStyles.gestureSurface} ${isHighlighted ? styles.highlightedBubble : ""}`;
   const interactiveBubbleProps = {
-    onClick: handleClick,
-    onContextMenu: handleContextMenu,
-    onTouchStart: handleTouchStart,
-    onTouchMove: handleTouchMove,
-    onTouchEnd: handleTouchEnd,
-    onTouchCancel: handleTouchCancel,
+    ref: gestures.ref,
+    ...gestures.handlers,
   };
 
   const bubbleBody = (
     <>
       {message.replyTo ? (
-        <button
-          type="button"
-          className={styles.replyPreview}
+        <ReplyQuote
+          username={message.replyTo.username}
+          text={replyPreviewText(tShared, {
+            content: message.replyTo.content,
+            type: message.replyTo.type,
+            fileUrl: message.replyTo.fileUrl,
+          })}
+          deleted={message.replyTo.deleted}
           onClick={handleReplyPreviewClick}
-        >
-          <span className={styles.replyAuthor}>{message.replyTo.username}</span>
-          <span className={styles.replyText}>{message.replyTo.content}</span>
-        </button>
+        />
       ) : null}
 
       {(() => {
@@ -958,136 +758,25 @@ function MessageBubble({
       })()}
 
       <div className={styles.metaRow}>
-        <div className={styles.metaActions}>
-          {isOwnMessage &&
-          onEdit &&
-          message.type !== "VOICE" &&
-          message.type !== "IMAGE" &&
-          message.type !== "FILE" &&
-          message.type !== "VIDEO_NOTE" ? (
-            <button
-              type="button"
-              className={styles.metaActionIcon}
-              onClick={handleEditClick}
-              aria-label="Изменить сообщение"
-              title="Изменить сообщение"
-            >
-              <PenLine size={15} strokeWidth={2.1} aria-hidden />
-            </button>
-          ) : null}
-          {canDeleteThisMessage ? (
-            <button
-              type="button"
-              className={styles.metaActionIcon}
-              onClick={handleDeleteClick}
-              aria-label="Удалить сообщение"
-              title="Удалить сообщение"
-            >
-              <Trash2 size={15} strokeWidth={2.1} aria-hidden />
-            </button>
-          ) : null}
-        </div>
-
         <div className={styles.metaRowTrailing}>
-          {onToggleReaction ? (
-            <div className={styles.reactionAnchor}>
-              {showReactionPlusButton ? (
-                <button
-                  type="button"
-                  className={styles.reactionTrigger}
-                  data-bubble-control
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={handleReactionPickerToggle}
-                  aria-label="Добавить реакцию"
-                  title="Добавить реакцию"
-                >
-                  +
-                </button>
-              ) : null}
-              <AnimatePresence>
-                {isReactionPickerOpen ? (
-                  <>
-                    <motion.button
-                      key="reaction-overlay"
-                      type="button"
-                      data-app-overlay
-                      className={styles.reactionOverlay}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.16, ease: "easeOut" }}
-                      onClick={handleReactionPickerClose}
-                      aria-label="Закрыть панель реакций"
-                    />
-                    <motion.div
-                      key="reaction-picker"
-                      className={styles.reactionPicker}
-                      initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 420,
-                        damping: 28,
-                        mass: 0.72,
-                      }}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      {REACTION_OPTIONS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className={styles.emojiButton}
-                          onClick={(event) => handleReactionClick(event, emoji)}
-                          aria-label={`Реакция ${emoji}`}
-                        >
-                          {renderReactionPickerOption(emoji)}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                ) : null}
-              </AnimatePresence>
-            </div>
-          ) : null}
           <span className={styles.date}>
             {formattedDate}
-            {message.isEdited ? " · изменено" : ""}
+            {message.isEdited ? ` · ${tShared("edited")}` : ""}
           </span>
         </div>
       </div>
 
-      {reactionGroups.length > 0 ? (
-        <div className={reactionsClassName}>
-          {reactionGroups.map((reaction) => (
-            <button
-              key={reaction.emoji}
-              type="button"
-              className={`${styles.reactionBadge} ${reaction.reactedByMe ? styles.reactionBadgeActive : ""}`}
-              onClick={(event) => handleReactionClick(event, reaction.emoji)}
-              aria-label={`Реакция ${reaction.emoji} (${reaction.count})`}
-            >
-              {reaction.emoji}
-              {reaction.latestUserId ? (
-                <AvatarWithFallback
-                  src={resolveReactionAvatarUrl?.(reaction.latestUserId)}
-                  initials={getInitials(
-                    resolveReactionUserLabel?.(reaction.latestUserId) ?? "U",
-                  )}
-                  colorSeed={reaction.latestUserId}
-                  width={12}
-                  height={12}
-                  imageClassName={styles.reactionAvatarImg}
-                  fallbackClassName={styles.reactionAvatarFallback}
-                  fallbackTag="span"
-                  fallbackTint="onError"
-                />
-              ) : null}
-              <span>{reaction.count}</span>
-            </button>
-          ))}
-        </div>
+      {onToggleReaction || (message.reactions?.length ?? 0) > 0 ? (
+        <ReactionPills
+          reactions={message.reactions ?? []}
+          currentUserId={currentUserId}
+          resolveUser={(userId) => ({
+            avatarSrc: resolveReactionAvatarUrl?.(userId),
+            label: resolveReactionUserLabel?.(userId) ?? "",
+          })}
+          onToggle={(emoji) => onToggleReaction?.(message, emoji)}
+          align={isOwnMessage ? "start" : "end"}
+        />
       ) : null}
 
       {isOwnMessage && showReadReceipt ? (
@@ -1137,24 +826,34 @@ function MessageBubble({
     </>
   );
 
+  const menu = menuRect ? (
+    <MessageActionMenu
+      anchorRect={menuRect}
+      reactions={CHAT_REACTIONS}
+      myReactions={myReactions}
+      onReact={(emoji) => onToggleReaction?.(message, emoji)}
+      onReply={onReply ? () => onReply(message) : undefined}
+      copyText={copyText || undefined}
+      onEdit={canEditThisMessage ? handleEditClick : undefined}
+      onDelete={canDeleteThisMessage ? handleDeleteClick : undefined}
+      onClose={closeMenu}
+    />
+  ) : null;
+
   if (isOwnMessage) {
     return (
-      <article
-        className={bubbleClassName}
-        data-reaction-picker-open={reactionPickerOpen ? "" : undefined}
-        {...interactiveBubbleProps}
-      >
-        {bubbleBody}
-      </article>
+      <>
+        <article className={bubbleClassName} {...interactiveBubbleProps}>
+          {bubbleBody}
+        </article>
+        {menu}
+      </>
     );
   }
 
   if (showAvatar) {
     return (
-      <article
-        className={styles.row}
-        data-reaction-picker-open={reactionPickerOpen ? "" : undefined}
-      >
+      <article className={styles.row}>
         <button
           type="button"
           className={styles.avatarBtn}
@@ -1176,18 +875,18 @@ function MessageBubble({
         <div className={bubbleClassName} {...interactiveBubbleProps}>
           {bubbleBody}
         </div>
+        {menu}
       </article>
     );
   }
 
   return (
-    <article
-      className={bubbleClassName}
-      data-reaction-picker-open={reactionPickerOpen ? "" : undefined}
-      {...interactiveBubbleProps}
-    >
-      {bubbleBody}
-    </article>
+    <>
+      <article className={bubbleClassName} {...interactiveBubbleProps}>
+        {bubbleBody}
+      </article>
+      {menu}
+    </>
   );
 }
 

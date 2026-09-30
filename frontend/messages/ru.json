@@ -516,5 +516,27 @@
       "invalid": "Приглашение недействительно или устарело",
       "toList": "К комнатам"
     }
+  },
+  "chatShared": {
+    "reply": "Ответить",
+    "copy": "Копировать",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "copied": "Скопировано",
+    "replyingTo": "Ответ для {name}",
+    "cancelReply": "Отменить ответ",
+    "messageDeleted": "Сообщение удалено",
+    "previewSticker": "Стикер",
+    "previewPhoto": "Фото",
+    "previewVoice": "Голосовое",
+    "previewVideoNote": "Видеоовечка",
+    "previewFile": "Файл",
+    "messageMenu": "Действия с сообщением",
+    "closeMenu": "Закрыть меню",
+    "reactionAria": "Реакция {emoji}, {count}",
+    "quoteOriginalLoading": "Ищем сообщение…",
+    "quoteOriginalNotFound": "Не удалось найти исходное сообщение",
+    "reactedBy": "Реакция {emoji}",
+    "edited": "изменено"
   }
 }

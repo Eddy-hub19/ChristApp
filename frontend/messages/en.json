@@ -516,5 +516,27 @@
       "invalid": "This invite is invalid or expired",
       "toList": "Back to rooms"
     }
+  },
+  "chatShared": {
+    "reply": "Reply",
+    "copy": "Copy",
+    "edit": "Edit",
+    "delete": "Delete",
+    "copied": "Copied",
+    "replyingTo": "Replying to {name}",
+    "cancelReply": "Cancel reply",
+    "messageDeleted": "Message deleted",
+    "previewSticker": "Sticker",
+    "previewPhoto": "Photo",
+    "previewVoice": "Voice message",
+    "previewVideoNote": "Video sheep",
+    "previewFile": "File",
+    "messageMenu": "Message actions",
+    "closeMenu": "Close menu",
+    "reactionAria": "Reaction {emoji}, {count}",
+    "quoteOriginalLoading": "Looking for the message…",
+    "quoteOriginalNotFound": "Couldn't find the original message",
+    "reactedBy": "Reaction {emoji}",
+    "edited": "edited"
   }
 }

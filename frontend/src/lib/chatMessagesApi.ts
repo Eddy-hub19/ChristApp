@@ -47,3 +47,39 @@ export async function fetchRoomMessagesOrThrow({
     throw new Error("История комнаты пришла в неверном формате");
   }
 }
+
+type FetchOlderRoomMessagesParams = {
+  token: string;
+  roomId: string;
+  /** Повідомлення, старіше за яке треба дозавантажити (найстаріше з уже показаних). */
+  beforeId: string;
+  /** Догрузити історію щонайменше до цього повідомлення (оригінал цитати). */
+  untilId?: string;
+};
+
+/** Старша частина історії кімнати — для переходу до цитати, якої ще немає у списку. */
+export async function fetchOlderRoomMessages({
+  token,
+  roomId,
+  beforeId,
+  untilId,
+}: FetchOlderRoomMessagesParams) {
+  const query = new URLSearchParams({ roomId, beforeId });
+  if (untilId) query.set("untilId", untilId);
+  query.set("limit", "300");
+  const response = await apiFetch(`${API_URL}/messages/room/older?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Не удалось догрузить историю (${response.status})`);
+  }
+  const parsed = (await response.json()) as {
+    messages?: Array<Record<string, unknown>>;
+    hasMore?: boolean;
+  };
+  return {
+    messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+    hasMore: Boolean(parsed.hasMore),
+  };
+}
