@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import Hls from "hls.js";
+import { HLS_CONFIG, HLS_MAX_RECOVERY_ATTEMPTS } from "@/lib/hlsConfig";
 import type { PlayerAdapterHandle, PlayerAdapterProps } from "./types";
 import { useSyncEngine, type SyncDriver, type SyncPlaybackState } from "./useSyncEngine";
 import styles from "../CinemaHall.module.scss";
@@ -100,11 +101,28 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
       if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = url;
       } else if (Hls.isSupported()) {
-        const hls = new Hls();
+        const hls = new Hls(HLS_CONFIG);
+        let recoveries = 0;
         hls.loadSource(url);
         hls.attachMedia(video);
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+          recoveries = 0;
+        });
         hls.on(Hls.Events.ERROR, (_evt, data) => {
           if (!data.fatal) return;
+          // Спершу пробуємо відновитись (обмежену кількість разів, щоб не крутитись вічно)
+          if (recoveries < HLS_MAX_RECOVERY_ATTEMPTS) {
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              recoveries++;
+              hls.recoverMediaError();
+              return;
+            }
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.response?.code !== 403) {
+              recoveries++;
+              hls.startLoad();
+              return;
+            }
+          }
           // hls.js фетчить маніфест/сегменти сам (XHR) — на відміну від нативного <video src>,
           // якому CORS для простого відтворення не потрібен. Відсутній/непрочитаний статус
           // (code 0 чи взагалі немає response) на мережевій помилці — типова ознака CORS-блоку

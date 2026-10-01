@@ -129,6 +129,7 @@ function uploadsRemotePatterns(): NonNullable<
       pathname: "/uploads/**",
     },
     { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
+    { protocol: "https", hostname: "image.tmdb.org", pathname: "/t/p/**" },
   ];
 
   const apiUrl =

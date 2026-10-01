@@ -1,0 +1,309 @@
+/* Каталог фільмів (TMDB) і сторінка фільму з iframe-плеєром. Токени беруться з поточної теми. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 16px calc(112px + env(safe-area-inset-bottom, 0px));
+  color: var(--foreground);
+
+  @media (min-width: 768px) {
+    padding-bottom: 24px;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pageIcon {
+  display: inline-flex;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 22px;
+}
+
+.backLink {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.hint,
+.errorText {
+  margin: 12px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.errorText {
+  color: #d9534f;
+}
+
+// ================= ПОШУК =================
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  min-height: 46px;
+  border-radius: 14px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 16px; // менше 16px — iOS зумить поле при фокусі
+  }
+}
+
+.grid {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cardTitle {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.cardYear {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.poster {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.posterImg {
+  object-fit: cover;
+}
+
+.posterEmpty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+// ================= ПЛЕЄР =================
+
+.playerBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.serverTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.serverTab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.serverTabActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #2e2c2c;
+  font-weight: 600;
+}
+
+.playerFrame {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; // 16:9
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.playerIframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.playerLoader {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  animation: spin 0.9s linear infinite;
+}
+
+.playerHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+// ================= ДЕТАЛІ =================
+
+.details {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.detailsPoster {
+  flex: 0 0 34%;
+  max-width: 220px;
+}
+
+.detailsText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.movieTitle {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.tagline {
+  margin: 0;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 12px;
+  }
+}
+
+.overview {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+// ================= SKELETON =================
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    color-mix(in srgb, var(--surface) 60%, var(--foreground) 10%) 50%,
+    var(--surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skelLine {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.skelShort {
+  width: 40%;
+}
+
+.skelTitle {
+  display: block;
+  height: 26px;
+  width: 70%;
+  border-radius: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .spinner {
+    animation: none;
+  }
+}
