@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import createSocket from "socket.io-client";
@@ -14,6 +15,7 @@ import { getDirectApiOrigin } from "@/lib/apiBase";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { usePathname } from "@/i18n/navigation";
+import { getCinemaSessionActive, subscribeCinemaSession } from "@/lib/cinemaSessionStore";
 
 const WS_URL = getDirectApiOrigin();
 type PresenceSocket = ReturnType<typeof createSocket>;
@@ -38,8 +40,14 @@ type PresenceSocketProviderProps = {
 
 const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
   const pathname = usePathname();
+  // Активна сесія «Кіношки» (зала або мініплеєр) тримає сокет і на /chat/<id>, інакше синхронізація обірветься.
+  const cinemaSessionActive = useSyncExternalStore(
+    subscribeCinemaSession,
+    getCinemaSessionActive,
+    () => false,
+  );
   const shouldUsePresenceSocket =
-    pathname === "/chat" || !pathname?.startsWith("/chat/");
+    cinemaSessionActive || pathname === "/chat" || !pathname?.startsWith("/chat/");
   const socketRef = useRef<PresenceSocket | null>(null);
   const currentTokenRef = useRef<string | null>(null);
   const [socket, setSocket] = useState<PresenceSocket | null>(null);

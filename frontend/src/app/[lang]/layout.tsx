@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain";
+import CinemaProvider from "@/components/Cinema/CinemaProvider";
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync";
 import HtmlLang from "@/components/HtmlLang/HtmlLang";
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket";
@@ -63,9 +64,11 @@ export default async function LangLayout({
         <PwaInstallPrompt />
         <PushAutoSync />
         <PresenceSocket>
-          <ThemeToggle />
-          <AdaptiveMain>{children}</AdaptiveMain>
-          <TabBar />
+          <CinemaProvider>
+            <ThemeToggle />
+            <AdaptiveMain>{children}</AdaptiveMain>
+            <TabBar />
+          </CinemaProvider>
         </PresenceSocket>
       </Providers>
     </NextIntlClientProvider>

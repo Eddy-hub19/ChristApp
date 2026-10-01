@@ -509,12 +509,25 @@
       "typingMany": "Кілька людей друкують…",
       "seenBy": "Переглянули: {names}",
       "seenByMore": "і ще {count}",
-      "reactedBy": "Відреагували: {names}"
+      "reactedBy": "Відреагували: {names}",
+      "pip": "Картинка в картинці"
     },
     "join": {
       "joining": "Заходимо в кімнату…",
       "invalid": "Запрошення недійсне або застаріло",
       "toList": "До кімнат"
+    },
+    "mini": {
+      "expand": "Повернутися до кімнати",
+      "close": "Вийти з перегляду",
+      "pause": "Пауза",
+      "play": "Продовжити",
+      "mute": "Вимкнути звук",
+      "unmute": "Увімкнути звук",
+      "newMessages": "Нових повідомлень: {count}",
+      "manualRunning": "Показ іде · {time}",
+      "manualPaused": "Пауза · {time}",
+      "manualCountdown": "Показ незабаром почнеться"
     }
   },
   "chatShared": {

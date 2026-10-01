@@ -266,11 +266,15 @@
   position: relative;
 }
 
+// Меню рендериться порталом у body (глобальний плеєр лежить над залою), тож змінні зали задаємо тут самі.
 .menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  z-index: 20;
+  --hall-line: rgba(255, 236, 205, 0.1);
+  --hall-text: #f4eee6;
+  --hall-surface-strong: rgba(255, 255, 255, 0.08);
+  --hall-danger: #ff6b6b;
+
+  position: fixed;
+  z-index: 330;
   min-width: 220px;
   padding: 6px;
   display: flex;
@@ -1490,6 +1494,85 @@
       )
     );
   }
+}
+
+// ================= ГЛОБАЛЬНИЙ ПЛЕЄР (CinemaStageHost) =================
+//
+// Контейнер плеєра завжди position: fixed на рівні кореня й не розмонтовується між екранами.
+// У залі лежить поверх .screen сторінки (рамка приходить inline з JS), поза залою — мініплеєр у куті.
+
+.stageHost {
+  position: fixed;
+  background: #000;
+  overflow: hidden;
+}
+
+// Вище за .hall (300), але нижче за летючі реакції (320), псевдо-fullscreen (350) і шторки (400+).
+.stageHostHall {
+  z-index: 305;
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 1px rgba(255, 236, 205, 0.08),
+    0 0 40px rgba(255, 220, 170, 0.14);
+
+  @media (max-width: 767px) {
+    border-radius: 14px;
+  }
+}
+
+// Над навбаром (150), під шторками й діалогами.
+.stageHostMini {
+  z-index: 160;
+  border-radius: 14px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.14);
+  transition:
+    left 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    top 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.25s ease,
+    height 0.25s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.stageHostDragging {
+  transition: none;
+}
+
+// Реальний fullscreen: UA-стиль :fullscreen сам розтягує елемент, inline-рамки не задаємо.
+.stageHostFullscreen {
+  z-index: 350;
+  border-radius: 0;
+  box-shadow: none;
+
+  // На десктопі панелі керування під екраном більше немає — у fullscreen керує той самий оверлей, що й на телефоні.
+  .mobileStage {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+  }
+}
+
+// iPhone Safari: Fullscreen API немає — розгортаємо засобами CSS.
+.stageHostPseudo {
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+// Портрет без lock орієнтації: повертаємо контейнер на 90° і міняємо місцями ширину/висоту.
+.stageHostPseudoRotated {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
 }
 
 // ================= КРІСЛА =================

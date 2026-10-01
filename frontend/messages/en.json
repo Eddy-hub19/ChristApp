@@ -509,12 +509,25 @@
       "typingMany": "Several people are typing…",
       "seenBy": "Seen by: {names}",
       "seenByMore": "and {count} more",
-      "reactedBy": "Reacted: {names}"
+      "reactedBy": "Reacted: {names}",
+      "pip": "Picture in picture"
     },
     "join": {
       "joining": "Joining the room…",
       "invalid": "This invite is invalid or expired",
       "toList": "Back to rooms"
+    },
+    "mini": {
+      "expand": "Back to the room",
+      "close": "Stop watching",
+      "pause": "Pause",
+      "play": "Play",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "newMessages": "New messages: {count}",
+      "manualRunning": "Showing · {time}",
+      "manualPaused": "Paused · {time}",
+      "manualCountdown": "Showing starts soon"
     }
   },
   "chatShared": {

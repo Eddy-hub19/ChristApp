@@ -1,0 +1,146 @@
+/*
+ * Мініплеєр «Кіношки»: шар керування поверх плеєра (MiniOverlay) і плашка ручного режиму (ManualMiniBadge).
+ * Сам контейнер вікна (.stageHostMini) живе в CinemaHall.module.scss разом з іншими режимами плеєра.
+ */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px;
+  color: #f4eee6;
+  cursor: grab;
+  // Тап = «повернутись у кімнату», рух = перетягування; браузер не має перехоплювати жест під скрол.
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 38%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.6), transparent 42%);
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.topRow,
+.bottomRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #e6bf73;
+    outline-offset: 1px;
+  }
+}
+
+// Індикатор нових повідомлень на кнопці «розгорнути».
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #fff;
+  background: #e5484d;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+// ================= Плашка ручного режиму =================
+
+.manualBadge {
+  position: fixed;
+  z-index: 160;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(320px, calc(100vw - 16px));
+  padding: 4px 4px 4px 6px;
+  border-radius: 999px;
+  color: #f4eee6;
+  background: rgba(20, 17, 24, 0.92);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 236, 205, 0.14);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.manualOpen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #e6bf73;
+  }
+}
+
+.manualText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.manualTitle {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

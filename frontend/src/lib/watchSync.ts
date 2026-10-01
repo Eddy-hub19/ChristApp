@@ -231,3 +231,6 @@ export function formatPlaybackTime(totalSec: number): string {
   const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
   return `${h > 0 ? `${h}:` : ""}${mm}:${String(s).padStart(2, "0")}`;
 }
+
+/** window-подія: CinemaProvider отримав свіжий стан кімнати після повернення з фону — плеєри мають догнати хоста. */
+export const CINEMA_RESYNCED_EVENT = "cinema:resynced";

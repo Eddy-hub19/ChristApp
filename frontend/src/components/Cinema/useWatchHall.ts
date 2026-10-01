@@ -81,6 +81,7 @@ export type HallEvent =
 
 const CLOCK_RESYNC_MS = 60_000;
 const JOIN_RETRY_MS = 2_500;
+const RESYNC_ACK_MS = 4_000;
 /** Той самий ліміт, що й у backend/src/watch-party/watch-party.gateway.ts (RateLimiter для watch:reaction). */
 const REACTION_RATE_LIMIT = 6;
 const REACTION_RATE_WINDOW_MS = 3_000;
@@ -88,8 +89,9 @@ const REACTION_RATE_WINDOW_MS = 3_000;
 /**
  * Стан зали «Кіношки» поверх спільного сокета застосунку: вхід/перепідключення,
  * єдиний стан плеєра з сервера, учасники, присутність, чат і реакції.
+ * `roomId === null` — зали немає (глобальний CinemaProvider без активної кімнати): хук спить.
  */
-export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => void) {
+export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent) => void) {
   const { socket, isConnected } = usePresenceSocket();
   const clock = useMemo(() => new ServerClock(), []);
 
@@ -108,7 +110,25 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   /** Збільшується, щоб повторно зайти в залу (напр. щойно прийняли запрошення). */
   const [joinEpoch, setJoinEpoch] = useState(0);
 
+  // Зміна кімнати: скидаємо все, що належало попередній (раніше це робив `key={roomId}` на сторінці).
+  const [seenRoomId, setSeenRoomId] = useState(roomId);
+  if (seenRoomId !== roomId) {
+    setSeenRoomId(roomId);
+    setStatus("connecting");
+    setRoomTitle("");
+    setInviteToken(null);
+    setState(null);
+    setMembers([]);
+    setPresentIds(new Set());
+    setMessages([]);
+    setReactionOptions([]);
+    setTypingUserIds(new Set());
+    setSuggestions([]);
+  }
+
   const stateRef = useRef<WatchState | null>(null);
+  /** Повторний вхід у залу без `watch:leave` — після повернення з фону (див. `resync`). */
+  const resyncRef = useRef<(() => void) | null>(null);
   const reactionListeners = useRef(new Set<(r: HallReaction) => void>());
   /** Автоприховування чужого "друкує…", якщо не прийшло явне isTyping:false (напр. клієнт впав). */
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -140,7 +160,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   );
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket || !isConnected || !roomId) return;
+    stateRef.current = null;
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     // Той самий Map упродовж усього життя компонента — читаємо на старті ефекту,
@@ -262,6 +283,34 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     socket.on("watch:readUpdated", onReadUpdated);
     socket.on("watch:userTyping", onUserTyping);
 
+    const handleJoinAck = (res: JoinAck) => {
+      if (disposed) return;
+      if (!res.ok) {
+        if (res.code === "INVITED") {
+          setRoomTitle(res.title ?? "");
+          setStatus("invited");
+        } else if (res.code === "FORBIDDEN") {
+          setStatus("forbidden");
+        } else if (res.code === "NOT_FOUND") {
+          setStatus("notFound");
+        } else {
+          retryTimer = setTimeout(join, JOIN_RETRY_MS);
+        }
+        return;
+      }
+      setRoomTitle(res.room.title);
+      setInviteToken(res.room.inviteToken);
+      setMembers(res.members);
+      setPresentIds(new Set(res.presentUserIds));
+      setMessages(res.messages);
+      setReactionOptions(res.reactions);
+      setNotificationsMutedState(res.notificationsMuted);
+      // Перепідключення: стан сервера — істина, навіть якщо його версія «старша» (рестарт).
+      stateRef.current = null;
+      applyState(res.state);
+      setStatus("ready");
+    };
+
     const join = () => {
       void emitWithAck<JoinAck>(socket, "watch:join", { roomId }, 10_000).then((res) => {
         if (disposed) return;
@@ -269,30 +318,23 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
           retryTimer = setTimeout(join, JOIN_RETRY_MS);
           return;
         }
-        if (!res.ok) {
-          if (res.code === "INVITED") {
-            setRoomTitle(res.title ?? "");
-            setStatus("invited");
-          } else if (res.code === "FORBIDDEN") {
-            setStatus("forbidden");
-          } else if (res.code === "NOT_FOUND") {
-            setStatus("notFound");
-          } else {
-            retryTimer = setTimeout(join, JOIN_RETRY_MS);
-          }
+        handleJoinAck(res);
+      });
+    };
+
+    // Повернення з фону: iOS міг тихо вбити сокет (connected лишається true, але пакети не йдуть).
+    // Короткий ack-таймаут → якщо мовчить, примусово перепідключаємось; сам ефект тоді зайде знову.
+    resyncRef.current = () => {
+      clearTimeout(retryTimer);
+      void clock.sync(socket);
+      void emitWithAck<JoinAck>(socket, "watch:join", { roomId }, RESYNC_ACK_MS).then((res) => {
+        if (disposed) return;
+        if (!res) {
+          socket.disconnect();
+          socket.connect();
           return;
         }
-        setRoomTitle(res.room.title);
-        setInviteToken(res.room.inviteToken);
-        setMembers(res.members);
-        setPresentIds(new Set(res.presentUserIds));
-        setMessages(res.messages);
-        setReactionOptions(res.reactions);
-        setNotificationsMutedState(res.notificationsMuted);
-        // Перепідключення: стан сервера — істина, навіть якщо його версія «старша» (рестарт).
-        stateRef.current = null;
-        applyState(res.state);
-        setStatus("ready");
+        handleJoinAck(res);
       });
     };
 
@@ -302,6 +344,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
 
     return () => {
       disposed = true;
+      resyncRef.current = null;
       clearTimeout(retryTimer);
       clearInterval(clockTimer);
       socket.off("watch:state", onState);
@@ -313,6 +356,8 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
       socket.off("watch:roomDeleted", onDeleted);
       socket.off("watch:removedFromRoom", onRemoved);
       socket.off("watch:messageReactions", onMessageReactions);
+      socket.off("watch:messageDeleted", onMessageDeleted);
+      socket.off("watch:messageEdited", onMessageEdited);
       socket.off("watch:readUpdated", onReadUpdated);
       socket.off("watch:userTyping", onUserTyping);
       for (const timer of typingTimersMap.values()) clearTimeout(timer);
@@ -539,6 +584,11 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
     [socket, roomId],
   );
 
+  /** Перезапитати стан кімнати (повернення з фону): без `watch:leave`, присутність не блимає. */
+  const resync = useCallback(() => {
+    resyncRef.current?.();
+  }, []);
+
   const rejoin = useCallback(() => {
     setStatus("connecting");
     setJoinEpoch((n) => n + 1);
@@ -547,6 +597,7 @@ export function useWatchHall(roomId: string, onEvent?: (event: HallEvent) => voi
   return {
     status,
     rejoin,
+    resync,
     isConnected,
     roomTitle,
     inviteToken,
