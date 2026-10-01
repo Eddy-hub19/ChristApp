@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
-import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Maximize, Minimize, Pause, PictureInPicture2, Play, Volume2, VolumeX } from "lucide-react";
 import { formatPlaybackTime } from "@/lib/watchSync";
 import type { YouTubeStageHandle } from "./YouTubeStage";
 import styles from "./CinemaHall.module.scss";
@@ -20,6 +20,8 @@ type MobileStageControlsProps = {
   onToggleMute: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  /** Задано лише коли системний PiP справді доступний (FILE/HLS + підтримка браузера). */
+  onTogglePip?: () => void;
 };
 
 /**
@@ -40,6 +42,7 @@ export default function MobileStageControls({
   onToggleMute,
   isFullscreen,
   onToggleFullscreen,
+  onTogglePip,
 }: MobileStageControlsProps) {
   const t = useTranslations("cinema.hall");
   const [time, setTime] = useState(0);
@@ -135,6 +138,21 @@ export default function MobileStageControls({
         >
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
+
+        {onTogglePip ? (
+          <button
+            type="button"
+            className={styles.mobileIconButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              show();
+              onTogglePip();
+            }}
+            aria-label={t("pip")}
+          >
+            <PictureInPicture2 size={18} />
+          </button>
+        ) : null}
 
         <button
           type="button"

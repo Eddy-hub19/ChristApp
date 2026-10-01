@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import {
+  CINEMA_RESYNCED_EVENT,
   DEVICE_TAG,
   DRIFT_SEEK_THRESHOLD_SEC,
   SeekGovernor,
@@ -184,10 +185,14 @@ export function useSyncEngine(
       if (document.visibilityState === "visible") syncStep(true);
     };
     document.addEventListener("visibilitychange", onVisible);
+    // CinemaProvider: після повернення з фону прийшов свіжий стан кімнати — догнати хоста негайно.
+    const onResynced = () => syncStep(true);
+    window.addEventListener(CINEMA_RESYNCED_EVENT, onResynced);
     return () => {
       clearInterval(tick);
       clearInterval(heartbeat);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(CINEMA_RESYNCED_EVENT, onResynced);
     };
   }, [syncStep, driverRef, loadedVideoRef]);
 

@@ -34,6 +34,12 @@ export type PlayerAdapterHandle = {
   localPause(): number;
   localSeek(sec: number): void;
   unmuteAfterGesture(): void;
+  /**
+   * Системний «картинка в картинці». Є лише в адаптерів із власним <video> (FILE/HLS):
+   * YouTube/Vimeo/Dailymotion/iframe не дозволяють PiP зі свого плеєра — і ми його не обходимо.
+   */
+  isPipSupported?(): boolean;
+  togglePip?(): void;
 };
 
 export type PlayerAdapterProps = {

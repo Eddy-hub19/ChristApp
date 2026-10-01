@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -32,40 +33,22 @@ import {
   watchUserName,
 } from "@/lib/queries/watchRoomsQueries";
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
-import { expectedPosition, AUTO_SYNC_PROVIDERS, type ServerClock, type WatchState } from "@/lib/watchSync";
-import FloatingReactions, { type FloatingReactionsHandle } from "./FloatingReactions";
+import { AUTO_SYNC_PROVIDERS, type WatchState } from "@/lib/watchSync";
+import { useCinema, useCinemaRefs } from "./CinemaProvider";
+import FloatingReactions from "./FloatingReactions";
 import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
 import ManualStage from "./ManualStage";
 import ManualSyncControls from "./ManualSyncControls";
-import MobileStageControls from "./MobileStageControls";
 import ParticipantsSheet from "./ParticipantsSheet";
 import SeatsRow from "./SeatsRow";
 import Sheet from "./Sheet";
 import VideoLinkField, { type PickedVideo } from "./VideoLinkField";
 import YouTubePicker from "./YouTubePicker";
 import WatchChat from "./WatchChat";
-import YouTubeStage from "./YouTubeStage";
-import VimeoStage from "./players/VimeoStage";
-import DailymotionStage from "./players/DailymotionStage";
-import FileStage from "./players/FileStage";
-import type { PlayerAdapterHandle, StageStatus } from "./players/types";
-import { useWatchHall, type HallEvent, type HallMember } from "./useWatchHall";
+import type { HallEvent, HallMember } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
-
-const VOLUME_KEY = "cinema:volume";
-
-function readStoredVolume(): number {
-  try {
-    const v = Number(window.localStorage.getItem(VOLUME_KEY));
-    return Number.isFinite(v) && v >= 0 && v <= 100 && window.localStorage.getItem(VOLUME_KEY) !== null
-      ? v
-      : 80;
-  } catch {
-    return 80;
-  }
-}
 
 type Dialog =
   | "invite"
@@ -119,30 +102,40 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     [me, showToast, t],
   );
 
-  const hall = useWatchHall(roomId, onHallEvent);
+  // Плеєр і стан кімнати живуть у глобальному CinemaProvider і переживають перехід на інші екрани
+  // (там плеєр згортається в мініплеєр). Ця сторінка — лише «вʼю» над ним.
+  const cinema = useCinema();
+  const { stageRef, reactionsRef } = useCinemaRefs();
+  const { activate, setEventHandler, setSlotEl } = cinema;
+  useEffect(() => {
+    activate(roomId);
+  }, [activate, roomId]);
+  useEffect(() => {
+    setEventHandler(onHallEvent);
+    return () => setEventHandler(null);
+  }, [setEventHandler, onHallEvent]);
+
+  const isActiveRoom = cinema.activeRoomId === roomId;
+  const hall = cinema.hall;
   useEffect(() => {
     membersRef.current = hall.members;
   }, [hall.members]);
 
-  const [entered, setEntered] = useState(false);
-  // Зала рендериться лише на клієнті після входу через сокет, тож читати localStorage тут безпечно.
-  const [volume, setVolume] = useState(() =>
-    typeof window === "undefined" ? 80 : readStoredVolume(),
-  );
-  const [muted, setMuted] = useState(false);
-  const [stage, setStage] = useState<StageStatus | null>(null);
+  const { entered, setEntered, volume, muted, stage, hostPlay, hostPause, hostSeek } = cinema;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [pendingVideo, setPendingVideo] = useState<PickedVideo | null>(null);
+  // Повноекранний режим для РУЧНОГО показу (IFRAME/MANUAL): розгортаємо весь театр. Для плеєрів з автосинхронізацією
+  // fullscreen належить глобальному плеєру (CinemaProvider) — він живе поза цією сторінкою.
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
   // iPhone Safari: немає fullscreen для довільних елементів і немає screen.orientation.lock,
   // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
   const [pseudoRotated, setPseudoRotated] = useState(false);
 
-  const stageRef = useRef<PlayerAdapterHandle | null>(null);
   const theaterRef = useRef<HTMLDivElement>(null);
-  const reactionsRef = useRef<FloatingReactionsHandle>(null);
 
   // Зала завжди «темна» і на весь екран: ховаємо прокрутку сторінки під нею.
   useEffect(() => {
@@ -154,9 +147,22 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   // Той самий хук, що й у /chat: зала підлаштовується під --vv-height, плеєр лишається зверху.
   useKeyboardInset();
 
+  // Меню рендеримо порталом у body: глобальний плеєр лежить над залою (z-index), і випадаюче меню,
+  // що перекриває екран, інакше опинилось би під відео.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const place = () => {
+      const r = menuButtonRef.current?.getBoundingClientRect();
+      if (r) setMenuPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [menuOpen]);
+
   useEffect(() => {
     const onChange = () => {
-      const fs = Boolean(document.fullscreenElement);
+      const fs = document.fullscreenElement !== null && document.fullscreenElement === theaterRef.current;
       setIsFullscreen(fs);
       if (!fs) {
         try {
@@ -188,27 +194,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   );
   const hostName = watchUserName(host);
 
-  const changeVolume = (v: number) => {
-    setVolume(v);
-    setMuted(v === 0);
-    if (stage?.autoplayMuted && v > 0) stageRef.current?.unmuteAfterGesture();
-    try {
-      window.localStorage.setItem(VOLUME_KEY, String(v));
-    } catch {
-      // приватний режим — гучність просто не запам'ятається
-    }
-  };
+  const { changeVolume, toggleMute } = cinema;
 
-  const toggleMute = () => {
-    if (stage?.autoplayMuted) {
-      stageRef.current?.unmuteAfterGesture();
-      setMuted(false);
-      return;
-    }
-    setMuted((m) => !m);
-  };
-
-  const toggleFullscreen = async () => {
+  const toggleManualFullscreen = async () => {
     const el = theaterRef.current;
     if (!el) return;
     if (document.fullscreenElement) {
@@ -236,34 +224,6 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     }
   };
 
-  // Натискання хоста на play/scrubber ДО того, як плеєр змонтований (ще не було жесту
-  // для автоплею) — саме є тим жестом: монтуємо плеєр і одразу шлемо команду з позиції
-  // з серверного стану (stageRef ще порожній). Плеєр, щойно змонтувавшись, сам підхопить
-  // щойно надіслану позицію — той самий шлях, яким і глядач приєднується до вже активного показу.
-  const hostPlay = () => {
-    if (!entered) setEntered(true);
-    const pos = stageRef.current?.localPlay() ?? state?.positionSec ?? 0;
-    hall.commands.play(pos);
-  };
-  const hostPause = () => {
-    if (!entered) setEntered(true);
-    const pos =
-      stageRef.current?.localPause() ?? (state ? expectedPosition(state, hall.clock.now()) : 0);
-    hall.commands.pause(pos);
-  };
-  const hostSeek = (sec: number) => {
-    if (!entered) setEntered(true);
-    stageRef.current?.localSeek(sec);
-    hall.commands.seek(sec);
-  };
-  const onHostPlayerAction = useCallback(
-    (action: { type: "play" | "pause"; positionSec: number }) => {
-      if (action.type === "play") hall.commands.play(action.positionSec);
-      else hall.commands.pause(action.positionSec);
-    },
-    [hall.commands],
-  );
-
   // Свій емодзі летить одразу, з точки натиснутої кнопки — не чекаючи мережі. sendReaction
   // повертає, чи справді пішов emit (клієнтський рейт-ліміт дзеркалить серверний), щоб
   // FloatingReactions не чекав відлуння для тапів, які сервер і так не побачить.
@@ -272,7 +232,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
       const sent = hall.sendReaction(emoji);
       reactionsRef.current?.spawnLocal(emoji, rect, sent);
     },
-    [hall],
+    [hall, reactionsRef],
   );
 
   const copyLink = async () => {
@@ -290,6 +250,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     setDialog(null);
     try {
       await leaveWatchRoom(roomId);
+      cinema.deactivate();
       router.replace("/cinema");
     } catch {
       showToast(t("errors.generic"));
@@ -300,6 +261,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
     setDialog(null);
     try {
       await deleteWatchRoom(roomId);
+      cinema.deactivate();
       router.replace("/cinema");
     } catch {
       showToast(t("errors.generic"));
@@ -321,11 +283,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   // ================= НЕ В ЗАЛІ =================
 
-  if (hall.status !== "ready" || !state) {
+  if (!isActiveRoom || hall.status !== "ready" || !state) {
     return (
       <div className={styles.hall}>
         <div className={styles.hallMessage}>
-          {hall.status === "connecting" ? (
+          {!isActiveRoom || hall.status === "connecting" ? (
             <>
               <Loader2 size={28} className={styles.spin} aria-hidden />
               <p>{t("hall.connecting")}</p>
@@ -354,6 +316,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                   className={styles.hallGhost}
                   onClick={async () => {
                     await declineWatchInvite(roomId).catch(() => undefined);
+                    cinema.deactivate();
                     router.replace("/cinema");
                   }}
                 >
@@ -430,14 +393,18 @@ export default function WatchHall({ roomId }: { roomId: string }) {
             className={styles.hallIconButton}
             aria-label={t("hall.menu")}
             aria-expanded={menuOpen}
+            ref={menuButtonRef}
             onClick={() => setMenuOpen((v) => !v)}
           >
             <MoreVertical size={20} />
           </button>
+        {typeof document !== "undefined"
+          ? createPortal(
           <AnimatePresence>
-            {menuOpen ? (
+            {menuOpen && menuPos ? (
               <motion.div
                 className={styles.menu}
+                style={{ top: menuPos.top, right: menuPos.right }}
                 role="menu"
                 initial={{ opacity: 0, y: -6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -491,6 +458,8 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               </motion.div>
             ) : null}
           </AnimatePresence>
+          , document.body)
+          : null}
         </div>
       </header>
 
@@ -541,28 +510,20 @@ export default function WatchHall({ roomId }: { roomId: string }) {
               <span className={styles.curtainLeft} />
               <span className={styles.curtainRight} />
             </div>
-            <FloatingReactions
-              ref={reactionsRef}
-              subscribe={hall.subscribeReactions}
-              currentUserId={me}
-              members={hall.members}
-            />
+            {/* Коли плеєр глобальний, літаючі емодзі малює він (щоб їх було видно й у fullscreen). */}
+            {cinema.playerHosted ? null : (
+              <FloatingReactions
+                ref={reactionsRef}
+                subscribe={hall.subscribeReactions}
+                currentUserId={me}
+                members={hall.members}
+              />
+            )}
 
             <div className={styles.screenGlow}>
-              <div className={styles.screen}>
-                {entered && isAutoSync ? (
-                  <StageForProvider
-                    stageRef={stageRef}
-                    state={state}
-                    clock={hall.clock}
-                    isHost={isHost}
-                    volume={volume}
-                    muted={muted}
-                    onStatus={setStage}
-                    onHostPlayerAction={onHostPlayerAction}
-                    onHeartbeat={hall.commands.heartbeat}
-                  />
-                ) : entered ? (
+              {/* Для автосинхронних провайдерів плеєр — глобальний (CinemaProvider) і малюється поверх цього елемента. */}
+              <div ref={setSlotEl} className={styles.screen}>
+                {entered && isAutoSync ? null : entered ? (
                   // isAutoSync — вичерпний по WATCH_PROVIDERS, тож тут завжди IFRAME/MANUAL;
                   // явна перевірка лишень аби звузити тип для ManualStage, не для розгалуження логіки.
                   state.provider === "IFRAME" || state.provider === "MANUAL" ? (
@@ -595,20 +556,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     </span>
                   </button>
                 )}
-                {entered && isAutoSync ? (
-                  <MobileStageControls
-                    stageRef={stageRef}
-                    isHost={isHost}
-                    isPlaying={state.isPlaying}
-                    onPlay={hostPlay}
-                    onPause={hostPause}
-                    onSeek={hostSeek}
-                    muted={muted}
-                    onToggleMute={toggleMute}
-                    isFullscreen={isFullscreen || pseudoFullscreen}
-                    onToggleFullscreen={toggleFullscreen}
-                  />
-                ) : entered && state.manual ? (
+                {entered && isAutoSync ? null : entered && state.manual ? (
                   <ManualSyncControls
                     compact
                     manual={state.manual}
@@ -622,7 +570,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     onPause={hall.commands.manualPause}
                     onResume={hall.commands.manualResume}
                     isFullscreen={isFullscreen || pseudoFullscreen}
-                    onToggleFullscreen={toggleFullscreen}
+                    onToggleFullscreen={toggleManualFullscreen}
                   />
                 ) : null}
               </div>
@@ -672,8 +620,9 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 muted={muted}
                 onVolume={changeVolume}
                 onToggleMute={toggleMute}
-                isFullscreen={isFullscreen || pseudoFullscreen}
-                onToggleFullscreen={toggleFullscreen}
+                isFullscreen={cinema.isFullscreen}
+                onToggleFullscreen={() => void cinema.toggleFullscreen()}
+                onTogglePip={cinema.togglePip}
               />
             ) : entered && state.manual ? (
               <ManualSyncControls
@@ -688,7 +637,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 onPause={hall.commands.manualPause}
                 onResume={hall.commands.manualResume}
                 isFullscreen={isFullscreen || pseudoFullscreen}
-                onToggleFullscreen={toggleFullscreen}
+                onToggleFullscreen={toggleManualFullscreen}
               />
             ) : null}
           </div>
@@ -843,18 +792,6 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   );
 }
 
-type StageForProviderProps = {
-  stageRef: RefObject<PlayerAdapterHandle | null>;
-  state: WatchState;
-  clock: ServerClock;
-  isHost: boolean;
-  volume: number;
-  muted: boolean;
-  onStatus: (status: StageStatus) => void;
-  onHostPlayerAction: (action: { type: "play" | "pause"; positionSec: number }) => void;
-  onHeartbeat: (positionSec: number, isPlaying: boolean) => void;
-};
-
 /** Посилання на оригінал для пункту меню "Відкрити на …" — по-своєму для кожного провайдера. */
 function sourceUrlFor(state: WatchState): string {
   switch (state.provider) {
@@ -868,21 +805,6 @@ function sourceUrlFor(state: WatchState): string {
     case "IFRAME":
     case "MANUAL":
       return state.videoId;
-  }
-}
-
-/** Вибирає адаптер плеєра за `state.provider` — лише для провайдерів з повною синхронізацією. */
-function StageForProvider({ stageRef, ...props }: StageForProviderProps) {
-  switch (props.state.provider) {
-    case "VIMEO":
-      return <VimeoStage ref={stageRef} {...props} />;
-    case "DAILYMOTION":
-      return <DailymotionStage ref={stageRef} {...props} />;
-    case "FILE":
-      return <FileStage ref={stageRef} {...props} />;
-    case "YOUTUBE":
-    default:
-      return <YouTubeStage ref={stageRef} {...props} />;
   }
 }
 

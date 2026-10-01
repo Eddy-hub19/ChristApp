@@ -509,12 +509,25 @@
       "typingMany": "Несколько человек печатают…",
       "seenBy": "Просмотрели: {names}",
       "seenByMore": "и ещё {count}",
-      "reactedBy": "Отреагировали: {names}"
+      "reactedBy": "Отреагировали: {names}",
+      "pip": "Картинка в картинке"
     },
     "join": {
       "joining": "Заходим в комнату…",
       "invalid": "Приглашение недействительно или устарело",
       "toList": "К комнатам"
+    },
+    "mini": {
+      "expand": "Вернуться в комнату",
+      "close": "Выйти из просмотра",
+      "pause": "Пауза",
+      "play": "Продолжить",
+      "mute": "Выключить звук",
+      "unmute": "Включить звук",
+      "newMessages": "Новых сообщений: {count}",
+      "manualRunning": "Показ идёт · {time}",
+      "manualPaused": "Пауза · {time}",
+      "manualCountdown": "Показ скоро начнётся"
     }
   },
   "chatShared": {

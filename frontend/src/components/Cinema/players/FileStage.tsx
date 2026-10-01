@@ -14,6 +14,58 @@ function isHlsUrl(url: string): boolean {
   }
 }
 
+type WebkitVideo = HTMLVideoElement & {
+  webkitSupportsPresentationMode?: (mode: string) => boolean;
+  webkitSetPresentationMode?: (mode: string) => void;
+  webkitPresentationMode?: string;
+  autoPictureInPicture?: boolean;
+};
+
+/** Стандартний PiP (Chrome/Edge/Safari desktop) або presentation mode на iOS Safari. */
+function isPipSupported(video: HTMLVideoElement | null): boolean {
+  if (!video) return false;
+  const v = video as WebkitVideo;
+  if (typeof document !== "undefined" && document.pictureInPictureEnabled && !video.disablePictureInPicture) {
+    return typeof video.requestPictureInPicture === "function";
+  }
+  return Boolean(v.webkitSupportsPresentationMode?.("picture-in-picture"));
+}
+
+async function togglePip(video: HTMLVideoElement): Promise<void> {
+  const v = video as WebkitVideo;
+  try {
+    if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === "function") {
+      if (document.pictureInPictureElement === video) await document.exitPictureInPicture();
+      else await video.requestPictureInPicture();
+      return;
+    }
+    if (v.webkitSupportsPresentationMode?.("picture-in-picture")) {
+      v.webkitSetPresentationMode?.(
+        v.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture",
+      );
+    }
+  } catch {
+    // PiP відхилено браузером (немає жесту, вже в іншому PiP) — тихо ігноруємо
+  }
+}
+
+/**
+ * Автоматичний PiP при згортанні застосунку — там, де платформа це вміє: iOS Safari
+ * (`autoPictureInPicture`) і Chrome (media session `enterpictureinpicture`). Де не вміє — нічого не робимо.
+ */
+function enableAutoPip(video: HTMLVideoElement) {
+  const v = video as WebkitVideo;
+  if ("autoPictureInPicture" in v || isPipSupported(video)) v.autoPictureInPicture = true;
+  try {
+    navigator.mediaSession?.setActionHandler(
+      "enterpictureinpicture" as MediaSessionAction,
+      () => void togglePip(video),
+    );
+  } catch {
+    // старі браузери кидають на невідому дію — це нормально
+  }
+}
+
 /**
  * Прямі посилання на відеофайли: .mp4/.webm через нативний <video>, .m3u8 через hls.js там,
  * де немає нативної підтримки HLS (Safari її має, тому там hls.js не підключаємо взагалі).
@@ -90,6 +142,7 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
     const video = videoRef.current;
     if (!video) return;
     video.playsInline = true;
+    enableAutoPip(video);
     video.muted = muted || volume === 0;
     video.volume = Math.min(1, Math.max(0, volume / 100));
     attachSource(state.videoId);
@@ -139,6 +192,11 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
       hlsRef.current?.destroy();
       hlsRef.current = null;
       readyRef.current = false;
+      try {
+        navigator.mediaSession?.setActionHandler("enterpictureinpicture" as MediaSessionAction, null);
+      } catch {
+        // див. enableAutoPip
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -196,11 +254,16 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
     ref,
     () => ({
       getCurrentTime: () => videoRef.current?.currentTime ?? 0,
-      getDuration: () => videoRef.current?.duration ?? 0,
+      getDuration: () => driverRef.current?.getDuration() ?? 0,
       getLoadedFraction: () => driverRef.current?.getLoadedFraction() ?? 0,
       localPlay,
       localPause,
       localSeek,
+      isPipSupported: () => isPipSupported(videoRef.current),
+      togglePip: () => {
+        const video = videoRef.current;
+        if (video) void togglePip(video);
+      },
       unmuteAfterGesture: () => {
         const video = videoRef.current;
         if (!video) return;
@@ -216,7 +279,6 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
       ref={videoRef}
       className={styles.playerMount}
       controls={false}
-      disablePictureInPicture
       onContextMenu={(e) => e.preventDefault()}
     />
   );

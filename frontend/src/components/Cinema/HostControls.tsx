@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
-import { Crown, Maximize, Minimize, Pause, Play, Volume1, Volume2, VolumeX } from "lucide-react";
+import { Crown, Maximize, Minimize, Pause, PictureInPicture2, Play, Volume1, Volume2, VolumeX } from "lucide-react";
 import { formatPlaybackTime } from "@/lib/watchSync";
 import type { PlayerAdapterHandle } from "./players/types";
 import styles from "./CinemaHall.module.scss";
@@ -26,6 +26,8 @@ type HostControlsProps = {
   onToggleMute: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  /** Задано лише коли системний PiP справді доступний (FILE/HLS + підтримка браузера). */
+  onTogglePip?: () => void;
 };
 
 /**
@@ -48,6 +50,7 @@ export default function HostControls({
   onToggleMute,
   isFullscreen,
   onToggleFullscreen,
+  onTogglePip,
 }: HostControlsProps) {
   const t = useTranslations("cinema.hall");
   const [time, setTime] = useState(0);
@@ -168,6 +171,17 @@ export default function HostControls({
             aria-label={t("volume")}
           />
         </div>
+
+        {onTogglePip ? (
+          <button
+            type="button"
+            className={styles.hallIconButton}
+            onClick={onTogglePip}
+            aria-label={t("pip")}
+          >
+            <PictureInPicture2 size={18} />
+          </button>
+        ) : null}
 
         <button
           type="button"
