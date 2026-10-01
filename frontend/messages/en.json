@@ -554,5 +554,23 @@
     "editing": "Editing message",
     "cancelEdit": "Cancel editing",
     "deleteConfirm": "Delete this message?"
+  },
+  "movies": {
+    "title": "Movies",
+    "searchPlaceholder": "Search for a movie…",
+    "searchHint": "Type at least 2 characters to search.",
+    "searchError": "Couldn't search right now. Try again in a moment.",
+    "noResults": "Nothing found.",
+    "backToSearch": "Back to search",
+    "servers": "Servers",
+    "server": "Server {n}",
+    "playerLoading": "Loading player…",
+    "playerUnavailable": "This server isn't responding. Try another one.",
+    "playerHint": "If the video doesn't start, switch the server.",
+    "minutes": "{count} min",
+    "noOverview": "No description available.",
+    "notFound": "Movie not found.",
+    "loadError": "Couldn't load the movie.",
+    "retry": "Retry"
   }
 }
