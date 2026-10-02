@@ -12,6 +12,7 @@ import type { Server } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
 import { CHAT_REACTIONS } from 'src/common/chat-reactions';
+import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
 import {
   AUTO_SYNC_PROVIDERS,
   applyControlCommand,
@@ -1366,7 +1367,7 @@ export class WatchPartyService implements OnModuleDestroy {
             deleted: false,
             userId: original.userId,
             username: original.user.nickname?.trim() || original.user.username,
-            content: original.content,
+            content: stripLegacyReplyPrefix(original.content),
           }
         : { id: row.replyToId, deleted: true };
       return { ...row, replyTo };

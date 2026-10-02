@@ -36,6 +36,7 @@ import { Link } from "@/i18n/navigation";
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
@@ -397,7 +398,7 @@ function MessageBubble({
     !stickerPayload &&
     !parseVoiceMessageUrl(message.content);
   const canEditThisMessage = Boolean(isOwnMessage && onEdit && isPlainText);
-  const copyText = isPlainText ? message.content.trim() : "";
+  const copyText = isPlainText ? stripLegacyReplyPrefix(message.content).trim() : "";
 
   const currentUserId = currentUser?.id;
   const myReactions = useMemo(

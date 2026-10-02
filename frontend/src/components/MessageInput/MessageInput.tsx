@@ -16,6 +16,7 @@ import {
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
 import ReplyBanner from "@/components/ChatShared/ReplyBanner";
 import { replyPreviewText } from "@/components/ChatShared/replyPreview";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import styles from "@/components/MessageInput/MessageInput.module.scss";
 import Image from "next/image";
 import type { Message } from "@/types/message";
@@ -229,7 +230,8 @@ export default function MessageInput({
     syncedEditIdRef.current = editingMessage.id;
     setMode("text");
     setIsStickerPickerOpen(false);
-    setValue(editingMessage.content);
+    // У полі редагування — лише текст: старий префікс [[reply:…]] сюди не потрапляє.
+    setValue(stripLegacyReplyPrefix(editingMessage.content));
     requestAnimationFrame(() => {
       textareaRef.current?.focus({ preventScroll: true });
     });

@@ -11,6 +11,8 @@ import ReactionPills from "@/components/ChatShared/ReactionPills";
 import ReplyBanner from "@/components/ChatShared/ReplyBanner";
 import ReplyQuote from "@/components/ChatShared/ReplyQuote";
 import { HEART_REACTION } from "@/components/ChatShared/chatReactions";
+import { replyPreviewText } from "@/components/ChatShared/replyPreview";
+import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { useMessageGestures } from "@/components/ChatShared/useMessageGestures";
 import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
 import type { HallMember, HallMessage } from "./useWatchHall";
@@ -290,7 +292,7 @@ export default function WatchChat({
   const startEdit = (message: HallMessage) => {
     setReplyTarget(null);
     setEditing(message);
-    setDraft(message.content);
+    setDraft(stripLegacyReplyPrefix(message.content));
     inputRef.current?.focus();
   };
 
@@ -399,7 +401,7 @@ export default function WatchChat({
           <ReplyBanner
             mode={editing ? "edit" : "reply"}
             username={replyTarget ? watchUserName(replyTarget.user) : ""}
-            text={(editing ?? replyTarget)?.content.slice(0, 140) ?? ""}
+            text={replyPreviewText(tShared, { content: (editing ?? replyTarget)?.content ?? "" })}
             onCancel={editing ? cancelEdit : () => setReplyTarget(null)}
           />
         </div>
@@ -529,7 +531,7 @@ function WatchChatMessage({
           {m.replyTo ? (
             <ReplyQuote
               username={m.replyTo.deleted ? undefined : m.replyTo.username}
-              text={m.replyTo.deleted ? undefined : m.replyTo.content}
+              text={m.replyTo.deleted ? undefined : replyPreviewText(tShared, { content: m.replyTo.content })}
               deleted={m.replyTo.deleted}
               onClick={() => onQuoteClick(m.replyTo!.id)}
             />
@@ -581,7 +583,7 @@ function WatchChatMessage({
           myReactions={myReactions}
           onReact={onToggleReaction}
           onReply={onReply}
-          copyText={m.content}
+          copyText={stripLegacyReplyPrefix(m.content)}
           onEdit={mine ? onEdit : undefined}
           onDelete={mine ? onDelete : undefined}
           onClose={closeMenu}
