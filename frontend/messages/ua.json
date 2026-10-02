@@ -510,7 +510,10 @@
       "seenBy": "Переглянули: {names}",
       "seenByMore": "і ще {count}",
       "reactedBy": "Відреагували: {names}",
-      "pip": "Картинка в картинці"
+      "pip": "Картинка в картинці",
+      "quality": "Якість",
+      "qualityAuto": "Авто",
+      "pausedByHost": "Хост поставив на паузу"
     },
     "join": {
       "joining": "Заходимо в кімнату…",

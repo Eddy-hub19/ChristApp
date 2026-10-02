@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import Hls from "hls.js";
 import { HLS_CONFIG, HLS_MAX_RECOVERY_ATTEMPTS } from "@/lib/hlsConfig";
-import type { PlayerAdapterHandle, PlayerAdapterProps } from "./types";
+import type { PlayerAdapterHandle, PlayerAdapterProps, StageQuality } from "./types";
 import { useSyncEngine, type SyncDriver, type SyncPlaybackState } from "./useSyncEngine";
 import styles from "../CinemaHall.module.scss";
 
@@ -21,6 +21,18 @@ type WebkitVideo = HTMLVideoElement & {
   webkitPresentationMode?: string;
   autoPictureInPicture?: boolean;
 };
+
+/** Субтитрів у залі немає: вимикаємо всі текстові доріжки (нативний HLS у Safari вмикає їх сам за системними налаштуваннями). */
+function disableTextTracks(video: HTMLVideoElement) {
+  for (const track of Array.from(video.textTracks)) {
+    if (track.mode !== "disabled") track.mode = "disabled";
+  }
+}
+
+function levelLabel(level: { height?: number; bitrate?: number }): string {
+  if (level.height) return `${level.height}p`;
+  return level.bitrate ? `${Math.round(level.bitrate / 1000)} kbps` : "?";
+}
 
 /** Стандартний PiP (Chrome/Edge/Safari desktop) або presentation mode на iOS Safari. */
 function isPipSupported(video: HTMLVideoElement | null): boolean {
@@ -108,6 +120,10 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
         hls.on(Hls.Events.FRAG_LOADED, () => {
           recoveries = 0;
         });
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          hls.subtitleTrack = -1;
+          hls.subtitleDisplay = false;
+        });
         hls.on(Hls.Events.ERROR, (_evt, data) => {
           if (!data.fatal) return;
           // Спершу пробуємо відновитись (обмежену кількість разів, щоб не крутитись вічно)
@@ -161,12 +177,15 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
     if (!video) return;
     video.playsInline = true;
     enableAutoPip(video);
+    const onTrackAdded = () => disableTextTracks(video);
+    video.textTracks.addEventListener("addtrack", onTrackAdded);
     video.muted = muted || volume === 0;
     video.volume = Math.min(1, Math.max(0, volume / 100));
     attachSource(state.videoId);
     loadedVideoRef.current = state.videoId;
 
     const onLoadedMetadata = () => {
+      disableTextTracks(video);
       readyRef.current = true;
       onStatus({ ready: true, buffering: false, autoplayMuted: false, poorConnection: false, error: null });
     };
@@ -200,6 +219,7 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
     video.addEventListener("error", onError);
 
     return () => {
+      video.textTracks.removeEventListener("addtrack", onTrackAdded);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("pause", onPause);
@@ -277,6 +297,29 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
       localPlay,
       localPause,
       localSeek,
+      getQualities: (): StageQuality[] => {
+        const hls = hlsRef.current;
+        if (!hls || hls.levels.length < 2) return [];
+        // Той самий рівень може траплятись кілька разів (різні кодеки/бітрейти) — лишаємо найвищий бітрейт на висоту
+        const byLabel = new Map<string, { index: number; bitrate: number; height: number }>();
+        hls.levels.forEach((level, index) => {
+          const label = levelLabel(level);
+          const prev = byLabel.get(label);
+          if (!prev || level.bitrate > prev.bitrate) byLabel.set(label, { index, bitrate: level.bitrate, height: level.height });
+        });
+        const items = [...byLabel].sort((a, b) => b[1].height - a[1].height || b[1].bitrate - a[1].bitrate);
+        return [{ id: "auto", label: "Auto" }, ...items.map(([label, v]) => ({ id: String(v.index), label }))];
+      },
+      getQuality: () => {
+        const hls = hlsRef.current;
+        if (!hls || hls.autoLevelEnabled) return "auto";
+        return String(hls.currentLevel);
+      },
+      setQuality: (id: string) => {
+        const hls = hlsRef.current;
+        if (!hls) return;
+        hls.currentLevel = id === "auto" ? -1 : Number(id);
+      },
       isPipSupported: () => isPipSupported(videoRef.current),
       togglePip: () => {
         const video = videoRef.current;

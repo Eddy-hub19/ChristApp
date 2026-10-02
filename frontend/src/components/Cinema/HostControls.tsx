@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Crown, Maximize, Minimize, Pause, PictureInPicture2, Play, Volume1, Volume2, VolumeX } from "lucide-react";
 import { formatPlaybackTime } from "@/lib/watchSync";
 import type { PlayerAdapterHandle } from "./players/types";
+import StageQualityMenu from "./StageQualityMenu";
 import styles from "./CinemaHall.module.scss";
 
 type HostControlsProps = {
@@ -171,6 +172,8 @@ export default function HostControls({
             aria-label={t("volume")}
           />
         </div>
+
+        <StageQualityMenu stageRef={stageRef} variant="desktop" />
 
         {onTogglePip ? (
           <button

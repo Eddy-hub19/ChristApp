@@ -11,6 +11,9 @@ export const HLS_CONFIG: Partial<HlsConfig> = {
   maxMaxBufferLength: 60,
   maxBufferSize: 60 * 1024 * 1024,
 
+  // Без субтитрів: ні вбудовані доріжки, ні CEA-608/708 з відеопотоку
+  enableCEA708Captions: false,
+
   // Адаптивний бітрейт
   abrEwmaFastLive: 3,
   abrEwmaSlowLive: 9,

@@ -47,7 +47,8 @@ export default function TabBar() {
 
   const token = getAuthToken();
   const userId = token ? getUserIdFromJwt(token) : undefined;
-  const showDashboardTab = tabBarClientReady;
+  // Дашборд временно скрыт (вкладка + маршрут).
+  const showDashboardTab = false;
 
   const unreadQuery = useQuery({
     queryKey: pushUnreadSummaryQueryKey(userId),

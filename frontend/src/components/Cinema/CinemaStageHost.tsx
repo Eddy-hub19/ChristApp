@@ -10,6 +10,7 @@ import {
 import type { ServerClock, WatchState } from "@/lib/watchSync";
 import MiniOverlay from "./MiniOverlay";
 import MobileStageControls from "./MobileStageControls";
+import StageCenterPlay from "./StageCenterPlay";
 import {
   miniPositionFor,
   miniSize,
@@ -206,6 +207,7 @@ export default function CinemaStageHost({
             onToggleFullscreen={onToggleFullscreen}
             onTogglePip={onTogglePip}
           />
+          {state.isPlaying ? null : <StageCenterPlay isHost={isHost} onPlay={onPlay} />}
           {reactions}
         </>
       ) : (

@@ -510,7 +510,10 @@
       "seenBy": "Seen by: {names}",
       "seenByMore": "and {count} more",
       "reactedBy": "Reacted: {names}",
-      "pip": "Picture in picture"
+      "pip": "Picture in picture",
+      "quality": "Quality",
+      "qualityAuto": "Auto",
+      "pausedByHost": "Paused by the host"
     },
     "join": {
       "joining": "Joining the room…",
