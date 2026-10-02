@@ -15,6 +15,10 @@ export class VoiceUploadDto {
   @IsOptional()
   @Min(0)
   voiceDuration?: number;
+
+  @IsString()
+  @IsOptional()
+  replyToId?: string;
 }
 
 export class VoiceListenDto {

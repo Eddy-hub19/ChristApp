@@ -87,6 +87,11 @@ model Message {
   content   String?
   fileUrl   String?
   voiceDuration Float?
+  /// Розміри зображення (px) — щоб чат резервував місце до завантаження.
+  mediaWidth  Int?
+  mediaHeight Int?
+  /// Розмір вкладення в байтах (файли).
+  fileSize    Int?
   /// Повідомлення, на яке це є відповіддю (без FK: після видалення оригіналу цитата лишається з позначкою "видалено").
   replyToId String?
   senderId  String

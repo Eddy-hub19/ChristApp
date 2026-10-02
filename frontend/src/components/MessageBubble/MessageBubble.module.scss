@@ -631,3 +631,29 @@ html[data-theme="dark"] .senderCompact {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Медіа-пузирі (фото, голосові, файли): ширші за текстові, але не більше ~80% рядка і не вилазять за краї. */
+.mediaBubble {
+  width: min(300px, 80%);
+  max-width: min(300px, 80%);
+  padding: 6px 8px 4px;
+  overflow: hidden;
+}
+
+/* Альбом: 2 колонки; непарне останнє фото займає весь рядок. */
+.albumGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+
+  > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+
+    a {
+      aspect-ratio: 2 / 1 !important;
+    }
+  }
+}

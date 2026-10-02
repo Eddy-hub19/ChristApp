@@ -17,6 +17,8 @@ export type PushPublicKeyResponse = {
 
 export type UnreadSummaryRoomLastMessage = {
   id: string;
+  /** Для медіа бекенд кладе запасний підпис; клієнт підписує за `type` мовою інтерфейсу. */
+  type?: string;
   content: string;
   createdAt: string;
   senderId: string;

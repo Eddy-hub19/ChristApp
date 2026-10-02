@@ -8,6 +8,7 @@ export type MessageReply = {
   content: string;
   type?: AppMessageType;
   fileUrl?: string | null;
+  voiceDuration?: number | null;
   /** Оригінал видалено — цитата показує "Повідомлення видалено". */
   deleted?: boolean;
 };
@@ -23,6 +24,15 @@ export type Message = {
   content: string;
   type?: AppMessageType;
   fileUrl?: string | null;
+  /** Тривалість голосового, с. */
+  voiceDuration?: number;
+  /** Розміри фото, px — щоб резервувати місце до завантаження. */
+  mediaWidth?: number;
+  mediaHeight?: number;
+  /** Розмір файлу, байт. */
+  fileSize?: number;
+  /** Хто прослухав голосове (id користувачів, крім відправника). */
+  voiceListenedBy?: string[];
   createdAt: string;
   isEdited?: boolean;
   replyTo?: MessageReply;

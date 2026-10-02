@@ -4,10 +4,10 @@ import { replyPreviewText } from "./replyPreview";
 // Фейковий t: повертає людський підпис за ключем, як ua-переклад.
 const labels: Record<string, string> = {
   previewSticker: "Стікер",
-  previewPhoto: "Фото",
-  previewVoice: "Голосове",
-  previewVideoNote: "Відеоовечка",
-  previewFile: "Файл",
+  previewPhoto: "🖼 Фото",
+  previewVoice: "🎤 Голосове",
+  previewVideoNote: "🎥 Відеокружок",
+  previewFile: "📎 Файл",
 };
 const t = ((key: string) => labels[key] ?? key) as Parameters<typeof replyPreviewText>[0];
 
@@ -33,9 +33,15 @@ describe("replyPreviewText", () => {
   });
 
   it("labels photos, files, voice and video notes", () => {
-    expect(replyPreviewText(t, { content: "", type: "IMAGE", fileUrl: "https://x/y.jpg" })).toBe("Фото");
-    expect(replyPreviewText(t, { content: "", type: "FILE" })).toBe("Файл");
-    expect(replyPreviewText(t, { content: "", type: "VOICE" })).toBe("Голосове");
-    expect(replyPreviewText(t, { content: "", type: "VIDEO_NOTE" })).toBe("Відеоовечка");
+    expect(replyPreviewText(t, { content: "", type: "IMAGE", fileUrl: "https://x/y.jpg" })).toBe("🖼 Фото");
+    expect(replyPreviewText(t, { content: "", type: "FILE" })).toBe("📎 Файл");
+    expect(replyPreviewText(t, { content: "", type: "VOICE" })).toBe("🎤 Голосове");
+    expect(replyPreviewText(t, { content: "", type: "VIDEO_NOTE" })).toBe("🎥 Відеокружок");
+  });
+
+  it("shows voice duration, file name and caption in quotes", () => {
+    expect(replyPreviewText(t, { content: "", type: "VOICE", voiceDuration: 12 })).toBe("🎤 Голосове 0:12");
+    expect(replyPreviewText(t, { content: "report.docx", type: "FILE" })).toBe("📎 report.docx");
+    expect(replyPreviewText(t, { content: "захід сонця", type: "IMAGE" })).toBe("🖼 захід сонця");
   });
 });
