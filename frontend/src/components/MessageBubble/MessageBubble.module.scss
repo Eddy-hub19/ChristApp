@@ -176,52 +176,6 @@
   background: color-mix(in srgb, var(--line-soft) 54%, transparent);
 }
 
-.bookFileBubble {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--line-soft) 28%, transparent);
-  text-decoration: none;
-  color: var(--foreground);
-  width: 100%;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: color-mix(in srgb, var(--line-soft) 48%, transparent);
-  }
-}
-
-.bookFileIcon {
-  flex-shrink: 0;
-  font-size: 28px;
-  line-height: 1;
-}
-
-.bookFileInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.bookFileName {
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bookFileExt {
-  font-size: 10px;
-  opacity: 0.55;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 /* ── Audio file player ─────────────────────────────────── */
 .audioFileBubble {
   display: flex;

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Copy, PenLine, Reply, Trash2 } from "lucide-react";
+import { Copy, Download, PenLine, Reply, Share, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import styles from "./ChatShared.module.scss";
 
@@ -27,6 +27,9 @@ type MessageActionMenuProps = {
   onReply?: () => void;
   /** Текст для "Копіювати"; без нього пункт ховається. */
   copyText?: string;
+  /** "Відкрити в…" (Web Share з файлом) або "Завантажити" — для файлових повідомлень (книги). */
+  onShare?: () => void;
+  shareMode?: "share" | "download";
   onEdit?: () => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -62,6 +65,8 @@ export default function MessageActionMenu({
   onReact,
   onReply,
   copyText,
+  onShare,
+  shareMode = "download",
   onEdit,
   onDelete,
   onClose,
@@ -128,6 +133,14 @@ export default function MessageActionMenu({
           window.setTimeout(onClose, 450);
         });
       },
+    });
+  }
+  if (onShare) {
+    actions.push({
+      key: "share",
+      label: shareMode === "share" ? t("openIn") : t("download"),
+      icon: shareMode === "share" ? <Share size={17} /> : <Download size={17} />,
+      onClick: run(onShare),
     });
   }
   if (onEdit) {

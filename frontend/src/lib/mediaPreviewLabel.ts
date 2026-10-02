@@ -1,3 +1,4 @@
+import { bookPreviewLabel } from "@/lib/book/bookFile";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 
 export type MediaPreviewInput = {
@@ -36,7 +37,7 @@ export function mediaPreviewLabel(
 
   if (m.type === "VIDEO_NOTE") return label("previewVideoNote");
   if (m.type === "FILE") {
-    return detailed && text ? `📎 ${text}` : label("previewFile");
+    return bookPreviewLabel(text) ?? (detailed && text ? `📎 ${text}` : label("previewFile"));
   }
   if (m.type === "VOICE" || parseVoiceMessageUrl(text)) {
     return detailed && m.voiceDuration

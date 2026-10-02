@@ -1,3 +1,4 @@
+import { bookPreviewLabel } from './book-sniff.util';
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
 
 /**
@@ -11,10 +12,11 @@ export function mediaPreviewLabel(
   const trimmed = String(content ?? '').trim();
   const isVoice =
     type === 'VOICE' ||
-    (trimmed.startsWith(VOICE_META_PREFIX) && trimmed.endsWith(VOICE_META_SUFFIX));
+    (trimmed.startsWith(VOICE_META_PREFIX) &&
+      trimmed.endsWith(VOICE_META_SUFFIX));
   if (isVoice) return '🎤 Голосове повідомлення';
   if (type === 'IMAGE') return '🖼 Фото';
-  if (type === 'FILE') return '📎 Файл';
+  if (type === 'FILE') return bookPreviewLabel(trimmed) ?? '📎 Файл';
   if (type === 'VIDEO_NOTE') return '🎥 Відеоповідомлення';
   return null;
 }

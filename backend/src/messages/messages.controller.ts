@@ -29,6 +29,7 @@ import { voiceMessageContent } from './voice-message';
 import { VoiceUploadDto } from './dto/voice-upload.dto';
 import { ImageUploadDto } from './dto/image-upload.dto';
 import { uploadErrorMessage } from 'src/common/upload-error-message';
+import { BOOK_MIME, bookFilename, sniffBookFormat } from './book-sniff.util';
 import {
   FILE_POLICY,
   IMAGE_POLICY,
@@ -411,7 +412,15 @@ export class MessagesController {
     }
 
     const mime = normalizeMime(file.mimetype);
-    if (!isMimeAllowed(FILE_POLICY, mime)) {
+    // PDF/EPUB определяем по содержимому: заявленный клиентом тип и расширение не считаются.
+    const bookFormat = sniffBookFormat(file.buffer);
+    if (
+      (mime === BOOK_MIME.pdf || mime === BOOK_MIME.epub) &&
+      bookFormat === null
+    ) {
+      throw new BadRequestException('Файл не является корректным PDF или EPUB');
+    }
+    if (bookFormat === null && !isMimeAllowed(FILE_POLICY, mime)) {
       throw new BadRequestException(
         `Неподдерживаемый тип файла: ${mime || '—'}`,
       );
@@ -423,7 +432,10 @@ export class MessagesController {
     }
 
     try {
-      const fileName = sanitizeFileName(file.originalname);
+      const sanitizedName = sanitizeFileName(file.originalname);
+      const fileName = bookFormat
+        ? bookFilename(sanitizedName, bookFormat)
+        : sanitizedName;
       const replyTarget = await this.messagesService.resolveReplyTarget(
         rid,
         body.replyToId,
