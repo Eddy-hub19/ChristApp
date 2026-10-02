@@ -510,7 +510,10 @@
       "seenBy": "Seen by: {names}",
       "seenByMore": "and {count} more",
       "reactedBy": "Reacted: {names}",
-      "pip": "Picture in picture"
+      "pip": "Picture in picture",
+      "quality": "Quality",
+      "qualityAuto": "Auto",
+      "pausedByHost": "Paused by the host"
     },
     "join": {
       "joining": "Joining the room…",
@@ -572,6 +575,7 @@
     "notFound": "Movie not found.",
     "loadError": "Couldn't load the movie.",
     "retry": "Retry",
-    "serverDown": "This server isn't responding right now"
+    "serverDown": "This server isn't responding right now",
+    "tryNextServer": "Try the next server"
   }
 }

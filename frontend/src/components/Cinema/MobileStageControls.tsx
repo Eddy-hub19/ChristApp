@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Maximize, Minimize, Pause, PictureInPicture2, Play, Volume2, VolumeX } from "lucide-react";
 import { formatPlaybackTime } from "@/lib/watchSync";
 import type { YouTubeStageHandle } from "./YouTubeStage";
+import StageQualityMenu from "./StageQualityMenu";
 import styles from "./CinemaHall.module.scss";
 
 const AUTO_HIDE_MS = 3000;
@@ -138,6 +139,8 @@ export default function MobileStageControls({
         >
           {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </button>
+
+        <StageQualityMenu stageRef={stageRef} variant="mobile" onInteract={show} />
 
         {onTogglePip ? (
           <button

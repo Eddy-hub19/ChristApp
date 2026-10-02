@@ -287,6 +287,8 @@ const YouTubeStage = forwardRef<YouTubeStageHandle, YouTubeStageProps>(function 
             rel: 0,
             fs: 0,
             iv_load_policy: 3,
+            // Субтитри не показуємо (cc_load_policy=0 не перебиває вмикання користувачем у акаунті — тому ще unloadModule нижче)
+            cc_load_policy: 0,
             origin: window.location.origin,
             start: Math.floor(expectedPosition(initial, clock.now())),
           },
@@ -294,6 +296,7 @@ const YouTubeStage = forwardRef<YouTubeStageHandle, YouTubeStageProps>(function 
             onReady: (event) => {
               if (disposed) return;
               readyRef.current = true;
+              (event.target as unknown as { unloadModule?: (m: string) => void }).unloadModule?.("captions");
               const { volume: v, muted: m } = propsRef.current;
               event.target.setVolume(v);
               if (m) event.target.mute();

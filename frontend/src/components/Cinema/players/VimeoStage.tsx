@@ -2,7 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import VimeoPlayer from "@vimeo/player";
-import type { PlayerAdapterHandle, PlayerAdapterProps } from "./types";
+import type { PlayerAdapterHandle, PlayerAdapterProps, StageQuality } from "./types";
 import { useSyncEngine, type SyncDriver, type SyncPlaybackState } from "./useSyncEngine";
 import styles from "../CinemaHall.module.scss";
 
@@ -20,6 +20,9 @@ const VimeoStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function 
   const playerRef = useRef<VimeoPlayer | null>(null);
   const readyRef = useRef(false);
   const loadedVideoRef = useRef<string | null>(null);
+
+  const qualitiesRef = useRef<StageQuality[]>([]);
+  const qualityRef = useRef("auto");
 
   const currentTimeRef = useRef(0);
   const durationRef = useRef(0);
@@ -66,11 +69,32 @@ const VimeoStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function 
       error: null,
     });
 
+    /** Субтитри вимкнені; список якостей оновлюємо після кожного (пере)завантаження відео. */
+    const prepareTracksAndQualities = () => {
+      player.disableTextTrack().catch(() => undefined);
+      player
+        .getQualities()
+        .then((list) => {
+          if (disposed) return;
+          qualitiesRef.current = list.map((q) => ({ id: q.id, label: q.id === "auto" ? "Auto" : q.label }));
+          qualityRef.current = list.find((q) => q.active)?.id ?? "auto";
+        })
+        .catch(() => {
+          // Не всі відео дозволяють вибір якості — тоді меню просто не показується
+          qualitiesRef.current = [];
+        });
+    };
+    player.on("loaded", prepareTracksAndQualities);
+    player.on("qualitychange", (data: { quality: string }) => {
+      qualityRef.current = data.quality;
+    });
+
     player
       .ready()
       .then(() => {
         if (disposed) return;
         readyRef.current = true;
+        prepareTracksAndQualities();
         void player.setVolume(propsRef.current.muted ? 0 : propsRef.current.volume / 100);
         onStatus({ ...statusSnapshot(), ready: true });
       })
@@ -171,6 +195,12 @@ const VimeoStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function 
       localPlay,
       localPause,
       localSeek,
+      getQualities: () => (qualitiesRef.current.length > 1 ? qualitiesRef.current : []),
+      getQuality: () => qualityRef.current,
+      setQuality: (id: string) => {
+        qualityRef.current = id;
+        playerRef.current?.setQuality(id).catch(() => undefined);
+      },
       unmuteAfterGesture: () => {
         const player = playerRef.current;
         if (!player) return;

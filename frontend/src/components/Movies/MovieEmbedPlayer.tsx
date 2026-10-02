@@ -74,6 +74,10 @@ export default function MovieEmbedPlayer({ tmdbId, imdbId, title, servers = MOVI
   }, [loaded, active, ordered, failedIds, allFailed]);
 
   if (!active) return null;
+  // Cloudflare-401/челендж усередині iframe все одно дає `onLoad`, тож відрізнити його від робочого
+  // плеєра неможливо — тому перемикання на наступний сервер завжди під рукою, а не лише після таймауту.
+  const nextServer = ordered[(ordered.findIndex((s) => s.id === active.id) + 1) % ordered.length];
+  const hasOtherServer = ordered.length > 1;
   const src = active.buildUrl({ tmdbId, imdbId });
 
   return (
@@ -115,7 +119,14 @@ export default function MovieEmbedPlayer({ tmdbId, imdbId, title, servers = MOVI
           onLoad={() => setLoaded(true)}
         />
       </div>
-      <p className={styles.playerHint}>{t("playerHint")}</p>
+      <p className={styles.playerHint}>
+        {t("playerHint")}{" "}
+        {hasOtherServer ? (
+          <button type="button" className={styles.playerNextButton} onClick={() => select(nextServer.id, true)}>
+            {t("tryNextServer")}
+          </button>
+        ) : null}
+      </p>
     </div>
   );
 }

@@ -11,6 +11,9 @@ import type { ServerClock, WatchState } from "@/lib/watchSync";
  */
 export type StageErrorKind = "NOT_EMBEDDABLE" | "NOT_FOUND" | "HTML5" | "CORS" | "INVALID";
 
+/** Варіант якості для меню. `id: "auto"` — адаптивний вибір плеєра. */
+export type StageQuality = { id: string; label: string };
+
 export type StageStatus = {
   ready: boolean;
   buffering: boolean;
@@ -40,6 +43,14 @@ export type PlayerAdapterHandle = {
    */
   isPipSupported?(): boolean;
   togglePip?(): void;
+  /**
+   * Вибір якості — лише там, де провайдер дає до цього надійний API (HLS/FILE і Vimeo).
+   * У YouTube `setPlaybackQuality` сьогодні фактично ігнорується, у Dailymotion SDK цього не дає,
+   * тож там ці методи не оголошені, а меню не показується. Порожній список (<2 пунктів) = сховати меню.
+   */
+  getQualities?(): StageQuality[];
+  getQuality?(): string;
+  setQuality?(id: string): void;
 };
 
 export type PlayerAdapterProps = {
