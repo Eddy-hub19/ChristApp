@@ -50,7 +50,7 @@ describe('mediaPreviewLabel', () => {
       '🎤 Голосове повідомлення',
     );
     expect(mediaPreviewLabel('IMAGE', null)).toBe('🖼 Фото');
-    expect(mediaPreviewLabel('IMAGE', 'sunset')).toBe('🖼 sunset');
+    expect(mediaPreviewLabel('IMAGE', 'sunset')).toBe('🖼 Фото');
     expect(mediaPreviewLabel('FILE', 'a.zip')).toBe('📎 Файл');
     expect(mediaPreviewLabel('VIDEO_NOTE', null)).toBe('🎥 Відеоповідомлення');
     expect(mediaPreviewLabel('TEXT', 'hello')).toBeNull();

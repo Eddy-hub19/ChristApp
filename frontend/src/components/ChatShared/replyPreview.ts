@@ -1,6 +1,6 @@
 import type { useTranslations } from "next-intl";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
-import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
+import { mediaPreviewLabel } from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
@@ -9,6 +9,7 @@ type PreviewInput = {
   content: string;
   type?: string;
   fileUrl?: string | null;
+  voiceDuration?: number | null;
 };
 
 const PREVIEW_MAX_LENGTH = 140;
@@ -18,15 +19,12 @@ export function replyPreviewText(
   t: ReturnType<typeof useTranslations>,
   m: PreviewInput,
 ): string {
-  if (m.type === "VIDEO_NOTE") return t("previewVideoNote");
-  if (m.type === "FILE") return t("previewFile");
-  if (m.type === "VOICE") return t("previewVoice");
-  if (m.type === "IMAGE" || Boolean(m.fileUrl?.trim())) return t("previewPhoto");
+  const media = mediaPreviewLabel((key) => t(key), m, true);
+  if (media) return media;
 
   // Оригінал може бути старою відповіддю з префіксом [[reply:…]] — цитуємо лише текст.
   const text = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(text)) return t("previewSticker");
-  if (parseVoiceMessageUrl(text)) return t("previewVoice");
   const verse = parseVerseSharePayload(text);
   const plain = verse.payload ? scripturePlainText(verse.payload.text) || text : text;
   const firstLine = plain.split(/\r?\n/).find((line) => line.trim()) ?? "";

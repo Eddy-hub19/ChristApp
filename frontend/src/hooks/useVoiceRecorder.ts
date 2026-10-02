@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MIN_VOICE_DURATION_MS } from "@/lib/chatMedia";
 
 /** Ліміт запису: 1 хвилина. */
 export const MAX_RECORDING_MS = 60_000;
 export const MAX_RECORDING_SECONDS = 60;
+
+/** Готовий запис разом із реальною тривалістю (мс), виміряною за годинником, а не за тиками таймера. */
+export type RecordedVoice = Blob & { durationMs?: number };
 
 export type VoiceRecorderError = "permission" | "unsupported" | "failed";
 
@@ -28,7 +32,14 @@ type UseVoiceRecorderResult = {
 };
 
 function pickAudioMimeType(): string {
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  // audio/mp4 (AAC) першим: він грає і в Safari/iPhone, і в Chrome/Android; webm/opus — лише запасний.
+  const candidates = [
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+  ];
   for (const mime of candidates) {
     if (
       typeof MediaRecorder !== "undefined" &&
@@ -57,6 +68,7 @@ export function useVoiceRecorder(
   const tickRef = useRef<number | null>(null);
   const maxTimerRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
+  const startedAtRef = useRef(0);
   /** Заявка на blob від `stop()` — щоб віддати його рівно один раз. */
   const stopResolveRef = useRef<((blob: Blob | null) => void) | null>(null);
 
@@ -99,7 +111,13 @@ export function useVoiceRecorder(
     let micStream: MediaStream;
     try {
       // Дозвіл на мікрофон запитуємо саме тут — на явну дію користувача.
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
     } catch (err: unknown) {
       const name = err instanceof DOMException ? err.name : "";
       setError(
@@ -129,9 +147,14 @@ export function useVoiceRecorder(
 
       recorder.onstop = () => {
         const type = recorder.mimeType || mimeType || "audio/webm";
-        const blob = cancelledRef.current
-          ? null
-          : new Blob(chunksRef.current, { type });
+        const durationMs = Date.now() - startedAtRef.current;
+        // Дотик довжиною менше секунди — це не голосове, а випадковий клік: відкидаємо.
+        const tooShort = durationMs < MIN_VOICE_DURATION_MS;
+        const blob: RecordedVoice | null =
+          cancelledRef.current || tooShort
+            ? null
+            : new Blob(chunksRef.current, { type });
+        if (blob) blob.durationMs = durationMs;
         chunksRef.current = [];
 
         releaseStream();
@@ -145,13 +168,25 @@ export function useVoiceRecorder(
       };
 
       recorderRef.current = recorder;
+      startedAtRef.current = Date.now();
       recorder.start(200);
       setIsRecording(true);
       setSeconds(0);
 
+      // Таймер за реальним часом: тики setInterval у фоні/при тротлінгу відстають.
       tickRef.current = window.setInterval(() => {
-        setSeconds((previous) => Math.min(previous + 1, MAX_RECORDING_SECONDS));
-      }, 1000);
+        const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
+        setSeconds(Math.min(elapsed, MAX_RECORDING_SECONDS));
+      }, 250);
+
+      // Мікрофон відібрали (дзвінок, iOS у фоні): завершуємо запис і віддаємо те, що встигли.
+      micStream.getAudioTracks().forEach((track) => {
+        track.addEventListener("ended", () => {
+          if (recorderRef.current === recorder) {
+            void stop().then((blob) => onAutoStopRef.current?.(blob));
+          }
+        });
+      });
 
       return true;
     } catch {

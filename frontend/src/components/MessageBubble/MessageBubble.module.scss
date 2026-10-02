@@ -631,3 +631,11 @@ html[data-theme="dark"] .senderCompact {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Медіа-пузирі (фото, голосові, файли): ширші за текстові, але не більше ~80% рядка і не вилазять за краї. */
+.mediaBubble {
+  width: min(300px, 80%);
+  max-width: min(300px, 80%);
+  padding: 6px 8px 4px;
+  overflow: hidden;
+}

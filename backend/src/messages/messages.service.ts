@@ -76,6 +76,7 @@ export type MessageReplyPreview =
       type: MessageType;
       content: string;
       fileUrl: string | null;
+      voiceDuration: number | null;
     };
 
 const REPLY_PREVIEW_CONTENT_MAX = 300;
@@ -211,6 +212,7 @@ export class MessagesService {
             type: true,
             content: true,
             fileUrl: true,
+            voiceDuration: true,
             senderId: true,
             sender: { select: { username: true, nickname: true } },
           },
@@ -234,6 +236,7 @@ export class MessagesService {
               REPLY_PREVIEW_CONTENT_MAX,
             ),
             fileUrl: original.fileUrl,
+            voiceDuration: original.voiceDuration,
           }
         : { id: row.replyToId, deleted: true };
       return { ...row, replyTo };

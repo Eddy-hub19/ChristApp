@@ -1,5 +1,6 @@
 "use client";
 
+import { ATTACHMENT_ACCEPT } from "@/lib/chatMedia";
 import { useTranslations } from "next-intl";
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext";
 import {
@@ -60,7 +61,6 @@ type MessageInputProps = {
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_TEXTAREA_HEIGHT = 140;
-const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
 /** Свайп уліво далі цього порога — відпускання скасовує запис. */
 const VOICE_CANCEL_THRESHOLD_PX = 90;
 /** Свайп угору далі цього порога — запис фіксується, тримати кнопку більше не треба. */
@@ -429,14 +429,6 @@ export default function MessageInput({
     event.target.value = "";
     if (!selectedFiles.length || disabled) return;
 
-    const tooLarge = selectedFiles.find(
-      (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES,
-    );
-    if (tooLarge) {
-      window.alert(t("fileTooLarge", { name: tooLarge.name }));
-      return;
-    }
-
     if (onSelectFiles) {
       try {
         await Promise.resolve(onSelectFiles(selectedFiles));
@@ -497,11 +489,14 @@ export default function MessageInput({
               {t("editingMessageBanner")}
             </span>
             <span className={styles.replyingToText}>
-              {chatMessagePreview({
-                content: editingMessage.content,
-                type: editingMessage.type,
-                fileUrl: editingMessage.fileUrl,
-              })}
+              {chatMessagePreview(
+                {
+                  content: editingMessage.content,
+                  type: editingMessage.type,
+                  fileUrl: editingMessage.fileUrl,
+                },
+                tShared,
+              )}
             </span>
           </div>
           <button
@@ -547,7 +542,7 @@ export default function MessageInput({
           <input
             ref={imageFileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,audio/mpeg,audio/mp3,audio/x-m4a,audio/mp4,application/pdf,application/epub+zip,.mp3,.m4a,.pdf,.epub"
+            accept={ATTACHMENT_ACCEPT}
             multiple
             className={styles.visuallyHidden}
             tabIndex={-1}

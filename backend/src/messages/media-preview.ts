@@ -13,7 +13,7 @@ export function mediaPreviewLabel(
     type === 'VOICE' ||
     (trimmed.startsWith(VOICE_META_PREFIX) && trimmed.endsWith(VOICE_META_SUFFIX));
   if (isVoice) return '🎤 Голосове повідомлення';
-  if (type === 'IMAGE') return trimmed ? `🖼 ${trimmed}` : '🖼 Фото';
+  if (type === 'IMAGE') return '🖼 Фото';
   if (type === 'FILE') return '📎 Файл';
   if (type === 'VIDEO_NOTE') return '🎥 Відеоповідомлення';
   return null;
