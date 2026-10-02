@@ -558,7 +558,6 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 )}
                 {entered && isAutoSync ? null : entered && state.manual ? (
                   <ManualSyncControls
-                    compact
                     manual={state.manual}
                     clock={hall.clock}
                     isHost={isHost}
@@ -623,21 +622,6 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 isFullscreen={cinema.isFullscreen}
                 onToggleFullscreen={() => void cinema.toggleFullscreen()}
                 onTogglePip={cinema.togglePip}
-              />
-            ) : entered && state.manual ? (
-              <ManualSyncControls
-                manual={state.manual}
-                clock={hall.clock}
-                isHost={isHost}
-                isReady={isReady}
-                readyCount={readyCount}
-                totalCount={totalCount}
-                onToggleReady={() => hall.commands.manualReady(!isReady)}
-                onStart={hall.commands.manualStart}
-                onPause={hall.commands.manualPause}
-                onResume={hall.commands.manualResume}
-                isFullscreen={isFullscreen || pseudoFullscreen}
-                onToggleFullscreen={toggleManualFullscreen}
               />
             ) : null}
           </div>

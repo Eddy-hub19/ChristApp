@@ -658,8 +658,8 @@
 // лишається доступним завжди, а не тільки як реакція на таймаут/помилку.
 .iframeFallbackLink {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
+  left: 8px;
+  top: 8px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1222,46 +1222,153 @@
   gap: 10px;
 }
 
-// ================= РУЧНА СИНХРОНІЗАЦІЯ: ПАНЕЛЬ (IFRAME/MANUAL) =================
-// Займає те саме місце, що й .controls (десктоп, у потоці) чи .mobileStage (мобільний, оверлей
-// на відео, компактний варіант через .manualControlsCompact) — play/scrubber тут не мають сенсу.
+// ================= РУЧНА СИНХРОНІЗАЦІЯ: ОВЕРЛЕЙ (IFRAME/MANUAL) =================
+// Лежить всередині .screen поверх iframe (той займає весь екран) — не відбирає в нього місця.
+// Сам шар не ловить дотики (pointer-events: none), щоб не заважати сайту; їх ловлять лише
+// панель (коли видима), кутова кнопка й тонка смужка наведення.
 
-.manualControls {
+.manualOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.manualPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 18px;
-  background: var(--hall-surface);
-  border: 1px solid var(--hall-line);
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 36px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  // Затемнення знизу вгору: читабельно на будь-якому сайті, а верх панелі розчиняється у відео.
+  background: linear-gradient(to top, rgba(9, 8, 12, 0.92) 0%, rgba(9, 8, 12, 0.7) 55%, rgba(9, 8, 12, 0) 100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
 
-  // Мобільний: замінюється компактним оверлеєм на відео (.manualControlsCompact нижче) —
-  // те саме правило, що ховає .controls (HostControls) на мобільному в іншому місці файлу.
-  @media (max-width: 767px) {
-    display: none;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
 
-// Мобільний оверлей на відео (як .mobileStage у MobileStageControls) — на десктопі та сама панель
-// уже стоїть у потоці під екраном (звичайний .manualControls, рендериться окремо в WatchHall.tsx),
-// тож тут ховаємо, щоб не показувати панель двічі.
-.manualControlsCompact {
+.manualPanelShown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// Вузький екран: усе компактніше, щоб панель не з'їдала відео — бейдж лишається іконкою,
+// кнопки нижчі, повноекранна кнопка притиснута вправо.
+@media (max-width: 767px) {
+  .manualPanel {
+    gap: 6px 8px;
+    padding: 26px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+
+    .manualBadge {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .manualBadgeLabel {
+      display: none;
+    }
+
+    .manualMain {
+      gap: 6px 8px;
+    }
+
+    .manualReadyButton,
+    .manualPrimaryButton {
+      height: 30px;
+      padding: 0 11px;
+      font-size: 12px;
+    }
+
+    .manualReadyCount,
+    .manualStatusText {
+      font-size: 11px;
+    }
+
+    .manualCountdown {
+      font-size: 24px;
+    }
+
+    .hallIconButton {
+      width: 30px;
+      height: 30px;
+      margin-left: auto;
+    }
+  }
+}
+
+// Після ховання панелі: маленька напівпрозора кнопка в куті (зі спливним таймером у фазі running).
+.manualCorner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: var(--hall-text);
+  background: rgba(9, 8, 12, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0.7;
+  cursor: pointer;
+  pointer-events: auto;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+
+  svg {
+    color: var(--hall-gold);
+    flex-shrink: 0;
+  }
+}
+
+.manualCornerTime {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+// Десктоп: тонка смужка по нижньому краю — наведення курсору показує панель.
+// Вузька навмисно (перекриває низ сайту), і лише для пристроїв із курсором.
+.manualHoverZone {
   display: none;
 
-  @media (max-width: 767px) {
-    display: flex;
+  @media (hover: hover) and (pointer: fine) {
+    display: block;
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 2;
-    border-radius: 0;
-    border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(9, 8, 12, 0.82);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    height: 18px;
+    pointer-events: auto;
   }
 }
 

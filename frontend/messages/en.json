@@ -513,7 +513,8 @@
       "pip": "Picture in picture",
       "quality": "Quality",
       "qualityAuto": "Auto",
-      "pausedByHost": "Paused by the host"
+      "pausedByHost": "Paused by the host",
+      "manualShowPanel": "Show sync panel"
     },
     "join": {
       "joining": "Joining the room…",
