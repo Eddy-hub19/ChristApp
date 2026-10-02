@@ -11,19 +11,23 @@ type Props = {
   height?: number;
   caption?: string;
   onOpen?: () => void;
+  /** "tile" — квадратна плитка для альбому. */
+  variant?: "single" | "tile";
 };
 
 const MIN_RATIO = 0.6;
 const MAX_RATIO = 1.8;
 
 /** Фото в пузирі: місце резервується за відомими розмірами, до завантаження — розмита заглушка. */
-function ChatImage({ src, width, height, caption, onOpen }: Props) {
+function ChatImage({ src, width, height, caption, onOpen, variant = "single" }: Props) {
   const t = useTranslations("chat");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const ratio =
-    width && height
+    variant === "tile"
+      ? 1
+      : width && height
       ? Math.min(MAX_RATIO, Math.max(MIN_RATIO, width / height))
       : 4 / 3;
 
@@ -38,7 +42,7 @@ function ChatImage({ src, width, height, caption, onOpen }: Props) {
   return (
     <div className={styles.wrap}>
       <a
-        className={styles.box}
+        className={`${styles.box} ${variant === "tile" ? styles.tile : ""}`}
         style={{
           aspectRatio: String(ratio),
           backgroundImage: loaded ? undefined : `url("${imageBlurUrl(src)}")`,

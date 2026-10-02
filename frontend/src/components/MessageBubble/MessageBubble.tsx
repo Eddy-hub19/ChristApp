@@ -49,6 +49,8 @@ type MessageBubbleProps = {
   currentUser?: { id: string; username: string; nickname?: string } | null;
   /** Відкрити фото у повноекранному перегляді (галерея чату). */
   onOpenImage?: (message: Message) => void;
+  /** Фото альбому (разом із цим повідомленням першим): рендеряться сіткою. */
+  albumMessages?: Message[];
   avatarSrc?: string;
   onAvatarClick?: (message: Message) => void;
   onReply?: (message: Message) => void;
@@ -351,6 +353,7 @@ function MessageBubble({
   currentUsername,
   currentUser,
   onOpenImage,
+  albumMessages,
   avatarSrc,
   onAvatarClick,
   onReply,
@@ -532,6 +535,25 @@ function MessageBubble({
                   <span> — {tChat("photoLabel")}</span>
                 </p>
               ) : null}
+              {albumMessages && albumMessages.length > 1 ? (
+                <div
+                  className={styles.albumGrid}
+                  data-count={Math.min(albumMessages.length, 4)}
+                >
+                  {albumMessages.map((member) => (
+                    <ChatImage
+                      key={member.id}
+                      variant="tile"
+                      src={member.fileUrl as string}
+                      width={member.mediaWidth}
+                      height={member.mediaHeight}
+                      onOpen={
+                        onOpenImage ? () => onOpenImage(member) : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
               <ChatImage
                 src={imgUrl}
                 width={message.mediaWidth}
@@ -539,6 +561,7 @@ function MessageBubble({
                 caption={message.content?.trim() || undefined}
                 onOpen={onOpenImage ? () => onOpenImage(message) : undefined}
               />
+              )}
             </div>
           );
         }
