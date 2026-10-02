@@ -1,4 +1,5 @@
 import type { useTranslations } from "next-intl";
+import { bookPreviewLabel } from "@/lib/book/bookFile";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
@@ -19,7 +20,7 @@ export function replyPreviewText(
   m: PreviewInput,
 ): string {
   if (m.type === "VIDEO_NOTE") return t("previewVideoNote");
-  if (m.type === "FILE") return t("previewFile");
+  if (m.type === "FILE") return bookPreviewLabel(m.content) ?? t("previewFile");
   if (m.type === "VOICE") return t("previewVoice");
   if (m.type === "IMAGE" || Boolean(m.fileUrl?.trim())) return t("previewPhoto");
 

@@ -5,6 +5,7 @@ import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
+import { bookPreviewLabel } from './book-sniff.util';
 import {
   LEGACY_REPLY_PREFIX,
   LEGACY_REPLY_SUFFIX,
@@ -792,7 +793,7 @@ export class MessagesService {
       return 'Фото';
     }
     if (mt === 'FILE') {
-      return 'Файл';
+      return bookPreviewLabel(row.messageContent) ?? 'Файл';
     }
     return this.normalizeMessagePreview(row.messageContent);
   }

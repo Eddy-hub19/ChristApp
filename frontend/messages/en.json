@@ -557,7 +557,9 @@
     "edited": "edited",
     "editing": "Editing message",
     "cancelEdit": "Cancel editing",
-    "deleteConfirm": "Delete this message?"
+    "deleteConfirm": "Delete this message?",
+    "openIn": "Open in…",
+    "download": "Download"
   },
   "movies": {
     "title": "Movies",
@@ -578,5 +580,27 @@
     "retry": "Retry",
     "serverDown": "This server isn't responding right now",
     "tryNextServer": "Try the next server"
+  },
+  "book": {
+    "typePdf": "PDF",
+    "typeEpub": "EPUB",
+    "openBook": "Open book: {title}",
+    "loading": "Loading book…",
+    "loadFailed": "Could not open this book.",
+    "close": "Close",
+    "theme": "Theme",
+    "openIn": "Open in…",
+    "download": "Download",
+    "tapAgain": "Tap again to share",
+    "shareFailed": "Could not prepare the file.",
+    "contents": "Contents",
+    "noContents": "This book has no table of contents.",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "fontSmaller": "Smaller text",
+    "fontLarger": "Larger text",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "goToPage": "Go to page"
   }
 }

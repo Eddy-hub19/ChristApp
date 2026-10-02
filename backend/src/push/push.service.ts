@@ -8,6 +8,7 @@ import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
+import { bookPreviewLabel } from 'src/messages/book-sniff.util';
 
 const VOICE_META_PREFIX = '[[voice:';
 const VOICE_META_SUFFIX = ']]';
@@ -170,7 +171,10 @@ export class PushService {
         ? 'Фото'
         : input.messageType === ('VIDEO_NOTE' as MessageType)
           ? 'Видео-заметка'
-          : this.normalizeMessageBody(input.content);
+          : input.messageType === MessageType.FILE
+            ? (bookPreviewLabel(input.content) ??
+              this.normalizeMessageBody(input.content))
+            : this.normalizeMessageBody(input.content);
     if (!normalizedBody) {
       return;
     }

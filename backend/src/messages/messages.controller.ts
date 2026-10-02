@@ -28,6 +28,7 @@ import { voiceMessageContent } from './voice-message';
 import { VoiceUploadDto } from './dto/voice-upload.dto';
 import { ImageUploadDto } from './dto/image-upload.dto';
 import { uploadErrorMessage } from 'src/common/upload-error-message';
+import { BOOK_MIME, bookFilename, sniffBookFormat } from './book-sniff.util';
 
 type AuthenticatedRequest = {
   user?: { id?: string };
@@ -390,12 +391,25 @@ export class MessagesController {
       throw new BadRequestException('Нужен файл в поле file');
     }
 
-    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (!FILE_MIME_ALLOW.has(mime)) {
+    const claimedMime = (file.mimetype || '')
+      .split(';')[0]
+      .trim()
+      .toLowerCase();
+    // PDF/EPUB проверяем по содержимому: заявленный клиентом тип и расширение не считаются.
+    const bookFormat = sniffBookFormat(file.buffer);
+    const claimsBook =
+      claimedMime === BOOK_MIME.pdf || claimedMime === BOOK_MIME.epub;
+    if (claimsBook && bookFormat === null) {
+      throw new BadRequestException('Файл не является корректным PDF или EPUB');
+    }
+    if (bookFormat === null && !FILE_MIME_ALLOW.has(claimedMime)) {
       throw new BadRequestException(
-        `Неподдерживаемый тип файла: ${mime || '—'}`,
+        `Неподдерживаемый тип файла: ${claimedMime || '—'}`,
       );
     }
+    const originalName = bookFormat
+      ? bookFilename(file.originalname, bookFormat)
+      : file.originalname;
 
     const mayPost = await this.messagesService.userCanPostToRoom(userId, rid);
     if (!mayPost) {
@@ -405,11 +419,11 @@ export class MessagesController {
     try {
       const url = await this.cloudinaryService.uploadChatFile(
         file.buffer,
-        file.originalname,
+        originalName,
       );
       const message = await this.messagesService.createRoomMessage({
         type: 'FILE',
-        content: file.originalname || undefined,
+        content: originalName || undefined,
         fileUrl: url,
         senderId: userId,
         roomId: rid,

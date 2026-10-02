@@ -3159,7 +3159,10 @@ export default function ChatPageDetails() {
       const unsupportedNames: string[] = [];
 
       for (const file of files) {
-        const mimeType = file.type.toLowerCase();
+        // iOS іноді віддає .epub без MIME — тоді довіряємо розширенню (сервер усе одно перевіряє вміст).
+        const mimeType =
+          file.type.toLowerCase() ||
+          (/\.epub$/i.test(file.name) ? "application/epub+zip" : /\.pdf$/i.test(file.name) ? "application/pdf" : "");
         if (ALLOWED_IMAGE_ATTACHMENT_TYPES.has(mimeType)) {
           const sent = await handleSendImage(file);
           if (sent) {

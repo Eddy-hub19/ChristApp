@@ -40,6 +40,9 @@ import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
+import BookMessageBubble from "@/components/BookMessageBubble/BookMessageBubble";
+import { bookFormatFromName, isBookFileName, toRawCloudinaryUrl } from "@/lib/book/bookFile";
+import { fetchBookFile, shareOrDownloadBook, canShareFiles } from "@/lib/book/shareFile";
 
 type MessageBubbleProps = {
   message: Message;
@@ -75,11 +78,6 @@ type LinkChunk =
 function isAudioFileName(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase();
   return ext === "mp3" || ext === "m4a";
-}
-
-function isBookFileName(name: string): boolean {
-  const ext = name.split(".").pop()?.toLowerCase();
-  return ext === "pdf" || ext === "epub";
 }
 
 function fmtTime(s: number): string {
@@ -208,43 +206,6 @@ function LinkPreviewCard({ href }: { href: string }) {
     >
       <span className={styles.linkPreviewTitle}>Ссылка</span>
       <span className={styles.linkPreviewUrl}>{hostname}</span>
-    </a>
-  );
-}
-
-function toRawCloudinaryUrl(url: string): string {
-  if (!url.includes("res.cloudinary.com")) return url;
-  // Cloudinary may store PDFs as image type; switch to raw to serve the actual file
-  if (url.includes("/image/upload/")) {
-    return url.replace("/image/upload/", "/raw/upload/");
-  }
-  return url;
-}
-
-function BookFileBubble({
-  href,
-  filename,
-}: {
-  href: string;
-  filename: string;
-}) {
-  const ext = filename.split(".").pop()?.toUpperCase() ?? "FILE";
-  const safeHref = toRawCloudinaryUrl(href);
-  return (
-    <a
-      className={styles.bookFileBubble}
-      href={safeHref}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <span className={styles.bookFileIcon} aria-hidden>
-        📖
-      </span>
-      <span className={styles.bookFileInfo}>
-        <span className={styles.bookFileName}>{filename}</span>
-        <span className={styles.bookFileExt}>{ext}</span>
-      </span>
     </a>
   );
 }
@@ -399,6 +360,16 @@ function MessageBubble({
     !parseVoiceMessageUrl(message.content);
   const canEditThisMessage = Boolean(isOwnMessage && onEdit && isPlainText);
   const copyText = isPlainText ? stripLegacyReplyPrefix(message.content).trim() : "";
+  const bookFileName = message.type === "FILE" ? message.content?.trim() ?? "" : "";
+  const bookFormat = message.fileUrl && isBookFileName(bookFileName) ? bookFormatFromName(bookFileName) : null;
+  const handleShareBook = bookFormat
+    ? () => {
+        const url = toRawCloudinaryUrl(message.fileUrl ?? "");
+        void fetchBookFile(url, bookFileName, bookFormat)
+          .then(shareOrDownloadBook)
+          .catch(() => undefined);
+      }
+    : undefined;
 
   const currentUserId = currentUser?.id;
   const myReactions = useMemo(
@@ -593,7 +564,11 @@ function MessageBubble({
                     <span> — книга</span>
                   </p>
                 ) : null}
-                <BookFileBubble href={imgUrl} filename={fallbackName} />
+                <BookMessageBubble
+                  fileUrl={imgUrl}
+                  filename={fallbackName}
+                  format={bookFormatFromName(fallbackName) ?? "pdf"}
+                />
               </div>
             );
           }
@@ -835,6 +810,8 @@ function MessageBubble({
       onReact={(emoji) => onToggleReaction?.(message, emoji)}
       onReply={onReply ? () => onReply(message) : undefined}
       copyText={copyText || undefined}
+      onShare={handleShareBook}
+      shareMode={canShareFiles() ? "share" : "download"}
       onEdit={canEditThisMessage ? handleEditClick : undefined}
       onDelete={canDeleteThisMessage ? handleDeleteClick : undefined}
       onClose={closeMenu}

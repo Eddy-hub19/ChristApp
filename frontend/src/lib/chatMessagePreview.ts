@@ -1,3 +1,4 @@
+import { bookPreviewLabel } from "@/lib/book/bookFile";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
@@ -16,7 +17,7 @@ export function chatMessagePreview(m: ChatMessagePreviewInput): string {
     return "Видео-овечка";
   }
   if (m.type === "FILE") {
-    return "Файл";
+    return bookPreviewLabel(m.content) ?? "Файл";
   }
   const url = m.fileUrl?.trim();
   if (m.type === "IMAGE" || Boolean(url)) {
