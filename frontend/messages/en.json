@@ -575,6 +575,7 @@
     "notFound": "Movie not found.",
     "loadError": "Couldn't load the movie.",
     "retry": "Retry",
-    "serverDown": "This server isn't responding right now"
+    "serverDown": "This server isn't responding right now",
+    "tryNextServer": "Try the next server"
   }
 }

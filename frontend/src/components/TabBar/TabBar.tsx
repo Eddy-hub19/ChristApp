@@ -47,8 +47,6 @@ export default function TabBar() {
 
   const token = getAuthToken();
   const userId = token ? getUserIdFromJwt(token) : undefined;
-  // Дашборд временно скрыт (вкладка + маршрут).
-  const showDashboardTab = false;
 
   const unreadQuery = useQuery({
     queryKey: pushUnreadSummaryQueryKey(userId),
@@ -176,26 +174,6 @@ export default function TabBar() {
           />
         </span>
       </Link>
-      {showDashboardTab ? (
-        <Link
-          className={styles.tabLink}
-          href="/dashboard"
-          prefetch
-          aria-label={t("dashboard")}
-          title={t("dashboard")}
-        >
-          <span
-            className={`${styles.iconWrap} ${isRouteActive("/dashboard") ? styles.activeIcon : ""}`}
-          >
-            <Image
-              src="/icon-dashboard.svg"
-              alt="Обзор"
-              width={24}
-              height={24}
-            />
-          </span>
-        </Link>
-      ) : null}
       <Link
         className={styles.tabLink}
         href="/chat"

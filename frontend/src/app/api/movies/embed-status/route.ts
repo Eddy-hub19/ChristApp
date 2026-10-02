@@ -12,7 +12,7 @@ const cache = new Map<string, { ok: boolean; at: number }>();
 
 /**
  * Сервер «живий», якщо домен відповідає 2xx/3xx і не забороняє вбудовування
- * (`X-Frame-Options` / `frame-ancestors`). Це лише підказка: з нашого хоста доступність
+ * (`X-Frame-Options` / `frame-ancestors`); відповідь-челендж Cloudflare вважається «живим». Це лише підказка: з нашого хоста доступність
  * може відрізнятись від доступності з телефону користувача, а 200 не гарантує, що відео заграє.
  */
 async function probe(url: string): Promise<boolean> {
@@ -24,11 +24,19 @@ async function probe(url: string): Promise<boolean> {
     const res = await fetch(url, {
       redirect: "follow",
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ChristApp/1.0)" },
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
     });
     await res.body?.cancel();
     const csp = res.headers.get("content-security-policy") ?? "";
-    ok = res.status < 400 && !res.headers.get("x-frame-options") && !/frame-ancestors\s+('none'|'self')/i.test(csp);
+    // Cloudflare Challenge (403/503 + cf-mitigated) на запит із дата-центру означає «домен живий»:
+    // справжній браузер його проходить, тож це не привід вважати сервер впалим.
+    const challenged = res.headers.get("cf-mitigated") === "challenge";
+    ok = (res.status < 400 || challenged) && !res.headers.get("x-frame-options") && !/frame-ancestors\s+('none'|'self')/i.test(csp);
   } catch {
     ok = false;
   }
