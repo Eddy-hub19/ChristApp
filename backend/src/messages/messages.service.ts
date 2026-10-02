@@ -5,6 +5,7 @@ import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
+import { mediaPreviewLabel } from './media-preview';
 import {
   LEGACY_REPLY_PREFIX,
   LEGACY_REPLY_SUFFIX,
@@ -29,6 +30,8 @@ type RoomLastMessageSummary = {
   createdAt: string;
   senderId: string;
   senderUsername: string;
+  /** Тип повідомлення — клієнт підписує медіа на мові інтерфейсу. */
+  type: string;
 };
 
 type RoomUnreadSummary = {
@@ -126,6 +129,9 @@ export class MessagesService {
           senderId: string;
           type: 'IMAGE';
           fileUrl: string;
+          content?: string;
+          mediaWidth?: number;
+          mediaHeight?: number;
         }
       | {
           roomId: string;
@@ -133,6 +139,7 @@ export class MessagesService {
           type: 'FILE';
           fileUrl: string;
           content?: string;
+          fileSize?: number;
         }
       | {
           roomId: string;
@@ -144,7 +151,7 @@ export class MessagesService {
   ) {
     const { roomId, senderId, type } = params;
     const content =
-      type === 'IMAGE' || type === 'VIDEO_NOTE' ? null : params.content;
+      type === 'VIDEO_NOTE' ? null : (params.content?.trim() || null);
     const fileUrl =
       type === 'IMAGE' || type === 'FILE' || type === 'VIDEO_NOTE'
         ? params.fileUrl
@@ -156,6 +163,9 @@ export class MessagesService {
         content,
         fileUrl,
         voiceDuration: voiceDuration || null,
+        mediaWidth: type === 'IMAGE' ? (params.mediaWidth ?? null) : null,
+        mediaHeight: type === 'IMAGE' ? (params.mediaHeight ?? null) : null,
+        fileSize: type === 'FILE' ? (params.fileSize ?? null) : null,
         replyToId: params.replyToId ?? null,
         senderId,
         roomId,
@@ -231,6 +241,32 @@ export class MessagesService {
   }
 
   /**
+   * Позначає голосове як прослухане `userId` (власні повідомлення не рахуються).
+   * Повертає `null`, якщо повідомлення не голосове, чуже недоступне або це власне голосове.
+   */
+  async markVoiceListened(
+    messageId: string,
+    userId: string,
+  ): Promise<{ roomId: string; senderId: string } | null> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, roomId: true, senderId: true, type: true },
+    });
+    if (!message || message.type !== 'VOICE' || message.senderId === userId) {
+      return null;
+    }
+    if (!(await this.userCanPostToRoom(userId, message.roomId))) {
+      return null;
+    }
+    await this.prisma.voiceMessageListen.upsert({
+      where: { messageId_userId: { messageId, userId } },
+      create: { messageId, userId },
+      update: {},
+    });
+    return { roomId: message.roomId, senderId: message.senderId };
+  }
+
+  /**
    * Старіша частина історії: повідомлення суворо раніше `beforeId`. З `untilId` читає
    * стільки, скільки треба, щоб дійти до цього повідомлення (але не більше `limit`).
    */
@@ -265,6 +301,7 @@ export class MessagesService {
       include: {
         sender: true,
         reactions: { orderBy: { createdAt: 'asc' } },
+        voiceListens: { select: { userId: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
@@ -287,6 +324,7 @@ export class MessagesService {
         reactions: {
           orderBy: { createdAt: 'asc' },
         },
+        voiceListens: { select: { userId: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -756,6 +794,7 @@ export class MessagesService {
       createdAt: normalizedCreatedAt,
       senderId: row.messageSenderId,
       senderUsername: row.messageSenderUsername,
+      type: String(row.messageType ?? 'TEXT'),
     };
   }
 
@@ -787,14 +826,10 @@ export class MessagesService {
   }
 
   private resolveUnreadPreview(row: UnreadRoomSummaryRow): string | null {
-    const mt = String(row.messageType ?? 'TEXT');
-    if (mt === 'IMAGE') {
-      return 'Фото';
-    }
-    if (mt === 'FILE') {
-      return 'Файл';
-    }
-    return this.normalizeMessagePreview(row.messageContent);
+    return (
+      mediaPreviewLabel(row.messageType, row.messageContent) ??
+      this.normalizeMessagePreview(row.messageContent)
+    );
   }
 
   private normalizeMessagePreview(content: string | null | undefined) {

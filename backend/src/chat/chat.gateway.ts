@@ -2072,6 +2072,11 @@ export class ChatGateway
     });
   }
 
+  /** Повідомляє кімнату, що голосове прослухали (для індикатора в відправника). */
+  emitVoiceListened(roomId: string, messageId: string, userId: string) {
+    this.server.to(roomId).emit('voiceListened', { roomId, messageId, userId });
+  }
+
   /**
    * Після збереження повідомлення в БД: read receipt, сокет і push (як при sendMessage).
    */
@@ -2082,6 +2087,10 @@ export class ChatGateway
       type: MessageType;
       content: string | null;
       fileUrl: string | null;
+      voiceDuration?: number | null;
+      mediaWidth?: number | null;
+      mediaHeight?: number | null;
+      fileSize?: number | null;
       createdAt: Date;
       senderId: string;
       sender: { username: string; nickname: string | null };
@@ -2101,6 +2110,10 @@ export class ChatGateway
       content: message.content ?? '',
       type: message.type,
       fileUrl: message.fileUrl ?? undefined,
+      voiceDuration: message.voiceDuration ?? undefined,
+      mediaWidth: message.mediaWidth ?? undefined,
+      mediaHeight: message.mediaHeight ?? undefined,
+      fileSize: message.fileSize ?? undefined,
       username: message.sender.nickname || message.sender.username,
       handle: message.sender.username,
       senderId: message.senderId,

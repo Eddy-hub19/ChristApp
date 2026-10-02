@@ -9,6 +9,7 @@ import {
   Inject,
   Logger,
   ParseFilePipeBuilder,
+  Param,
   Post,
   Query,
   Req,
@@ -28,38 +29,19 @@ import { voiceMessageContent } from './voice-message';
 import { VoiceUploadDto } from './dto/voice-upload.dto';
 import { ImageUploadDto } from './dto/image-upload.dto';
 import { uploadErrorMessage } from 'src/common/upload-error-message';
+import {
+  FILE_POLICY,
+  IMAGE_POLICY,
+  VIDEO_NOTE_POLICY,
+  VOICE_POLICY,
+  isMimeAllowed,
+  normalizeMime,
+  sanitizeFileName,
+} from './upload-policy';
 
 type AuthenticatedRequest = {
   user?: { id?: string };
 };
-
-const VOICE_MIME_ALLOW = new Set([
-  'audio/webm',
-  'audio/ogg',
-  'audio/mp4',
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/x-m4a',
-  'video/webm',
-]);
-
-const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-const VIDEO_NOTE_MAX_BYTES = 30 * 1024 * 1024;
-const FILE_MAX_BYTES = 50 * 1024 * 1024;
-const VIDEO_NOTE_MIME_ALLOW = new Set([
-  'video/webm',
-  'video/mp4',
-  'video/quicktime',
-]);
-const FILE_MIME_ALLOW = new Set([
-  'application/pdf',
-  'application/epub+zip',
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/x-m4a',
-  'audio/m4a',
-  'audio/mp4',
-]);
 
 @Controller('messages')
 export class MessagesController {
@@ -164,11 +146,29 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('voice/:id/listen')
+  async markVoiceListened(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    const result = await this.messagesService.markVoiceListened(id, userId);
+    if (!result) {
+      return { ok: false };
+    }
+    this.chatGateway.emitVoiceListened(result.roomId, id, userId);
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('voice')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 8 * 1024 * 1024 },
+      limits: { fileSize: VOICE_POLICY.maxBytes },
     }),
   )
   async uploadVoice(
@@ -196,8 +196,8 @@ export class MessagesController {
       throw new BadRequestException('Нужен аудиофайл в поле file');
     }
 
-    const mime = (file.mimetype || '').toLowerCase();
-    if (!VOICE_MIME_ALLOW.has(mime)) {
+    const mime = normalizeMime(file.mimetype);
+    if (!isMimeAllowed(VOICE_POLICY, mime)) {
       throw new BadRequestException(`Неподдерживаемый тип: ${mime || '—'}`);
     }
 
@@ -207,6 +207,10 @@ export class MessagesController {
     }
 
     try {
+      const replyTarget = await this.messagesService.resolveReplyTarget(
+        rid,
+        body.replyToId,
+      );
       const url = await this.cloudinaryService.uploadChatVoice(file.buffer);
       const content = voiceMessageContent(url);
       const message = await this.messagesService.createRoomMessage({
@@ -215,8 +219,11 @@ export class MessagesController {
         voiceDuration: body.voiceDuration,
         senderId: userId,
         roomId: rid,
+        replyToId: replyTarget?.id,
       });
-      await this.chatGateway.broadcastNewChatMessage(rid, message);
+      await this.chatGateway.broadcastNewChatMessage(rid, message, {
+        repliedToUserId: replyTarget?.senderId,
+      });
       return { ok: true, id: message.id, content: message.content };
     } catch (err) {
       this.logger.warn('uploadVoice failed', err);
@@ -232,7 +239,7 @@ export class MessagesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: IMAGE_MAX_BYTES },
+      limits: { fileSize: IMAGE_POLICY.maxBytes },
     }),
   )
   async uploadImage(
@@ -260,8 +267,8 @@ export class MessagesController {
       throw new BadRequestException('Нужен файл изображения в поле file');
     }
 
-    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (!mime.startsWith('image/')) {
+    const mime = normalizeMime(file.mimetype);
+    if (!isMimeAllowed(IMAGE_POLICY, mime)) {
       throw new BadRequestException(
         `Ожидается изображение, получено: ${mime || '—'}`,
       );
@@ -273,14 +280,27 @@ export class MessagesController {
     }
 
     try {
-      const url = await this.cloudinaryService.uploadChatImage(file.buffer);
+      const replyTarget = await this.messagesService.resolveReplyTarget(
+        rid,
+        body.replyToId,
+      );
+      const image = await this.cloudinaryService.uploadChatImage(
+        file.buffer,
+        mime,
+      );
       const message = await this.messagesService.createRoomMessage({
         type: 'IMAGE',
-        fileUrl: url,
+        fileUrl: image.url,
+        content: body.caption,
+        mediaWidth: image.width,
+        mediaHeight: image.height,
         senderId: userId,
         roomId: rid,
+        replyToId: replyTarget?.id,
       });
-      await this.chatGateway.broadcastNewChatMessage(rid, message);
+      await this.chatGateway.broadcastNewChatMessage(rid, message, {
+        repliedToUserId: replyTarget?.senderId,
+      });
       return {
         ok: true,
         id: message.id,
@@ -302,13 +322,13 @@ export class MessagesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: VIDEO_NOTE_MAX_BYTES },
+      limits: { fileSize: VIDEO_NOTE_POLICY.maxBytes },
     }),
   )
   async uploadVideoNote(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addMaxSizeValidator({ maxSize: VIDEO_NOTE_MAX_BYTES })
+        .addMaxSizeValidator({ maxSize: VIDEO_NOTE_POLICY.maxBytes })
         .addFileTypeValidator({
           // Разрешаем суффиксы кодеков, например video/webm;codecs=vp9,opus
           fileType: /^(video\/webm|video\/mp4|video\/quicktime)(;.*)?$/i,
@@ -336,8 +356,8 @@ export class MessagesController {
       throw new BadRequestException('Нужен видеофайл в поле file');
     }
 
-    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (!VIDEO_NOTE_MIME_ALLOW.has(mime)) {
+    const mime = normalizeMime(file.mimetype);
+    if (!isMimeAllowed(VIDEO_NOTE_POLICY, mime)) {
       throw new BadRequestException(
         `Ожидается видео, получено: ${mime || '—'}`,
       );
@@ -362,7 +382,7 @@ export class MessagesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: FILE_MAX_BYTES },
+      limits: { fileSize: FILE_POLICY.maxBytes },
     }),
   )
   async uploadFile(
@@ -390,8 +410,8 @@ export class MessagesController {
       throw new BadRequestException('Нужен файл в поле file');
     }
 
-    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (!FILE_MIME_ALLOW.has(mime)) {
+    const mime = normalizeMime(file.mimetype);
+    if (!isMimeAllowed(FILE_POLICY, mime)) {
       throw new BadRequestException(
         `Неподдерживаемый тип файла: ${mime || '—'}`,
       );
@@ -403,18 +423,27 @@ export class MessagesController {
     }
 
     try {
-      const url = await this.cloudinaryService.uploadChatFile(
+      const fileName = sanitizeFileName(file.originalname);
+      const replyTarget = await this.messagesService.resolveReplyTarget(
+        rid,
+        body.replyToId,
+      );
+      const uploaded = await this.cloudinaryService.uploadChatFile(
         file.buffer,
-        file.originalname,
+        fileName,
       );
       const message = await this.messagesService.createRoomMessage({
         type: 'FILE',
-        content: file.originalname || undefined,
-        fileUrl: url,
+        content: fileName,
+        fileUrl: uploaded.url,
+        fileSize: uploaded.bytes ?? file.size,
         senderId: userId,
         roomId: rid,
+        replyToId: replyTarget?.id,
       });
-      await this.chatGateway.broadcastNewChatMessage(rid, message);
+      await this.chatGateway.broadcastNewChatMessage(rid, message, {
+        repliedToUserId: replyTarget?.senderId,
+      });
       return {
         ok: true,
         id: message.id,
