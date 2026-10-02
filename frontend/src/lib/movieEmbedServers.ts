@@ -17,7 +17,8 @@ export interface MovieEmbedServer {
  * тому список у одному місці, а плеєр не залежить від кількості елементів.
  */
 export const MOVIE_EMBED_SERVERS: readonly MovieEmbedServer[] = [
-  { id: "vidsrc", label: "VidSrc", buildUrl: ({ tmdbId }) => `https://vidsrc.cc/v2/embed/movie/${tmdbId}` },
-  { id: "embedsu", label: "Embed.su", buildUrl: ({ tmdbId }) => `https://embed.su/embed/movie/${tmdbId}` },
-  { id: "autoembed", label: "AutoEmbed", buildUrl: ({ tmdbId }) => `https://player.autoembed.cc/embed/movie/${tmdbId}` },
+  { id: "vidsrc", label: "VidSrc", buildUrl: ({ tmdbId }) => `https://vidsrc.sh/embed/movie/${tmdbId}` },
+  { id: "vidlink", label: "VidLink", buildUrl: ({ tmdbId }) => `https://vidlink.pro/movie/${tmdbId}` },
+  { id: "multiembed", label: "MultiEmbed", buildUrl: ({ tmdbId }) => `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1` },
+  { id: "2embed", label: "2Embed", buildUrl: ({ tmdbId }) => `https://www.2embed.cc/embed/${tmdbId}` },
 ];

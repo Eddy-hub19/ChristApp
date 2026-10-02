@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MOVIE_EMBED_SERVERS, type MovieEmbedServer } from "@/lib/movieEmbedServers";
+import type { EmbedStatusResponse } from "@/lib/movieEmbedStatus";
 import styles from "./Movies.module.scss";
 
 interface Props {
@@ -15,48 +16,80 @@ interface Props {
 /**
  * Cross-origin iframe не повідомляє про помилки — доступний лише `onLoad`.
  * Якщо він не спрацював за цей час, вважаємо сервер недоступним і пробуємо наступний.
+ * Стан скидається remount-ом: батько віддає `key={tmdbId}`.
  */
 const LOAD_TIMEOUT_MS = 15_000;
 
 export default function MovieEmbedPlayer({ tmdbId, imdbId, title, servers = MOVIE_EMBED_SERVERS }: Props) {
   const t = useTranslations("movies");
-  const [serverIndex, setServerIndex] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [userPicked, setUserPicked] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [failedIds, setFailedIds] = useState<ReadonlySet<string>>(new Set());
+  const [downIds, setDownIds] = useState<ReadonlySet<string>>(new Set());
 
-  const server = servers[serverIndex];
+  // Серверна перевірка: які балансери зараз відповідають. Помилка перевірки не критична.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`/api/movies/embed-status?tmdbId=${tmdbId}`, { signal: controller.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<EmbedStatusResponse>) : null))
+      .then((data) => {
+        if (!data) return;
+        const down = new Set(data.servers.filter((s) => !s.ok).map((s) => s.id));
+        // Якщо «впали» всі — перевірка, найімовірніше, хибна (наш хост ≠ мережа користувача): нічого не ховаємо
+        if (down.size < servers.length) setDownIds(down);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [tmdbId, servers.length]);
+
+  // Живі — першими, збережений відносний порядок
+  const ordered = useMemo(
+    () => [...servers].sort((a, b) => Number(downIds.has(a.id)) - Number(downIds.has(b.id))),
+    [servers, downIds],
+  );
+
+  const server = ordered.find((s) => s.id === selectedId) ?? ordered[0];
   const allFailed = servers.length > 0 && failedIds.size >= servers.length;
 
-  const selectServer = useCallback((index: number) => {
-    setServerIndex(index);
+  // Поки користувач сам не обирав — слідуємо за найкращим сервером (після відповіді перевірки може змінитись)
+  const activeId = userPicked ? server?.id : ordered[0]?.id;
+  const active = ordered.find((s) => s.id === activeId) ?? server;
+
+  const select = (id: string, byUser: boolean) => {
+    setSelectedId(id);
+    if (byUser) setUserPicked(true);
     setLoaded(false);
-  }, []);
+  };
 
   // Автоперемикання, якщо iframe не завантажився вчасно
   useEffect(() => {
-    if (loaded || !server || allFailed) return;
+    if (loaded || !active || allFailed) return;
     const timer = window.setTimeout(() => {
-      setFailedIds((prev) => new Set(prev).add(server.id));
-      const next = servers.findIndex((s, i) => i !== serverIndex && !failedIds.has(s.id));
-      if (next !== -1) selectServer(next);
+      setFailedIds((prev) => new Set(prev).add(active.id));
+      const next = ordered.find((s) => s.id !== active.id && !failedIds.has(s.id));
+      if (next) select(next.id, true);
     }, LOAD_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [loaded, server, serverIndex, servers, failedIds, allFailed, selectServer]);
+  }, [loaded, active, ordered, failedIds, allFailed]);
 
-  if (!server) return null;
-  const src = server.buildUrl({ tmdbId, imdbId });
+  if (!active) return null;
+  const src = active.buildUrl({ tmdbId, imdbId });
 
   return (
     <div className={styles.playerBlock}>
       <div className={styles.serverTabs} role="tablist" aria-label={t("servers")}>
-        {servers.map((s, index) => (
+        {ordered.map((s, index) => (
           <button
             key={s.id}
             type="button"
             role="tab"
-            aria-selected={index === serverIndex}
-            className={`${styles.serverTab} ${index === serverIndex ? styles.serverTabActive : ""}`}
-            onClick={() => selectServer(index)}
+            aria-selected={s.id === active.id}
+            className={`${styles.serverTab} ${s.id === active.id ? styles.serverTabActive : ""} ${
+              downIds.has(s.id) ? styles.serverTabDown : ""
+            }`}
+            title={downIds.has(s.id) ? t("serverDown") : undefined}
+            onClick={() => select(s.id, true)}
           >
             {t("server", { n: index + 1 })} · {s.label}
           </button>
