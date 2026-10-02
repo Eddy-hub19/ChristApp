@@ -571,6 +571,7 @@
     "noOverview": "No description available.",
     "notFound": "Movie not found.",
     "loadError": "Couldn't load the movie.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "serverDown": "This server isn't responding right now"
   }
 }
