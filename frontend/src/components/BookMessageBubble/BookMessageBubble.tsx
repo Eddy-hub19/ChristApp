@@ -19,9 +19,11 @@ type Props = {
   fileUrl: string;
   filename: string;
   format: BookFormat;
+  /** Розмір із повідомлення (його записує сервер); без нього — з метаданих книги. */
+  fileSize?: number | null;
 };
 
-export default function BookMessageBubble({ fileUrl, filename, format }: Props) {
+export default function BookMessageBubble({ fileUrl, filename, format, fileSize }: Props) {
   const t = useTranslations("book");
   const url = toRawCloudinaryUrl(fileUrl);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,7 @@ export default function BookMessageBubble({ fileUrl, filename, format }: Props) 
   }, [meta?.cover]);
 
   const title = meta?.title || bookTitleFromFilename(filename);
-  const size = formatBytes(meta?.size);
+  const size = formatBytes(fileSize ?? meta?.size);
   const kind = format === "pdf" ? t("typePdf") : t("typeEpub");
 
   const open = (event: MouseEvent | KeyboardEvent) => {

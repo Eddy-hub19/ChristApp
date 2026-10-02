@@ -1,5 +1,8 @@
 "use client";
 
+import ImageViewer, { type ViewerImage } from "@/components/ImageViewer/ImageViewer";
+import PendingUploadBubble from "@/components/PendingUploadBubble/PendingUploadBubble";
+import type { PendingUpload } from "@/hooks/useChatUploads";
 import {
   Fragment,
   memo,
@@ -35,6 +38,10 @@ type ChatWindowProps = {
   canModerateMessages?: boolean;
   /** Прокрутка до повідомлення (наприклад, з прев'ю відповіді). */
   jumpToMessageRef?: MutableRefObject<((messageId: string) => void) | null>;
+  /** Медіа, що ще вантажиться або не відправилось (прогрес, скасування, повтор). */
+  pendingUploads?: PendingUpload[];
+  onCancelUpload?: (localId: string) => void;
+  onRetryUpload?: (localId: string) => void;
   /** Контент над списком повідомлень (наприклад, привітання в особливому чаті). */
   topBanner?: ReactNode;
   /** Статуси активності співрозмовників у кімнаті. */
@@ -93,6 +100,9 @@ function ChatWindow({
   hideOwnSenderName = false,
   senderNameMode = "inline",
   jumpToMessageRef,
+  pendingUploads,
+  onCancelUpload,
+  onRetryUpload,
 }: ChatWindowProps) {
   const t = useTranslations("chat");
   const lang = useLocale();
@@ -127,6 +137,45 @@ function ChatWindow({
     const head = names.slice(0, -1).join(", ");
     return t("typingMany", { head, last });
   };
+
+  /**
+   * Альбоми: фото одного відправника, надіслані поспіль (до 2 хв між ними, без відповіді та підпису),
+   * показуються однією сіткою. Лідер групи — перше фото; решта не рендеряться окремими пузирями.
+   */
+  const { albumByLeaderId, albumHiddenIds } = useMemo(() => {
+    const byLeader = new Map<string, Message[]>();
+    const hidden = new Set<string>();
+    let current: Message[] = [];
+    const flush = () => {
+      if (current.length > 1) {
+        byLeader.set(current[0].id, current);
+        current.slice(1).forEach((m) => hidden.add(m.id));
+      }
+      current = [];
+    };
+    const groupable = (m: Message) =>
+      m.type === "IMAGE" && Boolean(m.fileUrl) && !m.replyTo && !m.content?.trim();
+    for (const message of messages) {
+      const last = current[current.length - 1];
+      const joins =
+        last &&
+        groupable(message) &&
+        message.senderId === last.senderId &&
+        message.username === last.username &&
+        current.length < 10 &&
+        Math.abs(
+          new Date(message.createdAt).getTime() - new Date(last.createdAt).getTime(),
+        ) <= 2 * 60 * 1000;
+      if (joins) {
+        current.push(message);
+      } else {
+        flush();
+        if (groupable(message)) current = [message];
+      }
+    }
+    flush();
+    return { albumByLeaderId: byLeader, albumHiddenIds: hidden };
+  }, [messages]);
 
   /** Підпис роздільника перед першим повідомленням кожного нового дня. */
   const dateSeparatorByMessageId = useMemo(() => {
@@ -345,6 +394,44 @@ function ChatWindow({
     };
   }, []);
 
+  const galleryImages = useMemo<ViewerImage[]>(
+    () =>
+      messages
+        .filter((m) => m.type === "IMAGE" && m.fileUrl)
+        .map((m) => ({
+          id: m.id,
+          src: m.fileUrl as string,
+          caption: m.content?.trim() || undefined,
+          fileName: `photo-${m.id.slice(0, 8)}.jpg`,
+        })),
+    [messages],
+  );
+  const [viewerImageId, setViewerImageId] = useState<string | null>(null);
+  const viewerIndex = viewerImageId
+    ? galleryImages.findIndex((image) => image.id === viewerImageId)
+    : -1;
+  const openImage = useCallback((message: Message) => setViewerImageId(message.id), []);
+
+  const pendingCount = pendingUploads?.length ?? 0;
+  const prevPendingCountRef = useRef(0);
+  useEffect(() => {
+    if (pendingCount > prevPendingCountRef.current) {
+      scrollListToBottom("smooth");
+    }
+    prevPendingCountRef.current = pendingCount;
+  }, [pendingCount, scrollListToBottom]);
+
+  const pendingBlock = pendingUploads?.length
+    ? pendingUploads.map((item) => (
+        <PendingUploadBubble
+          key={item.localId}
+          item={item}
+          onCancel={(id) => onCancelUpload?.(id)}
+          onRetry={(id) => onRetryUpload?.(id)}
+        />
+      ))
+    : null;
+
   const typingLine = formatTypingLine(typingStatuses);
   const typingBlock =
     typingLine !== "" ? (
@@ -420,13 +507,23 @@ function ChatWindow({
             </span>
           </div>
         ) : null}
-        {renderBubbleBody(message)}
+        {albumHiddenIds.has(message.id) ? null : renderBubbleBody(message)}
       </Fragment>
     );
   };
 
   const renderBubbleBody = (message: Message) => (
-    <div ref={(element) => setMessageRef(message.id, element)} data-chat-message>
+    <div
+      ref={(element) => {
+        setMessageRef(message.id, element);
+        // Решта фото альбому ведуть до того самого елемента (перехід до цитати).
+        albumByLeaderId
+          .get(message.id)
+          ?.slice(1)
+          .forEach((member) => setMessageRef(member.id, element));
+      }}
+      data-chat-message
+    >
       {(() => {
         const readReceiptUsers =
           readReceiptUsersByMessageId?.get(message.id) ?? [];
@@ -435,6 +532,8 @@ function ChatWindow({
             message={message}
             currentUsername={currentUsername}
             currentUser={currentUser}
+            onOpenImage={openImage}
+            albumMessages={albumByLeaderId.get(message.id)}
             avatarSrc={
               withSenderAvatars && message.senderId
                 ? resolveAvatarUrl?.(message.senderId)
@@ -478,6 +577,7 @@ function ChatWindow({
         {messages.length === 0 ? (
           <>
             <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
+            {pendingBlock}
             {typingBlock}
             <div ref={bottomRef} />
           </>
@@ -506,11 +606,21 @@ function ChatWindow({
                   .map((message) => renderBubble(message))}
               </>
             )}
+            {pendingBlock}
             {typingBlock}
             <div ref={bottomRef} />
           </>
         )}
       </div>
+
+      {viewerIndex >= 0 ? (
+        <ImageViewer
+          images={galleryImages}
+          index={viewerIndex}
+          onIndexChange={(next) => setViewerImageId(galleryImages[next]?.id ?? null)}
+          onClose={() => setViewerImageId(null)}
+        />
+      ) : null}
 
       {showScrollDown ? (
         <button

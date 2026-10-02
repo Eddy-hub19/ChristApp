@@ -1,0 +1,3 @@
+ALTER TABLE "Message" ADD COLUMN "mediaWidth" INTEGER,
+ADD COLUMN "mediaHeight" INTEGER,
+ADD COLUMN "fileSize" INTEGER;

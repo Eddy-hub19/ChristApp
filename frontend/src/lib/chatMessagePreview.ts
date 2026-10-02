@@ -1,5 +1,7 @@
-import { bookPreviewLabel } from "@/lib/book/bookFile";
-import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
+import {
+  mediaPreviewLabel,
+  type PreviewTranslator,
+} from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
@@ -9,31 +11,27 @@ export type ChatMessagePreviewInput = {
   content: string;
   type?: string;
   fileUrl?: string | null;
+  voiceDuration?: number | null;
 };
 
-/** Текст прев'ю для списку чатів, сповіщень і відповідей. */
-export function chatMessagePreview(m: ChatMessagePreviewInput): string {
-  if (m.type === "VIDEO_NOTE") {
-    return "Видео-овечка";
-  }
-  if (m.type === "FILE") {
-    return bookPreviewLabel(m.content) ?? "Файл";
-  }
-  const url = m.fileUrl?.trim();
-  if (m.type === "IMAGE" || Boolean(url)) {
-    return "Фото";
-  }
+/**
+ * Текст прев'ю для списку чатів і сповіщень. `t` — перекладач `chatShared`
+ * (без нього підписи беруться українською).
+ */
+export function chatMessagePreview(
+  m: ChatMessagePreviewInput,
+  t?: PreviewTranslator,
+): string {
+  const media = mediaPreviewLabel(t, m);
+  if (media) return media;
   // Старі відповіді несуть цитату префіксом [[reply:…]] — у превʼю йде лише сам текст.
-  const t = stripLegacyReplyPrefix(m.content).trim();
-  if (parseStickerMessagePayload(t)) {
-    return "Стикер";
+  const text = stripLegacyReplyPrefix(m.content).trim();
+  if (parseStickerMessagePayload(text)) {
+    return t ? t("previewSticker") : "Стікер";
   }
-  if (parseVoiceMessageUrl(t)) {
-    return "Голосовое сообщение";
-  }
-  const verseShare = parseVerseSharePayload(t);
+  const verseShare = parseVerseSharePayload(text);
   if (verseShare.payload) {
-    return scripturePlainText(verseShare.payload.text) || t;
+    return scripturePlainText(verseShare.payload.text) || text;
   }
-  return t;
+  return text;
 }

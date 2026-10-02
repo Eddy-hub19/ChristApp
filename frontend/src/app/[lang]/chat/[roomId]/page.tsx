@@ -47,6 +47,14 @@ import {
 } from "@/lib/chatMessagesApi";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
+import { useChatUploads } from "@/hooks/useChatUploads";
+import type { RecordedVoice } from "@/hooks/useVoiceRecorder";
+import {
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_FILES_PER_PICK,
+  classifyAttachment,
+  voiceFileName,
+} from "@/lib/chatMedia";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -81,21 +89,6 @@ const CHAT_HTTP_API = getHttpApiBase();
 const HISTORY_PAGE_SIZE = 250;
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews";
 const MAX_REPLY_PREVIEW_LENGTH = 180;
-const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
-const ALLOWED_IMAGE_ATTACHMENT_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-const ALLOWED_FILE_ATTACHMENT_TYPES = new Set([
-  "application/pdf",
-  "application/epub+zip",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/x-m4a",
-  "audio/m4a",
-  "audio/mp4",
-]);
 type AppSocket = ReturnType<typeof createSocket>;
 
 type IncomingSocketMessage = {
@@ -104,6 +97,11 @@ type IncomingSocketMessage = {
   content?: string;
   type?: string;
   fileUrl?: string;
+  voiceDuration?: number | null;
+  mediaWidth?: number | null;
+  mediaHeight?: number | null;
+  fileSize?: number | null;
+  voiceListens?: Array<{ userId?: string }>;
   createdAt?: string | Date;
   username?: string;
   handle?: string;
@@ -127,6 +125,7 @@ type IncomingSocketMessage = {
     type?: string;
     content?: string;
     fileUrl?: string | null;
+    voiceDuration?: number | null;
   } | null;
 };
 
@@ -384,6 +383,12 @@ function normalizeMessageType(raw: unknown): Message["type"] {
     : undefined;
 }
 
+function positiveNumber(value: number | null | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
+}
+
 function normalizeIncomingMessage(
   raw: IncomingSocketMessage | null | undefined,
   currentUsername?: string,
@@ -406,6 +411,7 @@ function normalizeIncomingMessage(
         content: String(raw.replyTo.content ?? ""),
         type: normalizeMessageType(raw.replyTo.type),
         fileUrl: raw.replyTo.fileUrl ?? undefined,
+        voiceDuration: raw.replyTo.voiceDuration ?? undefined,
         deleted: Boolean(raw.replyTo.deleted),
       }
     : legacy.replyTo;
@@ -436,6 +442,13 @@ function normalizeIncomingMessage(
     content,
     type,
     fileUrl,
+    voiceDuration: positiveNumber(raw?.voiceDuration),
+    mediaWidth: positiveNumber(raw?.mediaWidth),
+    mediaHeight: positiveNumber(raw?.mediaHeight),
+    fileSize: positiveNumber(raw?.fileSize),
+    voiceListenedBy: raw?.voiceListens
+      ?.map((listen) => listen?.userId)
+      .filter((id): id is string => typeof id === "string"),
     createdAt: String(raw?.createdAt ?? new Date().toISOString()),
     username: displayName,
     handle,
@@ -509,6 +522,7 @@ function findDirectRoomByUserId(
 
 export default function ChatPageDetails() {
   const t = useTranslations("chat");
+  const tShared = useTranslations("chatShared");
   const lang = useLocale();
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" });
   const queryClient = useQueryClient();
@@ -1061,11 +1075,14 @@ export default function ChatPageDetails() {
       }
 
       const normalized = normalizeIncomingMessage(msg, user?.username);
-      const previewLine = chatMessagePreview({
-        content: normalized.content,
-        type: normalized.type,
-        fileUrl: normalized.fileUrl,
-      });
+      const previewLine = chatMessagePreview(
+        {
+          content: normalized.content,
+          type: normalized.type,
+          fileUrl: normalized.fileUrl,
+        },
+        tShared,
+      );
       if (!previewLine.trim()) {
         return;
       }
@@ -1115,6 +1132,25 @@ export default function ChatPageDetails() {
       dispatchChatUnreadChangedEvent();
     };
     socket.on("newMessage", onNewMessage);
+
+    const onVoiceListened = (payload: {
+      messageId?: string;
+      userId?: string;
+    }) => {
+      const { messageId, userId } = payload ?? {};
+      if (!messageId || !userId) return;
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId && !message.voiceListenedBy?.includes(userId)
+            ? {
+                ...message,
+                voiceListenedBy: [...(message.voiceListenedBy ?? []), userId],
+              }
+            : message,
+        ),
+      );
+    };
+    socket.on("voiceListened", onVoiceListened);
 
     const onMessageDeleted = (payload: MessageDeletedSocketEvent) => {
       const deletedMessageId = payload?.messageId;
@@ -1222,11 +1258,14 @@ export default function ChatPageDetails() {
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1];
       if (historyRoomId && lastMessage) {
-        const historyPreview = chatMessagePreview({
-          content: lastMessage.content,
-          type: lastMessage.type,
-          fileUrl: lastMessage.fileUrl,
-        });
+        const historyPreview = chatMessagePreview(
+          {
+            content: lastMessage.content,
+            type: lastMessage.type,
+            fileUrl: lastMessage.fileUrl,
+          },
+          tShared,
+        );
         if (historyPreview.trim()) {
           persistLastSentPreview(historyRoomId, historyPreview);
         }
@@ -1821,6 +1860,7 @@ export default function ChatPageDetails() {
       socket.off("error", onSocketError);
       socket.off("newMessage", onNewMessage);
       socket.off("messageDeleted", onMessageDeleted);
+      socket.off("voiceListened", onVoiceListened);
       socket.off("deleteMessageResult", onDeleteMessageResult);
       socket.off("messageEdited", onMessageEdited);
       socket.off("roomHistory", onRoomHistory);
@@ -2947,205 +2987,81 @@ export default function ChatPageDetails() {
     onError: (message) => setSendNotice(message),
   });
 
+  /** Перевіряє, що кімната готова, і дає roomId + токен для завантаження медіа. */
+  const resolveUploadTarget = useCallback(async () => {
+    const targetRoomId = effectiveSocketRoomId;
+    if (!targetRoomId || routeRoomId === user?.id) {
+      return null;
+    }
+
+    if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+      setSendNotice(t("roomConnecting"));
+      return null;
+    }
+
+    if (
+      !availableRoomIdsRef.current.has(targetRoomId) &&
+      targetRoomId !== GLOBAL_ROOM_ID
+    ) {
+      if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+        openingDirectRoomRef.current.add(routeRoomId);
+        socketRef.current?.emit("openDirectRoom", {
+          targetUserId: routeRoomId,
+        });
+      }
+      setSendNotice(t("roomNotReady"));
+      return null;
+    }
+
+    const token =
+      (await ensureAccessToken().catch(() => null)) ?? getAuthToken();
+    if (!token) {
+      setSendNotice(t("noAuthTokenNotice"));
+      return null;
+    }
+
+    setSendNotice(null);
+    return { roomId: targetRoomId, token };
+  }, [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id]);
+
+  const chatUploads = useChatUploads({
+    resolveTarget: resolveUploadTarget,
+    apiBase: CHAT_HTTP_API,
+  });
+  const enqueueUpload = chatUploads.enqueue;
+
   const handleSendVoice = useCallback(
     async (audioBlob: Blob): Promise<boolean> => {
-      const targetRoomId = effectiveSocketRoomId;
-      if (!targetRoomId || !audioBlob?.size) {
+      if (!audioBlob?.size) {
         return false;
       }
-
-      if (routeRoomId === user?.id) {
-        return false;
-      }
-
-      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
-        setSendNotice(t("roomConnecting"));
-        return false;
-      }
-
-      if (
-        !availableRoomIdsRef.current.has(targetRoomId) &&
-        targetRoomId !== GLOBAL_ROOM_ID
-      ) {
-        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
-          openingDirectRoomRef.current.add(routeRoomId);
-          socketRef.current?.emit("openDirectRoom", {
-            targetUserId: routeRoomId,
-          });
-        }
-        setSendNotice(t("roomNotReady"));
-        return false;
-      }
-
-      const token =
-        (await ensureAccessToken().catch(() => null)) ?? getAuthToken();
-      if (!token) {
-        setSendNotice(t("noAuthTokenNotice"));
-        return false;
-      }
-
-      const formData = new FormData();
-      const file = new File([audioBlob], "voice.webm", {
-        type: audioBlob.type || "audio/webm",
+      const recorded = audioBlob as RecordedVoice;
+      const replyToId = replyToMessage?.id ?? null;
+      if (replyToMessage) setReplyToMessage(null);
+      return enqueueUpload({
+        kind: "voice",
+        file: audioBlob,
+        fileName: voiceFileName(audioBlob.type),
+        voiceDuration: recorded.durationMs
+          ? Math.round(recorded.durationMs / 100) / 10
+          : undefined,
+        replyToId,
       });
-      formData.append("file", file);
-      formData.append("roomId", targetRoomId);
-
-      setSendNotice(null);
-      try {
-        const response = await apiFetch(`${CHAT_HTTP_API}/messages/voice`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const text = (await response.text()).trim();
-          setSendNotice(
-            text.slice(0, 280) || t("httpError", { status: response.status }),
-          );
-          return false;
-        }
-        return true;
-      } catch {
-        setSendNotice(t("voiceSendFailed"));
-        return false;
-      }
     },
-    [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
+    [enqueueUpload, replyToMessage],
   );
 
-  const handleSendImage = useCallback(
-    async (imageFile: File): Promise<boolean> => {
-      const targetRoomId = effectiveSocketRoomId;
-      if (!targetRoomId || !imageFile?.size) {
-        return false;
-      }
-
-      if (routeRoomId === user?.id) {
-        return false;
-      }
-
-      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
-        setSendNotice(t("roomConnecting"));
-        return false;
-      }
-
-      if (
-        !availableRoomIdsRef.current.has(targetRoomId) &&
-        targetRoomId !== GLOBAL_ROOM_ID
-      ) {
-        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
-          openingDirectRoomRef.current.add(routeRoomId);
-          socketRef.current?.emit("openDirectRoom", {
-            targetUserId: routeRoomId,
-          });
-        }
-        setSendNotice(t("roomNotReady"));
-        return false;
-      }
-
-      const token =
-        (await ensureAccessToken().catch(() => null)) ?? getAuthToken();
-      if (!token) {
-        setSendNotice(t("noAuthTokenNotice"));
-        return false;
-      }
-
-      const formData = new FormData();
-      formData.append("file", imageFile);
-      formData.append("roomId", targetRoomId);
-
-      setSendNotice(null);
-      try {
-        const response = await apiFetch(`${CHAT_HTTP_API}/messages/image`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const text = (await response.text()).trim();
-          setSendNotice(
-            text.slice(0, 280) || t("httpError", { status: response.status }),
-          );
-          return false;
-        }
-        return true;
-      } catch {
-        setSendNotice(t("imageSendFailed"));
-        return false;
-      }
-    },
-    [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
-  );
-
-  const handleSendFile = useCallback(
-    async (chatFile: File): Promise<boolean> => {
-      const targetRoomId = effectiveSocketRoomId;
-      if (!targetRoomId || !chatFile?.size) {
-        return false;
-      }
-
-      if (routeRoomId === user?.id) {
-        return false;
-      }
-
-      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
-        setSendNotice(t("roomConnecting"));
-        return false;
-      }
-
-      if (
-        !availableRoomIdsRef.current.has(targetRoomId) &&
-        targetRoomId !== GLOBAL_ROOM_ID
-      ) {
-        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
-          openingDirectRoomRef.current.add(routeRoomId);
-          socketRef.current?.emit("openDirectRoom", {
-            targetUserId: routeRoomId,
-          });
-        }
-        setSendNotice(t("roomNotReady"));
-        return false;
-      }
-
-      const token =
-        (await ensureAccessToken().catch(() => null)) ?? getAuthToken();
-      if (!token) {
-        setSendNotice(t("noAuthTokenNotice"));
-        return false;
-      }
-
-      const formData = new FormData();
-      formData.append("file", chatFile);
-      formData.append("roomId", targetRoomId);
-
-      setSendNotice(null);
-      try {
-        const response = await apiFetch(`${CHAT_HTTP_API}/messages/file`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const text = (await response.text()).trim();
-          setSendNotice(text.slice(0, 280) || t("fileSendFailed"));
-          return false;
-        }
-        return true;
-      } catch {
-        setSendNotice(t("fileSendFailed"));
-        return false;
-      }
-    },
-    [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
-  );
-
+  /**
+   * Розбирає вибрані файли за типом і ставить у чергу завантаження.
+   * Нові типи вкладень додаються в `lib/chatMedia.ts` (FILE_ATTACHMENT_TYPES) — тут нічого міняти не треба.
+   */
   const handleSelectAttachments = useCallback(
-    async (files: File[]) => {
+    async (pickedFiles: File[]) => {
+      const files = pickedFiles.slice(0, MAX_FILES_PER_PICK);
       if (!files.length) return;
+      if (pickedFiles.length > files.length) {
+        setSendNotice(t("tooManyFiles", { count: MAX_FILES_PER_PICK }));
+      }
 
       const tooLarge = files.find(
         (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES,
@@ -3155,29 +3071,15 @@ export default function ChatPageDetails() {
         return;
       }
 
-      let sentCount = 0;
       const unsupportedNames: string[] = [];
-
+      const queued: Array<{ kind: "image" | "file"; file: File }> = [];
       for (const file of files) {
-        // iOS іноді віддає .epub без MIME — тоді довіряємо розширенню (сервер усе одно перевіряє вміст).
-        const mimeType =
-          file.type.toLowerCase() ||
-          (/\.epub$/i.test(file.name) ? "application/epub+zip" : /\.pdf$/i.test(file.name) ? "application/pdf" : "");
-        if (ALLOWED_IMAGE_ATTACHMENT_TYPES.has(mimeType)) {
-          const sent = await handleSendImage(file);
-          if (sent) {
-            sentCount += 1;
-          }
-          continue;
+        const kind = classifyAttachment(file);
+        if (kind) {
+          queued.push({ kind, file });
+        } else {
+          unsupportedNames.push(file.name);
         }
-        if (ALLOWED_FILE_ATTACHMENT_TYPES.has(mimeType)) {
-          const sent = await handleSendFile(file);
-          if (sent) {
-            sentCount += 1;
-          }
-          continue;
-        }
-        unsupportedNames.push(file.name);
       }
 
       if (unsupportedNames.length > 0) {
@@ -3192,14 +3094,31 @@ export default function ChatPageDetails() {
                 : "",
           }),
         );
-        return;
+        if (!queued.length) return;
       }
 
-      if (sentCount > 0) {
-        setSendNotice(null);
-      }
+      const replyToId = replyToMessage?.id ?? null;
+      if (replyToMessage) setReplyToMessage(null);
+      // Усі файли одразу з'являються в чаті з прогресом і вантажаться паралельно.
+      await Promise.all(
+        queued.map(({ kind, file }, index) =>
+          enqueueUpload({
+            kind,
+            file,
+            replyToId: index === 0 ? replyToId : null,
+          }),
+        ),
+      );
     },
-    [handleSendFile, handleSendImage, t],
+    [enqueueUpload, replyToMessage, t],
+  );
+
+  const handleSendImage = useCallback(
+    async (imageFile: File): Promise<boolean> => {
+      await handleSelectAttachments([imageFile]);
+      return true;
+    },
+    [handleSelectAttachments],
   );
 
   const handleSendSticker = useCallback(
@@ -3284,6 +3203,11 @@ export default function ChatPageDetails() {
   const messagingPane = (
     <ChatWindow
       messages={messages}
+      pendingUploads={chatUploads.items.filter(
+        (item) => !item.roomId || item.roomId === effectiveSocketRoomId,
+      )}
+      onCancelUpload={chatUploads.cancel}
+      onRetryUpload={chatUploads.retry}
       currentUsername={user?.username}
       currentUser={user}
       withSenderAvatars

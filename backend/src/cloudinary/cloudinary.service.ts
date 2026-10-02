@@ -61,8 +61,14 @@ export class CloudinaryService {
     });
   }
 
-  /** Зображення в чат (папка `christapp/chat-images`). */
-  async uploadChatImage(buffer: Buffer): Promise<string> {
+  /**
+   * Зображення в чат (папка `christapp/chat-images`): зменшується до 2048px по довгій стороні,
+   * HEIC/HEIF перетворюється на JPEG. Повертає URL і фактичні розміри.
+   */
+  async uploadChatImage(
+    buffer: Buffer,
+    mime?: string,
+  ): Promise<{ url: string; width?: number; height?: number }> {
     if (!this.ready) {
       throw new Error('Cloudinary is not configured');
     }
@@ -72,10 +78,12 @@ export class CloudinaryService {
         {
           folder: 'christapp/chat-images',
           resource_type: 'image',
+          ...(mime === 'image/heic' || mime === 'image/heif'
+            ? { format: 'jpg' }
+            : {}),
           transformation: [
-            { width: 1000, crop: 'limit' },
+            { width: 2048, height: 2048, crop: 'limit' },
             { quality: 'auto' },
-            { fetch_format: 'auto' },
           ],
         },
         (err, result) => {
@@ -88,7 +96,7 @@ export class CloudinaryService {
             reject(new Error('Cloudinary returned no URL'));
             return;
           }
-          resolve(url);
+          resolve({ url, width: result?.width, height: result?.height });
         },
       );
 
@@ -134,7 +142,7 @@ export class CloudinaryService {
   async uploadChatFile(
     buffer: Buffer,
     originalFilename?: string,
-  ): Promise<string> {
+  ): Promise<{ url: string; bytes?: number }> {
     if (!this.ready) {
       throw new Error('Cloudinary is not configured');
     }
@@ -158,7 +166,7 @@ export class CloudinaryService {
             reject(new Error('Cloudinary returned no URL'));
             return;
           }
-          resolve(url);
+          resolve({ url, bytes: result?.bytes });
         },
       );
 

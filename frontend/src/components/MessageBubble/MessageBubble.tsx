@@ -37,6 +37,8 @@ import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
+import ChatImage from "@/components/ChatImage/ChatImage";
+import FileBubble from "@/components/FileBubble/FileBubble";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
@@ -48,6 +50,10 @@ type MessageBubbleProps = {
   message: Message;
   currentUsername?: string;
   currentUser?: { id: string; username: string; nickname?: string } | null;
+  /** Відкрити фото у повноекранному перегляді (галерея чату). */
+  onOpenImage?: (message: Message) => void;
+  /** Фото альбому (разом із цим повідомленням першим): рендеряться сіткою. */
+  albumMessages?: Message[];
   avatarSrc?: string;
   onAvatarClick?: (message: Message) => void;
   onReply?: (message: Message) => void;
@@ -307,6 +313,8 @@ function MessageBubble({
   message,
   currentUsername,
   currentUser,
+  onOpenImage,
+  albumMessages,
   avatarSrc,
   onAvatarClick,
   onReply,
@@ -328,6 +336,7 @@ function MessageBubble({
   senderNameMode = "inline",
 }: MessageBubbleProps) {
   const tShared = useTranslations("chatShared");
+  const tChat = useTranslations("chat");
   const hydrated = useHydrated();
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
 
@@ -343,10 +352,16 @@ function MessageBubble({
       message.username === "Ты";
 
   const stickerPayload = parseStickerMessagePayload(message.content);
+  const isMediaMessage =
+    message.type === "IMAGE" ||
+    message.type === "FILE" ||
+    message.type === "VIDEO_NOTE" ||
+    message.type === "VOICE" ||
+    message.content.startsWith(VOICE_META_PREFIX);
   const stickerImagePath = stickerPayload?.path ?? null;
   const bubble = isOwnMessage
-    ? `${styles.bubble} ${styles.myBubble} ${stickerPayload ? styles.stickerBubble : ""}`
-    : `${styles.bubble} ${stickerPayload ? styles.stickerBubble : ""}`;
+    ? `${styles.bubble} ${styles.myBubble} ${stickerPayload ? styles.stickerBubble : ""} ${isMediaMessage ? styles.mediaBubble : ""}`
+    : `${styles.bubble} ${stickerPayload ? styles.stickerBubble : ""} ${isMediaMessage ? styles.mediaBubble : ""}`;
 
   const showAvatar = Boolean(
     avatarSrc || (onAvatarClick && message.senderId && !isOwnMessage),
@@ -469,7 +484,7 @@ function MessageBubble({
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.imageMessageMeta}>
                   <SenderName name={senderName} as="strong" />
-                  <span> — видео-овечка</span>
+                  <span> — {tChat("videoNoteLabel")}</span>
                 </p>
               ) : null}
               <VideoSheep src={imgUrl} />
@@ -488,24 +503,36 @@ function MessageBubble({
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.imageMessageMeta}>
                   <SenderName name={senderName} as="strong" />
-                  <span> — фото</span>
+                  <span> — {tChat("photoLabel")}</span>
                 </p>
               ) : null}
-              <a
-                className={styles.imageLink}
-                href={imgUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- зовнішній Cloudinary URL */}
-                <img
-                  src={imgUrl}
-                  alt=""
-                  className={styles.chatImage}
-                  loading="lazy"
-                />
-              </a>
+              {albumMessages && albumMessages.length > 1 ? (
+                <div
+                  className={styles.albumGrid}
+                  data-count={Math.min(albumMessages.length, 4)}
+                >
+                  {albumMessages.map((member) => (
+                    <ChatImage
+                      key={member.id}
+                      variant="tile"
+                      src={member.fileUrl as string}
+                      width={member.mediaWidth}
+                      height={member.mediaHeight}
+                      onOpen={
+                        onOpenImage ? () => onOpenImage(member) : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              ) : (
+              <ChatImage
+                src={imgUrl}
+                width={message.mediaWidth}
+                height={message.mediaHeight}
+                caption={message.content?.trim() || undefined}
+                onOpen={onOpenImage ? () => onOpenImage(message) : undefined}
+              />
+              )}
             </div>
           );
         }
@@ -539,7 +566,7 @@ function MessageBubble({
                       name={senderName}
                       as="strong"
                     />
-                    <span> — музыка</span>
+                    <span> — {tChat("musicLabel")}</span>
                   </p>
                 ) : null}
                 <AudioFileBubble src={imgUrl} filename={fallbackName} />
@@ -561,12 +588,13 @@ function MessageBubble({
                       name={senderName}
                       as="strong"
                     />
-                    <span> — книга</span>
+                    <span> — {tChat("bookLabel")}</span>
                   </p>
                 ) : null}
                 <BookMessageBubble
                   fileUrl={imgUrl}
                   filename={fallbackName}
+                  fileSize={message.fileSize}
                   format={bookFormatFromName(fallbackName) ?? "pdf"}
                 />
               </div>
@@ -583,18 +611,14 @@ function MessageBubble({
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.fileMessageMeta}>
                   <SenderName name={senderName} as="strong" />
-                  <span> — файл</span>
+                  <span> — {tChat("fileLabel")}</span>
                 </p>
               ) : null}
-              <a
-                className={styles.fileLink}
+              <FileBubble
                 href={imgUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {fallbackName}
-              </a>
+                fileName={fallbackName}
+                fileSize={message.fileSize}
+              />
             </div>
           );
         }
@@ -619,6 +643,7 @@ function MessageBubble({
               src={playerSrc}
               isOwn={isOwnMessage}
               message={message}
+              currentUserId={currentUser?.id}
               hideSenderName={showCompactSender || !canShowSenderName}
               compactSenderLabel={showCompactSender ? senderName : undefined}
             />

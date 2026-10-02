@@ -397,6 +397,7 @@ function normalizeChatListItemForRender(room: ChatListItem): ChatListItem {
 
 export default function ChatPage() {
   const t = useTranslations("chat");
+  const tShared = useTranslations("chatShared");
   const lang = useLocale();
   const sortLang = lang === "ua" ? "uk" : lang === "en" ? "en" : "ru";
   const { user, users, loading } = useAuth();
@@ -414,7 +415,17 @@ export default function ChatPage() {
     ) => {
       const strippedMeta =
         normalizeNotificationBody(lastMessage.content) || lastMessage.content;
-      const previewBody = chatMessagePreview({ content: strippedMeta }).trim();
+      const isMedia = Boolean(
+        lastMessage.type && lastMessage.type !== "TEXT",
+      );
+      const previewBody = chatMessagePreview(
+        {
+          // Для медіа бекенд лише дублює підпис у content — підписуємо самі за типом.
+          content: isMedia ? "" : strippedMeta,
+          type: lastMessage.type,
+        },
+        tShared,
+      ).trim();
       if (!previewBody) {
         return "";
       }
@@ -429,7 +440,7 @@ export default function ChatPage() {
 
       return previewBody;
     },
-    [previewYouLabel],
+    [previewYouLabel, tShared],
   );
 
   const chatI18nRef = useRef({
@@ -1173,11 +1184,14 @@ export default function ChatPage() {
         roomIdToDirectUserIdRef.current.get(canonicalChatUuidKey(msg.roomId));
       const mappedId =
         msg.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserId;
-      const normalizedContent = chatMessagePreview({
-        content: msg.content ?? "",
-        type: msg.type,
-        fileUrl: msg.fileUrl,
-      });
+      const normalizedContent = chatMessagePreview(
+        {
+          content: msg.content ?? "",
+          type: msg.type,
+          fileUrl: msg.fileUrl,
+        },
+        tShared,
+      );
 
       if (!mappedId) {
         requestMyRooms(socket);
