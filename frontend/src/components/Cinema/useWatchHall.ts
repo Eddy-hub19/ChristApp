@@ -1,5 +1,6 @@
 "use client";
 
+import type { WatchSystemData } from "@/lib/watchSystemMessage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
@@ -34,6 +35,9 @@ export type HallMessage = {
   reactions: HallMessageReaction[];
   replyTo?: HallReplyPreview | null;
   editedAt?: string | null;
+  /** SYSTEM — службовий рядок (вихід/вхід учасника); відсутнє/TEXT — звичайне повідомлення. */
+  type?: "TEXT" | "SYSTEM";
+  systemData?: WatchSystemData | null;
 };
 
 /** Скільки повідомлень тримаємо в памʼяті (разом із дозавантаженою історією). */
@@ -213,6 +217,11 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
         prev.map((m) => (m.id === p.messageId ? { ...m, reactions: p.reactions } : m)),
       );
     };
+    // Рядок "вийшов" перетворюється на "знову в залі", коли людина швидко повернулась.
+    const onSystemUpdated = (p: { roomId: string; messageId: string; systemData: WatchSystemData }) => {
+      if (p.roomId !== roomId) return;
+      setMessages((prev) => prev.map((m) => (m.id === p.messageId ? { ...m, systemData: p.systemData } : m)));
+    };
     const onMessageDeleted = (p: { roomId: string; messageId: string }) => {
       if (p.roomId !== roomId) return;
       messageListeners.current.forEach((listener) => listener({ type: "deleted", messageId: p.messageId }));
@@ -290,6 +299,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
     socket.on("watch:roomDeleted", onDeleted);
     socket.on("watch:removedFromRoom", onRemoved);
     socket.on("watch:messageReactions", onMessageReactions);
+    socket.on("watch:systemUpdated", onSystemUpdated);
     socket.on("watch:messageDeleted", onMessageDeleted);
     socket.on("watch:messageEdited", onMessageEdited);
     socket.on("watch:readUpdated", onReadUpdated);
@@ -368,6 +378,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
       socket.off("watch:roomDeleted", onDeleted);
       socket.off("watch:removedFromRoom", onRemoved);
       socket.off("watch:messageReactions", onMessageReactions);
+      socket.off("watch:systemUpdated", onSystemUpdated);
       socket.off("watch:messageDeleted", onMessageDeleted);
       socket.off("watch:messageEdited", onMessageEdited);
       socket.off("watch:readUpdated", onReadUpdated);

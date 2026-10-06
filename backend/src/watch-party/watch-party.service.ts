@@ -35,6 +35,11 @@ import {
   type WatchProvider,
 } from './watch-party.state';
 import type { CreateWatchRoomDto } from './dto/watch-room.dto';
+import {
+  PresenceNotices,
+  type PresenceEvent,
+  type PresenceNoticeData,
+} from './watch-presence-notices';
 
 /** Скільки чекаємо, поки хост перепідключиться, перш ніж передати керування. */
 const HOST_GRACE_MS = 15_000;
@@ -106,6 +111,8 @@ const WATCH_MESSAGE_SELECT = {
   replyToId: true,
   editedAt: true,
   createdAt: true,
+  type: true,
+  systemData: true,
   user: { select: userPublicSelect },
   reactions: {
     orderBy: { createdAt: 'asc' },
@@ -133,6 +140,21 @@ export class WatchPartyService implements OnModuleDestroy {
   >();
   /** roomId → userId → socketId-и, що зараз тримають залу відкритою. */
   private readonly presence = new Map<string, Map<string, Set<string>>>();
+  /** Службові рядки «вийшов/зайшов» у чаті: коли показувати, вирішують таймери присутності. */
+  private readonly notices = new PresenceNotices({
+    // Хост-вихідець: чекаємо, поки спрацює грейс і керування буде передано (див. resolveHostAbsence).
+    hostHandoverDelayMs: HOST_GRACE_MS + 2_000,
+    create: (roomId, userId, data) => this.createSystemMessage(roomId, userId, data),
+    update: (roomId, messageId, data) =>
+      this.updateSystemMessage(roomId, messageId, data),
+    lastEvent: (roomId, userId) => this.lastPresenceEvent(roomId, userId),
+    isJoined: (roomId, userId) => this.assertJoined(roomId, userId),
+    hostOutcome: (roomId, userId) => this.hostOutcome(roomId, userId),
+    onError: (error) =>
+      this.logger.warn(
+        `presence notice failed: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+  });
   private readonly oembedCache = new Map<
     string,
     { at: number; result: VideoCheckResult }
@@ -148,6 +170,7 @@ export class WatchPartyService implements OnModuleDestroy {
   }
 
   onModuleDestroy() {
+    this.notices.dispose();
     for (const runtime of this.runtimes.values()) {
       if (runtime.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
       if (runtime.manualCountdownTimer)
@@ -470,6 +493,8 @@ export class WatchPartyService implements OnModuleDestroy {
     });
     if (!membership) return { ok: true, deleted: false };
 
+    const wasPresent = this.isPresent(roomId, userId);
+    const wasHost = membership.room.hostId === userId;
     if (membership.room.hostId === userId) {
       const others = await this.joinedMemberIds(roomId, userId);
       const present = this.presentUserIds(roomId);
@@ -486,6 +511,14 @@ export class WatchPartyService implements OnModuleDestroy {
       where: { roomId_userId: { roomId, userId } },
     });
     this.evictUserFromRoom(roomId, userId);
+    if (wasPresent) {
+      // Передача керування (якщо була) вже відбулась — рядок одразу з правильним підсумком.
+      this.notices.departed(roomId, userId, {
+        explicit: true,
+        wasHost,
+        immediate: true,
+      });
+    }
     void this.broadcastMembers(roomId);
     return { ok: true, deleted: false };
   }
@@ -507,6 +540,7 @@ export class WatchPartyService implements OnModuleDestroy {
     if (runtime?.hostGraceTimer) clearTimeout(runtime.hostGraceTimer);
     this.runtimes.delete(roomId);
     this.presence.delete(roomId);
+    this.notices.clearRoom(roomId);
 
     if (this.server) {
       const targets = [
@@ -553,11 +587,13 @@ export class WatchPartyService implements OnModuleDestroy {
       this.presence.set(roomId, users);
     }
     let sockets = users.get(userId);
+    const firstSocket = !sockets;
     if (!sockets) {
       sockets = new Set();
       users.set(userId, sockets);
     }
     sockets.add(socketId);
+    if (firstSocket) this.notices.arrived(roomId, userId);
 
     if (runtime.hostAway && userId !== runtime.hostId) {
       await this.setHost(roomId, userId, 'host');
@@ -589,13 +625,26 @@ export class WatchPartyService implements OnModuleDestroy {
     };
   }
 
-  leaveHall(roomId: string, userId: string, socketId: string) {
+  /**
+   * @param explicit людина свідомо пішла (закрила мініплеєр, перейшла в іншу кімнату): рядок «вийшов»
+   * одразу. Інакше (обрив сокета, згортання) — лише якщо не повернеться за `AWAY_GRACE_MS`.
+   */
+  leaveHall(
+    roomId: string,
+    userId: string,
+    socketId: string,
+    explicit = false,
+  ) {
     const users = this.presence.get(roomId);
     const sockets = users?.get(userId);
     if (!users || !sockets) return;
     sockets.delete(socketId);
     if (sockets.size === 0) {
       users.delete(userId);
+      this.notices.departed(roomId, userId, {
+        explicit,
+        wasHost: this.runtimes.get(roomId)?.hostId === userId,
+      });
       // Вийшов з кімнати цілком (не просто ще одна вкладка) — "готовність" уже не інформативна.
       const runtime = this.runtimes.get(roomId);
       if (runtime && runtime.manual.readyUserIds.has(userId)) {
@@ -807,7 +856,7 @@ export class WatchPartyService implements OnModuleDestroy {
     const replyTarget =
       typeof replyToId === 'string' && replyToId
         ? await this.prisma.watchMessage.findFirst({
-            where: { id: replyToId, roomId },
+            where: { id: replyToId, roomId, type: 'TEXT' },
             select: { id: true, userId: true },
           })
         : null;
@@ -833,6 +882,8 @@ export class WatchPartyService implements OnModuleDestroy {
         user: message.user,
         reactions: [] as WatchMessageReactionSummary[],
         editedAt: null,
+        type: 'TEXT' as const,
+        systemData: null,
         replyTo: (await this.attachReplies([message]))[0].replyTo,
       },
     };
@@ -930,10 +981,13 @@ export class WatchPartyService implements OnModuleDestroy {
     }
     const message = await this.prisma.watchMessage.findUnique({
       where: { id: messageId },
-      select: { roomId: true },
+      select: { roomId: true, type: true },
     });
     if (!message || message.roomId !== roomId) {
       return { ok: false as const, code: 'NOT_FOUND' as const };
+    }
+    if (message.type !== 'TEXT') {
+      return { ok: false as const, code: 'FORBIDDEN' as const };
     }
 
     const existing = await this.prisma.watchMessageReaction.findUnique({
@@ -1449,12 +1503,13 @@ export class WatchPartyService implements OnModuleDestroy {
   async deleteMessage(roomId: string, userId: string, messageId: string) {
     const message = await this.prisma.watchMessage.findUnique({
       where: { id: messageId },
-      select: { roomId: true, userId: true },
+      select: { roomId: true, userId: true, type: true },
     });
     if (!message || message.roomId !== roomId) {
       return { ok: false as const, code: 'NOT_FOUND' as const };
     }
-    if (message.userId !== userId) {
+    // Службові рядки (вихід/вхід) ніхто не видаляє й не редагує — їх веде сервер.
+    if (message.type !== 'TEXT' || message.userId !== userId) {
       return { ok: false as const, code: 'FORBIDDEN' as const };
     }
     await this.prisma.watchMessage.delete({ where: { id: messageId } });
@@ -1475,12 +1530,13 @@ export class WatchPartyService implements OnModuleDestroy {
     if (!content) return { ok: false as const, code: 'EMPTY' as const };
     const message = await this.prisma.watchMessage.findUnique({
       where: { id: messageId },
-      select: { roomId: true, userId: true },
+      select: { roomId: true, userId: true, type: true },
     });
     if (!message || message.roomId !== roomId) {
       return { ok: false as const, code: 'NOT_FOUND' as const };
     }
-    if (message.userId !== userId) {
+    // Службові рядки (вихід/вхід) ніхто не видаляє й не редагує — їх веде сервер.
+    if (message.type !== 'TEXT' || message.userId !== userId) {
       return { ok: false as const, code: 'FORBIDDEN' as const };
     }
     const editedAt = new Date();
@@ -1495,6 +1551,77 @@ export class WatchPartyService implements OnModuleDestroy {
       editedAt: editedAt.toISOString(),
     });
     return { ok: true as const };
+  }
+
+  // ================= СЛУЖБОВІ РЯДКИ ЧАТУ =================
+
+  private async createSystemMessage(
+    roomId: string,
+    userId: string,
+    data: PresenceNoticeData,
+  ): Promise<string | null> {
+    try {
+      const message = await this.prisma.watchMessage.create({
+        data: {
+          roomId,
+          userId,
+          content: '',
+          type: 'SYSTEM',
+          systemData: data,
+        },
+        select: WATCH_MESSAGE_SELECT,
+      });
+      const [serialized] = await this.serializeMessages([message]);
+      this.server
+        ?.to(watchSocketRoom(roomId))
+        .emit('watch:message', { roomId, message: serialized });
+      return message.id;
+    } catch (error) {
+      // Кімнату чи користувача могли щойно видалити.
+      this.logger.warn(
+        `createSystemMessage(${roomId}) failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async updateSystemMessage(
+    roomId: string,
+    messageId: string,
+    data: PresenceNoticeData,
+  ) {
+    const { count } = await this.prisma.watchMessage.updateMany({
+      where: { id: messageId, roomId, type: 'SYSTEM' },
+      data: { systemData: data },
+    });
+    if (!count) return;
+    this.server
+      ?.to(watchSocketRoom(roomId))
+      .emit('watch:systemUpdated', { roomId, messageId, systemData: data });
+  }
+
+  private async lastPresenceEvent(
+    roomId: string,
+    userId: string,
+  ): Promise<PresenceEvent | null> {
+    const row = await this.prisma.watchMessage.findFirst({
+      where: { roomId, userId, type: 'SYSTEM' },
+      orderBy: { createdAt: 'desc' },
+      select: { systemData: true },
+    });
+    const event = (row?.systemData as { event?: unknown } | null)?.event;
+    return event === 'left' || event === 'joined' || event === 'back'
+      ? event
+      : null;
+  }
+
+  /** Що сталося з керуванням після виходу хоста: нове керування чи пауза. */
+  private hostOutcome(roomId: string, userId: string) {
+    const runtime = this.runtimes.get(roomId);
+    if (runtime && runtime.hostId !== userId) {
+      return { toUserId: runtime.hostId };
+    }
+    return { paused: true };
   }
 
   private async notifyInvited(

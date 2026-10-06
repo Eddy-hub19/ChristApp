@@ -161,6 +161,24 @@ export class WatchPartyGateway
     return { ok: true };
   }
 
+  /** Свідомий вихід (закрила мініплеєр, перейшла в іншу кімнату): службовий рядок «вийшов» одразу. */
+  @SubscribeMessage('watch:leaveExplicit')
+  async handleLeaveExplicit(
+    @MessageBody() body: RoomBody,
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId) return { ok: false };
+    if (!this.limiter.allow(`${client.id}:leaveExplicit`, 5, 10_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    client.data.watchRooms?.delete(roomId);
+    await client.leave(watchSocketRoom(roomId));
+    this.watchParty.leaveHall(roomId, userId, client.id, true);
+    return { ok: true };
+  }
+
   @SubscribeMessage('watch:play')
   handlePlay(
     @MessageBody() body: ControlBody,

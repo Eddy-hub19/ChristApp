@@ -258,11 +258,21 @@ model WatchRoomMember {
   @@index([userId, status])
 }
 
+/// TEXT — звичайне повідомлення; SYSTEM — службовий рядок (вихід/вхід учасника), текст збирає клієнт.
+enum WatchMessageType {
+  TEXT
+  SYSTEM
+}
+
 model WatchMessage {
   id        String    @id @default(uuid())
   roomId    String
   userId    String
+  /// Для SYSTEM порожній: уся інформація в `systemData`.
   content   String    @db.VarChar(500)
+  type      WatchMessageType @default(TEXT)
+  /// Лише для SYSTEM: { event: "left" | "joined" | "back", at, wasHost?, toUserId?, paused? }.
+  systemData Json?
   /// Повідомлення чату Киношки, на яке це є відповіддю (без FK — як Message.replyToId).
   replyToId String?
   /// Коли автор востаннє редагував повідомлення (null — не редагувалось).

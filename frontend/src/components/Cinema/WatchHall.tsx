@@ -590,6 +590,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                 />
                 <ChatOverlay
                   subscribe={hall.subscribeMessages}
+                  members={hall.members}
                   active={(isFullscreen || pseudoFullscreen) && chatOverlayEnabled}
                 />
               </>
