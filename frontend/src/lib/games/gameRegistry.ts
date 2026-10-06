@@ -8,6 +8,7 @@ export const GAME_REGISTRY = {
   doodle: { id: "doodle" },
   snake: { id: "snake" },
   filword: { id: "filword" },
+  guess: { id: "guess" },
 } as const;
 
 export type GameId = keyof typeof GAME_REGISTRY;

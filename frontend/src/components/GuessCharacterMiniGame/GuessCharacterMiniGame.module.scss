@@ -1,0 +1,692 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Поля з урахуванням вирізів і смужки «додому». */
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: rgba(10, 10, 10, 0.68);
+  backdrop-filter: blur(4px);
+}
+
+.card {
+  width: min(520px, 96vw);
+  /* Видима область (dvh), а не 100vh: на iOS vh більший за екран із панелями Safari. */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 95%, var(--background));
+  box-shadow: 0 20px 45px -30px rgba(0, 0, 0, 0.65);
+  padding: 12px;
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.close {
+  /* Зона дотику 44×44; від'ємний відступ, щоб хрестик не роздував шапку. */
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px -8px 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+
+  &:hover,
+  &:active {
+    background: color-mix(in srgb, var(--line-soft) 40%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.waiting {
+  margin: 6px 0;
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.45;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-soft) 22%, transparent);
+}
+
+.statusRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 10px;
+  background: color-mix(in srgb, #d9a21b 18%, transparent);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+// ── кнопки ──
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.guessButton {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.primaryButton,
+.guessButton {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 78%, var(--accent-soft) 22%);
+  color: var(--foreground);
+}
+
+.guessButton {
+  width: 100%;
+  border-color: var(--accent);
+}
+
+.secondaryButton {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.dangerButton {
+  border: 1px solid color-mix(in srgb, #c0392b 70%, transparent);
+  background: color-mix(in srgb, #c0392b 14%, transparent);
+  color: var(--foreground);
+}
+
+.linkButton {
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.abortRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+// ── лобі ──
+.lobby {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modeSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--line-soft) 22%, transparent);
+}
+
+.modeButton {
+  min-height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+.modeButtonActive {
+  background: color-mix(in srgb, var(--surface-elevated) 70%, var(--accent-soft) 30%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.rules {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+
+  summary {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  p {
+    margin: 4px 0;
+  }
+}
+
+.lobbyTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.levelList {
+  display: grid;
+  gap: 8px;
+}
+
+.levelCard {
+  text-align: left;
+  padding: 12px;
+  min-height: 44px;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.levelCardActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface-elevated));
+}
+
+.levelName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.levelDesc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.readyRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.readyOk {
+  color: color-mix(in srgb, #2e9b57 80%, var(--foreground));
+  font-weight: 600;
+}
+
+// ── вибір персонажа / здогадка ──
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+  color: var(--foreground);
+  /* 16px — інакше iOS Safari наближає сторінку при фокусі. */
+  font-size: 16px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.pickList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 38vh;
+  max-height: 38dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pickItem {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  text-align: left;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.pickItemActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface-elevated));
+  font-weight: 700;
+}
+
+.pickActions {
+  display: flex;
+  gap: 8px;
+
+  .primaryButton {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.secretBanner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface-elevated));
+}
+
+// ── питання ──
+.attempts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.attemptsDots {
+  display: inline-flex;
+  gap: 3px;
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+}
+
+.dot {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.dotUsed {
+  background: color-mix(in srgb, var(--line-soft) 70%, transparent);
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.tabActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface-elevated));
+}
+
+.traitList {
+  display: grid;
+  gap: 6px;
+}
+
+.traitButton {
+  min-height: 44px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:active:not(:disabled) {
+    background: color-mix(in srgb, var(--surface-elevated) 70%, var(--accent-soft) 30%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.75;
+    cursor: default;
+  }
+}
+
+.answer {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.answer_yes {
+  background: color-mix(in srgb, #2e9b57 22%, transparent);
+  color: color-mix(in srgb, #2e9b57 75%, var(--foreground));
+}
+
+.answer_no {
+  background: color-mix(in srgb, #c0392b 18%, transparent);
+  color: color-mix(in srgb, #c0392b 70%, var(--foreground));
+}
+
+.answer_unknown {
+  background: color-mix(in srgb, #d9a21b 24%, transparent);
+  color: color-mix(in srgb, #a97800 70%, var(--foreground));
+}
+
+.hint {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hintToggle {
+  min-height: 44px;
+  padding: 0 12px;
+  text-align: left;
+  border: 1px dashed color-mix(in srgb, var(--line-soft) 80%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--line-soft) 28%, transparent);
+}
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--line-soft) 16%, transparent);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.historyText {
+  min-width: 0;
+}
+
+.historyNum {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+// ── кінець раунду / матчу ──
+.card2 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 16%, var(--surface-elevated));
+}
+
+.resultLine {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.resultWon {
+  color: color-mix(in srgb, #2e9b57 80%, var(--foreground));
+}
+
+.resultLost {
+  color: color-mix(in srgb, #c0392b 75%, var(--foreground));
+}
+
+.hiddenWas {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cardName {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.cardAbout {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.refs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.refLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--accent);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.matchTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.matchResult {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.rounds {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .traitButton,
+  .pickItem,
+  .levelCard {
+    transition:
+      background 0.12s ease,
+      border-color 0.12s ease;
+  }
+}

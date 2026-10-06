@@ -14,6 +14,7 @@ export type GameActivityDef = {
 export const GAME_ACTIVITY_REGISTRY: Record<string, GameActivityDef> = {
   doodle: { id: 'doodle', joinable: true, maxPlayers: 2 },
   snake: { id: 'snake', joinable: true, maxPlayers: 2 },
+  guess: { id: 'guess', joinable: true, maxPlayers: 2 },
   filword: { id: 'filword', joinable: false, maxPlayers: 1 },
 };
 
