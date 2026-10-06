@@ -13,6 +13,7 @@ import {
   type RefObject,
 } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { clearServerViewState } from "@/lib/viewStateBeacon";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
 import {
   getAuthSessionSnapshot,
@@ -213,6 +214,38 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
   const state = hall.state;
   const inHall =
     activeRoomId !== null && pathname === `/cinema/${activeRoomId}`;
+
+  // «Дивлюсь на залу»: сторінка зали відкрита й ВИДИМА. Мініплеєр, інший екран і згорнутий застосунок — ні:
+  // у цих випадках повідомлення чату зали приходять пушем. Сервер знімає перегляд і при розриві сокета.
+  const hallJoined = hall.status === "ready";
+  useEffect(() => {
+    if (!socket || !activeRoomId || !inHall) return;
+    const roomId = activeRoomId;
+    const emit = (active: boolean) => {
+      if (socket.connected) socket.emit("watch:viewState", { roomId, active });
+    };
+    const sync = () => {
+      const visible = document.visibilityState === "visible";
+      emit(visible);
+      if (!visible) clearServerViewState(socket.id);
+    };
+    const goInactive = () => {
+      emit(false);
+      clearServerViewState(socket.id);
+    };
+    sync();
+    socket.on("connect", sync);
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("pagehide", goInactive);
+    document.addEventListener("freeze", goInactive);
+    return () => {
+      socket.off("connect", sync);
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("pagehide", goInactive);
+      document.removeEventListener("freeze", goInactive);
+      emit(false);
+    };
+  }, [socket, activeRoomId, inHall, hallJoined]);
   const pseudoFullscreen = pseudoFullscreenRaw && inHall;
   if (!inHall && pseudoFullscreenRaw) setPseudoFullscreen(false);
   const isReady = hall.status === "ready" && state !== null;

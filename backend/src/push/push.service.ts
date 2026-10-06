@@ -1,5 +1,10 @@
 import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,10 +13,16 @@ import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
-import { mediaPreviewLabel } from 'src/messages/media-preview';
-
-const VOICE_META_PREFIX = '[[voice:';
-const VOICE_META_SUFFIX = ']]';
+import {
+  PUSH_RETRY_DELAY_MS,
+  PUSH_TTL_SECONDS,
+  PushDeliveryStats,
+  isRetryablePushStatus,
+  summarizeDispatch,
+  type PushKind,
+  type PushSendResult,
+} from './push-delivery';
+import { buildPushDisplay, pushMessageText, truncatePushText } from './push-text';
 
 type ChatPushNotificationInput = {
   messageId: string;
@@ -28,7 +39,6 @@ type ChatPushNotificationInput = {
   repliedToUserId?: string;
 };
 
-const PUSH_BODY_MAX_LEN = 220;
 /** Ліміт тіла JSON до шифрування web-push (запас до ~4 КБ після overhead). */
 const PUSH_JSON_UTF8_MAX_BYTES = 3600;
 
@@ -41,10 +51,13 @@ type PushSubscriptionRecord = {
 };
 
 @Injectable()
-export class PushService {
+export class PushService implements OnModuleDestroy {
   private readonly logger = new Logger(PushService.name);
 
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
+
+  /** Лічильники відправки по типах подій (для логів і діагностики). */
+  readonly deliveryStats = new PushDeliveryStats();
 
   private readonly isConfigured: boolean;
   private readonly publicKey: string | null;
@@ -66,6 +79,7 @@ export class PushService {
       webPush.setVapidDetails(subject, publicKey, privateKey);
       this.isConfigured = true;
       this.publicKey = publicKey;
+      this.startStatsLog();
       return;
     }
 
@@ -76,6 +90,25 @@ export class PushService {
     );
   }
 
+  private statsTimer: ReturnType<typeof setInterval> | null = null;
+  private lastLoggedStats = '';
+
+  /** Раз на 10 хв (якщо щось змінилось) — зведення: скільки пушів відправлено/не вдалось по типах подій. */
+  private startStatsLog() {
+    this.statsTimer = setInterval(() => {
+      const snapshot = JSON.stringify(this.deliveryStats.snapshot());
+      if (snapshot === '{}' || snapshot === this.lastLoggedStats) return;
+      this.lastLoggedStats = snapshot;
+      this.logger.log(`push stats (since start): ${snapshot}`);
+    }, 10 * 60 * 1000);
+    this.statsTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.statsTimer) clearInterval(this.statsTimer);
+    this.statsTimer = null;
+  }
+
   getPublicConfig() {
     return {
       enabled: this.isConfigured,
@@ -83,15 +116,71 @@ export class PushService {
     };
   }
 
-  async getStatus(userId: string) {
-    const subscriptionsCount = await this.prisma.pushSubscription.count({
+  /**
+   * Стан підписок користувача. `endpoint` — підписка ЦЬОГО пристрою (з браузера): чи є вона на сервері.
+   * Підписки зберігаються окремо для кожного пристрою, пуш іде на всі.
+   */
+  async getStatus(userId: string, endpoint?: string) {
+    const devices = await this.prisma.pushSubscription.findMany({
       where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, endpoint: true, userAgent: true, lastUsedAt: true },
     });
+    const normalized = endpoint?.trim();
 
     return {
       enabled: this.isConfigured,
-      hasSubscription: subscriptionsCount > 0,
-      subscriptionsCount,
+      hasSubscription: devices.length > 0,
+      subscriptionsCount: devices.length,
+      ...(normalized
+        ? { thisDeviceRegistered: devices.some((d) => d.endpoint === normalized) }
+        : {}),
+      devices: devices.map((d) => ({
+        id: d.id,
+        current: normalized ? d.endpoint === normalized : false,
+        userAgent: d.userAgent?.slice(0, 120) ?? null,
+        lastUsedAt: d.lastUsedAt?.toISOString() ?? null,
+      })),
+    };
+  }
+
+  /** Тестове сповіщення на пристрої користувача (усі або лише з даним endpoint) з результатом по кожному. */
+  async sendTestPush(userId: string, endpoint?: string) {
+    if (!this.isConfigured) {
+      return { ok: false as const, code: 'DISABLED' as const, results: [] };
+    }
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId, ...(endpoint?.trim() ? { endpoint: endpoint.trim() } : {}) },
+      select: { id: true, userId: true, endpoint: true, p256dh: true, auth: true },
+    });
+    if (!subscriptions.length) {
+      return { ok: false as const, code: 'NO_SUBSCRIPTION' as const, results: [] };
+    }
+    const badge = (await this.getCombinedUnreadBadgeCounts([userId]).catch(() => null))?.get(userId);
+    const createdAt = new Date().toISOString();
+    const results = await Promise.all(
+      subscriptions.map((sub) =>
+        this.sendToSubscription(
+          sub,
+          {
+            title: 'ChristApp',
+            body: 'Тестове сповіщення ✅',
+            targetUrl: '/profile',
+            roomId: 'test',
+            senderId: '',
+            createdAt,
+            messageId: `test-${Date.now()}`,
+            badgeCount: badge,
+          },
+          'test',
+        ),
+      ),
+    );
+    this.logger.log(summarizeDispatch('test', `user=${userId}`, 1, results));
+    return {
+      ok: results.some((r) => r.ok),
+      code: results.some((r) => r.ok) ? ('SENT' as const) : ('FAILED' as const),
+      results: results.map((r) => ({ ok: r.ok, status: r.status ?? null, removed: Boolean(r.removed) })),
     };
   }
 
@@ -166,10 +255,8 @@ export class PushService {
       return;
     }
 
-    const normalizedBody =
-      mediaPreviewLabel(input.messageType, input.content) ??
-      this.normalizeMessageBody(input.content);
-    if (!normalizedBody) {
+    const text = pushMessageText(input.messageType, input.content);
+    if (!text) {
       return;
     }
 
@@ -178,7 +265,7 @@ export class PushService {
       input.senderId,
     );
 
-    // Кімната зараз відкрита на екрані — людина бачить повідомлення наживо, пуш зайвий.
+    // Пуш не шлемо ЛИШЕ тим, хто просто зараз дивиться цей чат (застосунок видимий, кімната на екрані).
     const excluded = new Set(input.excludeUserIds ?? []);
     const deliverableUserIds = recipientUserIds.filter(
       (userId) => !excluded.has(userId),
@@ -205,24 +292,12 @@ export class PushService {
       return;
     }
 
-    const isGlobalRoom = input.roomId === this.GLOBAL_ROOM;
-    const displayBody = this.truncatePushText(
-      normalizedBody,
-      PUSH_BODY_MAX_LEN,
-    );
-    const { title, body } = this.resolveNotificationDisplay(
-      roomTitle ?? undefined,
-      isGlobalRoom,
-      input.senderUsername,
-      displayBody,
-    );
-
-    const replyBody = input.repliedToUserId
-      ? this.truncatePushText(
-          `${input.senderUsername.trim() || 'ChristApp'} відповів(ла) вам: ${normalizedBody}`,
-          PUSH_BODY_MAX_LEN,
-        )
-      : null;
+    const roomKind: 'dm' | 'group' | 'global' =
+      input.roomId === this.GLOBAL_ROOM
+        ? 'global'
+        : roomTitle?.startsWith('dm:')
+          ? 'dm'
+          : 'group';
 
     const uniqueRecipientIds = [
       ...new Set(subscriptions.map((sub) => sub.userId)),
@@ -238,31 +313,44 @@ export class PushService {
       this.logger.warn(`Не удалось посчитать badge для push: ${reason}`);
     }
 
-    await Promise.allSettled(
+    const results = await Promise.all(
       subscriptions.map((subscription) => {
-        const targetUrl = this.resolveTargetUrl(
-          roomTitle ?? undefined,
-          input.roomId,
-          input.senderId,
-          subscription.userId,
-        );
-
-        const badgeCount = badgeByUserId.get(subscription.userId);
-
-        return this.sendToSubscription(subscription, {
-          title,
-          body:
-            replyBody && subscription.userId === input.repliedToUserId
-              ? replyBody
-              : body,
-          targetUrl,
-          roomId: input.roomId,
-          senderId: input.senderId,
-          createdAt: input.createdAt.toISOString(),
-          messageId: input.messageId,
-          badgeCount,
+        const { title, body } = buildPushDisplay({
+          kind: roomKind,
+          senderName: input.senderUsername,
+          roomTitle,
+          text,
+          isReplyToRecipient: subscription.userId === input.repliedToUserId,
         });
+
+        return this.sendToSubscription(
+          subscription,
+          {
+            title,
+            body,
+            targetUrl: this.resolveTargetUrl(
+              roomTitle ?? undefined,
+              input.roomId,
+              input.senderId,
+              subscription.userId,
+            ),
+            roomId: input.roomId,
+            senderId: input.senderId,
+            createdAt: input.createdAt.toISOString(),
+            messageId: input.messageId,
+            badgeCount: badgeByUserId.get(subscription.userId),
+          },
+          'chat',
+        );
       }),
+    );
+    this.logger.log(
+      summarizeDispatch(
+        'chat',
+        `room=${input.roomId} type=${input.messageType ?? 'TEXT'}`,
+        uniqueRecipientIds.length,
+        results,
+      ),
     );
   }
 
@@ -315,47 +403,6 @@ export class PushService {
     return { recipientUserIds, roomTitle: room?.title ?? null };
   }
 
-  /**
-   * Заголовок сповіщення — ім'я відправника; тіло — контекст чату + текст повідомлення.
-   */
-  private resolveNotificationDisplay(
-    roomTitle: string | undefined,
-    isGlobalRoom: boolean,
-    senderUsername: string,
-    messagePreview: string,
-  ): { title: string; body: string } {
-    const title = senderUsername.trim() || 'ChristApp';
-
-    if (isGlobalRoom) {
-      return {
-        title,
-        body: `Общий чат · ${messagePreview}`,
-      };
-    }
-
-    if (roomTitle?.startsWith('dm:')) {
-      return { title, body: messagePreview };
-    }
-
-    const roomLabel = roomTitle?.trim();
-    if (roomLabel) {
-      return {
-        title,
-        body: `${roomLabel} · ${messagePreview}`,
-      };
-    }
-
-    return { title, body: messagePreview };
-  }
-
-  private truncatePushText(text: string, maxLen: number) {
-    const t = text.replace(/\s+/g, ' ').trim();
-    if (t.length <= maxLen) {
-      return t;
-    }
-    return `${t.slice(0, maxLen - 1)}…`;
-  }
-
   private resolveTargetUrl(
     roomTitle: string | undefined,
     roomId: string,
@@ -377,20 +424,6 @@ export class PushService {
     return `/chat/${roomId}`;
   }
 
-  private normalizeMessageBody(content: string) {
-    const rawContent = String(content || '');
-    const trimmed = rawContent.trim();
-
-    if (
-      trimmed.startsWith(VOICE_META_PREFIX) &&
-      trimmed.endsWith(VOICE_META_SUFFIX)
-    ) {
-      return 'Голосовое сообщение';
-    }
-
-    return stripLegacyReplyPrefix(rawContent).replace(/\s+/g, ' ').trim();
-  }
-
   private async sendToSubscription(
     subscription: PushSubscriptionRecord,
     payload: {
@@ -406,7 +439,8 @@ export class PushService {
       kind?: 'read-sync';
       readRoomId?: string;
     },
-  ) {
+    kind: PushKind,
+  ): Promise<PushSendResult> {
     const pushSubscription: webPush.PushSubscription = {
       endpoint: subscription.endpoint,
       keys: {
@@ -419,49 +453,68 @@ export class PushService {
       payload as unknown as Record<string, unknown>,
     );
 
-    try {
-      await webPush.sendNotification(pushSubscription, payloadString, {
-        TTL: 60 * 60,
-        urgency: 'high',
-      });
+    // Службовий read-sync — «тихий» і застарілий за годину; справжні повідомлення живуть добу
+    // (телефон без мережі отримає їх, щойно з'явиться зв'язок).
+    const options = {
+      TTL: kind === 'readSync' ? 60 * 60 : PUSH_TTL_SECONDS,
+      urgency: 'high' as const,
+    };
 
-      await this.prisma.pushSubscription.update({
-        where: {
-          id: subscription.id,
-        },
-        data: {
-          lastUsedAt: new Date(),
-        },
-      });
-    } catch (error: unknown) {
-      const statusCode = this.extractPushHttpStatus(error);
+    let retried = false;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await webPush.sendNotification(pushSubscription, payloadString, options);
+        const ok: PushSendResult = { ok: true };
+        this.deliveryStats.record(kind, ok, retried);
+        void this.prisma.pushSubscription
+          .update({ where: { id: subscription.id }, data: { lastUsedAt: new Date() } })
+          .catch(() => undefined);
+        return ok;
+      } catch (error: unknown) {
+        const statusCode = this.extractPushHttpStatus(error);
 
-      if (statusCode === 404 || statusCode === 410) {
-        await this.removeInvalidPushSubscription(subscription, statusCode);
-        return;
+        if (statusCode === 404 || statusCode === 410) {
+          await this.removeInvalidPushSubscription(subscription, statusCode);
+          const result: PushSendResult = { ok: false, status: statusCode, removed: true };
+          this.deliveryStats.record(kind, result, retried);
+          return result;
+        }
+
+        if (attempt === 0 && isRetryablePushStatus(statusCode) && statusCode !== 401 && statusCode !== 403) {
+          retried = true;
+          await new Promise((resolve) => setTimeout(resolve, PUSH_RETRY_DELAY_MS));
+          continue;
+        }
+
+        if (statusCode === 401 || statusCode === 403) {
+          this.logger.warn(
+            `Push HTTP ${statusCode} (subscriptionId=${subscription.id}) — проверьте WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY и WEB_PUSH_SUBJECT; ключи должны совпадать с фронтом.`,
+          );
+        } else {
+          const bodySnippet =
+            error &&
+            typeof error === 'object' &&
+            'body' in error &&
+            typeof (error as { body: unknown }).body === 'string'
+              ? ((error as { body: string }).body || '').slice(0, 180)
+              : '';
+          const reason = error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `Failed to send push (subscriptionId=${subscription.id}) HTTP=${statusCode ?? 'n/a'}: ${reason}${
+              bodySnippet ? ` | body: ${bodySnippet}` : ''
+            }`,
+          );
+        }
+        const result: PushSendResult = {
+          ok: false,
+          status: statusCode,
+          error: error instanceof Error ? error.message : String(error),
+        };
+        this.deliveryStats.record(kind, result, retried);
+        return result;
       }
-
-      if (statusCode === 401 || statusCode === 403) {
-        this.logger.warn(
-          `Push HTTP ${statusCode} (subscriptionId=${subscription.id}) — проверьте WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY и WEB_PUSH_SUBJECT; ключи должны совпадать с фронтом.`,
-        );
-        return;
-      }
-
-      const bodySnippet =
-        error &&
-        typeof error === 'object' &&
-        'body' in error &&
-        typeof (error as { body: unknown }).body === 'string'
-          ? ((error as { body: string }).body || '').slice(0, 180)
-          : '';
-      const reason = error instanceof Error ? error.message : String(error);
-      this.logger.warn(
-        `Failed to send push (subscriptionId=${subscription.id}) HTTP=${statusCode ?? 'n/a'}: ${reason}${
-          bodySnippet ? ` | body: ${bodySnippet}` : ''
-        }`,
-      );
     }
+    return { ok: false };
   }
 
   /** Стискає JSON-рядок сповіщення під ліміт провайдера (після шифрування ліміт жорсткіший). */
@@ -572,21 +625,28 @@ export class PushService {
 
     const createdAt = new Date().toISOString();
 
-    await Promise.allSettled(
+    const results = await Promise.all(
       targets.map((sub) =>
-        this.sendToSubscription(sub, {
-          title: '',
-          body: '',
-          targetUrl: '/chat',
-          roomId: input.roomId,
-          senderId: input.userId,
-          createdAt,
-          messageId: '',
-          badgeCount,
-          kind: 'read-sync',
-          readRoomId: input.roomId,
-        }),
+        this.sendToSubscription(
+          sub,
+          {
+            title: '',
+            body: '',
+            targetUrl: '/chat',
+            roomId: input.roomId,
+            senderId: input.userId,
+            createdAt,
+            messageId: '',
+            badgeCount,
+            kind: 'read-sync',
+            readRoomId: input.roomId,
+          },
+          'readSync',
+        ),
       ),
+    );
+    this.logger.debug(
+      summarizeDispatch('readSync', `room=${input.roomId}`, 1, results),
     );
   }
 
@@ -616,22 +676,31 @@ export class PushService {
     }
 
     const title = input.callerName;
-    const body = 'Входящий аудиозвонок';
+    const body = 'Вхідний аудіодзвінок';
     const createdAt = new Date().toISOString();
+    const badge = (
+      await this.getCombinedUnreadBadgeCounts([input.targetUserId]).catch(() => null)
+    )?.get(input.targetUserId);
 
-    await Promise.allSettled(
+    const results = await Promise.all(
       subscriptions.map((sub) =>
-        this.sendToSubscription(sub, {
-          title,
-          body,
-          targetUrl: input.targetUrl,
-          roomId: input.callerId,
-          senderId: input.callerId,
-          createdAt,
-          messageId: '',
-        }),
+        this.sendToSubscription(
+          sub,
+          {
+            title,
+            body,
+            targetUrl: input.targetUrl,
+            roomId: input.callerId,
+            senderId: input.callerId,
+            createdAt,
+            messageId: `call-${input.callerId}-${Date.now()}`,
+            badgeCount: badge,
+          },
+          'call',
+        ),
       ),
     );
+    this.logger.log(summarizeDispatch('call', `caller=${input.callerId}`, 1, results));
   }
 
   /** Запрошення до «Киношки»: клік відкриває список кімнат, де чекає «Прийняти». */
@@ -661,23 +730,35 @@ export class PushService {
     }
 
     const createdAt = new Date().toISOString();
-    const body = this.truncatePushText(
+    const body = truncatePushText(
       `${input.inviterName || 'Хтось'} кличе на перегляд «${input.roomTitle}»`,
-      PUSH_BODY_MAX_LEN,
+    );
+    const recipientIds = [...new Set(subscriptions.map((sub) => sub.userId))];
+    const badges = await this.getCombinedUnreadBadgeCounts(recipientIds).catch(
+      () => new Map<string, number>(),
     );
 
-    await Promise.allSettled(
+    const results = await Promise.all(
       subscriptions.map((sub) =>
-        this.sendToSubscription(sub, {
-          title: '🎬 Киношка',
-          body,
-          targetUrl: '/cinema',
-          roomId: `watch-${input.roomId}`,
-          senderId: '',
-          createdAt,
-          messageId: '',
-        }),
+        this.sendToSubscription(
+          sub,
+          {
+            title: '🎬 Киношка',
+            body,
+            targetUrl: '/cinema',
+            roomId: `watch-${input.roomId}`,
+            senderId: '',
+            createdAt,
+            // Унікальний id: запрошення не повинні підміняти ні одне одного, ні повідомлення чату зали.
+            messageId: `invite-${input.roomId}-${Date.now()}`,
+            badgeCount: badges.get(sub.userId),
+          },
+          'watchInvite',
+        ),
       ),
+    );
+    this.logger.log(
+      summarizeDispatch('watchInvite', `room=${input.roomId}`, recipientIds.length, results),
     );
   }
 
@@ -744,7 +825,10 @@ export class PushService {
     return totals;
   }
 
-  /** Нове повідомлення в чаті кімнати Киношки — пуш усім учасникам, крім автора й тих, хто зараз у залі. */
+  /**
+   * Нове повідомлення в чаті кімнати Киношки — пуш усім учасникам (крім автора й тих, хто зараз ДИВИТЬСЯ
+   * на залу: сторінка зали відкрита й видима). Мініплеєр і згорнутий застосунок «переглядом» не є.
+   */
   async sendWatchMessagePush(input: {
     messageId: string;
     roomId: string;
@@ -753,7 +837,7 @@ export class PushService {
     senderName: string;
     content: string;
     createdAt: Date;
-    /** Учасники, які зараз присутні в залі — їм пуш не потрібен, вони й так бачать повідомлення. */
+    /** Учасники, які просто зараз дивляться на залу — їм пуш не потрібен. */
     excludeUserIds?: string[];
     /** Автор повідомлення, на яке це відповідь: йому пуш приходить як "<імʼя> відповів(ла) вам: …". */
     repliedToUserId?: string;
@@ -762,11 +846,8 @@ export class PushService {
       return;
     }
 
-    const normalizedBody = this.truncatePushText(
-      this.normalizeMessageBody(input.content),
-      PUSH_BODY_MAX_LEN,
-    );
-    if (!normalizedBody) {
+    const text = pushMessageText('TEXT', input.content);
+    if (!text) {
       return;
     }
 
@@ -819,36 +900,36 @@ export class PushService {
       );
     }
 
-    const title = `🎬 ${input.roomTitle}`.trim();
-    const body = this.truncatePushText(
-      `${input.senderName}: ${normalizedBody}`,
-      PUSH_BODY_MAX_LEN,
-    );
-    const replyBody = input.repliedToUserId
-      ? this.truncatePushText(
-          `${input.senderName} відповів(ла) вам: ${normalizedBody}`,
-          PUSH_BODY_MAX_LEN,
-        )
-      : null;
     const createdAt = input.createdAt.toISOString();
     const roomId = `watch-${input.roomId}`;
 
-    await Promise.allSettled(
-      subscriptions.map((subscription) =>
-        this.sendToSubscription(subscription, {
-          title,
-          body:
-            replyBody && subscription.userId === input.repliedToUserId
-              ? replyBody
-              : body,
-          targetUrl: `/cinema/${input.roomId}`,
-          roomId,
-          senderId: input.senderId,
-          createdAt,
-          messageId: input.messageId,
-          badgeCount: badgeByUserId.get(subscription.userId),
-        }),
-      ),
+    const results = await Promise.all(
+      subscriptions.map((subscription) => {
+        const { title, body } = buildPushDisplay({
+          kind: 'watch',
+          senderName: input.senderName,
+          roomTitle: input.roomTitle,
+          text,
+          isReplyToRecipient: subscription.userId === input.repliedToUserId,
+        });
+        return this.sendToSubscription(
+          subscription,
+          {
+            title,
+            body,
+            targetUrl: `/cinema/${input.roomId}`,
+            roomId,
+            senderId: input.senderId,
+            createdAt,
+            messageId: input.messageId,
+            badgeCount: badgeByUserId.get(subscription.userId),
+          },
+          'watch',
+        );
+      }),
+    );
+    this.logger.log(
+      summarizeDispatch('watch', `room=${input.roomId}`, uniqueRecipientIds.length, results),
     );
   }
 
