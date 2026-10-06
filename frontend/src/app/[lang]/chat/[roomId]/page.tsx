@@ -23,6 +23,7 @@ import { ensureAccessToken } from "@/lib/authSession";
 import { apiFetch } from "@/lib/apiFetch";
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
+import { clearServerViewState } from "@/lib/viewStateBeacon";
 import { showChatNotification } from "@/lib/notifications";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { Link } from "@/i18n/navigation";
@@ -2274,16 +2275,28 @@ export default function ChatPageDetails() {
     };
 
     const syncFromVisibility = () => {
-      emitViewState(document.visibilityState === "visible");
+      const visible = document.visibilityState === "visible";
+      emitViewState(visible);
+      // Сховали застосунок/заблокували екран: знімаємо перегляд негайно, не чекаючи на розрив сокета.
+      if (!visible) clearServerViewState(socketRef.current?.id);
+    };
+
+    // pagehide/freeze: сторінка йде у фон або закривається — перегляд знімаємо безумовно
+    // (visibilityState на цей момент ще може бути "visible").
+    const goInactive = () => {
+      emitViewState(false);
+      clearServerViewState(socketRef.current?.id);
     };
 
     syncFromVisibility();
     document.addEventListener("visibilitychange", syncFromVisibility);
-    window.addEventListener("pagehide", syncFromVisibility);
+    window.addEventListener("pagehide", goInactive);
+    document.addEventListener("freeze", goInactive);
 
     return () => {
       document.removeEventListener("visibilitychange", syncFromVisibility);
-      window.removeEventListener("pagehide", syncFromVisibility);
+      window.removeEventListener("pagehide", goInactive);
+      document.removeEventListener("freeze", goInactive);
       emitViewState(false);
     };
   }, [effectiveSocketRoomId, isSocketConnected]);

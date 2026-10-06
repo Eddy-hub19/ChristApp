@@ -35,6 +35,7 @@ import {
   type WatchProvider,
 } from './watch-party.state';
 import type { CreateWatchRoomDto } from './dto/watch-room.dto';
+import { WATCH_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import {
   PresenceNotices,
   type PresenceEvent,
@@ -899,7 +900,8 @@ export class WatchPartyService implements OnModuleDestroy {
         senderName,
         content,
         createdAt: message.createdAt,
-        excludeUserIds: [...this.presentUserIds(roomId)],
+        // Не «присутні в залі» (це й мініплеєр, і згорнутий застосунок із живим сокетом), а саме «дивляться на залу».
+        excludeUserIds: roomViews.viewerIds(WATCH_VIEW_KEY(roomId)),
         repliedToUserId: replyTarget?.userId,
       })
       .catch((error: unknown) => {

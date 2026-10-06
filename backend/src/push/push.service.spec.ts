@@ -167,8 +167,8 @@ describe('PushService', () => {
       (webPush.sendNotification as jest.Mock).mock.calls[0][1],
     );
 
-    expect(firstPayload.body).toBe('Общий чат · Последнее сообщение');
-    expect(firstPayload.title).toBe('sender');
+    expect(firstPayload.body).toBe('sender: Последнее сообщение');
+    expect(firstPayload.title).toBe('Загальний чат');
     expect(firstPayload.targetUrl).toBe('/chat/global');
     expect(firstPayload.roomId).toBe(GLOBAL_ROOM);
     expect(firstPayload.messageId).toBe('msg-push-1');
@@ -314,6 +314,219 @@ describe('PushService', () => {
 
     expect(prisma.pushSubscription.deleteMany).toHaveBeenCalledWith({
       where: { endpoint: 'https://example.com/u2' },
+    });
+  });
+
+  describe('delivery', () => {
+    const sub = (id: string, userId: string) => ({
+      id,
+      userId,
+      endpoint: `https://example.com/${id}`,
+      p256dh: 'k',
+      auth: 'a',
+    });
+
+    const sendFive = async (roomId = 'room-dm') => {
+      for (let i = 1; i <= 5; i += 1) {
+        await service.sendChatMessagePush({
+          messageId: `m${i}`,
+          roomId,
+          senderId: 'u1',
+          senderUsername: 'Ed',
+          content: `сообщение ${i}`,
+          createdAt: new Date(`2026-03-13T10:00:0${i}.000Z`),
+        });
+      }
+    };
+
+    beforeEach(() => {
+      prisma.roomMember.findMany.mockResolvedValue([{ userId: 'u2' }]);
+      prisma.room.findUnique.mockResolvedValue({ title: 'dm:u1:u2' });
+      prisma.pushSubscription.findMany.mockResolvedValue([sub('s2a', 'u2'), sub('s2b', 'u2')]);
+    });
+
+    it('5 messages in a row = 5 separate pushes per device, each with its own messageId, no throttling', async () => {
+      await sendFive();
+      const calls = (webPush.sendNotification as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(10); // 5 сообщений × 2 устройства
+      const ids = calls.map((c) => JSON.parse(c[1]).messageId);
+      expect(new Set(ids)).toEqual(new Set(['m1', 'm2', 'm3', 'm4', 'm5']));
+    });
+
+    it('uses a 24h TTL and high urgency for real messages', async () => {
+      await sendFive();
+      for (const call of (webPush.sendNotification as jest.Mock).mock.calls) {
+        expect(call[2]).toEqual({ TTL: 24 * 60 * 60, urgency: 'high' });
+      }
+    });
+
+    it('skips only the people who are looking at the chat right now', async () => {
+      prisma.roomMember.findMany.mockResolvedValue([{ userId: 'u2' }, { userId: 'u3' }]);
+      prisma.room.findUnique.mockResolvedValue({ title: 'Група' });
+      prisma.pushSubscription.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          [sub('s2', 'u2'), sub('s3', 'u3')].filter((x) => where.userId.in.includes(x.userId)),
+        ),
+      );
+      await service.sendChatMessagePush({
+        messageId: 'm1',
+        roomId: 'room-group',
+        senderId: 'u1',
+        senderUsername: 'Ed',
+        content: 'привіт',
+        createdAt: new Date(),
+        excludeUserIds: ['u2'],
+      });
+      const calls = (webPush.sendNotification as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(1);
+      expect(calls[0][0].endpoint).toContain('s3');
+      const payload = JSON.parse(calls[0][1]);
+      expect(payload.title).toBe('Група');
+      expect(payload.body).toBe('Ed: привіт');
+    });
+
+    it('retries once on a temporary push-service error and then delivers', async () => {
+      const err = Object.assign(new Error('unavailable'), { statusCode: 503 });
+      (webPush.sendNotification as jest.Mock)
+        .mockRejectedValueOnce(err)
+        .mockResolvedValue(undefined);
+      prisma.pushSubscription.findMany.mockResolvedValue([sub('s2a', 'u2')]);
+      await service.sendChatMessagePush({
+        messageId: 'm1',
+        roomId: 'room-dm',
+        senderId: 'u1',
+        senderUsername: 'Ed',
+        content: 'hi',
+        createdAt: new Date(),
+      });
+      expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
+      expect(service.deliveryStats.snapshot().chat).toMatchObject({ sent: 1, failed: 0, retried: 1 });
+    });
+
+    it('removes a dead subscription (410) without retrying, and keeps the rest going', async () => {
+      const gone = Object.assign(new Error('gone'), { statusCode: 410 });
+      (webPush.sendNotification as jest.Mock).mockImplementation((s: any) =>
+        s.endpoint.endsWith('s2a') ? Promise.reject(gone) : Promise.resolve(undefined),
+      );
+      await service.sendChatMessagePush({
+        messageId: 'm1',
+        roomId: 'room-dm',
+        senderId: 'u1',
+        senderUsername: 'Ed',
+        content: 'hi',
+        createdAt: new Date(),
+      });
+      expect(webPush.sendNotification).toHaveBeenCalledTimes(2);
+      expect(prisma.pushSubscription.delete).toHaveBeenCalledWith({ where: { id: 's2a' } });
+      expect(service.deliveryStats.snapshot().chat).toMatchObject({ sent: 1, failed: 1, removed: 1, errors: { '410': 1 } });
+    });
+
+    it('formats media pushes: voice, photo, file, sticker', async () => {
+      const texts: Record<string, string> = {};
+      for (const [key, type, content] of [
+        ['voice', 'VOICE', '[[voice:abc]]'],
+        ['image', 'IMAGE', 'https://x/y.png'],
+        ['file', 'FILE', 'report.docx'],
+        ['sticker', 'TEXT', '[[sticker:cat]]/stickers/cat.png'],
+      ] as const) {
+        (webPush.sendNotification as jest.Mock).mockClear();
+        await service.sendChatMessagePush({
+          messageId: `m-${key}`,
+          roomId: 'room-dm',
+          senderId: 'u1',
+          senderUsername: 'Ed',
+          content,
+          messageType: type as never,
+          createdAt: new Date(),
+        });
+        texts[key] = JSON.parse((webPush.sendNotification as jest.Mock).mock.calls[0][1]).body;
+      }
+      expect(texts).toEqual({
+        voice: '🎤 Голосове',
+        image: '🖼 Фото',
+        file: '📎 Файл',
+        sticker: 'Стікер',
+      });
+    });
+
+    it('reply to my message gets the "відповів(ла) вам" text', async () => {
+      prisma.pushSubscription.findMany.mockResolvedValue([sub('s2a', 'u2')]);
+      await service.sendChatMessagePush({
+        messageId: 'm1',
+        roomId: 'room-dm',
+        senderId: 'u1',
+        senderUsername: 'Ed',
+        content: 'згоден',
+        createdAt: new Date(),
+        repliedToUserId: 'u2',
+      });
+      expect(JSON.parse((webPush.sendNotification as jest.Mock).mock.calls[0][1]).body).toBe(
+        'Ed відповів(ла) вам: згоден',
+      );
+    });
+  });
+
+  describe('cinema pushes', () => {
+    it('every cinema message is its own push with the room title and "<name>: text"; muted members get none', async () => {
+      prisma.watchRoomMember.findMany.mockResolvedValue([{ userId: 'u2' }]);
+      prisma.pushSubscription.findMany.mockResolvedValue([
+        { id: 's2', userId: 'u2', endpoint: 'https://example.com/s2', p256dh: 'k', auth: 'a' },
+      ]);
+      for (let i = 1; i <= 5; i += 1) {
+        await service.sendWatchMessagePush({
+          messageId: `w${i}`,
+          roomId: 'r1',
+          roomTitle: 'Вечір',
+          senderId: 'u1',
+          senderName: 'Ed',
+          content: `репліка ${i}`,
+          createdAt: new Date(),
+        });
+      }
+      const calls = (webPush.sendNotification as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(5);
+      const first = JSON.parse(calls[0][1]);
+      expect(first.title).toBe('🎬 Вечір');
+      expect(first.body).toBe('Ed: репліка 1');
+      expect(new Set(calls.map((c) => JSON.parse(c[1]).messageId)).size).toBe(5);
+      // мьют учитывается запросом: только notificationsMuted: false
+      expect(prisma.watchRoomMember.findMany.mock.calls[0][0].where).toMatchObject({
+        notificationsMuted: false,
+        status: 'JOINED',
+      });
+    });
+
+    it('a room invite is a unique push of its own with the badge', async () => {
+      prisma.pushSubscription.findMany.mockResolvedValue([
+        { id: 's2', userId: 'u2', endpoint: 'https://example.com/s2', p256dh: 'k', auth: 'a' },
+      ]);
+      await service.sendWatchInvitePush({ targetUserIds: ['u2'], inviterName: 'Ed', roomTitle: 'Вечір', roomId: 'r1' });
+      const payload = JSON.parse((webPush.sendNotification as jest.Mock).mock.calls[0][1]);
+      expect(payload.messageId).toMatch(/^invite-r1-/);
+      expect(payload.badgeCount).toBe(2);
+    });
+  });
+
+  describe('status and test push', () => {
+    it('reports whether THIS device is registered and lists devices', async () => {
+      prisma.pushSubscription.findMany.mockResolvedValue([
+        { id: 'a', endpoint: 'https://e/a', userAgent: 'iPhone', lastUsedAt: null },
+        { id: 'b', endpoint: 'https://e/b', userAgent: 'Mac', lastUsedAt: new Date('2026-01-01') },
+      ]);
+      const status = await service.getStatus('u2', 'https://e/b');
+      expect(status).toMatchObject({ hasSubscription: true, subscriptionsCount: 2, thisDeviceRegistered: true });
+      expect(status.devices.map((d) => d.current)).toEqual([false, true]);
+      expect((await service.getStatus('u2', 'https://e/zzz')).thisDeviceRegistered).toBe(false);
+    });
+
+    it('sends a test push and reports the per-device result', async () => {
+      prisma.pushSubscription.findMany.mockResolvedValue([
+        { id: 'a', userId: 'u2', endpoint: 'https://e/a', p256dh: 'k', auth: 'a' },
+      ]);
+      const res = await service.sendTestPush('u2', 'https://e/a');
+      expect(res).toMatchObject({ ok: true, code: 'SENT', results: [{ ok: true, status: null, removed: false }] });
+      prisma.pushSubscription.findMany.mockResolvedValue([]);
+      expect(await service.sendTestPush('u2')).toMatchObject({ ok: false, code: 'NO_SUBSCRIPTION' });
     });
   });
 });

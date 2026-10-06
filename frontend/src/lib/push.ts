@@ -8,6 +8,14 @@ export type PushServerStatus = {
   enabled: boolean;
   hasSubscription: boolean;
   subscriptionsCount: number;
+  /** Є лише коли запит ішов із endpoint цього пристрою. */
+  thisDeviceRegistered?: boolean;
+};
+
+export type PushTestResult = {
+  ok: boolean;
+  code: "SENT" | "FAILED" | "NO_SUBSCRIPTION" | "DISABLED";
+  results: Array<{ ok: boolean; status: number | null; removed: boolean }>;
 };
 
 export type PushPublicKeyResponse = {
@@ -72,11 +80,44 @@ export async function hasActivePushSubscription() {
   }
 }
 
+/** Підписка цього пристрою в браузері (endpoint) або null. */
+export async function getLocalPushEndpoint(): Promise<string | null> {
+  if (!isPushSupportedInBrowser()) {
+    return null;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    return (await registration.pushManager.getSubscription())?.endpoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Тестове сповіщення на цей пристрій. Повертає null, якщо запит не дійшов до сервера.
+ */
+export async function sendTestPush(token: string): Promise<PushTestResult | null> {
+  try {
+    const endpoint = await getLocalPushEndpoint();
+    const response = await apiFetch(`${API_URL}/push/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(endpoint ? { endpoint } : {}),
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as PushTestResult;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchPushStatus(
   token: string,
+  endpoint?: string | null,
 ): Promise<PushServerStatus | null> {
   try {
-    const response = await apiFetch(`${API_URL}/push/status`, {
+    const query = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : "";
+    const response = await apiFetch(`${API_URL}/push/status${query}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

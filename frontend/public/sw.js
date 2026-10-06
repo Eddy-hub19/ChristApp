@@ -441,16 +441,13 @@ self.addEventListener("push", (event) => {
     return;
   }
 
-  // Кіношка: усі повідомлення чату кімнати групуємо в одне сповіщення (тег по кімнаті),
-  // щоб не сипати десятками окремих пушів — на відміну від основного чату (тег по повідомленню).
-  const isWatchRoomMessage =
-    typeof payload.roomId === "string" && payload.roomId.startsWith("watch-");
-
-  const tag = isWatchRoomMessage
-    ? `christ-watch-room-${payload.roomId}`
-    : payload.messageId && payload.messageId.length > 0
-      ? `christ-msg-${payload.messageId}`
-      : `room-${payload.roomId}`;
+  // Кожне повідомлення — окреме сповіщення: тег унікальний (msg-<id>), нове не підміняє попереднє.
+  // Для подій без id повідомлення (запрошення, дзвінок) сервер теж шле унікальний messageId; на випадок
+  // старого пуша без нього тег добудовуємо з кімнати й часу, а не з самої кімнати (інакше вони б склеювались).
+  const tag =
+    payload.messageId && payload.messageId.length > 0
+      ? `msg-${payload.messageId}`
+      : `evt-${payload.roomId}-${payload.createdAt || Date.now()}`;
 
   const ts = Date.parse(payload.createdAt || "") || Date.now();
 
