@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
-import { Maximize, Minimize, Pause, PictureInPicture2, Play, Volume2, VolumeX } from "lucide-react";
+import { MessageSquare, Maximize, Minimize, Pause, PictureInPicture2, Play, Volume2, VolumeX } from "lucide-react";
 import { formatPlaybackTime } from "@/lib/watchSync";
 import type { YouTubeStageHandle } from "./YouTubeStage";
 import StageQualityMenu from "./StageQualityMenu";
@@ -21,6 +21,9 @@ type MobileStageControlsProps = {
   onToggleMute: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  /** 💬 у fullscreen: показувати/ховати повідомлення чату поверх відео. */
+  chatOverlayEnabled?: boolean;
+  onToggleChatOverlay?: () => void;
   /** Задано лише коли системний PiP справді доступний (FILE/HLS + підтримка браузера). */
   onTogglePip?: () => void;
 };
@@ -43,6 +46,8 @@ export default function MobileStageControls({
   onToggleMute,
   isFullscreen,
   onToggleFullscreen,
+  chatOverlayEnabled,
+  onToggleChatOverlay,
   onTogglePip,
 }: MobileStageControlsProps) {
   const t = useTranslations("cinema.hall");
@@ -154,6 +159,23 @@ export default function MobileStageControls({
             aria-label={t("pip")}
           >
             <PictureInPicture2 size={18} />
+          </button>
+        ) : null}
+
+        {isFullscreen && onToggleChatOverlay ? (
+          <button
+            type="button"
+            className={`${styles.mobileIconButton} ${chatOverlayEnabled ? styles.mobileIconButtonActive : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              show();
+              onToggleChatOverlay();
+            }}
+            aria-pressed={chatOverlayEnabled}
+            aria-label={chatOverlayEnabled ? t("chatOverlayOff") : t("chatOverlayOn")}
+            title={chatOverlayEnabled ? t("chatOverlayOff") : t("chatOverlayOn")}
+          >
+            <MessageSquare size={18} />
           </button>
         ) : null}
 

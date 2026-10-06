@@ -41,6 +41,12 @@ const MAX_LOADED_MESSAGES = 500;
 
 export type HallReaction = { id: string; emoji: string; userId: string };
 
+/** Живі зміни чату зали (не історія): нове, відредаговане й видалене повідомлення. */
+export type HallMessageEvent =
+  | { type: "new"; message: HallMessage }
+  | { type: "edited"; messageId: string; content: string }
+  | { type: "deleted"; messageId: string };
+
 export type HallSuggestion = {
   id: string;
   videoId: string;
@@ -130,6 +136,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
   /** Повторний вхід у залу без `watch:leave` — після повернення з фону (див. `resync`). */
   const resyncRef = useRef<(() => void) | null>(null);
   const reactionListeners = useRef(new Set<(r: HallReaction) => void>());
+  const messageListeners = useRef(new Set<(event: HallMessageEvent) => void>());
   /** Автоприховування чужого "друкує…", якщо не прийшло явне isTyping:false (напр. клієнт впав). */
   const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const onEventRef = useRef(onEvent);
@@ -177,6 +184,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
     };
     const onMessage = (p: { roomId: string; message: HallMessage }) => {
       if (p.roomId !== roomId) return;
+      messageListeners.current.forEach((listener) => listener({ type: "new", message: p.message }));
       setMessages((prev) =>
         prev.some((m) => m.id === p.message.id) ? prev : [...prev.slice(-(MAX_LOADED_MESSAGES - 1)), p.message],
       );
@@ -207,6 +215,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
     };
     const onMessageDeleted = (p: { roomId: string; messageId: string }) => {
       if (p.roomId !== roomId) return;
+      messageListeners.current.forEach((listener) => listener({ type: "deleted", messageId: p.messageId }));
       setMessages((prev) =>
         prev
           .filter((m) => m.id !== p.messageId)
@@ -224,6 +233,9 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
       editedAt: string;
     }) => {
       if (p.roomId !== roomId) return;
+      messageListeners.current.forEach((listener) =>
+        listener({ type: "edited", messageId: p.messageId, content: p.content }),
+      );
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id === p.messageId) return { ...m, content: p.content, editedAt: p.editedAt };
@@ -455,6 +467,13 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
     };
   }, []);
 
+  const subscribeMessages = useCallback((listener: (event: HallMessageEvent) => void) => {
+    messageListeners.current.add(listener);
+    return () => {
+      messageListeners.current.delete(listener);
+    };
+  }, []);
+
   /** Будь-хто в кімнаті може запропонувати відео з міні-YouTube — не тільки хост. */
   const suggestVideo = useCallback(
     (videoId: string, title: string) =>
@@ -614,6 +633,7 @@ export function useWatchHall(roomId: string | null, onEvent?: (event: HallEvent)
     loadOlderMessages,
     sendReaction,
     subscribeReactions,
+    subscribeMessages,
     suggestions,
     suggestVideo,
     dismissSuggestion,

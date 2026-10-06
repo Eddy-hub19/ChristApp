@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Link2, Maximize, Minimize, Play, SlidersHorizontal } from "lucide-react";
+import { Check, Link2, Maximize, MessageSquare, Minimize, Play, SlidersHorizontal } from "lucide-react";
 import {
   formatPlaybackTime,
   manualElapsedSec,
@@ -28,6 +28,8 @@ type ManualSyncControlsProps = {
   onResume: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  chatOverlayEnabled?: boolean;
+  onToggleChatOverlay?: () => void;
 };
 
 /**
@@ -55,6 +57,8 @@ export default function ManualSyncControls({
   onResume,
   isFullscreen,
   onToggleFullscreen,
+  chatOverlayEnabled,
+  onToggleChatOverlay,
 }: ManualSyncControlsProps) {
   const t = useTranslations("cinema.hall");
   // Відлік читаємо з годинника (clock.now()), тож для живого "3…2…1" потрібен власний тік.
@@ -197,6 +201,19 @@ export default function ManualSyncControls({
             </>
           )}
         </div>
+
+        {isFullscreen && onToggleChatOverlay ? (
+          <button
+            type="button"
+            className={`${styles.hallIconButton} ${chatOverlayEnabled ? styles.mobileIconButtonActive : ""}`}
+            onClick={onToggleChatOverlay}
+            aria-pressed={chatOverlayEnabled}
+            aria-label={chatOverlayEnabled ? t("chatOverlayOff") : t("chatOverlayOn")}
+            title={chatOverlayEnabled ? t("chatOverlayOff") : t("chatOverlayOn")}
+          >
+            <MessageSquare size={18} />
+          </button>
+        ) : null}
 
         <button
           type="button"

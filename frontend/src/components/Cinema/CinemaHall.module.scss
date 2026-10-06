@@ -2496,3 +2496,96 @@
     background: rgba(255, 255, 255, 0.1);
   }
 }
+
+
+// ================= ЧАТ ПОВЕРХ ВІДЕО У FULLSCREEN =================
+
+.mobileIconButtonActive {
+  color: var(--hall-gold-ink, #1b140a);
+  background: var(--hall-gold, #e6bf73);
+}
+
+// Лише перегляд: шар не перехоплює дотики. container-type: size дозволяє міряти ширину картки
+// від самого шару (а не від вікна): у повернутому псевдо-fullscreen вікно в портреті, а відео — у ландшафті.
+.chatOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0 0 76px max(12px, env(safe-area-inset-left, 0px));
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+.chatOverlayCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: fit-content;
+  max-width: 70cqw;
+  padding: 6px 10px;
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  animation: chatOverlayIn 0.18s ease-out;
+
+  @container (min-aspect-ratio: 1 / 1) {
+    max-width: 40cqw;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    animation: none;
+  }
+}
+
+.chatOverlayCardLeaving {
+  opacity: 0;
+}
+
+.chatOverlayName {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatOverlayText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.chatOverlayReply {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+@keyframes chatOverlayIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
