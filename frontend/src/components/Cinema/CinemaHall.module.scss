@@ -38,7 +38,9 @@
     radial-gradient(ellipse 70% 45% at 50% 18%, rgba(255, 214, 160, 0.07), transparent 70%),
     radial-gradient(ellipse 90% 60% at 50% 110%, rgba(125, 22, 32, 0.18), transparent 70%),
     var(--hall-bg);
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) 0
+  // Виріз/статус-бар перекривають лише верх layout viewport: коли Safari підсунув видиму область
+  // (--vv-top), зал уже нижче за нього, і зайвий відступ забирав би місце в чату.
+  padding: max(0px, calc(env(safe-area-inset-top, 0px) - var(--vv-top, 0px))) env(safe-area-inset-right, 0px) 0
     env(safe-area-inset-left, 0px);
   overflow: hidden;
   overscroll-behavior: contain;
@@ -78,19 +80,28 @@
   flex-shrink: 0;
   position: relative;
   z-index: 5;
-  transition: padding 0.2s ease;
+  // Числовий max-height (а не none), щоб шапка могла плавно згортатися, коли відкрита клавіатура.
+  max-height: 120px;
+  transition:
+    padding 0.2s ease,
+    max-height 0.2s ease,
+    opacity 0.15s ease;
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
 }
 
-/* Клавіатура відкрита (мобільний): шапка стає компактним одним рядком — без
-   другого рядка "хто керує" під заголовком, який на телефоні й так дублюється
-   оверлеєм на самому відео. */
+/* Клавіатура відкрита (мобільний): шапка зникає цілком — кожен піксель потрібен плеєру й чату.
+   Згортається плавно (висота + прозорість); тап по відео/клавіатура закрита — шапка повертається. */
 :global(html[data-keyboard-open]) .topbar {
   @media (max-width: 767px) {
-    padding: 6px 14px;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
@@ -464,7 +475,7 @@
 }
 
 /*
- * Клавіатура відкрита (мобільний, поле чату у фокусі): плеєр стискається по висоті
+ * Клавіатура відкрита (мобільний, поле чату у фокусі): плеєр стискається по висоті (~30% видимої області)
  * (не по ширині 16:9 на весь екран), завіса ховається — інакше під клавіатурою не
  * лишалось би місця навіть на 3–4 останні повідомлення. Рахуємо від --vv-height
  * (видима область без клавіатури й панелі Safari), а не від 100dvh.
@@ -472,9 +483,22 @@
 :global(html[data-keyboard-open]) .theater {
   @media (max-width: 767px) {
     align-items: center;
-    padding-top: 6px;
+    padding-top: 4px;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+:global(html[data-keyboard-open]) .layout {
+  @media (max-width: 767px) {
+    gap: 6px;
+    padding-bottom: 0;
+  }
+}
+
+:global(html[data-keyboard-open]) .stageColumn {
+  @media (max-width: 767px) {
+    gap: 6px;
   }
 }
 
@@ -616,7 +640,7 @@
   @media (max-width: 767px) {
     width: auto;
     max-width: 100%;
-    height: max(96px, calc(var(--vv-height, 100dvh) * 0.38));
+    height: max(80px, calc(var(--vv-height, 100dvh) * 0.3));
   }
 }
 
@@ -1617,6 +1641,9 @@
 // Вище за .hall (300), але нижче за летючі реакції (320), псевдо-fullscreen (350) і шторки (400+).
 .stageHostHall {
   z-index: 305;
+  // Прозорий, а не чорний: поки хост на кадр не збігається зі слотом, з-під нього видно постер слота,
+  // а не чорний блок. Саме відео має власний чорний фон (.playerMount, iframe).
+  background: transparent;
   border-radius: 18px;
   box-shadow:
     0 0 0 1px rgba(255, 236, 205, 0.08),
@@ -2188,7 +2215,22 @@
    (той самий підхід, що й у /chat/[roomId], див. .composerDock у chatRoom.module.scss). */
 :global(html[data-keyboard-open]) .chatForm {
   @media (max-width: 767px) {
-    padding-bottom: 8px;
+    gap: 6px;
+    padding: 4px 10px;
+
+    .chatInput {
+      min-height: 38px;
+    }
+
+    .sendButton {
+      width: 38px;
+      height: 38px;
+    }
+
+    .emojiToggle {
+      width: 36px;
+      height: 36px;
+    }
   }
 }
 
