@@ -227,6 +227,7 @@
     "loadingShort": "Завантаження…",
     "historyLoadError": "Не вдалося завантажити повідомлення",
     "historyRetry": "Спробувати ще раз",
+    "historyCachedNotice": "Немає з'єднання, показані збережені повідомлення",
     "connecting": "Підключення...",
     "usersOnlineCount": "{count} користувачів онлайн",
     "shareJesusNotesHint": "Особистий простір для нотаток",

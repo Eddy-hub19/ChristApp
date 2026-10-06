@@ -14,9 +14,9 @@
   overflow: hidden;
   opacity: 0;
   transition: opacity 0.18s ease;
-  // Верхні елементи, що не влізли, плавно розчиняються, а не обрізаються по краю.
-  mask-image: linear-gradient(to bottom, transparent 0, #000 56px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 56px);
+  // Верхні елементи плавно затухають до шапки, а не обрізаються по краю.
+  mask-image: linear-gradient(to bottom, transparent 0, #000 120px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 120px);
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;

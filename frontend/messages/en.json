@@ -227,6 +227,7 @@
     "loadingShort": "Loading…",
     "historyLoadError": "Couldn't load messages",
     "historyRetry": "Try again",
+    "historyCachedNotice": "No connection, showing saved messages",
     "connecting": "Connecting…",
     "usersOnlineCount": "{count} users online",
     "shareJesusNotesHint": "A private space for notes",
