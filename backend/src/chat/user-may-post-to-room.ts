@@ -38,3 +38,28 @@ export async function canUserPostToRoom(
 
   return userMayAccessRoomByTitle(userId, room.title);
 }
+
+/**
+ * Доступ на ЧИТАННЯ історії. Окрім звичайного членства, учасник приватного чату (dm:) завжди має
+ * право прочитати свій чат: title кімнати однозначно називає двох учасників. Без цього користувач, якого
+ * видалили з RoomMember (напр. «видалив чат зі списку»), отримував 403 на GET /messages/room і порожній чат
+ * за прямим посиланням. Лише читання — нічого не записуємо, тож видалення зі списку не скасовується.
+ */
+export async function canUserReadRoom(
+  prisma: PrismaService,
+  userId: string,
+  roomId: string,
+): Promise<boolean> {
+  if (await canUserPostToRoom(prisma, userId, roomId)) {
+    return true;
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { title: true },
+  });
+  if (!room?.title.startsWith('dm:')) {
+    return false;
+  }
+  return userMayAccessRoomByTitle(userId, room.title);
+}

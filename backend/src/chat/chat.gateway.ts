@@ -22,7 +22,10 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
-import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
+import {
+  canUserPostToRoom,
+  canUserReadRoom,
+} from 'src/chat/user-may-post-to-room';
 import { MessageType } from '@prisma/client';
 import { ACCEPTED_CHAT_REACTIONS } from 'src/common/chat-reactions';
 
@@ -550,7 +553,7 @@ export class ChatGateway
 
     try {
       // Перевіряємо доступ до кімнати
-      const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+      const hasAccess = await canUserReadRoom(this.prisma, user.id, roomId);
       if (!hasAccess) {
         client.emit('error', 'Нет доступа');
         return;

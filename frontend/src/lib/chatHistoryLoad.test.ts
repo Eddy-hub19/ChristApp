@@ -7,8 +7,7 @@ import {
   isTerminalHistoryError,
   historyRetryDelay,
   shouldRetryHistory,
-  shouldShowCachedNotice,
-  shouldShowHistoryError,
+  HISTORY_STALLED_AFTER_MS,
 } from "./chatHistoryLoad";
 
 describe("history retry policy", () => {
@@ -19,34 +18,22 @@ describe("history retry policy", () => {
     expect(delays.reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(60_000);
   });
 
-  it("retries network and 5xx errors but not 403/404", () => {
+  it("retries network errors and 5xx for the whole cold-start window", () => {
     expect(shouldRetryHistory(0, new Error("Network Error"))).toBe(true);
     expect(shouldRetryHistory(3, new RoomHistoryHttpError(503))).toBe(true);
-    expect(shouldRetryHistory(0, new RoomHistoryHttpError(403))).toBe(false);
-    expect(shouldRetryHistory(0, new RoomHistoryHttpError(404))).toBe(false);
+    expect(shouldRetryHistory(3, new RoomHistoryHttpError(500))).toBe(true);
     expect(shouldRetryHistory(HISTORY_MAX_RETRIES, new Error("x"))).toBe(false);
   });
-});
 
-describe("shouldShowHistoryError", () => {
-  const base = { queryFailed: true, queryFetching: false, historyDelivered: false, hasMessages: false };
-  it("shows only when retries are exhausted, socket is silent and nothing is cached", () => {
-    expect(shouldShowHistoryError(base)).toBe(true);
-    expect(shouldShowHistoryError({ ...base, queryFailed: false })).toBe(false);
-    expect(shouldShowHistoryError({ ...base, queryFetching: true })).toBe(false);
-    expect(shouldShowHistoryError({ ...base, historyDelivered: true })).toBe(false);
-    expect(shouldShowHistoryError({ ...base, hasMessages: true })).toBe(false);
+  it("gives 401/403/404 exactly one retry, so there is no endless loop", () => {
+    for (const status of [401, 403, 404]) {
+      expect(shouldRetryHistory(0, new RoomHistoryHttpError(status))).toBe(true);
+      expect(shouldRetryHistory(1, new RoomHistoryHttpError(status))).toBe(false);
+    }
   });
-});
 
-describe("shouldShowCachedNotice", () => {
-  const base = { hasMessages: true, historyDelivered: false, queryFailed: false, offline: false };
-  it("appears for cached messages on a network problem only", () => {
-    expect(shouldShowCachedNotice(base)).toBe(false);
-    expect(shouldShowCachedNotice({ ...base, offline: true })).toBe(true);
-    expect(shouldShowCachedNotice({ ...base, queryFailed: true })).toBe(true);
-    expect(shouldShowCachedNotice({ ...base, queryFailed: true, historyDelivered: true })).toBe(false);
-    expect(shouldShowCachedNotice({ ...base, queryFailed: true, hasMessages: false })).toBe(false);
+  it("shows the quiet hint after about a minute", () => {
+    expect(HISTORY_STALLED_AFTER_MS).toBe(60_000);
   });
 });
 
