@@ -53,3 +53,39 @@ export function shouldShowCachedNotice(input: {
     (input.queryFailed || input.offline)
   );
 }
+
+/** Мінімальна пауза між перезапитами історії, викликаними connect / visibility / online. */
+export const HISTORY_REFETCH_MIN_INTERVAL_MS = 5000;
+
+/** Статус відповіді, який не зміниться від очікування (401/403/404): ні повторів, ні health-опитування. */
+export function isTerminalHistoryError(error: unknown): boolean {
+  return (
+    error instanceof RoomHistoryHttpError &&
+    [401, 403, 404].includes(error.status)
+  );
+}
+
+/**
+ * «Бекенд прокидається» — лише мережеві помилки, таймаути та 502/503/504.
+ * Будь-яка інша відповідь сервера (зокрема 4xx) означає, що він живий.
+ */
+export function isColdStartHistoryError(error: unknown): boolean {
+  if (error instanceof RoomHistoryHttpError) {
+    return [502, 503, 504].includes(error.status);
+  }
+  return error != null;
+}
+
+/** Пропускає не більше одного виклику за `minIntervalMs`; решту подій ігнорує. */
+export function createHistoryRefetchGate(
+  minIntervalMs = HISTORY_REFETCH_MIN_INTERVAL_MS,
+  now: () => number = Date.now,
+) {
+  let last = -Infinity;
+  return (): boolean => {
+    const t = now();
+    if (t - last < minIntervalMs) return false;
+    last = t;
+    return true;
+  };
+}

@@ -64,7 +64,10 @@ import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 import { checkBackendHealth } from "@/lib/backendHealth";
 import {
   HISTORY_REQUEST_TIMEOUT_MS,
+  createHistoryRefetchGate,
   historyRetryDelay,
+  isColdStartHistoryError,
+  isTerminalHistoryError,
   shouldRetryHistory,
   shouldShowCachedNotice,
   shouldShowHistoryError,
@@ -1021,9 +1024,31 @@ export default function ChatPageDetails() {
   useEffect(() => {
     refetchHistoryRef.current = roomHistoryQuery.refetch;
   });
+  /** Не частіше разу за кілька секунд, скільки б подій (connect/visibility/online) не прийшло. */
+  const historyRefetchGateRef = useRef(createHistoryRefetchGate());
+  const historyError = roomHistoryQuery.failureReason ?? roomHistoryQuery.error;
+  /** 401/403/404: сервер живий і відповів остаточно — ні повторів, ні health-опитування, ні плашок. */
+  const historyTerminalFailure = isTerminalHistoryError(historyError);
+  const historyTerminalFailureRef = useRef(historyTerminalFailure);
+  useEffect(() => {
+    historyTerminalFailureRef.current = historyTerminalFailure;
+  });
   const historyTroubled =
     !historyDelivered &&
-    (roomHistoryQuery.failureCount > 0 || roomHistoryQuery.isError);
+    (roomHistoryQuery.failureCount > 0 || roomHistoryQuery.isError) &&
+    isColdStartHistoryError(historyError);
+
+  // Одна зрозуміла помилка в консолі замість серії однакових.
+  const historyErrorLoggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!roomHistoryQuery.isError || !historyTerminalFailure) return;
+    const key = `${effectiveSocketRoomId}:${(roomHistoryQuery.error as { status?: number })?.status}`;
+    if (historyErrorLoggedRef.current === key) return;
+    historyErrorLoggedRef.current = key;
+    console.error(
+      `[chat] History request for room ${effectiveSocketRoomId} was rejected (${(roomHistoryQuery.error as { status?: number })?.status}); not retrying.`,
+    );
+  }, [roomHistoryQuery.isError, roomHistoryQuery.error, historyTerminalFailure, effectiveSocketRoomId]);
 
   // Бекенд прокидається: поки health-check не проходить, опитуємо його й одразу перезапускаємо історію, щойно він ожив.
   useEffect(() => {
@@ -1038,7 +1063,13 @@ export default function ChatPageDetails() {
       if (cancelled) return;
       setBackendAwake(alive);
       if (alive) {
-        void refetchHistoryRef.current();
+        if (
+          !historyTerminalFailureRef.current &&
+          !historyAppliedRef.current &&
+          historyRefetchGateRef.current()
+        ) {
+          void refetchHistoryRef.current();
+        }
         return;
       }
       timer = window.setTimeout(() => void poll(), 3000);
@@ -1057,6 +1088,7 @@ export default function ChatPageDetails() {
     const retryIfMissing = () => {
       if (document.visibilityState === "hidden") return;
       if (historyAppliedRef.current || !effectiveSocketRoomId || !user?.id) return;
+      if (historyTerminalFailureRef.current || !historyRefetchGateRef.current()) return;
       void refetchHistoryRef.current();
     };
     const onOnline = () => {
@@ -1076,6 +1108,7 @@ export default function ChatPageDetails() {
   useEffect(() => {
     if (!isSocketConnected || historyAppliedRef.current) return;
     if (!effectiveSocketRoomId || !user?.id) return;
+    if (historyTerminalFailureRef.current || !historyRefetchGateRef.current()) return;
     void refetchHistoryRef.current();
   }, [isSocketConnected, effectiveSocketRoomId, user?.id]);
 
@@ -3513,7 +3546,7 @@ export default function ChatPageDetails() {
         {shouldShowCachedNotice({
           hasMessages: messages.length > 0,
           historyDelivered,
-          queryFailed: roomHistoryQuery.isError,
+          queryFailed: roomHistoryQuery.isError && !historyTerminalFailure,
           offline: isBrowserOffline,
         }) ? (
           <p className={styles.cachedNotice} role="status">
