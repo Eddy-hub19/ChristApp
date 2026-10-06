@@ -26,6 +26,8 @@ import {
   type WatchState,
 } from "@/lib/watchSync";
 import CinemaStageHost from "./CinemaStageHost";
+import ChatOverlay from "./ChatOverlay";
+import { useChatOverlayEnabled } from "./chatOverlayStore";
 import FloatingReactions, {
   type FloatingReactionsHandle,
 } from "./FloatingReactions";
@@ -158,6 +160,7 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
   const stageRef = useRef<PlayerAdapterHandle | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const reactionsRef = useRef<FloatingReactionsHandle | null>(null);
+  const [chatOverlayEnabled, setChatOverlayEnabled] = useChatOverlayEnabled();
   const resyncPendingRef = useRef(false);
 
   // Інша кімната (або вихід): усе, що належало попередній сесії, скидаємо.
@@ -461,6 +464,8 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
             onSeek={hostSeek}
             onToggleMute={toggleMute}
             onToggleFullscreen={() => void toggleFullscreen()}
+            chatOverlayEnabled={chatOverlayEnabled}
+            onToggleChatOverlay={() => setChatOverlayEnabled(!chatOverlayEnabled)}
             onTogglePip={togglePip}
             onExpand={() => router.push(`/cinema/${activeRoomId}`)}
             onClose={deactivate}
@@ -470,6 +475,12 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
                 subscribe={hall.subscribeReactions}
                 currentUserId={me}
                 members={hall.members}
+              />
+            }
+            chatOverlay={
+              <ChatOverlay
+                subscribe={hall.subscribeMessages}
+                active={(isFullscreen || pseudoFullscreen) && chatOverlayEnabled}
               />
             }
           />

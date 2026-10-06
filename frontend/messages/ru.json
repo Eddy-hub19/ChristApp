@@ -489,6 +489,8 @@
       "unmuteToListen": "Нажмите, чтобы включить звук",
       "fullscreen": "На весь экран",
       "exitFullscreen": "Выйти из полноэкранного режима",
+      "chatOverlayOn": "Показывать сообщения чата поверх видео",
+      "chatOverlayOff": "Скрыть сообщения чата с видео",
       "changeVideo": "Сменить видео",
       "changeVideoSubmit": "Поставить",
       "suggestVideo": "Предложить видео",

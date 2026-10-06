@@ -66,11 +66,15 @@ type CinemaStageHostProps = {
   onSeek: (sec: number) => void;
   onToggleMute: () => void;
   onToggleFullscreen: () => void;
+  chatOverlayEnabled: boolean;
+  onToggleChatOverlay: () => void;
   onTogglePip: (() => void) | undefined;
   onExpand: () => void;
   onClose: () => void;
   /** Летючі емодзі зали — показуємо лише в залі (у т.ч. у fullscreen), не в мініплеєрі. */
   reactions: ReactNode;
+  /** Повідомлення чату зали поверх відео — лише у fullscreen (сам компонент вирішує, коли активний). */
+  chatOverlay: ReactNode;
 };
 
 /**
@@ -102,10 +106,13 @@ export default function CinemaStageHost({
   onSeek,
   onToggleMute,
   onToggleFullscreen,
+  chatOverlayEnabled,
+  onToggleChatOverlay,
   onTogglePip,
   onExpand,
   onClose,
   reactions,
+  chatOverlay,
 }: CinemaStageHostProps) {
   const vp = useMiniViewport();
   const [slotRect, setSlotRect] = useState<Rect | null>(null);
@@ -235,10 +242,13 @@ export default function CinemaStageHost({
             onToggleMute={onToggleMute}
             isFullscreen={anyFullscreen}
             onToggleFullscreen={onToggleFullscreen}
+            chatOverlayEnabled={chatOverlayEnabled}
+            onToggleChatOverlay={onToggleChatOverlay}
             onTogglePip={onTogglePip}
           />
           {state.isPlaying ? null : <StageCenterPlay isHost={isHost} onPlay={onPlay} />}
           {reactions}
+          {chatOverlay}
         </>
       ) : (
         <MiniOverlay

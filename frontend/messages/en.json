@@ -489,6 +489,8 @@
       "unmuteToListen": "Tap to turn on sound",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
+      "chatOverlayOn": "Show chat messages over the video",
+      "chatOverlayOff": "Hide chat messages from the video",
       "changeVideo": "Change video",
       "changeVideoSubmit": "Play this",
       "suggestVideo": "Suggest a video",

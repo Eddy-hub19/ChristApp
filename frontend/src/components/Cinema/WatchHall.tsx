@@ -35,6 +35,8 @@ import {
 import { youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
 import { AUTO_SYNC_PROVIDERS, type WatchState } from "@/lib/watchSync";
 import { useCinema, useCinemaRefs } from "./CinemaProvider";
+import ChatOverlay from "./ChatOverlay";
+import { useChatOverlayEnabled } from "./chatOverlayStore";
 import FloatingReactions from "./FloatingReactions";
 import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
@@ -131,6 +133,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   // fullscreen належить глобальному плеєру (CinemaProvider) — він живе поза цією сторінкою.
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  const [chatOverlayEnabled, setChatOverlayEnabled] = useChatOverlayEnabled();
   // iPhone Safari: немає fullscreen для довільних елементів і немає screen.orientation.lock,
   // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
   const [pseudoRotated, setPseudoRotated] = useState(false);
@@ -512,12 +515,18 @@ export default function WatchHall({ roomId }: { roomId: string }) {
             </div>
             {/* Коли плеєр глобальний, літаючі емодзі малює він (щоб їх було видно й у fullscreen). */}
             {cinema.playerHosted ? null : (
-              <FloatingReactions
-                ref={reactionsRef}
-                subscribe={hall.subscribeReactions}
-                currentUserId={me}
-                members={hall.members}
-              />
+              <>
+                <FloatingReactions
+                  ref={reactionsRef}
+                  subscribe={hall.subscribeReactions}
+                  currentUserId={me}
+                  members={hall.members}
+                />
+                <ChatOverlay
+                  subscribe={hall.subscribeMessages}
+                  active={(isFullscreen || pseudoFullscreen) && chatOverlayEnabled}
+                />
+              </>
             )}
 
             <div className={styles.screenGlow}>
@@ -579,6 +588,8 @@ export default function WatchHall({ roomId }: { roomId: string }) {
                     onResume={hall.commands.manualResume}
                     isFullscreen={isFullscreen || pseudoFullscreen}
                     onToggleFullscreen={toggleManualFullscreen}
+                    chatOverlayEnabled={chatOverlayEnabled}
+                    onToggleChatOverlay={() => setChatOverlayEnabled(!chatOverlayEnabled)}
                   />
                 ) : null}
               </div>
