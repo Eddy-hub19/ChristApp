@@ -183,3 +183,181 @@
     background: rgba(255, 255, 255, 0.1);
   }
 }
+
+.canvas {
+  touch-action: none;
+}
+
+.boardOverlay {
+  position: absolute;
+  inset: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+  border-radius: 12px;
+  background: rgba(8, 10, 16, 0.58);
+  color: #fff;
+  pointer-events: none;
+
+  button {
+    pointer-events: auto;
+  }
+}
+
+.boardOverlayLight {
+  inset: auto 0 12px;
+  top: auto;
+  background: rgba(8, 10, 16, 0.72);
+  padding: 8px 14px;
+  margin: 0 12px;
+  border-radius: 10px;
+}
+
+.countdown {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  animation: snakeCountdownPop 0.9s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes snakeCountdownPop {
+  0% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.92);
+    opacity: 0.85;
+  }
+}
+
+.overlayTitle {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.overlaySub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.overlayActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.secondaryButton {
+  min-width: 120px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 9999px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+// ── Лобі: вибір рівня ──
+.lobby {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobbyTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.levelList {
+  display: grid;
+  gap: 8px;
+}
+
+.levelCard {
+  text-align: left;
+  padding: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.levelCardActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 38%, var(--surface-elevated));
+}
+
+.levelName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.levelDesc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.readyRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.readyOk {
+  color: color-mix(in srgb, #2e9b57 80%, var(--foreground));
+  font-weight: 600;
+}
+
+.lobbyActions {
+  display: flex;
+  justify-content: center;
+}
+
+.resultPanel {
+  position: absolute;
+  inset: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: rgba(12, 10, 8, 0.66);
+  color: #fff;
+}

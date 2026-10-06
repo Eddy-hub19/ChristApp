@@ -22,6 +22,7 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
+import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
 import {
   canUserPostToRoom,
   canUserReadRoom,
@@ -149,6 +150,11 @@ export class ChatGateway
   /** `${roomId}:${kind}` → ігрова сесія кімнати (у пам'яті WS; партія живе, поки живе кімната). */
   private readonly gameSessions = new Map<string, RoomGameSession>();
 
+  /** Серверна дуель Snake (рівень 2): лобі, відлік, тіки, зіткнення. */
+  private readonly snakeDuel = new SnakeDuelManager((roomId, event, payload) => {
+    this.server?.to(roomId).emit(event, payload);
+  });
+
   /**
    * roomId → (userId → скільки сокетів цієї людини ЗАРАЗ тримають кімнату на екрані).
    * Саме «на екрані», а не просто приєднані: клієнт знімає прапорець, коли вкладку згортають.
@@ -218,6 +224,7 @@ export class ChatGateway
       clearTimeout(timer);
     }
     this.pendingDisconnectTimers.clear();
+    this.snakeDuel.disposeAll();
   }
 
   private emitOnlinePresence() {
@@ -488,6 +495,10 @@ export class ChatGateway
     this.clearActiveRoomViewsForSocket(client);
 
     const userId = user.id;
+    // Остання вкладка користувача закрилась: гра Snake ставиться на паузу (5 с на повернення).
+    if ((this.onlineUsers.get(userId) ?? 0) <= 1) {
+      this.snakeDuel.userDisconnected(userId);
+    }
     const currentConnections = this.onlineUsers.get(userId);
     if (!currentConnections) return;
 
@@ -1114,6 +1125,107 @@ export class ChatGateway
       roomId,
     });
     this.broadcastGameSession(session);
+  }
+
+  /** Учасники приватного чату dm:a:b — лише вони можуть грати в дуель; null для інших кімнат. */
+  private async snakeDuelContext(
+    client: SocketWithUser,
+    rawRoomId: unknown,
+  ): Promise<{
+    userId: string;
+    roomId: string;
+    players: [string, string];
+  } | null> {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return null;
+    const roomId = typeof rawRoomId === 'string' ? rawRoomId.trim() : '';
+    if (!roomId) return null;
+    if (!(await canUserPostToRoom(this.prisma, user.id, roomId))) return null;
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    const parts = room?.title?.split(':') ?? [];
+    if (parts.length !== 3 || parts[0] !== 'dm') return null;
+    return { userId: user.id, roomId, players: [parts[1], parts[2]] };
+  }
+
+  /** Відкрили гру / реконект: позначаємо присутність і віддаємо актуальний стан сесії. */
+  @SubscribeMessage('snake-session-sync')
+  async handleSnakeSessionSync(
+    @MessageBody() body: { roomId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    await client.join(ctx.roomId);
+    this.snakeDuel.setPresence(ctx.roomId, ctx.players, ctx.userId, true);
+    client.emit(
+      'snake-session',
+      this.snakeDuel.snapshot(ctx.roomId, ctx.players),
+    );
+  }
+
+  @SubscribeMessage('snake-presence')
+  async handleSnakePresence(
+    @MessageBody() body: { roomId?: string; present?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.snakeDuel.setPresence(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      Boolean(body?.present),
+    );
+  }
+
+  @SubscribeMessage('snake-level-select')
+  async handleSnakeLevelSelect(
+    @MessageBody() body: { roomId?: string; level?: number },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.snakeDuel.selectLevel(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      Number(body?.level),
+    );
+  }
+
+  @SubscribeMessage('snake-ready')
+  async handleSnakeReady(
+    @MessageBody() body: { roomId?: string; ready?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.snakeDuel.setReady(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.ready !== false,
+    );
+  }
+
+  /** Лише напрямок: рух, зіткнення й їжу вирішує сервер. */
+  @SubscribeMessage('snake-input')
+  async handleSnakeInput(
+    @MessageBody() body: { roomId?: string; dir?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const userId = client.data.user?.id;
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!userId || !roomId) return;
+    // Нажатия идут часто: если сессия уже известна, обходимся без запросов к БД.
+    const players =
+      this.snakeDuel.playersIfParticipant(roomId, userId) ??
+      (await this.snakeDuelContext(client, roomId))?.players;
+    if (!players) return;
+    this.snakeDuel.input(roomId, players, userId, body?.dir);
   }
 
   @SubscribeMessage('snake-state')
