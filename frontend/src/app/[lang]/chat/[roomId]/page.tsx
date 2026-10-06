@@ -23,6 +23,7 @@ import { ensureAccessToken } from "@/lib/authSession";
 import { apiFetch } from "@/lib/apiFetch";
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
+import { clearServerViewState } from "@/lib/viewStateBeacon";
 import { showChatNotification } from "@/lib/notifications";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { Link } from "@/i18n/navigation";
@@ -626,6 +627,8 @@ export default function ChatPageDetails() {
     useState<DoodleRuntimeState | null>(null);
   /** Реальный RTT до сервера (ack сокета), а не разница часов двух устройств. */
   const [gamePingMs, setGamePingMs] = useState<number | null>(null);
+  // Режим Snake (Класика/Дуель) для статусу «грає у Snake»: від нього залежить, чи показувати «Приєднатися».
+  const [snakeMode, setSnakeMode] = useState<"classic" | "duel" | null>(null);
   const [mySnakeScore, setMySnakeScore] = useState(0);
   const [peerSnakeScore, setPeerSnakeScore] = useState(0);
   const [peerSnakeState, setPeerSnakeState] =
@@ -806,7 +809,12 @@ export default function ChatPageDetails() {
           : null;
   // eslint-disable-next-line react-hooks/refs -- як і для ігор нижче: підписуємось на поточний живий сокет кімнати
   const activitySocket = isSocketConnected ? socketRef.current : null;
-  useGameActivityBroadcast(activitySocket, effectiveSocketRoomId, openGameId);
+  useGameActivityBroadcast(
+    activitySocket,
+    effectiveSocketRoomId,
+    openGameId,
+    openGameId === "snake" ? snakeMode : null,
+  );
   const gameActivityByRoom = useGameActivityFeed(activitySocket, user?.id);
   useEffect(() => {
     if (!isGameOpen || !isSocketConnected) {
@@ -2273,16 +2281,28 @@ export default function ChatPageDetails() {
     };
 
     const syncFromVisibility = () => {
-      emitViewState(document.visibilityState === "visible");
+      const visible = document.visibilityState === "visible";
+      emitViewState(visible);
+      // Сховали застосунок/заблокували екран: знімаємо перегляд негайно, не чекаючи на розрив сокета.
+      if (!visible) clearServerViewState(socketRef.current?.id);
+    };
+
+    // pagehide/freeze: сторінка йде у фон або закривається — перегляд знімаємо безумовно
+    // (visibilityState на цей момент ще може бути "visible").
+    const goInactive = () => {
+      emitViewState(false);
+      clearServerViewState(socketRef.current?.id);
     };
 
     syncFromVisibility();
     document.addEventListener("visibilitychange", syncFromVisibility);
-    window.addEventListener("pagehide", syncFromVisibility);
+    window.addEventListener("pagehide", goInactive);
+    document.addEventListener("freeze", goInactive);
 
     return () => {
       document.removeEventListener("visibilitychange", syncFromVisibility);
-      window.removeEventListener("pagehide", syncFromVisibility);
+      window.removeEventListener("pagehide", goInactive);
+      document.removeEventListener("freeze", goInactive);
       emitViewState(false);
     };
   }, [effectiveSocketRoomId, isSocketConnected]);
@@ -4020,6 +4040,7 @@ export default function ChatPageDetails() {
           onClose={() => setIsSnakeOpen(false)}
           onScoreChange={handleSnakeScoreChange}
           onStateChange={handleSnakeStateChange}
+          onModeChange={setSnakeMode}
         />
         <ChristianFilwordMiniGame
           open={isFilwordOpen}

@@ -16,7 +16,8 @@ export const DUEL_LEVELS: Record<number, DuelLevel> = {
     id: DUEL_LEVEL_ID,
     board: { w: 24, h: 16 },
     tickMs: () => 110,
-    winsToTake: 3,
+    targetScore: 30,
+    respawnMs: 3000,
     obstacles: NO_OBSTACLES,
     // Протилежні кути, різні рядки й дивляться «повз» одне одного — миттєвого зіткнення немає.
     spawns: () => [

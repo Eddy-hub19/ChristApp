@@ -1,6 +1,7 @@
 import { getAuthToken } from "@/lib/auth";
 import {
   fetchPushStatus,
+  getLocalPushEndpoint,
   fetchUnreadSummaryOrThrow,
   type PushServerStatus,
   type UnreadSummaryResponse,
@@ -25,5 +26,6 @@ export function pushStatusQueryKey(userId: string | undefined) {
 export async function fetchPushStatusForQuery(): Promise<PushServerStatus | null> {
   const token = getAuthToken();
   if (!token) return null;
-  return fetchPushStatus(token);
+  // Статус із погляду ЦЬОГО пристрою: чи зареєстрована на сервері саме його підписка.
+  return fetchPushStatus(token, await getLocalPushEndpoint());
 }

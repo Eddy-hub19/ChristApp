@@ -15,7 +15,6 @@ export type SnakePhase =
   | "lobby"
   | "countdown"
   | "playing"
-  | "roundEnd"
   | "paused"
   | "matchEnd";
 
@@ -23,13 +22,15 @@ export type DuelSnake = {
   body: Array<{ x: number; y: number }>;
   dir: Dir;
   alive: boolean;
+  /** Скільки ще до відродження (мс); 0 — жива. */
+  respawnInMs: number;
 };
 
 export type DuelSnapshot = {
   board: { w: number; h: number };
   tickMs: number;
-  winsToTake: number;
-  round: number;
+  /** Скільки штучок треба з'їсти, щоб виграти матч. */
+  targetScore: number;
   tick: number;
   food: { x: number; y: number };
   snakes: Record<string, DuelSnake>;
@@ -45,11 +46,9 @@ export type SnakeSessionState = {
   phase: SnakePhase;
   ready: Record<string, boolean>;
   present: Record<string, boolean>;
-  classicRun: number;
-  wins: Record<string, number>;
+  /** Рахунок гонки до targetScore (штучок на гравця). */
+  scores: Record<string, number>;
   countdown: number | null;
-  /** undefined — раунд іде; null — нічия; id — переможець раунду. */
-  roundWinner?: string | null;
   matchWinner: string | null;
   endReason: "score" | "disconnect" | null;
   pausedFor: string | null;

@@ -22,6 +22,7 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
+import { CHAT_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
 import {
   GuessCharacterManager,
@@ -173,12 +174,6 @@ export class ChatGateway
   private readonly gameActivity = new GameActivityService();
   private gameActivitySweeper: ReturnType<typeof setInterval> | null = null;
 
-  /**
-   * roomId → (userId → скільки сокетів цієї людини ЗАРАЗ тримають кімнату на екрані).
-   * Саме «на екрані», а не просто приєднані: клієнт знімає прапорець, коли вкладку згортають.
-   * Потрібно, щоб не слати пуш у чат, який людина читає просто зараз.
-   */
-  private readonly activeRoomViewers = new Map<string, Map<string, number>>();
 
   /**
    * `${userId}:${roomId}` → коли востаннє слали read-sync.
@@ -187,7 +182,8 @@ export class ChatGateway
    */
   private readonly lastReadSyncAt = new Map<string, number>();
 
-  private static readonly READ_SYNC_THROTTLE_MS = 15_000;
+  private static readonly READ_SYNC_THROTTLE_MS = 2_000;
+  private readonly pendingReadSync = new Map<string, ReturnType<typeof setTimeout>>();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
   private static readonly ALLOWED_REACTIONS = ACCEPTED_CHAT_REACTIONS;
@@ -238,6 +234,8 @@ export class ChatGateway
    */
   onModuleDestroy() {
     this.destroyed = true;
+    for (const timer of this.pendingReadSync.values()) clearTimeout(timer);
+    this.pendingReadSync.clear();
     for (const timer of this.pendingDisconnectTimers.values()) {
       clearTimeout(timer);
     }
@@ -718,7 +716,7 @@ export class ChatGateway
     });
 
     // Інші пристрої цієї ж людини: прибрати сповіщення кімнати зі шторки й оновити бейдж.
-    if (this.shouldSendReadSync(user.id, roomId)) {
+    this.scheduleReadSync(user.id, roomId, () => {
       void this.pushService
         .sendReadSyncPush({ userId: user.id, roomId })
         .catch((error: unknown) => {
@@ -729,7 +727,7 @@ export class ChatGateway
             reason,
           });
         });
-    }
+    });
   }
 
   @SubscribeMessage('roomTyping')
@@ -793,7 +791,8 @@ export class ChatGateway
   /** `game: null` — гру закрито; повтор тієї ж гри раз на ~15 с — heartbeat. */
   @SubscribeMessage('presence:activity')
   async handleGameActivity(
-    @MessageBody() body: { roomId?: string; game?: string | null },
+    @MessageBody()
+    body: { roomId?: string; game?: string | null; mode?: unknown },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
@@ -819,6 +818,7 @@ export class ChatGateway
       roomId,
       game,
       now,
+      body?.mode,
     );
     await this.broadcastGameActivity(changed);
   }
@@ -844,37 +844,33 @@ export class ChatGateway
 
   // ================= ХТО ЗАРАЗ ДИВИТЬСЯ КІМНАТУ =================
 
-  private addActiveRoomViewer(roomId: string, userId: string) {
-    const viewers =
-      this.activeRoomViewers.get(roomId) ?? new Map<string, number>();
-    viewers.set(userId, (viewers.get(userId) ?? 0) + 1);
-    this.activeRoomViewers.set(roomId, viewers);
+  private getActiveRoomViewerIds(roomId: string): string[] {
+    return roomViews.viewerIds(CHAT_VIEW_KEY(roomId));
   }
 
-  private removeActiveRoomViewer(roomId: string, userId: string) {
-    const viewers = this.activeRoomViewers.get(roomId);
-    if (!viewers) {
-      return;
-    }
-    const next = (viewers.get(userId) ?? 0) - 1;
-    if (next > 0) {
-      viewers.set(userId, next);
-      return;
-    }
-    viewers.delete(userId);
-    if (!viewers.size) {
-      this.activeRoomViewers.delete(roomId);
-    }
-  }
-
-  private shouldSendReadSync(userId: string, roomId: string): boolean {
+  /**
+   * Читання кімнати → тихий пуш на інші пристрої (прибрати сповіщення, оновити бейдж). Не частіше за
+   * READ_SYNC_THROTTLE_MS на кімнату, але БЕЗ втрат: якщо подія потрапила у вікно, одна відкладена
+   * відправка піде в його кінці — інакше після швидкого «прочитано» на шторці лишались би застарілі сповіщення.
+   */
+  private scheduleReadSync(userId: string, roomId: string, send: () => void) {
     const key = `${userId}:${roomId}`;
     const now = Date.now();
     const last = this.lastReadSyncAt.get(key) ?? 0;
-    if (now - last < ChatGateway.READ_SYNC_THROTTLE_MS) {
-      return false;
+    const wait = ChatGateway.READ_SYNC_THROTTLE_MS - (now - last);
+
+    if (wait <= 0) {
+      this.lastReadSyncAt.set(key, now);
+      send();
+    } else if (!this.pendingReadSync.has(key)) {
+      const timer = setTimeout(() => {
+        this.pendingReadSync.delete(key);
+        this.lastReadSyncAt.set(key, Date.now());
+        send();
+      }, wait);
+      timer.unref?.();
+      this.pendingReadSync.set(key, timer);
     }
-    this.lastReadSyncAt.set(key, now);
 
     // Мапа не має рости нескінченно: прибираємо записи, що вже й так протухли.
     if (this.lastReadSyncAt.size > 2000) {
@@ -884,36 +880,24 @@ export class ChatGateway
         }
       }
     }
-
-    return true;
   }
 
-  private getActiveRoomViewerIds(roomId: string): string[] {
-    return Array.from(this.activeRoomViewers.get(roomId)?.keys() ?? []);
-  }
-
-  /** Знімає всі «перегляди» сокета, що відключився або вийшов із кімнати. */
+  /** Знімає «перегляди» сокета, що відключився (усі) або вийшов із кімнати (одна). */
   private clearActiveRoomViewsForSocket(
     client: SocketWithUser,
     roomId?: string,
   ) {
-    const viewed = client.data.viewedRooms;
-    if (!viewed) {
-      return;
-    }
     const userId = client.data.user?.id;
     if (!userId) {
       return;
     }
-
-    const roomIds = roomId ? [roomId] : Array.from(viewed);
-    for (const rid of roomIds) {
-      if (!viewed.has(rid)) {
-        continue;
-      }
-      viewed.delete(rid);
-      this.removeActiveRoomViewer(rid, userId);
+    if (!roomId) {
+      client.data.viewedRooms?.clear();
+      roomViews.clearSocket(client.id);
+      return;
     }
+    client.data.viewedRooms?.delete(roomId);
+    roomViews.setViewing(client.id, userId, CHAT_VIEW_KEY(roomId), false);
   }
 
   /** Клієнт повідомляє, що кімната з'явилась/зникла з екрана (фокус, згортання, вихід). */
@@ -939,7 +923,7 @@ export class ChatGateway
         return;
       }
       viewed.add(roomId);
-      this.addActiveRoomViewer(roomId, user.id);
+      roomViews.setViewing(client.id, user.id, CHAT_VIEW_KEY(roomId), true);
       return;
     }
 
@@ -947,7 +931,7 @@ export class ChatGateway
       return;
     }
     viewed.delete(roomId);
-    this.removeActiveRoomViewer(roomId, user.id);
+    roomViews.setViewing(client.id, user.id, CHAT_VIEW_KEY(roomId), false);
   }
 
   // ================= ІГРОВІ СЕСІЇ (сервер — джерело правди) =================

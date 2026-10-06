@@ -37,11 +37,14 @@ type SnakeMiniGameProps = {
   onClose: () => void;
   onScoreChange: (score: number) => void;
   onStateChange?: (state: SnakeRuntimeState) => void;
+  /** Який режим зараз «відкритий» у цього гравця — для статусу «грає у Snake» і кнопки «Приєднатися». */
+  onModeChange?: (mode: "classic" | "duel" | null) => void;
 };
 
 /**
- * Оболонка Snake: вибір рівня + «Готовий» (синхронно через сервер) і сама гра обраного рівня.
- * Рівень 1 — локальна класика; рівень 2 (та майбутні `kind: "server"`) — гру веде сервер.
+ * Оболонка Snake: вибір рівня і сама гра обраного рівня.
+ * Рівень 1 «Класика» — локальна й стартує одразу, без «Готовий» і без очікування другого гравця.
+ * Рівень 2 (та майбутні `kind: "server"`) — гру веде сервер; «Готовий» від обох потрібен лише тут.
  */
 export default function SnakeMiniGame({
   open,
@@ -56,6 +59,7 @@ export default function SnakeMiniGame({
   onClose,
   onScoreChange,
   onStateChange,
+  onModeChange,
 }: SnakeMiniGameProps) {
   const t = useTranslations("snake");
   const { session, selectLevel, setReady, sendDirection } = useSnakeSession({
@@ -76,7 +80,6 @@ export default function SnakeMiniGame({
   const [classicRunId, setClassicRunId] = useState(0);
   const [classicRunning, setClassicRunning] = useState(false);
   const [classicResult, setClassicResult] = useState<number | null>(null);
-  const seenRunRef = useRef<number | null>(null);
   const [bests, setBests] = useState<Record<number, number>>({});
 
   // ── Дуель (рівень 2) ──
@@ -90,7 +93,6 @@ export default function SnakeMiniGame({
 
   useEffect(() => {
     if (!open) {
-      seenRunRef.current = null;
       setClassicView(false);
       setClassicRunning(false);
       setClassicResult(null);
@@ -104,23 +106,18 @@ export default function SnakeMiniGame({
     if (peerId) setRecord(getDuelRecord(userId, peerId));
   }, [peerId, userId]);
 
-  // Обидва натиснули «Готовий» на рівні 1: сервер збільшує classicRun — стартуємо локальну класику.
-  useEffect(() => {
-    if (!session) return;
-    if (seenRunRef.current === null) {
-      seenRunRef.current = session.classicRun;
-      return;
-    }
-    if (session.classicRun > seenRunRef.current) {
-      seenRunRef.current = session.classicRun;
-      classicDirRef.current = "right";
-      setClassicResult(null);
-      setClassicView(true);
-      setClassicRunning(true);
-      setClassicRunId((id) => id + 1);
-      onScoreChange(0);
-    }
-  }, [session, onScoreChange]);
+  // «Класика»: стартує одразу, як гравець її вибрав. Серверу нічого не кажемо про рівень (щоб не збити
+  // очікування другого в лобі Дуелі), лише знімаємо власну «готовність» до Дуелі, щоб вона не стартувала за спиною.
+  const startClassic = useCallback(() => {
+    if (session?.ready[userId]) setReady(false);
+    classicDirRef.current = "right";
+    setClassicResult(null);
+    setLobbyOverride(false);
+    setClassicView(true);
+    setClassicRunning(true);
+    setClassicRunId((id) => id + 1);
+    onScoreChange(0);
+  }, [session, userId, setReady, onScoreChange]);
 
   // Серверна дуель зрушила з місця — повертаємось до поля й скидаємо ручний «показати лобі».
   useEffect(() => {
@@ -159,8 +156,6 @@ export default function SnakeMiniGame({
     [sendDirection],
   );
 
-  if (!open) return null;
-
   const level = getSnakeLevel(session?.level ?? 1);
   const serverGameActive =
     session != null &&
@@ -177,8 +172,10 @@ export default function SnakeMiniGame({
   const myReady = session ? Boolean(session.ready[userId]) : false;
   const peerReady = session && peerId ? Boolean(session.ready[peerId]) : false;
   const canChangeLevel = session != null && (session.phase === "lobby" || session.phase === "matchEnd");
-  const myWins = session?.wins[userId] ?? 0;
-  const peerWins = peerId ? (session?.wins[peerId] ?? 0) : 0;
+  const myRace = session?.scores[userId] ?? 0;
+  const peerRace = peerId ? (session?.scores[peerId] ?? 0) : 0;
+  const raceTarget = session?.duel?.targetScore ?? 30;
+  const duelSelected = (session?.level ?? 1) !== 1;
 
   const pressDirection = (dir: Dir) => {
     if (view === "duel") duelDirectionRef.current?.(dir);
@@ -190,19 +187,18 @@ export default function SnakeMiniGame({
     setLobbyOverride(true);
   };
 
-  const handlePlayAgain = () => {
+  const handlePlayAgainClassic = () => startClassic();
+
+  const handleRematchDuel = () => {
     setClassicView(false);
     setLobbyOverride(true);
     setReady(true);
   };
 
+  const iLead = myRace > peerRace || session?.matchWinner === userId;
+  const peerLeads = peerRace > myRace || session?.matchWinner === peerId;
   const scoreLine =
-    view === "duel" && session ? (
-      <>
-        {t("me")} {myWins} {myWins > peerWins || session.matchWinner === userId ? "👑" : ""} :{" "}
-        {peerWins} {peerName} {peerWins > myWins || session.matchWinner === peerId ? "👑" : ""}
-      </>
-    ) : view === "classic" ? (
+    view === "classic" ? (
       <>
         {t("me")}: {myScore} {myScore > peerScore ? "👑" : ""} · {peerName}: {peerScore}{" "}
         {peerScore > myScore ? "👑" : ""}
@@ -211,8 +207,17 @@ export default function SnakeMiniGame({
       <>{t("versus", { name: peerName, wins: record.wins, losses: record.losses })}</>
     ) : null;
 
+  // Режим для статусу «грає у Snake»: Класика/Дуель, або Дуель, якщо гравець чекає в її лобі.
+  const mode: "classic" | "duel" | null =
+    view === "classic" ? "classic" : view === "duel" || (duelSelected && myReady) ? "duel" : null;
+  useEffect(() => {
+    onModeChange?.(open ? mode : null);
+  }, [open, mode, onModeChange]);
+
   const showControls = view !== "lobby";
   const hint = view === "duel" ? t("hintDuel") : t("hintClassic");
+
+  if (!open) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -229,7 +234,36 @@ export default function SnakeMiniGame({
             ×
           </button>
         </div>
-        {scoreLine ? <p className={styles.scoreLine}>{scoreLine}</p> : null}
+        {view === "duel" && session && peerId ? (
+          <div className={styles.raceHud} aria-label={t("raceScoreAria")}>
+            <p className={styles.raceLine}>
+              {t("raceScore", { name: t("me"), n: myRace, target: raceTarget })} {iLead ? "👑" : ""} ·{" "}
+              {t("raceScore", { name: peerName, n: peerRace, target: raceTarget })} {peerLeads ? "👑" : ""}
+            </p>
+            <div className={styles.raceBars}>
+              <div
+                className={styles.raceBar}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={raceTarget}
+                aria-valuenow={myRace}
+              >
+                <i className={styles.raceFillMine} style={{ width: `${Math.min(100, (myRace / raceTarget) * 100)}%` }} />
+              </div>
+              <div
+                className={styles.raceBar}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={raceTarget}
+                aria-valuenow={peerRace}
+              >
+                <i className={styles.raceFillPeer} style={{ width: `${Math.min(100, (peerRace / raceTarget) * 100)}%` }} />
+              </div>
+            </div>
+          </div>
+        ) : scoreLine ? (
+          <p className={styles.scoreLine}>{scoreLine}</p>
+        ) : null}
         {view === "classic" ? (
           <p className={styles.bestLine}>{t("best", { n: bests[1] ?? 0 })}</p>
         ) : null}
@@ -254,11 +288,11 @@ export default function SnakeMiniGame({
                   type="button"
                   role="radio"
                   aria-checked={(session?.level ?? 1) === def.id}
-                  disabled={!canChangeLevel}
+                  disabled={def.kind === "classic" ? false : !canChangeLevel}
                   className={`${styles.levelCard} ${
                     (session?.level ?? 1) === def.id ? styles.levelCardActive : ""
                   }`}
-                  onClick={() => selectLevel(def.id)}
+                  onClick={() => (def.kind === "classic" ? startClassic() : selectLevel(def.id))}
                 >
                   <span className={styles.levelName}>{t(def.nameKey)}</span>
                   <span className={styles.levelDesc}>{t(def.descKey)}</span>
@@ -266,7 +300,7 @@ export default function SnakeMiniGame({
               ))}
             </div>
             {!session ? <p className={styles.hint}>{t("connecting")}</p> : null}
-            {session && peerId ? (
+            {session && peerId && duelSelected ? (
               <div className={styles.readyRow}>
                 <span className={myReady ? styles.readyOk : undefined}>
                   {t("me")}: {myReady ? t("readyState") : t("notReady")}
@@ -279,16 +313,20 @@ export default function SnakeMiniGame({
             {classicResult !== null ? (
               <p className={styles.bestLine}>{t("lastResult", { n: classicResult })}</p>
             ) : null}
-            <div className={styles.lobbyActions}>
-              <button
-                type="button"
-                className={styles.startButton}
-                disabled={!session}
-                onClick={() => setReady(!myReady)}
-              >
-                {myReady ? t("cancelReady") : t("ready")}
-              </button>
-            </div>
+            {duelSelected ? (
+              <div className={styles.lobbyActions}>
+                <button
+                  type="button"
+                  className={styles.startButton}
+                  disabled={!session}
+                  onClick={() => setReady(!myReady)}
+                >
+                  {myReady ? t("cancelReady") : t("ready")}
+                </button>
+              </div>
+            ) : (
+              <p className={styles.hint}>{t("classicNoWait")}</p>
+            )}
           </div>
         ) : (
           <>
@@ -312,7 +350,7 @@ export default function SnakeMiniGame({
                       <span className={styles.overlayTitle}>{t("gameOver")}</span>
                       <span className={styles.overlaySub}>{t("score", { n: classicResult })}</span>
                       <div className={styles.overlayActions}>
-                        <button type="button" className={styles.startButton} onClick={handlePlayAgain}>
+                        <button type="button" className={styles.startButton} onClick={handlePlayAgainClassic}>
                           {t("playAgain")}
                         </button>
                         <button
@@ -333,7 +371,7 @@ export default function SnakeMiniGame({
                   peerId={peerId}
                   peerName={peerName}
                   onDirection={onDuelInput}
-                  onRematch={handlePlayAgain}
+                  onRematch={handleRematchDuel}
                   onChangeLevel={handleChangeLevelFromResult}
                   myRecordLabel={t("versus", {
                     name: peerName,

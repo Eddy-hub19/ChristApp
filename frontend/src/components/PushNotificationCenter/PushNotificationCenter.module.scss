@@ -94,3 +94,42 @@
     font-size: 14px;
   }
 }
+
+.diag {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.diagTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.diagList {
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.diagRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+
+  dt {
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+  }
+}
+
+.actionButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

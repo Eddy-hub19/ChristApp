@@ -5,6 +5,7 @@ import { usePathname } from "@/i18n/navigation";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import {
   fetchPushStatus,
+  getLocalPushEndpoint,
   isPushSupportedInBrowser,
   syncBrowserPushSubscription,
 } from "@/lib/push";
@@ -40,8 +41,14 @@ export default function PushAutoSync() {
     lastAttemptAtRef.current = now;
 
     try {
-      const pushStatus = await fetchPushStatus(token);
-      if (!pushStatus?.enabled || pushStatus.hasSubscription) {
+      // Підписки зберігаються окремо для кожного пристрою: «у користувача є підписка» (напр., на ноутбуці)
+      // ще не означає, що вона є на ЦЬОМУ телефоні. Звіряємо саме endpoint цього пристрою.
+      const endpoint = await getLocalPushEndpoint();
+      const pushStatus = await fetchPushStatus(token, endpoint);
+      if (!pushStatus?.enabled) {
+        return;
+      }
+      if (endpoint && pushStatus.thisDeviceRegistered) {
         return;
       }
 

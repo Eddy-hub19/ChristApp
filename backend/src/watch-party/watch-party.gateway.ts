@@ -15,6 +15,7 @@ import {
   userSocketRoom,
   watchSocketRoom,
 } from './watch-party.service';
+import { WATCH_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import { isWatchProvider, type ControlCommand } from './watch-party.state';
 
 interface WatchSocket extends Socket {
@@ -117,6 +118,7 @@ export class WatchPartyGateway
   handleDisconnect(client: WatchSocket) {
     const userId = client.data.watchUserId;
     this.limiter.forget(`${client.id}:`);
+    roomViews.clearSocket(client.id);
     if (!userId) return;
     for (const roomId of client.data.watchRooms ?? []) {
       this.watchParty.leaveHall(roomId, userId, client.id);
@@ -156,6 +158,7 @@ export class WatchPartyGateway
     const roomId = readRoomId(body);
     if (!userId || !roomId) return { ok: false };
     client.data.watchRooms?.delete(roomId);
+    roomViews.setViewing(client.id, userId, WATCH_VIEW_KEY(roomId), false);
     await client.leave(watchSocketRoom(roomId));
     this.watchParty.leaveHall(roomId, userId, client.id);
     return { ok: true };
@@ -174,8 +177,29 @@ export class WatchPartyGateway
       return { ok: false, code: 'RATE_LIMITED' };
     }
     client.data.watchRooms?.delete(roomId);
+    roomViews.setViewing(client.id, userId, WATCH_VIEW_KEY(roomId), false);
     await client.leave(watchSocketRoom(roomId));
     this.watchParty.leaveHall(roomId, userId, client.id, true);
+    return { ok: true };
+  }
+
+  /**
+   * Сторінка зали зараз на екрані (відкрита й видима)? Лише тоді пуші з чату зали цій людині не шлемо.
+   * Мініплеєр, інший екран застосунку, згорнутий застосунок — це НЕ перегляд: пуші йдуть.
+   */
+  @SubscribeMessage('watch:viewState')
+  handleViewState(
+    @MessageBody() body: RoomBody & { active?: unknown },
+    @ConnectedSocket() client: WatchSocket,
+  ) {
+    const userId = client.data.watchUserId;
+    const roomId = readRoomId(body);
+    if (!userId || !roomId) return { ok: false };
+    if (!this.limiter.allow(`${client.id}:viewState`, 20, 5_000)) {
+      return { ok: false, code: 'RATE_LIMITED' };
+    }
+    const active = body?.active === true && client.data.watchRooms?.has(roomId) === true;
+    roomViews.setViewing(client.id, userId, WATCH_VIEW_KEY(roomId), active);
     return { ok: true };
   }
 

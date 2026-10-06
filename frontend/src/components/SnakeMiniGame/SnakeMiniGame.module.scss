@@ -79,6 +79,52 @@
   margin-top: 2px;
 }
 
+// Гонка до N: рахунок угорі + дві смужки прогресу (моя — акцентна, суперника — блакитна).
+.raceHud {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.raceLine {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.raceBars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.raceBar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--line-soft) 70%, transparent);
+
+  i {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.2s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+}
+
+.raceFillMine {
+  background: var(--accent, #c8b083);
+}
+
+.raceFillPeer {
+  background: rgba(106, 196, 255, 0.85);
+}
+
 .hint {
   margin-top: 8px;
   text-align: center;
