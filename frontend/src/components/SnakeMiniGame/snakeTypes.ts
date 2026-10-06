@@ -1,3 +1,5 @@
+import type createSocket from "socket.io-client";
+
 export type Dir = "up" | "down" | "left" | "right";
 
 export function isOppositeDir(a: Dir, b: Dir): boolean {
@@ -56,10 +58,8 @@ export type SnakeSessionState = {
   serverTime: number;
 };
 
-/** Мінімальний інтерфейс сокета, потрібний грі (сумісний із socket.io-client). */
-export type SnakeSocket = {
-  connected?: boolean;
-  on: (event: string, listener: (...args: never[]) => void) => unknown;
-  off: (event: string, listener: (...args: never[]) => void) => unknown;
-  emit: (event: string, ...args: unknown[]) => unknown;
-};
+/**
+ * Сокет гри — це той самий тип, що створює `io()` у socket.io-client (так само задано AppSocket у чаті). Власний «спрощений інтерфейс» ламав збірку:
+ * `listener: (...args: never[]) => void` не сумісний із `(...args: any[]) => void` у реальному Socket.
+ */
+export type SnakeSocket = ReturnType<typeof createSocket>;

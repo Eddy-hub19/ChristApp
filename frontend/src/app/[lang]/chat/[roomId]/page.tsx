@@ -3922,7 +3922,7 @@ export default function ChatPageDetails() {
         <SnakeMiniGame
           open={isSnakeOpen}
           roomId={effectiveSocketRoomId}
-          // eslint-disable-next-line react-hooks/refs -- гра підписується на живий сокет кімнати
+          // eslint-disable-next-line react-hooks/refs -- гра підписується на поточний (живий) сокет кімнати; зміна isSocketConnected перерендерює сторінку
           socket={isSocketConnected ? socketRef.current : null}
           userId={user?.id ?? ""}
           myScore={mySnakeScore}

@@ -23,12 +23,12 @@ export function useSnakeSession({ socket, roomId, open }: Options) {
     };
     // Присутність + актуальний стан: при відкритті, а також після перепідключення сокета.
     const sync = () => socket.emit("snake-session-sync", { roomId });
-    socket.on("snake-session", onSession as never);
-    socket.on("connect", sync as never);
+    socket.on("snake-session", onSession);
+    socket.on("connect", sync);
     sync();
     return () => {
-      socket.off("snake-session", onSession as never);
-      socket.off("connect", sync as never);
+      socket.off("snake-session", onSession);
+      socket.off("connect", sync);
       socket.emit("snake-presence", { roomId, present: false });
     };
   }, [open, socket, roomId]);
