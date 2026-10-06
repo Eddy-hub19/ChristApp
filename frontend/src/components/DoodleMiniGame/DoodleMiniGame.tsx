@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  DOODLE_THEMES,
+  DoodleBackground,
+  THEME_TOAST_MS,
+} from "./doodleBackground";
 import styles from "./DoodleMiniGame.module.scss";
 
 type Platform = {
@@ -35,7 +41,8 @@ type DoodleMiniGameProps = {
   peerScore: number;
   peerName: string;
   peerState: DoodleRuntimeState | null;
-  peerPingMs?: number | null;
+  /** Реальный RTT до сервера, мс; null — ещё не измерен. */
+  pingMs?: number | null;
   onClose: () => void;
   onScoreChange: (score: number) => void;
   onStateChange?: (state: DoodleRuntimeState) => void;
@@ -64,11 +71,12 @@ export default function DoodleMiniGame({
   peerScore,
   peerName,
   peerState,
-  peerPingMs,
+  pingMs,
   onClose,
   onScoreChange,
   onStateChange,
 }: DoodleMiniGameProps) {
+  const t = useTranslations("doodle");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const keyLeftRef = useRef(false);
@@ -80,6 +88,8 @@ export default function DoodleMiniGame({
   const [bestScore, setBestScore] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  /** Короткая подпись при достижении порога фона; key перезапускает CSS-анимацию. */
+  const [themeToast, setThemeToast] = useState<{ key: number; label: string } | null>(null);
 
   const setMoveDirection = (direction: "left" | "right" | null) => {
     keyLeftRef.current = direction === "left";
@@ -128,6 +138,13 @@ export default function DoodleMiniGame({
     if (!canvas || !ctx) {
       return;
     }
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Фон у каждого игрока свой — по его собственному счёту; новая игра пересоздаёт его с начальной темы.
+    const background = new DoodleBackground(WORLD_W, WORLD_H, reducedMotion);
+    let lastTs: number | null = null;
+    let toastTimer: number | null = null;
+    setThemeToast(null);
 
     let alive = true;
     let cameraY = 0;
@@ -201,19 +218,8 @@ export default function DoodleMiniGame({
     const draw = () => {
       ctx.clearRect(0, 0, WORLD_W, WORLD_H);
 
-      const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-      bg.addColorStop(0, "#2f2a22");
-      bg.addColorStop(1, "#1c1914");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-
-      ctx.strokeStyle = "rgba(220,184,103,0.12)";
-      for (let y = 0; y < WORLD_H; y += 24) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(WORLD_W, y);
-        ctx.stroke();
-      }
+      background.draw(ctx, cameraY);
+      const contrast = background.contrast;
 
       for (const platform of platforms) {
         const py = platform.y - cameraY;
@@ -266,6 +272,13 @@ export default function DoodleMiniGame({
         );
         ctx.fill();
 
+        if (contrast > 0.05) {
+          // Мягкая тень под платформой: отделяет её от светлого неба.
+          drawRoundedRect(platform.x, py + 4, platform.w, 10, 5);
+          ctx.fillStyle = `rgba(20, 24, 48, ${0.28 * contrast})`;
+          ctx.fill();
+        }
+
         drawRoundedRect(platform.x, py + 2, platform.w, 10, 5);
         ctx.fillStyle = cracked
           ? "#dcae6c"
@@ -278,8 +291,10 @@ export default function DoodleMiniGame({
           ? "#9e5f2e"
           : platform.kind === "breakable"
             ? "#c7864f"
-            : "#d4b159";
-        ctx.lineWidth = 1;
+            : contrast > 0.5
+              ? "#8a6a2c"
+              : "#d4b159";
+        ctx.lineWidth = 1 + contrast * 0.8;
         ctx.stroke();
 
         // Мордочка овечки
@@ -343,6 +358,11 @@ export default function DoodleMiniGame({
 
       ctx.fillStyle = "#f0e6d0";
       ctx.fillRect(player.x, player.y - cameraY, PLAYER_W, PLAYER_H);
+      if (contrast > 0.05) {
+        ctx.strokeStyle = `rgba(40, 30, 15, ${0.85 * contrast})`;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(player.x, player.y - cameraY, PLAYER_W, PLAYER_H);
+      }
 
       if (canDrawPeer && peerY != null) {
         ctx.fillStyle = "rgba(163, 222, 255, 0.95)";
@@ -355,9 +375,11 @@ export default function DoodleMiniGame({
       }
     };
 
-    const update = () => {
+    const update = (ts: number = performance.now()) => {
       if (!alive) return;
       frame += 1;
+      background.update(lastTs === null ? 0 : (ts - lastTs) / 1000);
+      lastTs = ts;
 
       const targetPeer = peerStateRef.current;
       if (targetPeer) {
@@ -464,6 +486,14 @@ export default function DoodleMiniGame({
       if (nextScore !== score) {
         score = nextScore;
         onScoreChange(score);
+        if (background.setScore(score)) {
+          const labelKey = DOODLE_THEMES[background.themeIndex].labelKey;
+          if (labelKey) {
+            setThemeToast({ key: background.themeIndex, label: t(labelKey) });
+            if (toastTimer !== null) window.clearTimeout(toastTimer);
+            toastTimer = window.setTimeout(() => setThemeToast(null), THEME_TOAST_MS);
+          }
+        }
       }
       onStateChange?.({
         x: player.x,
@@ -506,12 +536,13 @@ export default function DoodleMiniGame({
     frameRef.current = requestAnimationFrame(update);
 
     return () => {
+      if (toastTimer !== null) window.clearTimeout(toastTimer);
       if (frameRef.current !== null) {
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
     };
-  }, [gravity, isStarted, jumpVelocity, onScoreChange, onStateChange, open]);
+  }, [gravity, isStarted, jumpVelocity, onScoreChange, onStateChange, open, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -573,7 +604,7 @@ export default function DoodleMiniGame({
         </p>
         <p className={styles.bestLine}>Лучший результат: {bestScore}</p>
         <p className={styles.bestLine}>
-          Пинг: {peerPingMs != null ? `${peerPingMs} мс` : "—"}
+          {t("ping")}: {pingMs != null ? t("pingValue", { ms: pingMs }) : "—"}
         </p>
         <p className={styles.hint}>Управление: ← → или свайп</p>
         <div className={styles.canvasWrap}>
@@ -599,6 +630,11 @@ export default function DoodleMiniGame({
               touchXRef.current = null;
             }}
           />
+          {themeToast ? (
+            <div key={themeToast.key} className={styles.themeToast} aria-live="polite">
+              {themeToast.label}
+            </div>
+          ) : null}
           {!isStarted ? (
             <div className={styles.startOverlay}>
               <button

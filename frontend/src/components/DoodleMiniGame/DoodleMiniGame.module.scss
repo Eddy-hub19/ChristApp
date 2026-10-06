@@ -144,3 +144,35 @@
   margin-top: 8px;
   text-align: center;
 }
+
+.themeToast {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(10, 14, 40, 0.75), 0 0 12px rgba(10, 14, 40, 0.45);
+  animation: doodleThemeToast 1.5s ease-out forwards;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: doodleThemeToastStatic;
+  }
+}
+
+@keyframes doodleThemeToast {
+  0% { opacity: 0; transform: translateY(-6px); }
+  15% { opacity: 1; transform: translateY(0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes doodleThemeToastStatic {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}

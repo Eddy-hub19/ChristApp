@@ -182,6 +182,14 @@
     "ariaWithProgress": "Главы: прочитано {read} из {total}. {subtitle}",
     "ariaStart": "Главы: открыть Библию и начать чтение"
   },
+  "doodle": {
+    "ping": "Пинг",
+    "pingValue": "{ms} мс",
+    "themeDawn": "Рассвет",
+    "themeDay": "Небо",
+    "themeNight": "Звёзды",
+    "themeHeaven": "Небеса"
+  },
   "chat": {
     "globalChatTitle": "Общий чат для всех",
     "shareWithJesusTitle": "Поделись с Иисусом",

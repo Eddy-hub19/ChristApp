@@ -182,6 +182,14 @@
     "ariaWithProgress": "Chapters: read {read} of {total}. {subtitle}",
     "ariaStart": "Chapters: open the Bible and start reading"
   },
+  "doodle": {
+    "ping": "Ping",
+    "pingValue": "{ms} ms",
+    "themeDawn": "Dawn",
+    "themeDay": "Sky",
+    "themeNight": "Stars",
+    "themeHeaven": "Heavens"
+  },
   "chat": {
     "globalChatTitle": "Global chat for everyone",
     "shareWithJesusTitle": "Share with Jesus",
