@@ -24,7 +24,12 @@ function PendingUploadBubble({ item, onCancel, onRetry }: Props) {
   const isError = item.status === "error";
   const percent = Math.round(item.progress * 100);
 
+  const isVoice = item.kind === "voice";
   const errorLabel = (() => {
+    // Для голосових відхилення сервера (400) — не «непідтримуваний тип», а загальний збій.
+    if (isVoice && (item.errorCode === "unsupported" || item.errorCode === "server")) {
+      return t("uploadErrVoice");
+    }
     switch (item.errorCode) {
       case "offline":
         return t("uploadErrOffline");
@@ -41,7 +46,8 @@ function PendingUploadBubble({ item, onCancel, onRetry }: Props) {
     }
   })();
   // Повтор не допоможе, якщо файл відхилено: лишаємо лише "прибрати".
-  const canRetry = item.errorCode !== "tooLarge" && item.errorCode !== "unsupported";
+  const canRetry =
+    item.errorCode !== "tooLarge" && (isVoice || item.errorCode !== "unsupported");
 
   return (
     <article
@@ -84,7 +90,7 @@ function PendingUploadBubble({ item, onCancel, onRetry }: Props) {
 
       {isError ? (
         <div className={styles.errorRow}>
-          <span className={styles.errorText}>{item.errorText && item.errorCode !== "server" ? item.errorText : errorLabel}</span>
+          <span className={styles.errorText}>{errorLabel}</span>
           <span className={styles.actions}>
             {canRetry ? (
               <button type="button" className={styles.retry} onClick={() => onRetry(item.localId)}>
