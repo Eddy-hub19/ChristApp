@@ -14,7 +14,9 @@ import {
   Link2,
   Loader2,
   LogOut,
+  MessageSquare,
   MoreVertical,
+  PanelRightClose,
   Trash2,
   UserPlus,
   Users,
@@ -37,6 +39,7 @@ import { AUTO_SYNC_PROVIDERS, type WatchState } from "@/lib/watchSync";
 import { useCinema, useCinemaRefs } from "./CinemaProvider";
 import ChatOverlay from "./ChatOverlay";
 import { useChatOverlayEnabled } from "./chatOverlayStore";
+import { CHAT_MIN_WIDTH, clampChatWidth, useChatLayout } from "./chatLayoutStore";
 import FloatingReactions from "./FloatingReactions";
 import HeaderMemberStack from "./HeaderMemberStack";
 import HostControls from "./HostControls";
@@ -134,6 +137,12 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
   const [chatOverlayEnabled, setChatOverlayEnabled] = useChatOverlayEnabled();
+  // Десктоп: ширина чату (перетягування розділювача) і згортання; на мобільному не діє (стилі лише від 768px).
+  const chatLayout = useChatLayout();
+  const chatColumnRef = useRef<HTMLDivElement>(null);
+  const [resizing, setResizing] = useState(false);
+  // Останнє повідомлення, яке користувач бачив до згортання чату, — від нього рахуємо лічильник нових.
+  const [seenUpToId, setSeenUpToId] = useState<string | null>(null);
   // iPhone Safari: немає fullscreen для довільних елементів і немає screen.orientation.lock,
   // тож коли телефон у портреті, розгортаємо театр і повертаємо його на 90° засобами CSS.
   const [pseudoRotated, setPseudoRotated] = useState(false);
@@ -285,6 +294,60 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   };
 
   // ================= НЕ В ЗАЛІ =================
+
+  const chatCollapsed = chatLayout.collapsed;
+  // Якщо чат згорнутий ще з минулого візиту — рахуємо нові від першого завантаженого стану історії.
+  const lastMessageId = hall.messages[hall.messages.length - 1]?.id ?? null;
+  if (chatCollapsed && seenUpToId === null && lastMessageId) setSeenUpToId(lastMessageId);
+  const unreadChat = useMemo(() => {
+    if (!chatCollapsed || seenUpToId === null) return 0;
+    const from = hall.messages.findIndex((m) => m.id === seenUpToId);
+    return hall.messages.slice(from + 1).filter((m) => m.user.id !== me).length;
+  }, [chatCollapsed, seenUpToId, hall.messages, me]);
+
+  const toggleChat = () => {
+    setSeenUpToId(chatCollapsed ? null : lastMessageId);
+    chatLayout.setCollapsed(!chatCollapsed);
+  };
+
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const column = chatColumnRef.current;
+    if (!column || event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = column.getBoundingClientRect().width;
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    setResizing(true);
+    const onMove = (e: PointerEvent) => {
+      // Чат праворуч: тягнемо розділювач ліворуч — чат ширшає.
+      column.style.setProperty("--chat-w", `${clampChatWidth(startWidth + (startX - e.clientX))}px`);
+    };
+    const onUp = (e: PointerEvent) => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+      target.removeEventListener("pointercancel", onUp);
+      column.style.removeProperty("--chat-w");
+      chatLayout.setWidth(startWidth + (startX - e.clientX));
+      setResizing(false);
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+    target.addEventListener("pointercancel", onUp);
+  };
+
+  const onResizerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const column = chatColumnRef.current;
+    if (!column) return;
+    const current = column.getBoundingClientRect().width;
+    if (event.key === "ArrowLeft") chatLayout.setWidth(current + 24);
+    else if (event.key === "ArrowRight") chatLayout.setWidth(current - 24);
+    else if (event.key === "Home") chatLayout.setWidth(CHAT_MIN_WIDTH);
+    else if (event.key === "End") chatLayout.setWidth(Infinity);
+    else if (event.key === "Enter") chatLayout.setWidth(null);
+    else return;
+    event.preventDefault();
+  };
 
   if (!isActiveRoom || hall.status !== "ready" || !state) {
     return (
@@ -506,7 +569,10 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         </div>
       ) : null}
 
-      <div className={styles.layout}>
+      <div
+        className={`${styles.layout} ${chatCollapsed ? styles.layoutChatCollapsed : ""} ${resizing ? styles.layoutResizing : ""}`}
+        style={chatLayout.width ? ({ "--chat-w": `${clampChatWidth(chatLayout.width)}px` } as React.CSSProperties) : undefined}
+      >
         <div className={styles.stageColumn}>
           <div ref={theaterRef} className={theaterClass}>
             <div className={styles.curtain} aria-hidden>
@@ -656,6 +722,32 @@ export default function WatchHall({ roomId }: { roomId: string }) {
           />
         </div>
 
+        <div
+          className={styles.chatResizer}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("hall.chatResize")}
+          tabIndex={0}
+          onPointerDown={startResize}
+          onKeyDown={onResizerKeyDown}
+          onDoubleClick={() => chatLayout.setWidth(null)}
+        />
+
+        <button
+          type="button"
+          className={`${styles.chatToggle} ${chatCollapsed ? styles.chatToggleCollapsed : ""}`}
+          onClick={toggleChat}
+          aria-expanded={!chatCollapsed}
+          aria-label={chatCollapsed ? t("hall.chatShow") : t("hall.chatHide")}
+          title={chatCollapsed ? t("hall.chatShow") : t("hall.chatHide")}
+        >
+          {chatCollapsed ? <MessageSquare size={18} /> : <PanelRightClose size={18} />}
+          {chatCollapsed && unreadChat > 0 ? (
+            <span className={styles.chatToggleBadge}>{unreadChat > 99 ? "99+" : unreadChat}</span>
+          ) : null}
+        </button>
+
+        <div ref={chatColumnRef} className={styles.chatColumn}>
         <WatchChat
           messages={hall.messages}
           members={hall.members}
@@ -672,6 +764,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
           onToggleMessageReaction={hall.toggleMessageReaction}
           onMarkRead={hall.markRead}
         />
+        </div>
       </div>
 
       <InviteSheet
