@@ -80,19 +80,28 @@
   flex-shrink: 0;
   position: relative;
   z-index: 5;
-  transition: padding 0.2s ease;
+  // Числовий max-height (а не none), щоб шапка могла плавно згортатися, коли відкрита клавіатура.
+  max-height: 120px;
+  transition:
+    padding 0.2s ease,
+    max-height 0.2s ease,
+    opacity 0.15s ease;
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
 }
 
-/* Клавіатура відкрита (мобільний): шапка стає компактним одним рядком — без
-   другого рядка "хто керує" під заголовком, який на телефоні й так дублюється
-   оверлеєм на самому відео. */
+/* Клавіатура відкрита (мобільний): шапка зникає цілком — кожен піксель потрібен плеєру й чату.
+   Згортається плавно (висота + прозорість); тап по відео/клавіатура закрита — шапка повертається. */
 :global(html[data-keyboard-open]) .topbar {
   @media (max-width: 767px) {
-    padding: 6px 14px;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
@@ -466,7 +475,7 @@
 }
 
 /*
- * Клавіатура відкрита (мобільний, поле чату у фокусі): плеєр стискається по висоті
+ * Клавіатура відкрита (мобільний, поле чату у фокусі): плеєр стискається по висоті (~30% видимої області)
  * (не по ширині 16:9 на весь екран), завіса ховається — інакше під клавіатурою не
  * лишалось би місця навіть на 3–4 останні повідомлення. Рахуємо від --vv-height
  * (видима область без клавіатури й панелі Safari), а не від 100dvh.
@@ -474,9 +483,22 @@
 :global(html[data-keyboard-open]) .theater {
   @media (max-width: 767px) {
     align-items: center;
-    padding-top: 6px;
+    padding-top: 4px;
     min-width: 0;
     max-width: 100%;
+  }
+}
+
+:global(html[data-keyboard-open]) .layout {
+  @media (max-width: 767px) {
+    gap: 6px;
+    padding-bottom: 0;
+  }
+}
+
+:global(html[data-keyboard-open]) .stageColumn {
+  @media (max-width: 767px) {
+    gap: 6px;
   }
 }
 
@@ -618,7 +640,7 @@
   @media (max-width: 767px) {
     width: auto;
     max-width: 100%;
-    height: max(96px, calc(var(--vv-height, 100dvh) * 0.38));
+    height: max(80px, calc(var(--vv-height, 100dvh) * 0.3));
   }
 }
 
@@ -2193,7 +2215,22 @@
    (той самий підхід, що й у /chat/[roomId], див. .composerDock у chatRoom.module.scss). */
 :global(html[data-keyboard-open]) .chatForm {
   @media (max-width: 767px) {
-    padding-bottom: 8px;
+    gap: 6px;
+    padding: 4px 10px;
+
+    .chatInput {
+      min-height: 38px;
+    }
+
+    .sendButton {
+      width: 38px;
+      height: 38px;
+    }
+
+    .emojiToggle {
+      width: 36px;
+      height: 36px;
+    }
   }
 }
 
