@@ -104,6 +104,12 @@
       transition: none;
     }
   }
+
+  /* Телефон: чат на всю ширину екрана, без бокових відступів (лише safe-area у ландшафті). */
+  @media (max-width: 767px) {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
 }
 
 .chat {
@@ -124,6 +130,15 @@
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+
+  /* Картка впритул до країв екрана: без бічних рамок і скруглення; шапка й поле вводу — ~8px від країв. */
+  @media (max-width: 767px) {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 
   .chatSplit {
     flex: 1 1 auto;
@@ -177,6 +192,11 @@
       gap: 16px;
       /* Кнопка дзвінка не під лампочкою теми (body 10 + картка 16 + шапка 16 = 42px до краю). */
       padding-right: max(0px, calc(var(--theme-toggle-inset) - 42px));
+
+      /* Картка тепер без бічних відступів: до краю екрана 8 + 16 = 24px. */
+      @media (max-width: 767px) {
+        padding-right: max(0px, calc(var(--theme-toggle-inset) - 24px));
+      }
 
       /* Вузькі екрани (iPhone SE): менше повітря між елементами — більше місця під назву й статус. */
       @media (max-width: 400px) {
