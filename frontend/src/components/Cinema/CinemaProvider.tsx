@@ -176,13 +176,34 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
     setPseudoRotated(false);
   }
 
-  const activate = useCallback((roomId: string) => setActiveRoomId(roomId), []);
+  // Свідомий вихід із зали (закрила мініплеєр, перейшла в іншу кімнату): сервер одразу показує рядок
+  // «вийшов» у чаті. Звичайний обрив сокета чи згортання застосунку — це не він (там грейс ~30 с).
+  const activeRoomIdRef = useRef(activeRoomId);
+  const socketRef = useRef(socket);
+  useEffect(() => {
+    activeRoomIdRef.current = activeRoomId;
+    socketRef.current = socket;
+  }, [activeRoomId, socket]);
+  const announceExplicitLeave = useCallback(() => {
+    const roomId = activeRoomIdRef.current;
+    const current = socketRef.current;
+    if (roomId && current?.connected) current.emit("watch:leaveExplicit", { roomId });
+  }, []);
+
+  const activate = useCallback(
+    (roomId: string) => {
+      if (activeRoomIdRef.current && activeRoomIdRef.current !== roomId) announceExplicitLeave();
+      setActiveRoomId(roomId);
+    },
+    [announceExplicitLeave],
+  );
   const deactivate = useCallback(() => {
     if (typeof document !== "undefined" && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
     }
+    announceExplicitLeave();
     setActiveRoomId(null);
-  }, []);
+  }, [announceExplicitLeave]);
 
   useEffect(() => {
     setCinemaSessionActive(activeRoomId !== null);
@@ -279,7 +300,7 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
     if (inHall || readMarker === null) return 0;
     const idx = hall.messages.findIndex((m) => m.id === readMarker);
     if (idx < 0) return 0;
-    return hall.messages.slice(idx + 1).filter((m) => m.user.id !== me).length;
+    return hall.messages.slice(idx + 1).filter((m) => m.user.id !== me && m.type !== "SYSTEM").length;
   }, [inHall, readMarker, hall.messages, me]);
 
   // Системний PiP є лише в адаптерів із власним <video>.
@@ -480,6 +501,7 @@ export default function CinemaProvider({ children }: { children: ReactNode }) {
             chatOverlay={
               <ChatOverlay
                 subscribe={hall.subscribeMessages}
+                members={hall.members}
                 active={(isFullscreen || pseudoFullscreen) && chatOverlayEnabled}
               />
             }

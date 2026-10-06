@@ -730,6 +730,7 @@ export class PushService {
       JOIN "WatchMessage" wm
         ON wm."roomId" = wrm."roomId"
        AND wm."userId" <> wrm."userId"
+       AND wm."type" = 'TEXT'
        AND wm."createdAt" > wrm."lastReadAt"
       WHERE wrm."userId" IN (${Prisma.join(uniqueUserIds)})
         AND wrm.status = 'JOINED'

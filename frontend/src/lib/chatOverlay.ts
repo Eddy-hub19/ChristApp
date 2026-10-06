@@ -12,6 +12,8 @@ export type OverlayCard = {
   text: string;
   /** Імʼя автора повідомлення, на яке відповідають, — показуємо як «↩ імʼя». */
   replyName?: string;
+  /** Службовий рядок (вийшов/зайшов): показується приглушено, без імені. */
+  system?: boolean;
   expiresAt: number;
 };
 

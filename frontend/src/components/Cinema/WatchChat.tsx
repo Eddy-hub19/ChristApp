@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { SendHorizontal, Smile } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
 import { watchUserName } from "@/lib/queries/watchRoomsQueries";
@@ -15,6 +15,7 @@ import { replyPreviewText } from "@/components/ChatShared/replyPreview";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { useMessageGestures } from "@/components/ChatShared/useMessageGestures";
 import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
+import { isSystemMessage, systemMessageText, systemMessageTime } from "@/lib/watchSystemMessage";
 import type { HallMember, HallMessage } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
 
@@ -74,6 +75,7 @@ export default function WatchChat({
   onMarkRead,
 }: WatchChatProps) {
   const t = useTranslations("cinema.hall");
+  const locale = useLocale();
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [replyTargetRaw, setReplyTarget] = useState<HallMessage | null>(null);
@@ -166,7 +168,7 @@ export default function WatchChat({
     for (const member of others) {
       let target: HallMessage | undefined;
       for (let i = messages.length - 1; i >= 0; i -= 1) {
-        if (messages[i].createdAt <= member.lastReadAt) {
+        if (!isSystemMessage(messages[i]) && messages[i].createdAt <= member.lastReadAt) {
           target = messages[i];
           break;
         }
@@ -334,6 +336,19 @@ export default function WatchChat({
       >
         {messages.length === 0 ? <p className={styles.chatEmpty}>{t("chatEmpty")}</p> : null}
         {messages.map((m) => {
+          if (isSystemMessage(m)) {
+            const text = systemMessageText(t, m, members);
+            if (!text) return null;
+            const time = new Date(systemMessageTime(m)).toLocaleTimeString(locale, {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <div key={m.id} className={styles.systemRow} data-message-id={m.id}>
+                {text} · {time}
+              </div>
+            );
+          }
           const readers = readReceiptsByMessageId.get(m.id) ?? [];
           const visibleReaders = readers.slice(0, READ_AVATAR_LIMIT);
           const extraReadersCount = readers.length - visibleReaders.length;
