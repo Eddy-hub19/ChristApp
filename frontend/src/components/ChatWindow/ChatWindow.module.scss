@@ -282,3 +282,67 @@ html[data-theme="light"] .recentDividerLine {
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 4px 14px -10px rgba(0, 0, 0, 0.3);
 }
+
+// «🎮 Ед грає в Doodle» — той самий пузир, що й «друкує», з легкою анімацією геймпада.
+.gameLane {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gameLaneIcon {
+  flex: none;
+  color: color-mix(in srgb, var(--accent) 80%, var(--foreground));
+  animation: gameLaneWiggle 1.6s ease-in-out infinite;
+  transform-origin: 50% 60%;
+}
+
+.gameLaneMore {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--foreground) 60%, transparent);
+}
+
+.gameJoinButton {
+  flex: none;
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-elevated));
+  color: color-mix(in srgb, var(--foreground) 88%, var(--accent) 12%);
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent) 26%, var(--surface-elevated));
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+@keyframes gameLaneWiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-12deg);
+  }
+
+  75% {
+    transform: rotate(12deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gameLaneIcon {
+    animation: none;
+  }
+}

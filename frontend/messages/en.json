@@ -405,7 +405,21 @@
     "videoModeTitle": "Video message",
     "voicePermissionDenied": "Microphone access is blocked. Allow it in your browser settings to record voice messages.",
     "voiceUnsupported": "Voice recording is not supported on this device.",
-    "voiceRecordFailed": "Could not start recording. Please try again."
+    "voiceRecordFailed": "Could not start recording. Please try again.",
+    "gameActivity": {
+      "playingOne": "{name} is playing {game}",
+      "playingTwo": "{first} and {second} are playing {game}",
+      "playingMany": "{head} and {last} are playing {game}",
+      "more": "+{count}",
+      "join": "Join",
+      "statusPlaying": "playing {game}",
+      "previewPlaying": "🎮 playing {game}",
+      "games": {
+        "doodle": "Doodle",
+        "snake": "Snake",
+        "filword": "Word Search"
+      }
+    }
   },
   "randomVerse": {
     "cardLabel": "Verse for you",
