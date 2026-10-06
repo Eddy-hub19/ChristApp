@@ -23,6 +23,7 @@ import {
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
 import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
+import { GameActivityService } from './game-activity/game-activity.service';
 import {
   canUserPostToRoom,
   canUserReadRoom,
@@ -155,6 +156,10 @@ export class ChatGateway
     this.server?.to(roomId).emit(event, payload);
   });
 
+  /** «Грає в …» у чаті: лише в пам'яті, без БД і пушів (heartbeat + TTL). */
+  private readonly gameActivity = new GameActivityService();
+  private gameActivitySweeper: ReturnType<typeof setInterval> | null = null;
+
   /**
    * roomId → (userId → скільки сокетів цієї людини ЗАРАЗ тримають кімнату на екрані).
    * Саме «на екрані», а не просто приєднані: клієнт знімає прапорець, коли вкладку згортають.
@@ -225,6 +230,8 @@ export class ChatGateway
     }
     this.pendingDisconnectTimers.clear();
     this.snakeDuel.disposeAll();
+    if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
+    this.gameActivitySweeper = null;
   }
 
   private emitOnlinePresence() {
@@ -425,6 +432,8 @@ export class ChatGateway
     try {
       // Підключаємо до загального чату
       client.join(this.GLOBAL_ROOM);
+      // Персональна кімната: сюди йдуть події, потрібні й екрану зі списком чатів (він не входить у кімнати).
+      client.join(`user:${user.id}`);
 
       await this.emitMyRooms(client, user.id);
 
@@ -493,6 +502,7 @@ export class ChatGateway
     if (!user) return;
 
     this.clearActiveRoomViewsForSocket(client);
+    void this.broadcastGameActivity(this.gameActivity.removeSocket(client.id));
 
     const userId = user.id;
     // Остання вкладка користувача закрилась: гра Snake ставиться на паузу (5 с на повернення).
@@ -730,6 +740,90 @@ export class ChatGateway
       isTyping: Boolean(body?.isTyping),
       activity: body?.activity === 'voice' ? 'voice' : 'text',
     });
+  }
+
+  // ================= «ГРАЄ В …» =================
+
+  /** Надсилає актуальний стан кімнат усім їхнім учасникам (через `user:<id>`); у БД і пуші нічого не йде. */
+  private async broadcastGameActivity(roomIds: string[]) {
+    if (!this.server) return;
+    for (const roomId of new Set(roomIds)) {
+      try {
+        const members = await this.prisma.roomMember.findMany({
+          where: { roomId },
+          select: { userId: true },
+        });
+        if (members.length === 0) continue;
+        this.server
+          .to(members.map((m) => `user:${m.userId}`))
+          .emit('presence:activity', {
+            roomId,
+            activities: this.gameActivity.snapshot(roomId),
+          });
+      } catch {
+        // статус — другорядна річ: помилка БД не повинна ламати сокет
+      }
+    }
+  }
+
+  private ensureGameActivitySweeper() {
+    if (this.gameActivitySweeper || this.destroyed) return;
+    this.gameActivitySweeper = setInterval(() => {
+      void this.broadcastGameActivity(this.gameActivity.sweep(Date.now()));
+    }, 5_000);
+    this.gameActivitySweeper.unref?.();
+  }
+
+  /** `game: null` — гру закрито; повтор тієї ж гри раз на ~15 с — heartbeat. */
+  @SubscribeMessage('presence:activity')
+  async handleGameActivity(
+    @MessageBody() body: { roomId?: string; game?: string | null },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    const now = Date.now();
+    if (!this.gameActivity.allow(client.id, now)) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId || roomId === this.GLOBAL_ROOM) return;
+    const game = body?.game ?? null;
+    if (game !== null && typeof game !== 'string') return;
+    if (
+      game !== null &&
+      !(await canUserPostToRoom(this.prisma, user.id, roomId))
+    ) {
+      return;
+    }
+
+    this.ensureGameActivitySweeper();
+    const changed = this.gameActivity.set(
+      client.id,
+      { id: user.id, username: user.nickname || user.username },
+      roomId,
+      game,
+      now,
+    );
+    await this.broadcastGameActivity(changed);
+  }
+
+  /** Клієнт щойно підключився: віддаємо, хто вже грає в його чатах. */
+  @SubscribeMessage('presence:activity-sync')
+  async handleGameActivitySync(@ConnectedSocket() client: SocketWithUser) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    const active = this.gameActivity.activeRoomIds();
+    if (active.length === 0) return;
+    const mine = await this.prisma.roomMember.findMany({
+      where: { userId: user.id, roomId: { in: active } },
+      select: { roomId: true },
+    });
+    for (const { roomId } of mine) {
+      client.emit('presence:activity', {
+        roomId,
+        activities: this.gameActivity.snapshot(roomId),
+      });
+    }
   }
 
   // ================= ХТО ЗАРАЗ ДИВИТЬСЯ КІМНАТУ =================

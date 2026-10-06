@@ -24,6 +24,7 @@ import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
+import { useGameActivityFeed } from "@/hooks/useGameActivity";
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
 import {
   normalizeNotificationBody,
@@ -402,6 +403,7 @@ export default function ChatPage() {
   const sortLang = lang === "ua" ? "uk" : lang === "en" ? "en" : "ru";
   const { user, users, loading } = useAuth();
   const { socket } = usePresenceSocket();
+  const gameActivityByRoom = useGameActivityFeed(socket, user?.id);
   const queryClient = useQueryClient();
   const globalChatTitle = t("globalChatTitle");
   const shareWithJesusTitle = t("shareWithJesusTitle");
@@ -1607,16 +1609,28 @@ export default function ChatPage() {
 
     return base.map((room) => {
       const normalizedRoom = normalizeChatListItemForRender(room);
+      // Поки співрозмовник грає — замість останнього повідомлення «🎮 грає в …».
+      // id рядка приватного чату — це id співрозмовника, тож шукаємо його кімнату в мапі.
+      // eslint-disable-next-line react-hooks/refs -- мапа заповнюється разом зі станом `rooms`
+      const dmRoomId = directUserIdToRoomIdRef.current.get(normalizedRoom.id);
+      const playing = dmRoomId ? gameActivityByRoom.get(dmRoomId)?.[0] : undefined;
 
       return {
         ...normalizedRoom,
+        ...(playing
+          ? {
+              preview: t("gameActivity.previewPlaying", {
+                game: t(`gameActivity.games.${playing.game}`),
+              }),
+            }
+          : null),
         deletable:
           normalizedRoom.id !== GLOBAL_ROOM_ID &&
           normalizedRoom.id !== SHARE_WITH_JESUS_CHAT_ID &&
           Boolean(normalizedRoom.href),
       };
     });
-  }, [globalChatTitle, rooms, t]);
+  }, [gameActivityByRoom, globalChatTitle, rooms, t]);
 
   const verseNotesVisible = useMemo(
     () => canSeeVerseNotesNav(user?.username),

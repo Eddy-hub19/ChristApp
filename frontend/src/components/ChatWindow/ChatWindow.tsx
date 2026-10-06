@@ -20,6 +20,9 @@ import {
   formatChatDateSeparator,
   localDayKey,
 } from "@/lib/chatDateSeparator";
+import { Gamepad2 } from "lucide-react";
+import { groupGameActivities, type GameActivity } from "@/lib/games/gameActivity";
+import type { GameId } from "@/lib/games/gameRegistry";
 import type { AppReactionType, Message } from "@/types/message";
 import styles from "@/components/ChatWindow/ChatWindow.module.scss";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
@@ -49,6 +52,9 @@ type ChatWindowProps = {
   topBanner?: ReactNode;
   /** Статуси активності співрозмовників у кімнаті. */
   typingStatuses?: Array<{ username: string; activity: "text" | "voice" }>;
+  /** Інші учасники, які зараз грають (без власної активності та без тих, хто саме друкує). */
+  gameActivities?: GameActivity[];
+  onJoinGame?: (game: GameId, sessionId: string) => void;
   readReceiptMessageId?: string | null;
   readReceiptUsersByMessageId?: Map<
     string,
@@ -89,6 +95,8 @@ function ChatWindow({
   canModerateMessages = false,
   topBanner,
   typingStatuses = [],
+  gameActivities = [],
+  onJoinGame,
   readReceiptMessageId,
   readReceiptUsersByMessageId,
   readReceiptAvatarSrc,
@@ -240,6 +248,9 @@ function ChatWindow({
   const typingStatusesKey = typingStatuses
     .map((item) => `${item.username}:${item.activity}`)
     .join("|");
+  const gameActivityKey = gameActivities
+    .map((item) => `${item.userId}:${item.game}:${item.joinable ? 1 : 0}`)
+    .join("|");
 
   /**
    * Прокрутка лише самого списку. `scrollIntoView` прокручує ще й усі батьківські контейнери
@@ -262,7 +273,7 @@ function ChatWindow({
     if (shouldFollowBottomRef.current) {
       scrollListToBottom("smooth");
     }
-  }, [messages.length, typingStatusesKey, scrollListToBottom]);
+  }, [messages.length, typingStatusesKey, gameActivityKey, scrollListToBottom]);
 
   const estimateScrollDownThresholdPx = useCallback(() => {
     const lastMessages = messages.slice(-SCROLL_DOWN_TRIGGER_MESSAGES);
@@ -449,6 +460,49 @@ function ChatWindow({
       </div>
     ) : null;
 
+  const gameActivityGroups = groupGameActivities(gameActivities);
+  const gameActivityBlock =
+    gameActivityGroups.lines.length > 0 ? (
+      <>
+        {gameActivityGroups.lines.map((line, index) => {
+          const game = t(`gameActivity.games.${line.game}`);
+          const text =
+            line.names.length === 1
+              ? t("gameActivity.playingOne", { name: line.names[0], game })
+              : line.names.length === 2
+                ? t("gameActivity.playingTwo", {
+                    first: line.names[0],
+                    second: line.names[1],
+                    game,
+                  })
+                : t("gameActivity.playingMany", {
+                    head: line.names.slice(0, -1).join(", "),
+                    last: line.names[line.names.length - 1],
+                    game,
+                  });
+          const hidden = index === gameActivityGroups.lines.length - 1 ? gameActivityGroups.hiddenLines : 0;
+          return (
+            <div key={line.game} className={`${styles.typingLane} ${styles.gameLane}`} role="status" aria-live="polite">
+              <Gamepad2 className={styles.gameLaneIcon} size={16} strokeWidth={2.1} aria-hidden />
+              <span className={styles.typingLaneText}>{text}</span>
+              {hidden > 0 ? (
+                <span className={styles.gameLaneMore}>{t("gameActivity.more", { count: hidden })}</span>
+              ) : null}
+              {line.joinable && line.sessionId && onJoinGame ? (
+                <button
+                  type="button"
+                  className={styles.gameJoinButton}
+                  onClick={() => onJoinGame(line.game, line.sessionId as string)}
+                >
+                  {t("gameActivity.join")}
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      </>
+    ) : null;
+
   const setMessageRef = (messageId: string, element: HTMLElement | null) => {
     if (!element) {
       messageRefs.current.delete(messageId);
@@ -583,6 +637,7 @@ function ChatWindow({
             <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
             {pendingBlock}
             {typingBlock}
+            {gameActivityBlock}
             <div ref={bottomRef} />
           </>
         ) : (
@@ -612,6 +667,7 @@ function ChatWindow({
             )}
             {pendingBlock}
             {typingBlock}
+            {gameActivityBlock}
             <div ref={bottomRef} />
           </>
         )}

@@ -84,6 +84,12 @@ import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniG
 import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame";
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
 import ChristianFilwordMiniGame from "@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame";
+import {
+  useGameActivityBroadcast,
+  useGameActivityFeed,
+} from "@/hooks/useGameActivity";
+import { isGameActivityRoom } from "@/lib/games/gameActivity";
+import type { GameId } from "@/lib/games/gameRegistry";
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), {
   ssr: false,
 });
@@ -784,6 +790,19 @@ export default function ChatPageDetails() {
 
   // Пинг игры: круговой путь до сервера через ack сокета; пока измерения нет (или сервер не ответил) — «—».
   const isGameOpen = isDoodleOpen || isSnakeOpen;
+
+  // «Грає в …»: свій статус шлемо, поки відкрита гра; чужі приходять з сервера (у загальному чаті — ні).
+  const openGameId: GameId | null = isDoodleOpen
+    ? "doodle"
+    : isSnakeOpen
+      ? "snake"
+      : isFilwordOpen
+        ? "filword"
+        : null;
+  // eslint-disable-next-line react-hooks/refs -- як і для ігор нижче: підписуємось на поточний живий сокет кімнати
+  const activitySocket = isSocketConnected ? socketRef.current : null;
+  useGameActivityBroadcast(activitySocket, effectiveSocketRoomId, openGameId);
+  const gameActivityByRoom = useGameActivityFeed(activitySocket, user?.id);
   useEffect(() => {
     if (!isGameOpen || !isSocketConnected) {
       setGamePingMs(null);
@@ -2531,6 +2550,21 @@ export default function ChatPageDetails() {
       directChatTargetUser?.lastSeenAt ??
       undefined)
     : undefined;
+  const roomGameActivities = useMemo(
+    () =>
+      isGameActivityRoom(effectiveSocketRoomId)
+        ? (gameActivityByRoom.get(effectiveSocketRoomId) ?? [])
+        : [],
+    [gameActivityByRoom, effectiveSocketRoomId],
+  );
+  // Хто друкує, той уже в чаті, а не в грі: лишаємо один рядок «друкує», а не два суперечливі.
+  const visibleGameActivities = useMemo(
+    () => roomGameActivities.filter((a) => !typingUsers.has(a.userId)),
+    [roomGameActivities, typingUsers],
+  );
+  const directPeerGameActivity = directChatTargetUserId
+    ? visibleGameActivities.find((a) => a.userId === directChatTargetUserId)
+    : undefined;
   const voiceRecordingStatusLine = (() => {
     for (const value of typingUsers.values()) {
       if (value.activity === "voice") {
@@ -2570,7 +2604,11 @@ export default function ChatPageDetails() {
           : routeRoomId === SHARE_WITH_JESUS_SLUG ||
               roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
             ? t("shareJesusNotesHint")
-            : directChatTargetUser
+            : directChatTargetUser && directPeerGameActivity
+              ? t("gameActivity.statusPlaying", {
+                  game: t(`gameActivity.games.${directPeerGameActivity.game}`),
+                })
+              : directChatTargetUser
               ? isDirectTargetOnline
                 ? t("onlineShort")
                 : formatLastSeenAgo(directTargetLastSeenAt)
@@ -2932,7 +2970,7 @@ export default function ChatPageDetails() {
     }
   }, [activeCall?.channelName]);
 
-  const handleOpenDoodle = useCallback(() => {
+  const handleOpenDoodle = useCallback((options?: { join?: boolean }) => {
     if (!directChatTargetUserId || !effectiveSocketRoomId) {
       return;
     }
@@ -2947,7 +2985,10 @@ export default function ChatPageDetails() {
     setMyDoodleScore(0);
     setPeerDoodleScore(0);
     setPeerDoodleState(null);
-    socket.emit("doodle-reset", { roomId: effectiveSocketRoomId });
+    // «Приєднатися» не скидає партію, яку співрозмовник уже почав.
+    if (!options?.join) {
+      socket.emit("doodle-reset", { roomId: effectiveSocketRoomId });
+    }
     socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "doodle" });
   }, [directChatTargetUserId, effectiveSocketRoomId]);
 
@@ -2987,7 +3028,7 @@ export default function ChatPageDetails() {
     });
   }, []);
 
-  const handleOpenSnake = useCallback(() => {
+  const handleOpenSnake = useCallback((options?: { join?: boolean }) => {
     if (!directChatTargetUserId || !effectiveSocketRoomId) {
       return;
     }
@@ -3002,7 +3043,9 @@ export default function ChatPageDetails() {
     setMySnakeScore(0);
     setPeerSnakeScore(0);
     setPeerSnakeState(null);
-    socket.emit("snake-reset", { roomId: effectiveSocketRoomId });
+    if (!options?.join) {
+      socket.emit("snake-reset", { roomId: effectiveSocketRoomId });
+    }
     socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "snake" });
   }, [directChatTargetUserId, effectiveSocketRoomId]);
 
@@ -3015,6 +3058,14 @@ export default function ChatPageDetails() {
     setIsGameMenuOpen(false);
     setIsFilwordOpen(true);
   }, [directChatTargetUserId, effectiveSocketRoomId]);
+
+  const handleJoinGame = useCallback(
+    (game: GameId) => {
+      if (game === "doodle") handleOpenDoodle({ join: true });
+      else if (game === "snake") handleOpenSnake({ join: true });
+    },
+    [handleOpenDoodle, handleOpenSnake],
+  );
 
   const handleSnakeScoreChange = useCallback((score: number) => {
     setMySnakeScore(score);
@@ -3396,6 +3447,8 @@ export default function ChatPageDetails() {
       canModerateMessages={canModerateMessages}
       topBanner={shareJesusParchmentBanner}
       typingStatuses={typingStatuses}
+      gameActivities={visibleGameActivities}
+      onJoinGame={handleJoinGame}
       readReceiptMessageId={readReceiptMessageId}
       readReceiptUsersByMessageId={readReceiptUsersByMessageId}
       readReceiptAvatarSrc={resolvePublicAvatarUrl(
@@ -3527,7 +3580,7 @@ export default function ChatPageDetails() {
                           type="button"
                           className={styles.gameMenuItem}
                           role="menuitem"
-                          onClick={handleOpenDoodle}
+                          onClick={() => handleOpenDoodle()}
                         >
                           Doodle
                         </button>
@@ -3535,7 +3588,7 @@ export default function ChatPageDetails() {
                           type="button"
                           className={styles.gameMenuItem}
                           role="menuitem"
-                          onClick={handleOpenSnake}
+                          onClick={() => handleOpenSnake()}
                         >
                           Snake
                         </button>

@@ -405,7 +405,21 @@
     "videoModeTitle": "Відеоповідомлення",
     "voicePermissionDenied": "Доступ до мікрофона заборонено. Дозвольте його в налаштуваннях браузера, щоб записувати голосові.",
     "voiceUnsupported": "Запис голосу не підтримується на цьому пристрої.",
-    "voiceRecordFailed": "Не вдалося почати запис. Спробуйте ще раз."
+    "voiceRecordFailed": "Не вдалося почати запис. Спробуйте ще раз.",
+    "gameActivity": {
+      "playingOne": "{name} грає {game}",
+      "playingTwo": "{first} і {second} грають {game}",
+      "playingMany": "{head} і {last} грають {game}",
+      "more": "+{count}",
+      "join": "Приєднатися",
+      "statusPlaying": "грає {game}",
+      "previewPlaying": "🎮 грає {game}",
+      "games": {
+        "doodle": "в Doodle",
+        "snake": "у Snake",
+        "filword": "у Філворд"
+      }
+    }
   },
   "randomVerse": {
     "cardLabel": "Вірш для вас",

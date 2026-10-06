@@ -405,7 +405,21 @@
     "videoModeTitle": "Видеосообщение",
     "voicePermissionDenied": "Доступ к микрофону запрещён. Разрешите его в настройках браузера, чтобы записывать голосовые.",
     "voiceUnsupported": "Запись голоса не поддерживается на этом устройстве.",
-    "voiceRecordFailed": "Не удалось начать запись. Попробуйте ещё раз."
+    "voiceRecordFailed": "Не удалось начать запись. Попробуйте ещё раз.",
+    "gameActivity": {
+      "playingOne": "{name} играет {game}",
+      "playingTwo": "{first} и {second} играют {game}",
+      "playingMany": "{head} и {last} играют {game}",
+      "more": "+{count}",
+      "join": "Присоединиться",
+      "statusPlaying": "играет {game}",
+      "previewPlaying": "🎮 играет {game}",
+      "games": {
+        "doodle": "в Doodle",
+        "snake": "в Snake",
+        "filword": "в Филворд"
+      }
+    }
   },
   "randomVerse": {
     "cardLabel": "Стих для вас",
