@@ -24,6 +24,10 @@ import {
 } from 'src/chat/room-access.util';
 import { CHAT_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
+import {
+  GuessCharacterManager,
+  guessCatalog,
+} from './guess-character/guess-character.manager';
 import { GameActivityService } from './game-activity/game-activity.service';
 import {
   canUserPostToRoom,
@@ -153,9 +157,18 @@ export class ChatGateway
   private readonly gameSessions = new Map<string, RoomGameSession>();
 
   /** Серверна дуель Snake (рівень 2): лобі, відлік, тіки, зіткнення. */
-  private readonly snakeDuel = new SnakeDuelManager((roomId, event, payload) => {
-    this.server?.to(roomId).emit(event, payload);
-  });
+  private readonly snakeDuel = new SnakeDuelManager(
+    (roomId, event, payload) => {
+      this.server?.to(roomId).emit(event, payload);
+    },
+  );
+
+  /** «Вгадай персонажа»: сесія живе в пам'яті сервера й переживає вихід гравців із гри. Знімки йдуть кожному гравцеві окремо (`user:<id>`), бо в них є таємниця загадувача. */
+  private readonly guessCharacter = new GuessCharacterManager(
+    (userId, event, payload) => {
+      this.server?.to(`user:${userId}`).emit(event, payload);
+    },
+  );
 
   /** «Грає в …» у чаті: лише в пам'яті, без БД і пушів (heartbeat + TTL). */
   private readonly gameActivity = new GameActivityService();
@@ -228,6 +241,7 @@ export class ChatGateway
     }
     this.pendingDisconnectTimers.clear();
     this.snakeDuel.disposeAll();
+    this.guessCharacter.disposeAll();
     if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
     this.gameActivitySweeper = null;
   }
@@ -506,6 +520,7 @@ export class ChatGateway
     // Остання вкладка користувача закрилась: гра Snake ставиться на паузу (5 с на повернення).
     if ((this.onlineUsers.get(userId) ?? 0) <= 1) {
       this.snakeDuel.userDisconnected(userId);
+      this.guessCharacter.userDisconnected(userId);
     }
     const currentConnections = this.onlineUsers.get(userId);
     if (!currentConnections) return;
@@ -768,6 +783,7 @@ export class ChatGateway
     if (this.gameActivitySweeper || this.destroyed) return;
     this.gameActivitySweeper = setInterval(() => {
       void this.broadcastGameActivity(this.gameActivity.sweep(Date.now()));
+      this.guessCharacter.sweepIdle();
     }, 5_000);
     this.gameActivitySweeper.unref?.();
   }
@@ -1205,7 +1221,7 @@ export class ChatGateway
     this.broadcastGameSession(session);
   }
 
-  /** Учасники приватного чату dm:a:b — лише вони можуть грати в дуель; null для інших кімнат. */
+  /** Учасники приватного чату dm:a:b — лише вони можуть грати в дуель / «Вгадай персонажа»; null для інших кімнат. */
   private async snakeDuelContext(
     client: SocketWithUser,
     rawRoomId: unknown,
@@ -1304,6 +1320,154 @@ export class ChatGateway
       (await this.snakeDuelContext(client, roomId))?.players;
     if (!players) return;
     this.snakeDuel.input(roomId, players, userId, body?.dir);
+  }
+
+  // ───────────── «Вгадай персонажа» ─────────────
+
+  /** Відкрили гру / реконект: присутність, актуальний стан (лише цьому гравцеві) і каталог персонажів. */
+  @SubscribeMessage('guess-session-sync')
+  async handleGuessSessionSync(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    await client.join(ctx.roomId);
+    client.emit('guess-catalog', guessCatalog());
+    this.guessCharacter.sync(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+    );
+  }
+
+  @SubscribeMessage('guess-presence')
+  async handleGuessPresence(
+    @MessageBody() body: { roomId?: string; solo?: boolean; present?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.setPresence(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      Boolean(body?.present),
+    );
+  }
+
+  @SubscribeMessage('guess-level')
+  async handleGuessLevel(
+    @MessageBody() body: { roomId?: string; solo?: boolean; level?: number },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.selectLevel(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.level,
+    );
+  }
+
+  @SubscribeMessage('guess-ready')
+  async handleGuessReady(
+    @MessageBody() body: { roomId?: string; solo?: boolean; ready?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.setReady(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.ready !== false,
+    );
+  }
+
+  @SubscribeMessage('guess-pick')
+  async handleGuessPick(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; character?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.pick(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.character,
+    );
+  }
+
+  @SubscribeMessage('guess-ask')
+  async handleGuessAsk(
+    @MessageBody() body: { roomId?: string; solo?: boolean; trait?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.ask(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.trait,
+    );
+  }
+
+  @SubscribeMessage('guess-guess')
+  async handleGuessGuess(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; character?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.guess(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.character,
+    );
+  }
+
+  @SubscribeMessage('guess-next')
+  async handleGuessNext(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.next(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+    );
+  }
+
+  @SubscribeMessage('guess-abort')
+  async handleGuessAbort(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.abort(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+    );
   }
 
   @SubscribeMessage('snake-state')

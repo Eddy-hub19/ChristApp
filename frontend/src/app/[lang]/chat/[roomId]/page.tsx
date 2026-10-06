@@ -85,6 +85,7 @@ import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniG
 import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame";
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
 import ChristianFilwordMiniGame from "@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame";
+import GuessCharacterMiniGame from "@/components/GuessCharacterMiniGame/GuessCharacterMiniGame";
 import {
   useGameActivityBroadcast,
   useGameActivityFeed,
@@ -544,6 +545,7 @@ function findDirectRoomByUserId(
 
 export default function ChatPageDetails() {
   const t = useTranslations("chat");
+  const tGuess = useTranslations("guessCharacter");
   const tShared = useTranslations("chatShared");
   const lang = useLocale();
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" });
@@ -617,6 +619,7 @@ export default function ChatPageDetails() {
   const [isDoodleOpen, setIsDoodleOpen] = useState(false);
   const [isSnakeOpen, setIsSnakeOpen] = useState(false);
   const [isFilwordOpen, setIsFilwordOpen] = useState(false);
+  const [isGuessOpen, setIsGuessOpen] = useState(false);
   const [isGameMenuOpen, setIsGameMenuOpen] = useState(false);
   const [myDoodleScore, setMyDoodleScore] = useState(0);
   const [peerDoodleScore, setPeerDoodleScore] = useState(0);
@@ -801,7 +804,9 @@ export default function ChatPageDetails() {
       ? "snake"
       : isFilwordOpen
         ? "filword"
-        : null;
+        : isGuessOpen
+          ? "guess"
+          : null;
   // eslint-disable-next-line react-hooks/refs -- як і для ігор нижче: підписуємось на поточний живий сокет кімнати
   const activitySocket = isSocketConnected ? socketRef.current : null;
   useGameActivityBroadcast(
@@ -1190,6 +1195,7 @@ export default function ChatPageDetails() {
     setIsAvatarPreviewOpen(false);
     setIsUserProfileOpen(false);
     setIsDoodleOpen(false);
+    setIsGuessOpen(false);
     setMyDoodleScore(0);
     setPeerDoodleScore(0);
     setPeerDoodleState(null);
@@ -3000,6 +3006,7 @@ export default function ChatPageDetails() {
     }
     setIsSnakeOpen(false);
     setIsFilwordOpen(false);
+    setIsGuessOpen(false);
     setIsGameMenuOpen(false);
     setIsDoodleOpen(true);
     setMyDoodleScore(0);
@@ -3058,6 +3065,7 @@ export default function ChatPageDetails() {
     }
     setIsDoodleOpen(false);
     setIsFilwordOpen(false);
+    setIsGuessOpen(false);
     setIsGameMenuOpen(false);
     setIsSnakeOpen(true);
     setMySnakeScore(0);
@@ -3075,16 +3083,30 @@ export default function ChatPageDetails() {
     }
     setIsDoodleOpen(false);
     setIsSnakeOpen(false);
+    setIsGuessOpen(false);
     setIsGameMenuOpen(false);
     setIsFilwordOpen(true);
+  }, [directChatTargetUserId, effectiveSocketRoomId]);
+
+  /** Стан гри живе на сервері: відкриття нічого не скидає, а повернення продовжує партію. */
+  const handleOpenGuess = useCallback(() => {
+    if (!directChatTargetUserId || !effectiveSocketRoomId) {
+      return;
+    }
+    setIsDoodleOpen(false);
+    setIsSnakeOpen(false);
+    setIsFilwordOpen(false);
+    setIsGameMenuOpen(false);
+    setIsGuessOpen(true);
   }, [directChatTargetUserId, effectiveSocketRoomId]);
 
   const handleJoinGame = useCallback(
     (game: GameId) => {
       if (game === "doodle") handleOpenDoodle({ join: true });
       else if (game === "snake") handleOpenSnake({ join: true });
+      else if (game === "guess") handleOpenGuess();
     },
-    [handleOpenDoodle, handleOpenSnake],
+    [handleOpenDoodle, handleOpenSnake, handleOpenGuess],
   );
 
   const handleSnakeScoreChange = useCallback((score: number) => {
@@ -3620,6 +3642,14 @@ export default function ChatPageDetails() {
                         >
                           Филворд
                         </button>
+                        <button
+                          type="button"
+                          className={styles.gameMenuItem}
+                          role="menuitem"
+                          onClick={handleOpenGuess}
+                        >
+                          {tGuess("title")}
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -4015,6 +4045,19 @@ export default function ChatPageDetails() {
         <ChristianFilwordMiniGame
           open={isFilwordOpen}
           onClose={() => setIsFilwordOpen(false)}
+        />
+        <GuessCharacterMiniGame
+          open={isGuessOpen}
+          roomId={effectiveSocketRoomId}
+          // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
+          socket={isSocketConnected ? socketRef.current : null}
+          userId={user?.id ?? ""}
+          peerName={
+            directChatTargetUser?.nickname ??
+            directChatTargetUser?.username ??
+            "Собеседник"
+          }
+          onClose={() => setIsGuessOpen(false)}
         />
       </section>
     </div>

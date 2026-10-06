@@ -24,6 +24,7 @@ export const GAME_ACTIVITY_REGISTRY: Record<string, GameActivityDef> = {
     maxPlayers: 2,
     modes: ['classic', 'duel'],
   },
+  guess: { id: 'guess', joinable: true, maxPlayers: 2 },
   filword: { id: 'filword', joinable: false, maxPlayers: 1 },
 };
 
