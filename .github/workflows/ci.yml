@@ -1,7 +1,7 @@
 name: CI
 
 # Каждый PR и каждый push в main: сборка фронтенда и бэкенда, типы, линт, тесты.
-# Красный крестик на PR означает, что Vercel / Render эту ветку не соберут.
+# Красный крестик на PR означает, что ветку не соберут Vercel / Render.
 on:
   pull_request:
   push:
@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # postinstall бэкенда (`prisma generate`) требует переменную, но к базе не подключается.
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
 jobs:
   frontend:
     name: Frontend (tsc, eslint, tests, next build)
@@ -24,80 +28,53 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      # Vercel собирает фронтенд как отдельный проект (Root Directory = frontend), БЕЗ корневого
-      # workspace. В монорепо зависимости «поднимаются» в корневой node_modules и маскируют
-      # ошибки типов (так мы пропустили сломанный тип socket у Snake). Поэтому собираем копию
-      # frontend в изоляции и ставим зависимости тем же `npm install`, что и в frontend/vercel.json.
-      - name: Isolate frontend (as on Vercel)
-        run: |
-          mkdir -p "$RUNNER_TEMP/frontend"
-          cp -R frontend/. "$RUNNER_TEMP/frontend/"
-
-      - name: Install
-        working-directory: ${{ runner.temp }}/frontend
-        run: npm install --no-audit --no-fund
+      # Монорепо с workspaces и ОДНИМ корневым package-lock.json: ставим один раз в корне.
+      - name: Install (root, npm ci)
+        run: npm ci --no-audit --no-fund
 
       - name: Type check
-        working-directory: ${{ runner.temp }}/frontend
-        run: npx tsc --noEmit --incremental false
+        run: npm exec --workspace frontend -- tsc --noEmit
 
-      # В проекте уже есть несколько ошибок правил React Compiler (не влияют на сборку):
+      # В проекте уже есть ошибки правил React Compiler (на сборку не влияют):
       # пока их не починят, линт показывает их предупреждением, но не краснит PR.
       - name: ESLint
-        working-directory: ${{ runner.temp }}/frontend
         continue-on-error: true
-        run: npx eslint
+        run: npm run lint --workspace frontend
 
       - name: Unit tests
-        working-directory: ${{ runner.temp }}/frontend
-        run: npx vitest run
+        run: npm test --workspace frontend
 
       - name: next build
-        working-directory: ${{ runner.temp }}/frontend
-        run: npx next build
+        run: npm run build --workspace frontend
 
   backend:
     name: Backend (nest build, eslint, tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      # prisma generate (postinstall) требует переменную, но к БД не подключается.
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
     steps:
       - uses: actions/checkout@v4
 
-      # Как в backend/Dockerfile (Render): node 20, изолированная папка backend, `npm i`
-      # (lock-файл бэкенда не синхронизирован с package.json, поэтому не `npm ci`).
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Isolate backend (as in the Dockerfile)
-        run: |
-          mkdir -p "$RUNNER_TEMP/backend"
-          cp -R backend/. "$RUNNER_TEMP/backend/"
-
-      - name: Install
-        working-directory: ${{ runner.temp }}/backend
-        run: npm install --no-audit --no-fund
-
-      - name: Prisma client
-        working-directory: ${{ runner.temp }}/backend
-        run: npx prisma generate
+      - name: Install (root, npm ci)
+        run: npm ci --no-audit --no-fund
 
       - name: nest build
-        working-directory: ${{ runner.temp }}/backend
-        run: npm run build
+        run: npm run build --workspace backend
 
-      # В бэкенде уже есть старые ошибки линта (scripts/verify-vapid.js, upload-policy.ts):
-      # показываются предупреждением, не краснят PR, пока их не починят.
+      # В бэкенде есть старые ошибки линта (scripts/verify-vapid.js, upload-policy.ts):
+      # предупреждение, не краснит PR, пока их не починят.
       - name: ESLint
-        working-directory: ${{ runner.temp }}/backend
         continue-on-error: true
-        run: npx eslint .
+        run: npm exec --workspace backend -- eslint .
 
       - name: Unit tests
-        working-directory: ${{ runner.temp }}/backend
-        run: npx jest
+        run: npm test --workspace backend
