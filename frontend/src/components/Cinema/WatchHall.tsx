@@ -522,7 +522,16 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
             <div className={styles.screenGlow}>
               {/* Для автосинхронних провайдерів плеєр — глобальний (CinemaProvider) і малюється поверх цього елемента. */}
-              <div ref={setSlotEl} className={styles.screen}>
+              <div
+                ref={setSlotEl}
+                className={styles.screen}
+                // Постер під плеєром: якщо хост на мить не збігається зі слотом, видно кадр-прев'ю, а не чорне.
+                style={
+                  isAutoSync && enterGateThumb
+                    ? { backgroundImage: `url("${enterGateThumb}")`, backgroundSize: "cover", backgroundPosition: "center" }
+                    : undefined
+                }
+              >
                 {entered && isAutoSync ? null : entered ? (
                   // isAutoSync — вичерпний по WATCH_PROVIDERS, тож тут завжди IFRAME/MANUAL;
                   // явна перевірка лишень аби звузити тип для ManualStage, не для розгалуження логіки.

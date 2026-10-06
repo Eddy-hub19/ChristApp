@@ -1,7 +1,9 @@
 "use client";
 
+import { flushSync } from "react-dom";
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -11,6 +13,15 @@ import type { ServerClock, WatchState } from "@/lib/watchSync";
 import MiniOverlay from "./MiniOverlay";
 import MobileStageControls from "./MobileStageControls";
 import StageCenterPlay from "./StageCenterPlay";
+import {
+  hostStyleRect,
+  nextHostOffset,
+  NO_OFFSET,
+  roundRect,
+  sameRect,
+  type Offset,
+  type Rect,
+} from "./hostGeometry";
 import {
   miniPositionFor,
   miniSize,
@@ -26,8 +37,6 @@ import type { PlayerAdapterHandle, StageStatus } from "./players/types";
 import VimeoStage from "./players/VimeoStage";
 import YouTubeStage from "./YouTubeStage";
 import styles from "./CinemaHall.module.scss";
-
-type Rect = { left: number; top: number; width: number; height: number };
 
 type CinemaStageHostProps = {
   hostRef: RefObject<HTMLDivElement | null>;
@@ -104,33 +113,54 @@ export default function CinemaStageHost({
   const [drag, setDrag] = useState<{ left: number; top: number } | null>(null);
   const anyFullscreen = fullscreen || pseudoFullscreen;
 
-  // Слот зали може рухатись (клавіатура, анімація шторки, скрол) — стежимо щокадру, setState лише при зміні.
+  // Слот зали може рухатись (клавіатура, анімація шторки, скрол) — стежимо щокадру й одразу на події.
+  // Оновлення йде через flushSync у тому ж кадрі, що й вимір: без нього React відмальовував би хост
+  // на кадр пізніше за слот, і на мить плеєр опинявся не над ним (чорний блок під час клавіатури).
+  const offsetRef = useRef<Offset>(NO_OFFSET);
   useEffect(() => {
     if (!inHall || !slotEl || anyFullscreen) return;
     let raf = 0;
-    const round = (n: number) => Math.round(n * 10) / 10;
-    const tick = () => {
+    let lastSlot: Rect | null = null;
+    const sync = () => {
       const r = slotEl.getBoundingClientRect();
-      const next = {
-        left: round(r.left),
-        top: round(r.top),
-        width: round(r.width),
-        height: round(r.height),
+      const slot = roundRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+      const apply = () => {
+        const next = hostStyleRect(slot, offsetRef.current);
+        flushSync(() => setSlotRect((prev) => (sameRect(prev, next) ? prev : next)));
       };
-      setSlotRect((prev) =>
-        prev &&
-        prev.left === next.left &&
-        prev.top === next.top &&
-        prev.width === next.width &&
-        prev.height === next.height
-          ? prev
-          : next,
-      );
+      if (!sameRect(lastSlot, slot)) {
+        lastSlot = slot;
+        apply();
+      }
+      // Замкнений контур: де хост опинився фактично (iOS: fixed і client-координати можуть мати різний відлік).
+      const host = hostRef.current;
+      if (host) {
+        const h = host.getBoundingClientRect();
+        const offset = nextHostOffset(offsetRef.current, slot, h);
+        if (offset !== offsetRef.current) {
+          offsetRef.current = offset;
+          apply();
+        }
+      }
+    };
+    const tick = () => {
+      sync();
       raf = requestAnimationFrame(tick);
     };
     tick();
-    return () => cancelAnimationFrame(raf);
-  }, [inHall, slotEl, anyFullscreen]);
+    const vv = window.visualViewport;
+    window.addEventListener("resize", sync);
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
+    document.addEventListener("transitionend", sync, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", sync);
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
+      document.removeEventListener("transitionend", sync, true);
+    };
+  }, [inHall, slotEl, anyFullscreen, hostRef]);
 
   const size = miniSize(state.provider, vp.w);
   const miniPos = drag ?? miniPositionFor(corner, size, vp, pathname);
