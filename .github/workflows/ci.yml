@@ -1,0 +1,103 @@
+name: CI
+
+# Каждый PR и каждый push в main: сборка фронтенда и бэкенда, типы, линт, тесты.
+# Красный крестик на PR означает, что Vercel / Render эту ветку не соберут.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (tsc, eslint, tests, next build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Vercel собирает фронтенд как отдельный проект (Root Directory = frontend), БЕЗ корневого
+      # workspace. В монорепо зависимости «поднимаются» в корневой node_modules и маскируют
+      # ошибки типов (так мы пропустили сломанный тип socket у Snake). Поэтому собираем копию
+      # frontend в изоляции и ставим зависимости тем же `npm install`, что и в frontend/vercel.json.
+      - name: Isolate frontend (as on Vercel)
+        run: |
+          mkdir -p "$RUNNER_TEMP/frontend"
+          cp -R frontend/. "$RUNNER_TEMP/frontend/"
+
+      - name: Install
+        working-directory: ${{ runner.temp }}/frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Type check
+        working-directory: ${{ runner.temp }}/frontend
+        run: npx tsc --noEmit --incremental false
+
+      # В проекте уже есть несколько ошибок правил React Compiler (не влияют на сборку):
+      # пока их не починят, линт показывает их предупреждением, но не краснит PR.
+      - name: ESLint
+        working-directory: ${{ runner.temp }}/frontend
+        continue-on-error: true
+        run: npx eslint
+
+      - name: Unit tests
+        working-directory: ${{ runner.temp }}/frontend
+        run: npx vitest run
+
+      - name: next build
+        working-directory: ${{ runner.temp }}/frontend
+        run: npx next build
+
+  backend:
+    name: Backend (nest build, eslint, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # prisma generate (postinstall) требует переменную, но к БД не подключается.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      # Как в backend/Dockerfile (Render): node 20, изолированная папка backend, `npm i`
+      # (lock-файл бэкенда не синхронизирован с package.json, поэтому не `npm ci`).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Isolate backend (as in the Dockerfile)
+        run: |
+          mkdir -p "$RUNNER_TEMP/backend"
+          cp -R backend/. "$RUNNER_TEMP/backend/"
+
+      - name: Install
+        working-directory: ${{ runner.temp }}/backend
+        run: npm install --no-audit --no-fund
+
+      - name: Prisma client
+        working-directory: ${{ runner.temp }}/backend
+        run: npx prisma generate
+
+      - name: nest build
+        working-directory: ${{ runner.temp }}/backend
+        run: npm run build
+
+      # В бэкенде уже есть старые ошибки линта (scripts/verify-vapid.js, upload-policy.ts):
+      # показываются предупреждением, не краснят PR, пока их не починят.
+      - name: ESLint
+        working-directory: ${{ runner.temp }}/backend
+        continue-on-error: true
+        run: npx eslint .
+
+      - name: Unit tests
+        working-directory: ${{ runner.temp }}/backend
+        run: npx jest
