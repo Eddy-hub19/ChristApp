@@ -11,48 +11,17 @@ export function historyRetryDelay(attemptIndex: number): number {
   return Math.min(HISTORY_RETRY_BASE_MS * 2 ** attemptIndex, HISTORY_RETRY_MAX_MS);
 }
 
-/** Не повторюємо відповіді, які не зміняться від очікування (немає доступу / кімнати). */
+/**
+ * Мережеві помилки, таймаути й 5xx повторюємо з наростаючою паузою. 401/403/404 не лікуються очікуванням:
+ * один повтор (після оновлення токена), далі — лише події reconnect сокета / повернення в застосунок.
+ */
 export function shouldRetryHistory(failureCount: number, error: unknown): boolean {
-  if (failureCount >= HISTORY_MAX_RETRIES) return false;
-  if (error instanceof RoomHistoryHttpError) {
-    return error.status !== 403 && error.status !== 404;
-  }
-  return true;
+  if (isTerminalHistoryError(error)) return failureCount < 1;
+  return failureCount < HISTORY_MAX_RETRIES;
 }
 
-type HistoryErrorInput = {
-  /** React Query вичерпав усі повтори. */
-  queryFailed: boolean;
-  queryFetching: boolean;
-  /** Історія вже прийшла (сокетом або запитом). */
-  historyDelivered: boolean;
-  /** Є що показати (кеш IndexedDB або отримані повідомлення). */
-  hasMessages: boolean;
-};
-
-/** Екран помилки — лише коли всі повтори вичерпані, сокет мовчить і показати нічого. */
-export function shouldShowHistoryError(input: HistoryErrorInput): boolean {
-  return (
-    input.queryFailed &&
-    !input.queryFetching &&
-    !input.historyDelivered &&
-    !input.hasMessages
-  );
-}
-
-/** Плашка «збережені повідомлення»: показані лише кешовані дані, а свіжих узяти нізвідки. */
-export function shouldShowCachedNotice(input: {
-  hasMessages: boolean;
-  historyDelivered: boolean;
-  queryFailed: boolean;
-  offline: boolean;
-}): boolean {
-  return (
-    input.hasMessages &&
-    !input.historyDelivered &&
-    (input.queryFailed || input.offline)
-  );
-}
+/** Через стільки без жодного повідомлення під скелетоном з'являється тихий рядок «оновити». */
+export const HISTORY_STALLED_AFTER_MS = 60_000;
 
 /** Мінімальна пауза між перезапитами історії, викликаними connect / visibility / online. */
 export const HISTORY_REFETCH_MIN_INTERVAL_MS = 5000;

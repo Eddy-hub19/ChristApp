@@ -37,3 +37,28 @@ describe('canUserPostToRoom (shared by REST messages/room and socket joinRoom)',
     await expect(canUserPostToRoom(prisma, 'c', room)).resolves.toBe(false);
   });
 });
+
+describe('canUserReadRoom', () => {
+  const room = 'room-1';
+  const { canUserReadRoom } = jest.requireActual('./user-may-post-to-room');
+
+  it('lets a dm participant read even without a RoomMember row', async () => {
+    const prisma = makePrisma({ members: ['b'], title: 'dm:a:b' });
+    await expect(canUserReadRoom(prisma, 'a', room)).resolves.toBe(true);
+  });
+
+  it('never lets a stranger read a dm, member row or not', async () => {
+    await expect(
+      canUserReadRoom(makePrisma({ members: ['a', 'b', 'c'], title: 'dm:a:b' }), 'c', room),
+    ).resolves.toBe(false);
+    await expect(
+      canUserReadRoom(makePrisma({ members: ['a', 'b'], title: 'dm:a:b' }), 'c', room),
+    ).resolves.toBe(false);
+  });
+
+  it('keeps the membership requirement for group rooms', async () => {
+    const prisma = makePrisma({ members: ['b'], title: 'Study group' });
+    await expect(canUserReadRoom(prisma, 'a', room)).resolves.toBe(false);
+    await expect(canUserReadRoom(prisma, 'b', room)).resolves.toBe(true);
+  });
+});

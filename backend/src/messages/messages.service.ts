@@ -3,7 +3,10 @@ import { MessageType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
-import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
+import {
+  canUserPostToRoom,
+  canUserReadRoom,
+} from 'src/chat/user-may-post-to-room';
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
 import { mediaPreviewLabel } from './media-preview';
 import {
@@ -93,6 +96,10 @@ export class MessagesService {
 
   userCanPostToRoom(userId: string, roomId: string) {
     return canUserPostToRoom(this.prisma, userId, roomId);
+  }
+
+  userCanReadRoom(userId: string, roomId: string) {
+    return canUserReadRoom(this.prisma, userId, roomId);
   }
 
   async createMessage(content: string, userId: string) {

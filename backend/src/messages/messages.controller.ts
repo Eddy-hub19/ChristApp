@@ -91,7 +91,7 @@ export class MessagesController {
       throw new BadRequestException('roomId обязателен');
     }
 
-    const mayAccess = await this.messagesService.userCanPostToRoom(userId, rid);
+    const mayAccess = await this.messagesService.userCanReadRoom(userId, rid);
     if (!mayAccess) {
       throw new ForbiddenException('Нет доступа к комнате');
     }
@@ -125,7 +125,7 @@ export class MessagesController {
       throw new BadRequestException('roomId и beforeId обязательны');
     }
 
-    const mayAccess = await this.messagesService.userCanPostToRoom(userId, rid);
+    const mayAccess = await this.messagesService.userCanReadRoom(userId, rid);
     if (!mayAccess) {
       throw new ForbiddenException('Нет доступа к комнате');
     }

@@ -64,13 +64,12 @@ import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 import { checkBackendHealth } from "@/lib/backendHealth";
 import {
   HISTORY_REQUEST_TIMEOUT_MS,
+  HISTORY_STALLED_AFTER_MS,
   createHistoryRefetchGate,
   historyRetryDelay,
   isColdStartHistoryError,
   isTerminalHistoryError,
   shouldRetryHistory,
-  shouldShowCachedNotice,
-  shouldShowHistoryError,
 } from "@/lib/chatHistoryLoad";
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -561,9 +560,13 @@ export default function ChatPageDetails() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   /** Свіжа історія вже прийшла (сокетом або запитом): помилка завантаження більше не актуальна. */
   const [historyDelivered, setHistoryDelivered] = useState(false);
-  /** false — health-check бекенду не проходить (прокидається); null — ще не перевіряли. */
-  const [backendAwake, setBackendAwake] = useState<boolean | null>(null);
-  const [isBrowserOffline, setIsBrowserOffline] = useState(false);
+  /** Бекенд не відповідає (мережа / таймаут / 502-504): фоново опитуємо /health, UI при цьому не змінюється. */
+  const [historyColdFailing, setHistoryColdFailing] = useState(false);
+  /** Минуло ~60 с, а повідомлень немає: під скелетоном з'являється тихий сірий рядок. */
+  const [historyStalled, setHistoryStalled] = useState(false);
+  /** Остання відповідь 401/403/404: лише для логів і health-опитування, не для UI. */
+  const historyTerminalFailureRef = useRef(false);
+  const historyErrorLoggedRef = useRef<string | null>(null);
   /** Скелетон з'являється лише якщо завантаження триває довше за ~300 мс: без спалахів на швидкій мережі. */
   const showSkeleton = useDelayedFlag(isHistoryLoading, 300);
   const [skeletonWasShown, setSkeletonWasShown] = useState(false);
@@ -741,14 +744,36 @@ export default function ChatPageDetails() {
       if (!token || !effectiveSocketRoomId) {
         throw new Error(t("noTokenOrRoom"));
       }
-      return fetchRoomMessagesOrThrow({
-        token,
-        roomId: effectiveSocketRoomId,
-        limit: HISTORY_PAGE_SIZE,
-        skip: 0,
-        timeoutMs: HISTORY_REQUEST_TIMEOUT_MS,
-      });
+      try {
+        const result = await fetchRoomMessagesOrThrow({
+          token,
+          roomId: effectiveSocketRoomId,
+          limit: HISTORY_PAGE_SIZE,
+          skip: 0,
+          timeoutMs: HISTORY_REQUEST_TIMEOUT_MS,
+        });
+        historyTerminalFailureRef.current = false;
+        setHistoryColdFailing(false);
+        return result;
+      } catch (error) {
+        historyTerminalFailureRef.current = isTerminalHistoryError(error);
+        setHistoryColdFailing(isColdStartHistoryError(error));
+        if (historyTerminalFailureRef.current) {
+          // Одна зрозуміла помилка в консолі замість серії однакових.
+          const status = (error as { status?: number }).status;
+          const key = `${effectiveSocketRoomId}:${status}`;
+          if (historyErrorLoggedRef.current !== key) {
+            historyErrorLoggedRef.current = key;
+            console.error(
+              `[chat] History request for room ${effectiveSocketRoomId} was rejected (${status}).`,
+            );
+          }
+        }
+        throw error;
+      }
     },
+    /** Повтори й помилки тихі: компонент не перерисовується, поки не з'явились дані. */
+    notifyOnChangeProps: ["data", "isPlaceholderData"],
     staleTime: 20_000,
     /** Холодний старт бекенду (30–60 с): довгі повтори з наростаючою паузою замість миттєвої помилки. */
     retry: shouldRetryHistory,
@@ -1060,48 +1085,17 @@ export default function ChatPageDetails() {
   });
   /** Не частіше разу за кілька секунд, скільки б подій (connect/visibility/online) не прийшло. */
   const historyRefetchGateRef = useRef(createHistoryRefetchGate());
-  const historyError = roomHistoryQuery.failureReason ?? roomHistoryQuery.error;
-  /** 401/403/404: сервер живий і відповів остаточно — ні повторів, ні health-опитування, ні плашок. */
-  const historyTerminalFailure = isTerminalHistoryError(historyError);
-  const historyTerminalFailureRef = useRef(historyTerminalFailure);
-  useEffect(() => {
-    historyTerminalFailureRef.current = historyTerminalFailure;
-  });
-  const historyTroubled =
-    !historyDelivered &&
-    (roomHistoryQuery.failureCount > 0 || roomHistoryQuery.isError) &&
-    isColdStartHistoryError(historyError);
-
-  // Одна зрозуміла помилка в консолі замість серії однакових.
-  const historyErrorLoggedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!roomHistoryQuery.isError || !historyTerminalFailure) return;
-    const key = `${effectiveSocketRoomId}:${(roomHistoryQuery.error as { status?: number })?.status}`;
-    if (historyErrorLoggedRef.current === key) return;
-    historyErrorLoggedRef.current = key;
-    console.error(
-      `[chat] History request for room ${effectiveSocketRoomId} was rejected (${(roomHistoryQuery.error as { status?: number })?.status}); not retrying.`,
-    );
-  }, [roomHistoryQuery.isError, roomHistoryQuery.error, historyTerminalFailure, effectiveSocketRoomId]);
 
   // Бекенд прокидається: поки health-check не проходить, опитуємо його й одразу перезапускаємо історію, щойно він ожив.
   useEffect(() => {
-    if (!historyTroubled || !effectiveSocketRoomId) {
-      setBackendAwake(null);
-      return;
-    }
+    if (!historyColdFailing || historyDelivered || !effectiveSocketRoomId) return;
     let cancelled = false;
     let timer: number | null = null;
     const poll = async () => {
       const alive = await checkBackendHealth(getHttpApiBase(), 6000);
       if (cancelled) return;
-      setBackendAwake(alive);
       if (alive) {
-        if (
-          !historyTerminalFailureRef.current &&
-          !historyAppliedRef.current &&
-          historyRefetchGateRef.current()
-        ) {
+        if (!historyAppliedRef.current && historyRefetchGateRef.current()) {
           void refetchHistoryRef.current();
         }
         return;
@@ -1113,28 +1107,21 @@ export default function ChatPageDetails() {
       cancelled = true;
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [historyTroubled, effectiveSocketRoomId]);
+  }, [historyColdFailing, historyDelivered, effectiveSocketRoomId]);
 
-  // Мережа повернулась / застосунок знову на екрані / сокет перепідключився — догружаємо історію самі.
+  // Мережа повернулась / застосунок знову на екрані / сокет перепідключився — догружаємо історію самі
+  // (в тому числі після 401/403/404, але не частіше разу за кілька секунд, без циклу).
   useEffect(() => {
-    const sync = () => setIsBrowserOffline(!navigator.onLine);
-    sync();
     const retryIfMissing = () => {
       if (document.visibilityState === "hidden") return;
       if (historyAppliedRef.current || !effectiveSocketRoomId || !user?.id) return;
-      if (historyTerminalFailureRef.current || !historyRefetchGateRef.current()) return;
+      if (!historyRefetchGateRef.current()) return;
       void refetchHistoryRef.current();
     };
-    const onOnline = () => {
-      sync();
-      retryIfMissing();
-    };
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", sync);
+    window.addEventListener("online", retryIfMissing);
     document.addEventListener("visibilitychange", retryIfMissing);
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", sync);
+      window.removeEventListener("online", retryIfMissing);
       document.removeEventListener("visibilitychange", retryIfMissing);
     };
   }, [effectiveSocketRoomId, user?.id]);
@@ -1142,9 +1129,29 @@ export default function ChatPageDetails() {
   useEffect(() => {
     if (!isSocketConnected || historyAppliedRef.current) return;
     if (!effectiveSocketRoomId || !user?.id) return;
-    if (historyTerminalFailureRef.current || !historyRefetchGateRef.current()) return;
+    if (!historyRefetchGateRef.current()) return;
     void refetchHistoryRef.current();
   }, [isSocketConnected, effectiveSocketRoomId, user?.id]);
+
+  // ~60 с без повідомлень: під скелетоном з'являється тихий рядок «потягніть вниз або торкніться».
+  const hasAnyMessages = messages.length > 0;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistoryStalled(false);
+    if (!effectiveSocketRoomId || historyDelivered || hasAnyMessages) return;
+    const timer = window.setTimeout(() => setHistoryStalled(true), HISTORY_STALLED_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [effectiveSocketRoomId, historyDelivered, hasAnyMessages]);
+
+  /** Ручне оновлення зі скелетона (тап / pull-down): і HTTP-запит, і повторне приєднання до кімнати сокета. */
+  const handleManualHistoryRefresh = useCallback(() => {
+    void refetchHistoryRef.current();
+    const socket = socketRef.current;
+    if (socket?.connected && effectiveSocketRoomId) {
+      joinedRoomRef.current = undefined;
+      joinRoom(socket, effectiveSocketRoomId, { skipLoadingSpinner: true });
+    }
+  }, [effectiveSocketRoomId, joinRoom]);
 
   useEffect(() => {
     setTypingUsers(new Map());
@@ -2554,7 +2561,7 @@ export default function ChatPageDetails() {
 
   // Під час завантаження історії в шапці лишається звичайний статус; «Завантаження…» — лише коли іншого статусу немає.
   const statusLine =
-    (!isSocketConnected || (historyTroubled && backendAwake !== true)
+    (!isSocketConnected
       ? t("connecting")
       : voiceRecordingStatusLine
         ? voiceRecordingStatusLine
@@ -3558,37 +3565,14 @@ export default function ChatPageDetails() {
           </div>
         </div>
 
-        {shouldShowCachedNotice({
-          hasMessages: messages.length > 0,
-          historyDelivered,
-          queryFailed: roomHistoryQuery.isError && !historyTerminalFailure,
-          offline: isBrowserOffline,
-        }) ? (
-          <p className={styles.cachedNotice} role="status">
-            {t("historyCachedNotice")}
-          </p>
-        ) : null}
-
         {authError ? (
           <p className={styles.stateMessage}>{authError}</p>
-        ) : shouldShowHistoryError({
-            queryFailed: roomHistoryQuery.isError,
-            queryFetching: roomHistoryQuery.isFetching,
-            historyDelivered,
-            hasMessages: messages.length > 0,
-          }) ? (
-          <div className={styles.historyError} role="alert">
-            <p>{t("historyLoadError")}</p>
-            <button
-              type="button"
-              className={styles.historyRetry}
-              onClick={() => void roomHistoryQuery.refetch()}
-            >
-              {t("historyRetry")}
-            </button>
-          </div>
         ) : isHistoryLoading ? (
-          <ChatSkeleton visible={showSkeleton} />
+          <ChatSkeleton
+            visible={showSkeleton}
+            stalledHint={historyStalled ? t("historyStalledHint") : undefined}
+            onRefresh={handleManualHistoryRefresh}
+          />
         ) : roomId === GLOBAL_ROOM_ID ? (
           <div className={styles.chatSplit}>
             <div className={styles.chatSplitMain}>{messagingPane}</div>

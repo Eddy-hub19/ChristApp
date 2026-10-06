@@ -27,6 +27,22 @@
   opacity: 1;
 }
 
+// Тихий нейтральний рядок: сірий, без червоного й без окремого екрана.
+.stalledHint {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: color-mix(in srgb, var(--foreground) 52%, transparent);
+  cursor: pointer;
+}
+
 .list {
   display: flex;
   flex-direction: column;
