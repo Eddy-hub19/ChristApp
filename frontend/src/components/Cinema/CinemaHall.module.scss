@@ -411,6 +411,10 @@
 // ================= РОЗКЛАДКА =================
 
 .layout {
+  // Десктоп: ширина чату за замовчуванням і межі ручного ресайзу; --chat-w виставляє WatchHall (збережений вибір).
+  --chat-w-default: clamp(320px, 30vw, 520px);
+
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -421,14 +425,142 @@
 
   @media (min-width: 768px) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 18px;
+    // Плеєр бере все, що лишилось; між плеєром і чатом — лише смужка-розділювач (вона ж рівний відступ).
+    grid-template-columns: minmax(0, 1fr) 14px var(--chat-w, var(--chat-w-default));
+    gap: 0;
     padding: 0 18px 18px;
   }
 
-  @media (min-width: 1200px) {
-    grid-template-columns: minmax(0, 1fr) 340px;
+  @media (min-width: 1100px) {
+    --chat-w-default: clamp(360px, 30vw, 520px);
   }
+}
+
+// Чат згорнуто: плеєр на всю ширину.
+.layoutChatCollapsed {
+  @media (min-width: 768px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .chatResizer,
+    .chatColumn {
+      display: none;
+    }
+  }
+}
+
+.layoutResizing {
+  @media (min-width: 768px) {
+    cursor: col-resize;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+// Обгортка чату: на мобільному «зникає» з розкладки (display: contents), тож .chat веде себе як раніше.
+.chatColumn {
+  display: contents;
+
+  @media (min-width: 768px) {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
+.chatResizer {
+  display: none;
+
+  @media (min-width: 768px) {
+    position: relative;
+    display: block;
+    cursor: col-resize;
+    touch-action: none;
+    outline: none;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 12%;
+      bottom: 12%;
+      left: 50%;
+      width: 3px;
+      margin-left: -1.5px;
+      border-radius: 3px;
+      background: var(--hall-gold);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    &:hover::after,
+    &:focus-visible::after {
+      opacity: 0.5;
+    }
+  }
+}
+
+.layoutResizing .chatResizer::after {
+  opacity: 0.9;
+}
+
+// Кнопка згорнути/розгорнути чат (лише десктоп); у згорнутому стані — з лічильником нових повідомлень.
+.chatToggle {
+  display: none;
+
+  @media (min-width: 768px) {
+    position: absolute;
+    top: 8px;
+    right: 28px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    color: var(--hall-muted);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--hall-text);
+      background: var(--hall-surface-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--hall-gold);
+    }
+  }
+}
+
+.chatToggleCollapsed {
+  @media (min-width: 768px) {
+    top: 4px;
+    right: 18px;
+    color: var(--hall-text);
+    background: var(--hall-surface-strong);
+    border: 1px solid var(--hall-line);
+  }
+}
+
+.chatToggleBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: var(--hall-gold-ink);
+  background: var(--hall-gold);
 }
 
 .stageColumn {
@@ -471,6 +603,12 @@
   @media (max-width: 767px) {
     max-width: calc((100dvh - 300px) * 16 / 9);
     min-width: min(100%, 220px);
+  }
+
+  // Десктоп: плеєр займає всю колонку без порожніх смуг по боках (по висоті колонка за потреби скролиться).
+  @media (min-width: 768px) {
+    max-width: none;
+    min-width: 0;
   }
 }
 
@@ -1968,9 +2106,8 @@
   }
 
   @media (min-width: 768px) {
-    flex: initial;
     min-height: 0;
-    height: auto;
+    min-width: 0;
   }
 }
 
@@ -1982,6 +2119,11 @@
   text-transform: uppercase;
   color: var(--hall-muted);
 
+  // Місце під кнопку згортання чату (десктоп).
+  @media (min-width: 768px) {
+    padding-right: 52px;
+  }
+
   // Мобільний: місце в дефіциті — заголовок і так очевидний з контексту екрана.
   @media (max-width: 767px) {
     display: none;
@@ -1991,6 +2133,8 @@
 .chatList {
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2006,11 +2150,13 @@
   color: var(--hall-muted);
 }
 
+// Рядок повідомлення: ніколи не ширший за ~85% панелі; свої — праворуч з тим самим відступом, що й чужі зліва.
 .chatMessage {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  max-width: 88%;
+  min-width: 0;
+  max-width: 85%;
   animation: messageIn 0.2s ease;
 }
 
@@ -2019,6 +2165,7 @@
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
+  max-width: 100%;
   gap: 3px;
 }
 
@@ -2050,6 +2197,8 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  // Цитата (nowrap) має великий min-content: без цього обмеження пузир розтягувався б за межі панелі.
+  max-width: 100%;
   padding: 7px 11px;
   border-radius: 16px;
   border-bottom-left-radius: 6px;
@@ -2065,12 +2214,16 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   padding: 0 4px;
 }
 
 .readReceiptRow {
   display: flex;
   align-items: center;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .readReceiptAvatar {
@@ -2149,7 +2302,9 @@
 .chatText {
   font-size: 14px;
   line-height: 1.35;
+  min-width: 0;
   overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: pre-wrap;
 }
 
