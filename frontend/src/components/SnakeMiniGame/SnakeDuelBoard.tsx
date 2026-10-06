@@ -68,15 +68,16 @@ export default function SnakeDuelBoard({
       trackedRef.current = { prev: null, cur: null, receivedAt: performance.now() };
       return;
     }
-    const sameRound = tracked.cur && tracked.cur.round === next.round && next.tick >= tracked.cur.tick;
-    if (tracked.cur && sameRound && next.tick === tracked.cur.tick) return; // той самий тік (напр., зміна відліку)
+    const continuing = tracked.cur !== null && next.tick >= tracked.cur.tick;
+    if (tracked.cur && continuing && next.tick === tracked.cur.tick) return; // той самий тік (напр., зміна відліку)
     trackedRef.current = {
-      prev: sameRound ? tracked.cur : null,
+      prev: continuing ? tracked.cur : null,
       cur: next,
       receivedAt: performance.now(),
     };
-    // Новий раунд: сервер знову веде нас у стартовому напрямку.
-    if (!sameRound || next.tick === 0) {
+    // Новий матч або відродження: сервер веде змійку у новому напрямку — прогноз скидаємо.
+    const respawned = tracked.cur?.snakes[myId]?.alive === false && next.snakes[myId]?.alive === true;
+    if (!continuing || next.tick === 0 || respawned) {
       predictedRef.current = next.snakes[myId]?.dir ?? null;
     }
   }, [session.duel, myId]);
@@ -182,8 +183,7 @@ export default function SnakeDuelBoard({
 
       const t01 =
         s.phase === "playing" && prev ? (now - receivedAt) / Math.max(40, cur.tickMs) : 1;
-      const winnerId =
-        s.phase === "matchEnd" ? s.matchWinner : s.phase === "roundEnd" ? (s.roundWinner ?? null) : null;
+      const winnerId = s.phase === "matchEnd" ? s.matchWinner : null;
 
       const occupied = new Set<string>([`${cur.food.x}:${cur.food.y}`]);
       for (const o of cur.obstacles) occupied.add(`${o.x}:${o.y}`);
@@ -193,7 +193,9 @@ export default function SnakeDuelBoard({
         const snake = cur.snakes[id];
         if (!snake) continue;
         const mine = id === myId;
-        const prevBody = prev?.snakes[id]?.body ?? null;
+        // Інтерполюємо лише між двома «живими» кадрами: після відродження змійка з'являється на новому місці.
+        const prevSnake = prev?.snakes[id];
+        const prevBody = prevSnake?.alive ? prevSnake.body : null;
         const body = snake.alive ? interpolateBody(prevBody, snake.body, t01) : snake.body;
         drawn[id] = body;
         for (const c of snake.body) occupied.add(`${c.x}:${c.y}`);
@@ -212,7 +214,7 @@ export default function SnakeDuelBoard({
           eye(head.x, head.y, mine ? (predictedRef.current ?? snake.dir) : snake.dir, "#1a1408");
         }
 
-        // Підсвітка переможця раунду/матчу.
+        // Підсвітка переможця матчу.
         if (winnerId === id) {
           const wob = reducedMotionRef.current ? 0.8 : 0.55 + 0.45 * Math.sin(now / 130);
           ctx.strokeStyle = `rgba(255, 233, 140, ${wob})`;
@@ -264,11 +266,14 @@ export default function SnakeDuelBoard({
     }
   }, [session.duel, myId]);
 
-  const iWonRound = session.roundWinner === myId;
-  const roundDraw = session.roundWinner === null;
   const iWonMatch = session.matchWinner === myId;
   const graceSec = Math.ceil(session.graceMs / 1000);
   const pausedForPeer = session.pausedFor === peerId;
+  const target = session.duel?.targetScore ?? 30;
+  const myScore = session.scores[myId] ?? 0;
+  const peerScore = session.scores[peerId] ?? 0;
+  const mySnake = session.duel?.snakes[myId];
+  const respawnSec = mySnake && !mySnake.alive ? Math.max(1, Math.ceil(mySnake.respawnInMs / 1000)) : 0;
 
   return (
     <>
@@ -279,15 +284,13 @@ export default function SnakeDuelBoard({
           <span key={session.countdown} className={styles.countdown}>
             {session.countdown}
           </span>
-          <span className={styles.overlaySub}>{t("roundN", { n: session.duel?.round ?? 1 })}</span>
+          <span className={styles.overlaySub}>{t("raceTo", { n: target })}</span>
         </div>
       ) : null}
 
-      {session.phase === "roundEnd" ? (
+      {session.phase === "playing" && respawnSec > 0 ? (
         <div className={`${styles.boardOverlay} ${styles.boardOverlayLight}`} aria-live="polite">
-          <span className={styles.overlayTitle}>
-            {roundDraw ? t("roundDraw") : iWonRound ? t("roundWin") : t("roundLose", { name: peerName })}
-          </span>
+          <span className={styles.overlayTitle}>{t("respawnIn", { s: respawnSec })}</span>
         </div>
       ) : null}
 
@@ -310,11 +313,7 @@ export default function SnakeDuelBoard({
               ? iWonMatch
                 ? t("winByDisconnect", { name: peerName })
                 : t("lossByDisconnect")
-              : t("finalScore", {
-                  me: session.wins[myId] ?? 0,
-                  peer: session.wins[peerId] ?? 0,
-                  name: peerName,
-                })}
+              : t("finalScore", { me: myScore, peer: peerScore, name: peerName, n: target })}
           </span>
           {myRecordLabel ? <span className={styles.overlaySub}>{myRecordLabel}</span> : null}
           <div className={styles.overlayActions}>

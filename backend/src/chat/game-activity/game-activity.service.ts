@@ -1,4 +1,7 @@
-import { getGameActivityDef } from './game-activity.registry';
+import {
+  getGameActivityDef,
+  parseGameActivityMode,
+} from './game-activity.registry';
 
 /** Без heartbeat (клієнт шле раз на ~15 с) статус знімається за цей час — щоб не «залипав». */
 export const ACTIVITY_TTL_MS = 30_000;
@@ -13,6 +16,8 @@ export type PublicActivity = {
   userId: string;
   username: string;
   game: string;
+  /** Режим гри (Snake: classic | duel); undefined — ще в лобі. */
+  mode?: string;
   joinable: boolean;
   sessionId: string;
 };
@@ -20,6 +25,7 @@ export type PublicActivity = {
 type Entry = {
   roomId: string;
   game: string;
+  mode?: string;
   user: ActivityUser;
   lastBeat: number;
 };
@@ -56,6 +62,7 @@ export class GameActivityService {
     roomId: string,
     game: string | null,
     now: number,
+    rawMode?: unknown,
   ): string[] {
     const prev = this.bySocket.get(socketId);
     const def = game === null ? undefined : getGameActivityDef(game);
@@ -67,11 +74,21 @@ export class GameActivityService {
       return [prev.roomId];
     }
 
+    const mode = parseGameActivityMode(def.id, rawMode);
     if (prev && prev.roomId === roomId && prev.game === def.id) {
       prev.lastBeat = now;
-      return [];
+      if (prev.mode === mode) return [];
+      // Той самий гравець перейшов в інший режим (напр., Класика → Дуель): видимий стан змінився.
+      prev.mode = mode;
+      return [roomId];
     }
-    this.bySocket.set(socketId, { roomId, game: def.id, user, lastBeat: now });
+    this.bySocket.set(socketId, {
+      roomId,
+      game: def.id,
+      mode,
+      user,
+      lastBeat: now,
+    });
     return prev && prev.roomId !== roomId ? [prev.roomId, roomId] : [roomId];
   }
 
@@ -104,9 +121,11 @@ export class GameActivityService {
       if (!cur || entry.lastBeat > cur.lastBeat)
         perUser.set(entry.user.id, entry);
     }
+    // Місця рахуємо в межах режиму: Дуель може бути зайнята, а до Класики приєднатись усе ще можна.
+    const seatKey = (entry: Entry) => `${entry.game}:${entry.mode ?? ''}`;
     const players = new Map<string, number>();
     for (const entry of perUser.values()) {
-      players.set(entry.game, (players.get(entry.game) ?? 0) + 1);
+      players.set(seatKey(entry), (players.get(seatKey(entry)) ?? 0) + 1);
     }
     return [...perUser.values()].map((entry) => {
       const def = getGameActivityDef(entry.game);
@@ -115,9 +134,10 @@ export class GameActivityService {
         userId: entry.user.id,
         username: entry.user.username,
         game: entry.game,
+        ...(entry.mode ? { mode: entry.mode } : {}),
         joinable:
           Boolean(def?.joinable) &&
-          (players.get(entry.game) ?? 0) < (def?.maxPlayers ?? 0),
+          (players.get(seatKey(entry)) ?? 0) < (def?.maxPlayers ?? 0),
         sessionId: `${roomId}:${entry.game}`,
       };
     });
