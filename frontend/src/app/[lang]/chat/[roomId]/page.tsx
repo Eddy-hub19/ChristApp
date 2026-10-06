@@ -46,6 +46,10 @@ import {
   fetchRoomMessagesOrThrow,
 } from "@/lib/chatMessagesApi";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
+import { reconcileMessages } from "@/lib/chatReconcile";
+import { readCachedMessages, writeCachedMessages } from "@/lib/chatMessageCache";
+import { useDelayedFlag } from "@/hooks/useDelayedFlag";
+import ChatSkeleton from "@/components/ChatSkeleton/ChatSkeleton";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
 import { useChatUploads } from "@/hooks/useChatUploads";
 import type { RecordedVoice } from "@/hooks/useVoiceRecorder";
@@ -544,6 +548,11 @@ export default function ChatPageDetails() {
   const [roomRawTitle, setRoomRawTitle] = useState<string>("");
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  /** Скелетон з'являється лише якщо завантаження триває довше за ~300 мс: без спалахів на швидкій мережі. */
+  const showSkeleton = useDelayedFlag(isHistoryLoading, 300);
+  const [skeletonWasShown, setSkeletonWasShown] = useState(false);
+  /** Свіжа історія з сервера вже застосована: кеш більше не має права перезаписувати список. */
+  const historyAppliedRef = useRef(false);
   /** Лише фатальні випадки (немає токена). Обриви сокета не показуємо замість чату. */
   const [authError, setAuthError] = useState<string | null>(null);
   const [sendNotice, setSendNotice] = useState<string | null>(null);
@@ -899,10 +908,25 @@ export default function ChatPageDetails() {
     return () => stopIncomingRingtone();
   }, [incomingCall, stopIncomingRingtone]);
 
+  /**
+   * Звіряє показаний список (кеш або попередня версія) зі свіжою історією сервера: видалені зникають,
+   * відредаговані й реакції оновлюються, нові додаються — без перемальовування незмінених повідомлень.
+   */
+  const applyServerHistory = useCallback((fresh: Message[]) => {
+    historyAppliedRef.current = true;
+    setMessages((prev) => {
+      const next = reconcileMessages(prev, fresh);
+      messageIdsRef.current = new Set(next.map((item) => item.id));
+      return next;
+    });
+  }, []);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setMessages([]);
     messageIdsRef.current = new Set();
+    historyAppliedRef.current = false;
+    setSkeletonWasShown(false);
     awaitingRoomHistoryRef.current = false;
     setReplyToMessage(null);
     setEditingMessage(null);
@@ -926,21 +950,51 @@ export default function ChatPageDetails() {
       return;
     }
 
-    const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(
+    const { uniqueHistory } = normalizeRoomHistory(
       roomHistoryQuery.data as IncomingSocketMessage[],
       user?.username,
     );
 
-    messageIdsRef.current = nextMessageIds;
-    setMessages(uniqueHistory);
+    applyServerHistory(uniqueHistory);
     setIsHistoryLoading(false);
     awaitingRoomHistoryRef.current = false;
   }, [
+    applyServerHistory,
     effectiveSocketRoomId,
     roomHistoryQuery.data,
     roomHistoryQuery.isPlaceholderData,
     user?.username,
   ]);
+
+  // Миттєвий показ: останні повідомлення з IndexedDB, поки свіжа історія ще в дорозі.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !effectiveSocketRoomId) return;
+    let cancelled = false;
+    void readCachedMessages<Message>(userId, effectiveSocketRoomId).then((cached) => {
+      if (cancelled || historyAppliedRef.current || !cached?.length) return;
+      messageIdsRef.current = new Set(cached.map((item) => item.id));
+      setMessages(cached);
+      setIsHistoryLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId, routeRoomId, t, user, effectiveSocketRoomId]);
+
+  // Після звірки з сервером (і далі — при кожній зміні) перезаписуємо кеш останніх повідомлень.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !effectiveSocketRoomId || !historyAppliedRef.current) return;
+    const timer = window.setTimeout(() => {
+      void writeCachedMessages(userId, effectiveSocketRoomId, messages);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [messages, user?.id, effectiveSocketRoomId]);
+
+  useEffect(() => {
+    if (showSkeleton) setSkeletonWasShown(true);
+  }, [showSkeleton]);
 
   useEffect(() => {
     setTypingUsers(new Map());
@@ -1250,12 +1304,7 @@ export default function ChatPageDetails() {
 
       awaitingRoomHistoryRef.current = false;
 
-      const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(
-        history,
-        user?.username,
-      );
-
-      messageIdsRef.current = nextMessageIds;
+      const { uniqueHistory } = normalizeRoomHistory(history, user?.username);
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1];
       if (historyRoomId && lastMessage) {
@@ -1272,7 +1321,7 @@ export default function ChatPageDetails() {
         }
       }
 
-      setMessages(uniqueHistory);
+      applyServerHistory(uniqueHistory);
       setIsHistoryLoading(false);
       void queryClient.setQueryData(
         chatRoomHistoryQueryKey(historyRoomId),
@@ -1898,6 +1947,7 @@ export default function ChatPageDetails() {
       socketRef.current = null;
     };
   }, [
+    applyServerHistory,
     joinRoom,
     leaveCurrentRoom,
     loading,
@@ -2369,9 +2419,9 @@ export default function ChatPageDetails() {
     return formatted;
   };
 
-  const statusLine = isHistoryLoading
-    ? t("loadingMessages")
-    : !isSocketConnected
+  // Під час завантаження історії в шапці лишається звичайний статус; «Завантаження…» — лише коли іншого статусу немає.
+  const statusLine =
+    (!isSocketConnected
       ? t("connecting")
       : voiceRecordingStatusLine
         ? voiceRecordingStatusLine
@@ -2384,7 +2434,7 @@ export default function ChatPageDetails() {
               ? isDirectTargetOnline
                 ? t("onlineShort")
                 : formatLastSeenAgo(directTargetLastSeenAt)
-              : "";
+              : "") || (isHistoryLoading ? t("loadingShort") : "");
 
   const headerPresenceClass =
     directChatTargetUser != null
@@ -3182,26 +3232,10 @@ export default function ChatPageDetails() {
   const participantsOverlayOpen =
     isParticipantsDrawerOpen && (roomId !== GLOBAL_ROOM_ID || !wideChatLayout);
 
-  const skeletonRows = [
-    { side: "left", width: "wide" },
-    { side: "right", width: "medium" },
-    { side: "left", width: "narrow" },
-    { side: "right", width: "wide" },
-    { side: "left", width: "medium" },
-    { side: "right", width: "narrow" },
-    { side: "left", width: "wide" },
-    { side: "right", width: "medium" },
-    { side: "left", width: "narrow" },
-    { side: "right", width: "wide" },
-    { side: "left", width: "medium" },
-    { side: "right", width: "narrow" },
-    { side: "left", width: "wide" },
-    { side: "right", width: "medium" },
-  ] as const;
-
   const messagingPane = (
     <ChatWindow
       messages={messages}
+      revealOnMount={skeletonWasShown}
       pendingUploads={chatUploads.items.filter(
         (item) => !item.roomId || item.roomId === effectiveSocketRoomId,
       )}
@@ -3395,28 +3429,19 @@ export default function ChatPageDetails() {
 
         {authError ? (
           <p className={styles.stateMessage}>{authError}</p>
-        ) : isHistoryLoading ? (
-          <div className={styles.messagesSkeleton}>
-            <div className={styles.messagesSkeletonList} aria-hidden>
-              {skeletonRows.map((row, index) => (
-                <div
-                  key={`chat-message-skeleton-${index}`}
-                  className={`${styles.messagesSkeletonRow} ${row.side === "left" ? styles.messagesSkeletonRowLeft : styles.messagesSkeletonRowRight}`}
-                >
-                  <span
-                    className={`${styles.messagesSkeletonBubble} ${
-                      row.width === "wide"
-                        ? styles.messagesSkeletonBubbleWide
-                        : row.width === "medium"
-                          ? styles.messagesSkeletonBubbleMedium
-                          : styles.messagesSkeletonBubbleNarrow
-                    }`}
-                  />
-                </div>
-              ))}
-              <div className={styles.messagesSkeletonGrow} />
-            </div>
+        ) : roomHistoryQuery.isError && !roomHistoryQuery.isFetching && isHistoryLoading ? (
+          <div className={styles.historyError} role="alert">
+            <p>{t("historyLoadError")}</p>
+            <button
+              type="button"
+              className={styles.historyRetry}
+              onClick={() => void roomHistoryQuery.refetch()}
+            >
+              {t("historyRetry")}
+            </button>
           </div>
+        ) : isHistoryLoading ? (
+          <ChatSkeleton visible={showSkeleton} />
         ) : roomId === GLOBAL_ROOM_ID ? (
           <div className={styles.chatSplit}>
             <div className={styles.chatSplitMain}>{messagingPane}</div>

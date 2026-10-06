@@ -10,6 +10,24 @@
   width: 100%;
 }
 
+.chatWindowReveal {
+  animation: chatWindowReveal 0.18s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes chatWindowReveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .chatWindow {
   display: flex;
   flex-direction: column;

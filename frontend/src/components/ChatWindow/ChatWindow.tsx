@@ -8,6 +8,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -25,6 +26,8 @@ import MessageBubble from "@/components/MessageBubble/MessageBubble";
 
 type ChatWindowProps = {
   messages: Message[];
+  /** Плавно проявити список (fade) — після скелетона, щоб заміна не різала око. */
+  revealOnMount?: boolean;
   currentUsername?: string;
   currentUser?: { id: string; username: string; nickname?: string } | null;
   /** Аватарки співрозмовників (наприклад, у загальному чаті). */
@@ -103,6 +106,7 @@ function ChatWindow({
   pendingUploads,
   onCancelUpload,
   onRetryUpload,
+  revealOnMount = false,
 }: ChatWindowProps) {
   const t = useTranslations("chat");
   const lang = useLocale();
@@ -247,7 +251,7 @@ function ChatWindow({
     container.scrollTo({ top: container.scrollHeight, behavior });
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!didInitialScrollRef.current) {
       scrollListToBottom("auto");
       didInitialScrollRef.current = true;
@@ -571,7 +575,7 @@ function ChatWindow({
   }, [scrollListToBottom]);
 
   return (
-    <div className={styles.chatWindowFrame}>
+    <div className={`${styles.chatWindowFrame} ${revealOnMount ? styles.chatWindowReveal : ""}`}>
       <div className={styles.chatWindow} ref={scrollContainerRef}>
         {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
         {messages.length === 0 ? (
