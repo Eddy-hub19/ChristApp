@@ -8,13 +8,23 @@ type FetchRoomMessagesParams = {
   roomId: string;
   limit?: number;
   skip?: number;
+  /** Обрив зависшого запиту (холодний старт бекенду), щоб спрацював повтор. */
+  timeoutMs?: number;
 };
+
+/** Помилка історії зі статусом HTTP: за ним вирішуємо, чи є сенс повторювати запит. */
+export class RoomHistoryHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Не удалось загрузить историю комнаты (${status})`);
+  }
+}
 
 export async function fetchRoomMessagesOrThrow({
   token,
   roomId,
   limit = 250,
   skip = 0,
+  timeoutMs,
 }: FetchRoomMessagesParams) {
   const response = await apiFetch(
     `${API_URL}/messages/room?roomId=${encodeURIComponent(roomId)}&limit=${limit}&skip=${skip}`,
@@ -23,13 +33,12 @@ export async function fetchRoomMessagesOrThrow({
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
+      timeoutMs,
     },
   );
 
   if (!response.ok) {
-    throw new Error(
-      `Не удалось загрузить историю комнаты (${response.status})`,
-    );
+    throw new RoomHistoryHttpError(response.status);
   }
 
   const text = await response.text();

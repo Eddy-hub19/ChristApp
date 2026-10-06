@@ -227,6 +227,7 @@
     "loadingShort": "Загрузка…",
     "historyLoadError": "Не удалось загрузить сообщения",
     "historyRetry": "Попробовать ещё раз",
+    "historyCachedNotice": "Нет соединения, показаны сохранённые сообщения",
     "connecting": "Подключение...",
     "usersOnlineCount": "{count} пользователей онлайн",
     "shareJesusNotesHint": "Личное место для заметок",

@@ -1,11 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { buildSkeletonLayout, SKELETON_MAX_ITEMS, SKELETON_MIN_ITEMS } from "./skeletonLayout";
+import {
+  buildSkeletonLayout,
+  SKELETON_EXTRA_ITEMS,
+  SKELETON_FALLBACK_ITEMS,
+  SKELETON_ITEM_HEIGHT,
+  skeletonCountForHeight,
+} from "./skeletonLayout";
 
 describe("buildSkeletonLayout", () => {
-  it("keeps the item count within 6..8", () => {
-    expect(buildSkeletonLayout(1)).toHaveLength(SKELETON_MIN_ITEMS);
-    expect(buildSkeletonLayout(99)).toHaveLength(SKELETON_MAX_ITEMS);
-    expect(buildSkeletonLayout(7)).toHaveLength(7);
+  it("builds exactly the requested number of items, with no upper cap", () => {
+    expect(buildSkeletonLayout(3)).toHaveLength(3);
+    expect(buildSkeletonLayout(40)).toHaveLength(40);
+    expect(buildSkeletonLayout()).toHaveLength(SKELETON_FALLBACK_ITEMS);
+  });
+
+  it("covers the container height with a spare", () => {
+    const height = 900;
+    expect(skeletonCountForHeight(height) * SKELETON_ITEM_HEIGHT).toBeGreaterThanOrEqual(
+      height + SKELETON_EXTRA_ITEMS * SKELETON_ITEM_HEIGHT - SKELETON_ITEM_HEIGHT,
+    );
+    expect(skeletonCountForHeight(0)).toBe(SKELETON_FALLBACK_ITEMS);
   });
 
   it("mixes sides and bubble sizes", () => {
