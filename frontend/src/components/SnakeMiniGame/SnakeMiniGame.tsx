@@ -1,331 +1,218 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import SnakeClassicBoard, {
+  CELL_SIZE,
+  CLASSIC_BOARD_CELLS_X,
+  CLASSIC_BOARD_CELLS_Y,
+  type SnakeRuntimeState,
+} from "./SnakeClassicBoard";
+import SnakeDuelBoard from "./SnakeDuelBoard";
+import { SNAKE_LEVELS, getSnakeLevel } from "./snakeLevels";
+import {
+  getBestScore,
+  getDuelRecord,
+  recordBestScore,
+  recordDuelResult,
+} from "./snakeStats";
+import type { Dir, SnakeSocket } from "./snakeTypes";
+import { useKeyboardDirection, useSwipeDirection } from "./useSnakeControls";
+import { useSnakeSession } from "./useSnakeSession";
 import styles from "./SnakeMiniGame.module.scss";
 
-export type SnakeRuntimeState = {
-  headX: number;
-  headY: number;
-  foodX: number;
-  foodY: number;
-  body: Array<{ x: number; y: number }>;
-  score: number;
-  alive: boolean;
-  emittedAt?: number;
-};
+export type { SnakeRuntimeState } from "./SnakeClassicBoard";
 
 type SnakeMiniGameProps = {
   open: boolean;
+  roomId: string | null;
+  socket: SnakeSocket | null;
+  userId: string;
   myScore: number;
   peerScore: number;
   peerName: string;
   peerState: SnakeRuntimeState | null;
-  peerPingMs?: number | null;
+  /** Реально виміряний RTT; null — не вимірювався, рядок із пінгом ховаємо. */
+  pingMs?: number | null;
   onClose: () => void;
   onScoreChange: (score: number) => void;
   onStateChange?: (state: SnakeRuntimeState) => void;
 };
 
-const BOARD_CELLS_X = 24;
-const BOARD_CELLS_Y = 16;
-const CELL_SIZE = 18;
-const WORLD_W = BOARD_CELLS_X * CELL_SIZE;
-const WORLD_H = BOARD_CELLS_Y * CELL_SIZE;
-const TICK_MS = 145;
-
-type Direction = "up" | "down" | "left" | "right";
-
-function isOppositeDirection(next: Direction, current: Direction) {
-  return (
-    (next === "up" && current === "down") ||
-    (next === "down" && current === "up") ||
-    (next === "left" && current === "right") ||
-    (next === "right" && current === "left")
-  );
-}
-
-function randomFood(exclude: Array<{ x: number; y: number }>) {
-  const occupied = new Set(exclude.map((point) => `${point.x}:${point.y}`));
-  const freeCells: Array<{ x: number; y: number }> = [];
-
-  for (let x = 0; x < BOARD_CELLS_X; x += 1) {
-    for (let y = 0; y < BOARD_CELLS_Y; y += 1) {
-      const key = `${x}:${y}`;
-      if (!occupied.has(key)) {
-        freeCells.push({ x, y });
-      }
-    }
-  }
-
-  if (freeCells.length === 0) {
-    return { x: 0, y: 0 };
-  }
-
-  const index = Math.floor(Math.random() * freeCells.length);
-  return freeCells[index];
-}
-
+/**
+ * Оболонка Snake: вибір рівня + «Готовий» (синхронно через сервер) і сама гра обраного рівня.
+ * Рівень 1 — локальна класика; рівень 2 (та майбутні `kind: "server"`) — гру веде сервер.
+ */
 export default function SnakeMiniGame({
   open,
+  roomId,
+  socket,
+  userId,
   myScore,
   peerScore,
   peerName,
   peerState,
-  peerPingMs,
+  pingMs,
   onClose,
   onScoreChange,
   onStateChange,
 }: SnakeMiniGameProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const directionRef = useRef<Direction>("right");
-  const nextDirectionRef = useRef<Direction>("right");
-  const peerStateRef = useRef<SnakeRuntimeState | null>(peerState);
-  const peerNameRef = useRef(peerName);
+  const t = useTranslations("snake");
+  const { session, selectLevel, setReady, sendDirection } = useSnakeSession({
+    socket,
+    roomId,
+    open,
+  });
 
-  const [bestScore, setBestScore] = useState(0);
-  const [isStarted, setIsStarted] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
+  const peerId = useMemo(
+    () => session?.players.find((id) => id !== userId) ?? null,
+    [session, userId],
+  );
 
-  const isMyWinner = useMemo(() => myScore > peerScore, [myScore, peerScore]);
-  const isPeerWinner = useMemo(() => peerScore > myScore, [peerScore, myScore]);
+  // ── Класика (рівень 1): локальна гра ──
+  const classicCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const classicDirRef = useRef<Dir>("right");
+  const [classicView, setClassicView] = useState(false);
+  const [classicRunId, setClassicRunId] = useState(0);
+  const [classicRunning, setClassicRunning] = useState(false);
+  const [classicResult, setClassicResult] = useState<number | null>(null);
+  const seenRunRef = useRef<number | null>(null);
+  const [bests, setBests] = useState<Record<number, number>>({});
 
-  useEffect(() => {
-    peerStateRef.current = peerState;
-  }, [peerState]);
-
-  useEffect(() => {
-    peerNameRef.current = peerName;
-  }, [peerName]);
-
-  useEffect(() => {
-    if (!open) {
-      setIsStarted(false);
-      setIsGameOver(false);
-      return;
-    }
-    setIsStarted(false);
-    setIsGameOver(false);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !isStarted) {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) {
-      return;
-    }
-
-    let alive = true;
-    let score = 0;
-    let lastTick = 0;
-
-    let snake: Array<{ x: number; y: number }> = [
-      { x: Math.floor(BOARD_CELLS_X / 2), y: Math.floor(BOARD_CELLS_Y / 2) },
-      {
-        x: Math.floor(BOARD_CELLS_X / 2) - 1,
-        y: Math.floor(BOARD_CELLS_Y / 2),
-      },
-      {
-        x: Math.floor(BOARD_CELLS_X / 2) - 2,
-        y: Math.floor(BOARD_CELLS_Y / 2),
-      },
-    ];
-
-    let food = randomFood(snake);
-
-    const drawCell = (x: number, y: number, fillStyle: string, radius = 4) => {
-      const px = x * CELL_SIZE;
-      const py = y * CELL_SIZE;
-      ctx.fillStyle = fillStyle;
-      ctx.beginPath();
-      ctx.roundRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2, radius);
-      ctx.fill();
-    };
-
-    const draw = () => {
-      ctx.clearRect(0, 0, WORLD_W, WORLD_H);
-
-      const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-      bg.addColorStop(0, "#1b1713");
-      bg.addColorStop(1, "#10100f");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
-
-      ctx.strokeStyle = "rgba(212,177,89,0.09)";
-      for (let x = 0; x <= WORLD_W; x += CELL_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, WORLD_H);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= WORLD_H; y += CELL_SIZE) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(WORLD_W, y);
-        ctx.stroke();
-      }
-
-      drawCell(food.x, food.y, "#f2ca58", 5);
-
-      const peer = peerStateRef.current;
-      if (peer?.alive) {
-        for (const point of peer.body ?? []) {
-          drawCell(point.x, point.y, "rgba(106, 196, 255, 0.72)", 4);
-        }
-        drawCell(peer.headX, peer.headY, "rgba(169, 224, 255, 0.95)", 5);
-
-        ctx.fillStyle = "rgba(169, 224, 255, 0.95)";
-        ctx.font = "600 10px Inter, sans-serif";
-        const textX = Math.max(
-          4,
-          Math.min(WORLD_W - 100, peer.headX * CELL_SIZE - 10),
-        );
-        const textY = Math.max(10, peer.headY * CELL_SIZE - 6);
-        ctx.fillText(peerNameRef.current, textX, textY);
-      }
-
-      for (let i = snake.length - 1; i >= 0; i -= 1) {
-        const point = snake[i];
-        drawCell(
-          point.x,
-          point.y,
-          i === 0 ? "#efe4cd" : "#c8b083",
-          i === 0 ? 5 : 4,
-        );
-      }
-    };
-
-    const emitState = () => {
-      const head = snake[0];
-      onStateChange?.({
-        headX: head.x,
-        headY: head.y,
-        foodX: food.x,
-        foodY: food.y,
-        body: snake,
-        score,
-        alive,
-      });
-    };
-
-    const tick = () => {
-      if (!alive) {
-        return;
-      }
-
-      if (
-        !isOppositeDirection(nextDirectionRef.current, directionRef.current)
-      ) {
-        directionRef.current = nextDirectionRef.current;
-      }
-
-      const head = snake[0];
-      const next = { x: head.x, y: head.y };
-
-      if (directionRef.current === "up") next.y -= 1;
-      if (directionRef.current === "down") next.y += 1;
-      if (directionRef.current === "left") next.x -= 1;
-      if (directionRef.current === "right") next.x += 1;
-
-      const outOfBounds =
-        next.x < 0 ||
-        next.y < 0 ||
-        next.x >= BOARD_CELLS_X ||
-        next.y >= BOARD_CELLS_Y;
-      const hitSelf = snake.some(
-        (point) => point.x === next.x && point.y === next.y,
-      );
-
-      if (outOfBounds || hitSelf) {
-        alive = false;
-        setIsGameOver(true);
-        setIsStarted(false);
-        emitState();
-        draw();
-        return;
-      }
-
-      const nextSnake = [next, ...snake];
-      const ateFood = next.x === food.x && next.y === food.y;
-      if (!ateFood) {
-        nextSnake.pop();
-      } else {
-        score += 1;
-        onScoreChange(score);
-        setBestScore((prev) => (score > prev ? score : prev));
-        food = randomFood(nextSnake);
-      }
-
-      snake = nextSnake;
-      emitState();
-      draw();
-    };
-
-    const loop = (ts: number) => {
-      if (!alive) {
-        frameRef.current = null;
-        return;
-      }
-
-      if (lastTick === 0) {
-        lastTick = ts;
-        draw();
-      }
-
-      if (ts - lastTick >= TICK_MS) {
-        lastTick = ts;
-        tick();
-      }
-
-      frameRef.current = requestAnimationFrame(loop);
-    };
-
-    frameRef.current = requestAnimationFrame(loop);
-
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-    };
-  }, [isStarted, onScoreChange, onStateChange, open]);
+  // ── Дуель (рівень 2) ──
+  const duelDirectionRef = useRef<((dir: Dir) => void) | null>(null);
+  const registerDirectionHandler = useCallback((handler: ((dir: Dir) => void) | null) => {
+    duelDirectionRef.current = handler;
+  }, []);
+  const [lobbyOverride, setLobbyOverride] = useState(false);
+  const [record, setRecord] = useState({ wins: 0, losses: 0 });
+  const recordedMatchRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
+      seenRunRef.current = null;
+      setClassicView(false);
+      setClassicRunning(false);
+      setClassicResult(null);
+      setLobbyOverride(false);
       return;
     }
+    setBests({ 1: getBestScore(userId, 1), 2: getBestScore(userId, 2) });
+  }, [open, userId]);
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      if (key === "arrowup" || key === "w") {
-        nextDirectionRef.current = "up";
-      }
-      if (key === "arrowdown" || key === "s") {
-        nextDirectionRef.current = "down";
-      }
-      if (key === "arrowleft" || key === "a") {
-        nextDirectionRef.current = "left";
-      }
-      if (key === "arrowright" || key === "d") {
-        nextDirectionRef.current = "right";
-      }
-    };
+  useEffect(() => {
+    if (peerId) setRecord(getDuelRecord(userId, peerId));
+  }, [peerId, userId]);
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  // Обидва натиснули «Готовий» на рівні 1: сервер збільшує classicRun — стартуємо локальну класику.
+  useEffect(() => {
+    if (!session) return;
+    if (seenRunRef.current === null) {
+      seenRunRef.current = session.classicRun;
+      return;
+    }
+    if (session.classicRun > seenRunRef.current) {
+      seenRunRef.current = session.classicRun;
+      classicDirRef.current = "right";
+      setClassicResult(null);
+      setClassicView(true);
+      setClassicRunning(true);
+      setClassicRunId((id) => id + 1);
+      onScoreChange(0);
+    }
+  }, [session, onScoreChange]);
 
-  if (!open) {
-    return null;
-  }
+  // Серверна дуель зрушила з місця — повертаємось до поля й скидаємо ручний «показати лобі».
+  useEffect(() => {
+    if (session?.phase === "countdown") setLobbyOverride(false);
+  }, [session?.phase]);
+
+  // Результат матчу пишемо в статистику один раз.
+  useEffect(() => {
+    if (!session) return;
+    if (session.phase !== "matchEnd") {
+      recordedMatchRef.current = false;
+      return;
+    }
+    if (recordedMatchRef.current || !peerId || !session.matchWinner) return;
+    recordedMatchRef.current = true;
+    setRecord(recordDuelResult(userId, peerId, session.matchWinner === userId ? "win" : "loss"));
+  }, [session, peerId, userId]);
+
+  const handleClassicGameOver = useCallback(
+    (score: number) => {
+      setClassicRunning(false);
+      setClassicResult(score);
+      setBests((prev) => ({ ...prev, 1: recordBestScore(userId, 1, score) }));
+    },
+    [userId],
+  );
+
+  const onClassicDirection = useCallback((dir: Dir) => {
+    classicDirRef.current = dir;
+  }, []);
+  useKeyboardDirection(open && classicRunning, onClassicDirection);
+  useSwipeDirection(classicCanvasRef, open && classicRunning, onClassicDirection);
+
+  const onDuelInput = useCallback(
+    (dir: Dir) => sendDirection(dir),
+    [sendDirection],
+  );
+
+  if (!open) return null;
+
+  const level = getSnakeLevel(session?.level ?? 1);
+  const serverGameActive =
+    session != null &&
+    level.kind === "server" &&
+    session.phase !== "lobby" &&
+    !lobbyOverride &&
+    peerId != null;
+  const view: "duel" | "classic" | "lobby" = serverGameActive
+    ? "duel"
+    : classicView
+      ? "classic"
+      : "lobby";
+
+  const myReady = session ? Boolean(session.ready[userId]) : false;
+  const peerReady = session && peerId ? Boolean(session.ready[peerId]) : false;
+  const canChangeLevel = session != null && (session.phase === "lobby" || session.phase === "matchEnd");
+  const myWins = session?.wins[userId] ?? 0;
+  const peerWins = peerId ? (session?.wins[peerId] ?? 0) : 0;
+
+  const pressDirection = (dir: Dir) => {
+    if (view === "duel") duelDirectionRef.current?.(dir);
+    else classicDirRef.current = dir;
+  };
+
+  const handleChangeLevelFromResult = () => {
+    setClassicView(false);
+    setLobbyOverride(true);
+  };
+
+  const handlePlayAgain = () => {
+    setClassicView(false);
+    setLobbyOverride(true);
+    setReady(true);
+  };
+
+  const scoreLine =
+    view === "duel" && session ? (
+      <>
+        {t("me")} {myWins} {myWins > peerWins || session.matchWinner === userId ? "👑" : ""} :{" "}
+        {peerWins} {peerName} {peerWins > myWins || session.matchWinner === peerId ? "👑" : ""}
+      </>
+    ) : view === "classic" ? (
+      <>
+        {t("me")}: {myScore} {myScore > peerScore ? "👑" : ""} · {peerName}: {peerScore}{" "}
+        {peerScore > myScore ? "👑" : ""}
+      </>
+    ) : peerId ? (
+      <>{t("versus", { name: peerName, wins: record.wins, losses: record.losses })}</>
+    ) : null;
+
+  const showControls = view !== "lobby";
+  const hint = view === "duel" ? t("hintDuel") : t("hintClassic");
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -338,82 +225,160 @@ export default function SnakeMiniGame({
       >
         <div className={styles.topRow}>
           <p className={styles.title}>Snake</p>
-          <button
-            type="button"
-            className={styles.close}
-            onClick={onClose}
-            aria-label="Закрыть"
-          >
+          <button type="button" className={styles.close} onClick={onClose} aria-label={t("close")}>
             ×
           </button>
         </div>
-        <p className={styles.scoreLine}>
-          Я: {myScore} {isMyWinner ? "👑" : ""} · {peerName}: {peerScore}{" "}
-          {isPeerWinner ? "👑" : ""}
-        </p>
-        <p className={styles.bestLine}>Лучший результат: {bestScore}</p>
-        <p className={styles.bestLine}>
-          Пинг: {peerPingMs != null ? `${peerPingMs} мс` : "—"}
-        </p>
-        <p className={styles.hint}>Управление: WASD или стрелки</p>
+        {scoreLine ? <p className={styles.scoreLine}>{scoreLine}</p> : null}
+        {view === "classic" ? (
+          <p className={styles.bestLine}>{t("best", { n: bests[1] ?? 0 })}</p>
+        ) : null}
+        {view === "duel" && peerId ? (
+          <p className={styles.bestLine}>
+            {t("versus", { name: peerName, wins: record.wins, losses: record.losses })}
+          </p>
+        ) : null}
+        {pingMs != null ? (
+          <p className={styles.bestLine}>
+            {t("ping")}: {t("pingValue", { ms: pingMs })}
+          </p>
+        ) : null}
 
-        <div className={styles.canvasWrap}>
-          <canvas
-            ref={canvasRef}
-            className={styles.canvas}
-            width={WORLD_W}
-            height={WORLD_H}
-          />
-          {!isStarted ? (
-            <div className={styles.startOverlay}>
+        {view === "lobby" ? (
+          <div className={styles.lobby}>
+            <p className={styles.lobbyTitle}>{t("chooseLevel")}</p>
+            <div className={styles.levelList} role="radiogroup" aria-label={t("chooseLevel")}>
+              {SNAKE_LEVELS.map((def) => (
+                <button
+                  key={def.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={(session?.level ?? 1) === def.id}
+                  disabled={!canChangeLevel}
+                  className={`${styles.levelCard} ${
+                    (session?.level ?? 1) === def.id ? styles.levelCardActive : ""
+                  }`}
+                  onClick={() => selectLevel(def.id)}
+                >
+                  <span className={styles.levelName}>{t(def.nameKey)}</span>
+                  <span className={styles.levelDesc}>{t(def.descKey)}</span>
+                </button>
+              ))}
+            </div>
+            {!session ? <p className={styles.hint}>{t("connecting")}</p> : null}
+            {session && peerId ? (
+              <div className={styles.readyRow}>
+                <span className={myReady ? styles.readyOk : undefined}>
+                  {t("me")}: {myReady ? t("readyState") : t("notReady")}
+                </span>
+                <span className={peerReady ? styles.readyOk : undefined}>
+                  {peerName}: {peerReady ? t("readyState") : t("waitingState")}
+                </span>
+              </div>
+            ) : null}
+            {classicResult !== null ? (
+              <p className={styles.bestLine}>{t("lastResult", { n: classicResult })}</p>
+            ) : null}
+            <div className={styles.lobbyActions}>
               <button
                 type="button"
                 className={styles.startButton}
-                onClick={() => {
-                  onScoreChange(0);
-                  setIsGameOver(false);
-                  directionRef.current = "right";
-                  nextDirectionRef.current = "right";
-                  setIsStarted(true);
-                }}
+                disabled={!session}
+                onClick={() => setReady(!myReady)}
               >
-                {isGameOver ? "Рестарт" : "Старт"}
+                {myReady ? t("cancelReady") : t("ready")}
               </button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <>
+            <p className={styles.hint}>{hint}</p>
+            <div className={styles.canvasWrap}>
+              {view === "classic" ? (
+                <>
+                  <SnakeClassicBoard
+                    runId={classicRunId}
+                    running={classicRunning}
+                    directionRef={classicDirRef}
+                    peerState={peerState}
+                    peerName={peerName}
+                    onScoreChange={onScoreChange}
+                    onStateChange={onStateChange}
+                    onGameOver={handleClassicGameOver}
+                    canvasRef={classicCanvasRef}
+                  />
+                  {!classicRunning && classicResult !== null ? (
+                    <div className={styles.resultPanel}>
+                      <span className={styles.overlayTitle}>{t("gameOver")}</span>
+                      <span className={styles.overlaySub}>{t("score", { n: classicResult })}</span>
+                      <div className={styles.overlayActions}>
+                        <button type="button" className={styles.startButton} onClick={handlePlayAgain}>
+                          {t("playAgain")}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={handleChangeLevelFromResult}
+                        >
+                          {t("changeLevel")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : session && peerId ? (
+                <SnakeDuelBoard
+                  session={session}
+                  myId={userId}
+                  peerId={peerId}
+                  peerName={peerName}
+                  onDirection={onDuelInput}
+                  onRematch={handlePlayAgain}
+                  onChangeLevel={handleChangeLevelFromResult}
+                  myRecordLabel={t("versus", {
+                    name: peerName,
+                    wins: record.wins,
+                    losses: record.losses,
+                  })}
+                  registerDirectionHandler={registerDirectionHandler}
+                />
+              ) : null}
+            </div>
+          </>
+        )}
 
-        <div className={styles.mobileControls}>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlUp}`}
-            onClick={() => (nextDirectionRef.current = "up")}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlLeft}`}
-            onClick={() => (nextDirectionRef.current = "left")}
-          >
-            ←
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlRight}`}
-            onClick={() => (nextDirectionRef.current = "right")}
-          >
-            →
-          </button>
-          <button
-            type="button"
-            className={`${styles.controlButton} ${styles.controlDown}`}
-            onClick={() => (nextDirectionRef.current = "down")}
-          >
-            ↓
-          </button>
-        </div>
+        {showControls ? (
+          <div className={styles.mobileControls}>
+            {(
+              [
+                ["up", "↑", styles.controlUp, t("dirUp")],
+                ["left", "←", styles.controlLeft, t("dirLeft")],
+                ["right", "→", styles.controlRight, t("dirRight")],
+                ["down", "↓", styles.controlDown, t("dirDown")],
+              ] as const
+            ).map(([dir, glyph, cls, label]) => (
+              <button
+                key={dir}
+                type="button"
+                aria-label={label}
+                className={`${styles.controlButton} ${cls}`}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  pressDirection(dir);
+                }}
+              >
+                {glyph}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
+
+// Розміри класичного поля (для зовнішніх споживачів / тестів).
+export const SNAKE_CLASSIC_WORLD = {
+  w: CLASSIC_BOARD_CELLS_X * CELL_SIZE,
+  h: CLASSIC_BOARD_CELLS_Y * CELL_SIZE,
+};

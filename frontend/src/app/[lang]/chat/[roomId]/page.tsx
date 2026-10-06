@@ -3921,6 +3921,10 @@ export default function ChatPageDetails() {
         />
         <SnakeMiniGame
           open={isSnakeOpen}
+          roomId={effectiveSocketRoomId}
+          // eslint-disable-next-line react-hooks/refs -- гра підписується на живий сокет кімнати
+          socket={isSocketConnected ? socketRef.current : null}
+          userId={user?.id ?? ""}
           myScore={mySnakeScore}
           peerScore={peerSnakeScore}
           peerName={
@@ -3929,7 +3933,7 @@ export default function ChatPageDetails() {
             "Собеседник"
           }
           peerState={peerSnakeState}
-          peerPingMs={gamePingMs}
+          pingMs={gamePingMs}
           onClose={() => setIsSnakeOpen(false)}
           onScoreChange={handleSnakeScoreChange}
           onStateChange={handleSnakeStateChange}
