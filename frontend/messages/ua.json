@@ -325,6 +325,7 @@
     "uploadErrTooLarge": "Файл завеликий (ліміт 50 МБ, фото — 12 МБ).",
     "uploadErrUnsupported": "Цей тип файлу не підтримується.",
     "uploadErrAuth": "Потрібно увійти знову.",
+    "uploadErrVoice": "Не вдалося надіслати голосове. Спробуйте ще раз",
     "uploadErrServer": "Не вдалося надіслати.",
     "uploadRetry": "Повторити",
     "uploadDismiss": "Прибрати",

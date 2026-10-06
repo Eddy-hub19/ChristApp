@@ -49,6 +49,7 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
 import { useChatUploads } from "@/hooks/useChatUploads";
 import type { RecordedVoice } from "@/hooks/useVoiceRecorder";
+import { voiceDurationFromTimer } from "@/lib/voiceDuration";
 import {
   MAX_ATTACHMENT_SIZE_BYTES,
   MAX_FILES_PER_PICK,
@@ -3042,9 +3043,7 @@ export default function ChatPageDetails() {
         kind: "voice",
         file: audioBlob,
         fileName: voiceFileName(audioBlob.type),
-        voiceDuration: recorded.durationMs
-          ? Math.round(recorded.durationMs / 100) / 10
-          : undefined,
+        voiceDuration: voiceDurationFromTimer(recorded.durationMs),
         replyToId,
       });
     },

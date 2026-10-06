@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/imageProcessing";
 import { UploadError, uploadWithProgress } from "@/lib/chatUpload";
+import { sanitizeVoiceDuration } from "@/lib/voiceDuration";
 
 export type PendingUploadKind = "voice" | "image" | "file";
 
@@ -21,7 +22,6 @@ export type PendingUpload = {
   progress: number;
   status: "preparing" | "uploading" | "error";
   errorCode?: UploadError["code"];
-  errorText?: string;
 };
 
 type EnqueueInput = {
@@ -108,8 +108,10 @@ export function useChatUploads({ resolveTarget, apiBase }: Options) {
         form.append("roomId", target.roomId);
         if (job.replyToId) form.append("replyToId", job.replyToId);
         if (job.caption) form.append("caption", job.caption);
-        if (job.kind === "voice" && job.voiceDuration != null) {
-          form.append("voiceDuration", String(job.voiceDuration));
+        if (job.kind === "voice") {
+          // Некоректну тривалість не шлемо: сервер збереже голосове і без неї.
+          const duration = sanitizeVoiceDuration(job.voiceDuration);
+          if (duration != null) form.append("voiceDuration", String(duration));
         }
 
         const controller = new AbortController();
@@ -127,6 +129,8 @@ export function useChatUploads({ resolveTarget, apiBase }: Options) {
       } catch (error) {
         const uploadError =
           error instanceof UploadError ? error : new UploadError("server");
+        // Технічні деталі — лише в консоль, користувачу показуємо переклад.
+        console.warn("[chat-upload] failed", job.kind, uploadError.code, uploadError.status, uploadError.message);
         if (uploadError.code === "canceled") {
           remove(localId);
           return false;
@@ -134,7 +138,6 @@ export function useChatUploads({ resolveTarget, apiBase }: Options) {
         patch(localId, {
           status: "error",
           errorCode: uploadError.code,
-          errorText: uploadError.message !== uploadError.code ? uploadError.message : undefined,
         });
         return false;
       }

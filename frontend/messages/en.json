@@ -325,6 +325,7 @@
     "uploadErrTooLarge": "File is too large (50 MB limit, photos 12 MB).",
     "uploadErrUnsupported": "This file type isn't supported.",
     "uploadErrAuth": "Please sign in again.",
+    "uploadErrVoice": "Couldn't send the voice message. Please try again",
     "uploadErrServer": "Couldn't send.",
     "uploadRetry": "Retry",
     "uploadDismiss": "Dismiss",
