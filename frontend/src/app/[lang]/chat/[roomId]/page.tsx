@@ -612,12 +612,12 @@ export default function ChatPageDetails() {
   const [peerDoodleScore, setPeerDoodleScore] = useState(0);
   const [peerDoodleState, setPeerDoodleState] =
     useState<DoodleRuntimeState | null>(null);
-  const [peerDoodlePingMs, setPeerDoodlePingMs] = useState<number | null>(null);
+  /** Реальный RTT до сервера (ack сокета), а не разница часов двух устройств. */
+  const [gamePingMs, setGamePingMs] = useState<number | null>(null);
   const [mySnakeScore, setMySnakeScore] = useState(0);
   const [peerSnakeScore, setPeerSnakeScore] = useState(0);
   const [peerSnakeState, setPeerSnakeState] =
     useState<SnakeRuntimeState | null>(null);
-  const [peerSnakePingMs, setPeerSnakePingMs] = useState<number | null>(null);
   const [socketAuthEpoch, setSocketAuthEpoch] = useState(0);
   const userIdRef = useRef<string | undefined>(undefined);
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null);
@@ -756,6 +756,40 @@ export default function ChatPageDetails() {
     /** Без цього офлайн-запит «паузиться» назавжди й не дає ні даних, ні помилки. */
     networkMode: "always",
   });
+
+  // Пинг игры: круговой путь до сервера через ack сокета; пока измерения нет (или сервер не ответил) — «—».
+  const isGameOpen = isDoodleOpen || isSnakeOpen;
+  useEffect(() => {
+    if (!isGameOpen || !isSocketConnected) {
+      setGamePingMs(null);
+      return;
+    }
+    let cancelled = false;
+    const measure = () => {
+      const socket = socketRef.current;
+      if (!socket?.connected) return;
+      const startedAt = performance.now();
+      let settled = false;
+      // Без ответа сервера (старый бэкенд, обрыв) показываем «—», а не устаревшее число.
+      const giveUp = window.setTimeout(() => {
+        if (settled || cancelled) return;
+        settled = true;
+        setGamePingMs(null);
+      }, 4000);
+      socket.emit("latency-ping", () => {
+        window.clearTimeout(giveUp);
+        if (settled || cancelled) return;
+        settled = true;
+        setGamePingMs(Math.max(1, Math.round(performance.now() - startedAt)));
+      });
+    };
+    measure();
+    const timer = window.setInterval(measure, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [isGameOpen, isSocketConnected]);
 
   const markRoomAsRead = useCallback(() => {
     const target = effectiveSocketRoomId;
@@ -1125,7 +1159,6 @@ export default function ChatPageDetails() {
     setMyDoodleScore(0);
     setPeerDoodleScore(0);
     setPeerDoodleState(null);
-    setPeerDoodlePingMs(null);
   }, [roomId, routeRoomId, effectiveSocketRoomId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -1880,7 +1913,6 @@ export default function ChatPageDetails() {
       setMyDoodleScore(0);
       setPeerDoodleScore(0);
       setPeerDoodleState(null);
-      setPeerDoodlePingMs(null);
     };
     socket.on("doodle-reset", onDoodleReset);
 
@@ -1909,13 +1941,6 @@ export default function ChatPageDetails() {
         return;
       }
 
-      if (Number.isFinite(state.emittedAt)) {
-        const lag = Math.max(
-          0,
-          Math.min(9999, Math.floor(Date.now() - Number(state.emittedAt))),
-        );
-        setPeerDoodlePingMs(lag);
-      }
 
       setPeerDoodleState({
         x: state.x,
@@ -1957,7 +1982,6 @@ export default function ChatPageDetails() {
       setMySnakeScore(0);
       setPeerSnakeScore(0);
       setPeerSnakeState(null);
-      setPeerSnakePingMs(null);
     };
     socket.on("snake-reset", onSnakeReset);
 
@@ -1987,13 +2011,6 @@ export default function ChatPageDetails() {
         return;
       }
 
-      if (Number.isFinite(state.emittedAt)) {
-        const lag = Math.max(
-          0,
-          Math.min(9999, Math.floor(Date.now() - Number(state.emittedAt))),
-        );
-        setPeerSnakePingMs(lag);
-      }
 
       const body = Array.isArray(state.body)
         ? state.body
@@ -2923,7 +2940,6 @@ export default function ChatPageDetails() {
     setMyDoodleScore(0);
     setPeerDoodleScore(0);
     setPeerDoodleState(null);
-    setPeerDoodlePingMs(null);
     socket.emit("doodle-reset", { roomId: effectiveSocketRoomId });
     socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "doodle" });
   }, [directChatTargetUserId, effectiveSocketRoomId]);
@@ -2979,7 +2995,6 @@ export default function ChatPageDetails() {
     setMySnakeScore(0);
     setPeerSnakeScore(0);
     setPeerSnakeState(null);
-    setPeerSnakePingMs(null);
     socket.emit("snake-reset", { roomId: effectiveSocketRoomId });
     socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "snake" });
   }, [directChatTargetUserId, effectiveSocketRoomId]);
@@ -3915,7 +3930,7 @@ export default function ChatPageDetails() {
             "Собеседник"
           }
           peerState={peerDoodleState}
-          peerPingMs={peerDoodlePingMs}
+          pingMs={gamePingMs}
           onClose={() => setIsDoodleOpen(false)}
           onScoreChange={handleDoodleScoreChange}
           onStateChange={handleDoodleStateChange}
@@ -3930,7 +3945,7 @@ export default function ChatPageDetails() {
             "Собеседник"
           }
           peerState={peerSnakeState}
-          peerPingMs={peerSnakePingMs}
+          peerPingMs={gamePingMs}
           onClose={() => setIsSnakeOpen(false)}
           onScoreChange={handleSnakeScoreChange}
           onStateChange={handleSnakeStateChange}

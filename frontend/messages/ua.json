@@ -182,6 +182,14 @@
     "ariaWithProgress": "Розділи: прочитано {read} з {total}. {subtitle}",
     "ariaStart": "Розділи: відкрити Біблію й почати читання"
   },
+  "doodle": {
+    "ping": "Пінг",
+    "pingValue": "{ms} мс",
+    "themeDawn": "Світанок",
+    "themeDay": "Небо",
+    "themeNight": "Зорі",
+    "themeHeaven": "Небеса"
+  },
   "chat": {
     "globalChatTitle": "Загальний чат для всіх",
     "shareWithJesusTitle": "Поділись з Ісусом",

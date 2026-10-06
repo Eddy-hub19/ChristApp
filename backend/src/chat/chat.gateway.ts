@@ -924,6 +924,12 @@ export class ChatGateway
     client.emit('gameSession', this.serializeGameSession(session));
   }
 
+  /** Замер круговой задержки для игр: клиент считает время до ack. */
+  @SubscribeMessage('latency-ping')
+  handleLatencyPing() {
+    return { ok: true };
+  }
+
   @SubscribeMessage('doodle-score')
   async handleDoodleScore(
     @MessageBody() body: DoodleScorePayload,
