@@ -66,6 +66,33 @@ describe('GameActivityService', () => {
     expect(s.snapshot('r1').every((a) => !a.joinable)).toBe(true);
   });
 
+  describe('Snake modes', () => {
+    it('Classic stays joinable at any time; Duel only while its second seat is free', () => {
+      const s = new GameActivityService();
+      s.set('s1', ed, 'r1', 'snake', 0, 'classic');
+      expect(s.snapshot('r1')[0]).toMatchObject({ mode: 'classic', joinable: true });
+      // второй в Дуэли: Дуэль joinable (одно из двух мест свободно), Класика тоже
+      s.set('s2', neko, 'r1', 'snake', 1, 'duel');
+      const both = s.snapshot('r1');
+      expect(both.find((a) => a.userId === 'u1')?.joinable).toBe(true);
+      expect(both.find((a) => a.userId === 'u2')?.joinable).toBe(true);
+      // оба в Дуэли — мест нет
+      s.set('s1', ed, 'r1', 'snake', 2, 'duel');
+      expect(s.snapshot('r1').every((a) => !a.joinable)).toBe(true);
+    });
+
+    it('a mode switch is a visible change; the same mode is a silent heartbeat; junk modes are ignored', () => {
+      const s = new GameActivityService();
+      expect(s.set('s1', ed, 'r1', 'snake', 0, 'classic')).toEqual(['r1']);
+      expect(s.set('s1', ed, 'r1', 'snake', 1, 'classic')).toEqual([]);
+      expect(s.set('s1', ed, 'r1', 'snake', 2, 'duel')).toEqual(['r1']);
+      expect(s.set('s1', ed, 'r1', 'snake', 3, 'hacker')).toEqual(['r1']);
+      expect(s.snapshot('r1')[0]).not.toHaveProperty('mode');
+      s.set('s2', neko, 'r1', 'filword', 4, 'duel');
+      expect(s.snapshot('r1').find((a) => a.userId === 'u2')).not.toHaveProperty('mode');
+    });
+  });
+
   it('collapses several sockets of one user into one activity', () => {
     const s = new GameActivityService();
     s.set('s1', ed, 'r1', 'snake', 0);

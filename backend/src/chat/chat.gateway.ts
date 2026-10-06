@@ -777,7 +777,8 @@ export class ChatGateway
   /** `game: null` — гру закрито; повтор тієї ж гри раз на ~15 с — heartbeat. */
   @SubscribeMessage('presence:activity')
   async handleGameActivity(
-    @MessageBody() body: { roomId?: string; game?: string | null },
+    @MessageBody()
+    body: { roomId?: string; game?: string | null; mode?: unknown },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
@@ -803,6 +804,7 @@ export class ChatGateway
       roomId,
       game,
       now,
+      body?.mode,
     );
     await this.broadcastGameActivity(changed);
   }

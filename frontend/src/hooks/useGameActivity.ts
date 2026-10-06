@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type createSocket from "socket.io-client";
 import {
   GAME_ACTIVITY_HEARTBEAT_MS,
@@ -20,13 +20,32 @@ export function useGameActivityBroadcast(
   socket: ActivitySocket | null,
   roomId: string | null | undefined,
   game: GameId | null,
+  /** Режим гри (Snake: classic | duel): від нього залежить, чи є місце для «Приєднатися». */
+  mode: string | null = null,
 ) {
+  // Режим змінюється посеред гри (Класика → Дуель): шлемо одразу, не перезапускаючи heartbeat і не блимаючи статусом.
+  const modeRef = useRef(mode);
+  const sendNowRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    modeRef.current = mode;
+    sendNowRef.current?.();
+  }, [mode]);
+
   useEffect(() => {
     if (!socket || !game || !isGameActivityRoom(roomId)) return;
 
     let heartbeat: ReturnType<typeof setInterval> | null = null;
     const send = (value: GameId | null) => {
-      if (socket.connected) socket.emit("presence:activity", { roomId, game: value });
+      if (socket.connected) {
+        socket.emit("presence:activity", {
+          roomId,
+          game: value,
+          ...(value && modeRef.current ? { mode: modeRef.current } : {}),
+        });
+      }
+    };
+    sendNowRef.current = () => {
+      if (heartbeat) send(game);
     };
     const stop = () => {
       if (heartbeat) clearInterval(heartbeat);
@@ -52,6 +71,7 @@ export function useGameActivityBroadcast(
     if (document.visibilityState !== "hidden") start();
 
     return () => {
+      sendNowRef.current = null;
       socket.off("connect", start);
       document.removeEventListener("visibilitychange", onVisibility);
       stop();

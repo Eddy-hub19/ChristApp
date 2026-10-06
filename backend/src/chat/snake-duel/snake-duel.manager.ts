@@ -1,12 +1,12 @@
 import {
-  createRound,
+  createMatch,
   isDir,
   queueDirection,
-  stepRound,
+  stepMatch,
   type Cell,
   type Dir,
   type DuelLevel,
-  type DuelRound,
+  type DuelMatch,
 } from './snake-duel.engine';
 import {
   CLASSIC_LEVEL_ID,
@@ -18,14 +18,12 @@ export type SnakePhase =
   | 'lobby'
   | 'countdown'
   | 'playing'
-  | 'roundEnd'
   | 'paused'
   | 'matchEnd';
 
 /** Скільки чекаємо на повернення гравця, перш ніж зарахувати перемогу суперникові. */
 export const DISCONNECT_GRACE_MS = 5000;
 export const COUNTDOWN_SECONDS = 3;
-export const ROUND_END_PAUSE_MS = 2000;
 
 type Emit = (roomId: string, event: string, payload: unknown) => void;
 
@@ -36,14 +34,9 @@ type Session = {
   phase: SnakePhase;
   ready: Record<string, boolean>;
   present: Record<string, boolean>;
-  /// Лічильник запусків рівня 1: клієнти стартують класику, коли він змінюється.
-  classicRun: number;
-  // Дуель
-  round: DuelRound | null;
-  roundNumber: number;
-  wins: Record<string, number>;
+  // Дуель: один безперервний матч до targetScore штучок
+  match: DuelMatch | null;
   countdown: number | null;
-  roundWinner: string | null | undefined; // undefined — раунд ще йде; null — нічия
   matchWinner: string | null;
   endReason: 'score' | 'disconnect' | null;
   pausedFor: string | null;
@@ -54,8 +47,8 @@ type Session = {
 };
 
 /**
- * Серверна гра «Дуель»: лобі, відлік, фіксований тік, зіткнення, матч до N перемог,
- * пауза при відключенні. Клієнти лише шлють напрямок і малюють те, що надіслав сервер.
+ * Серверна гра «Дуель»: лобі, відлік, фіксований тік, зіткнення, гонка до N штучок з відродженням,
+ * пауза при відключенні. «Класика» (рівень 1) сюди не входить: вона локальна й стартує без «Готовий». Клієнти лише шлють напрямок і малюють те, що надіслав сервер.
  */
 export class SnakeDuelManager {
   private readonly sessions = new Map<string, Session>();
@@ -77,12 +70,8 @@ export class SnakeDuelManager {
         phase: 'lobby',
         ready: { [players[0]]: false, [players[1]]: false },
         present: { [players[0]]: false, [players[1]]: false },
-        classicRun: 0,
-        round: null,
-        roundNumber: 0,
-        wins: { [players[0]]: 0, [players[1]]: 0 },
+        match: null,
         countdown: null,
-        roundWinner: undefined,
         matchWinner: null,
         endReason: null,
         pausedFor: null,
@@ -131,6 +120,8 @@ export class SnakeDuelManager {
     const s = this.session(roomId, players);
     if (!this.isPlayer(s, userId)) return;
     if (s.phase !== 'lobby' && s.phase !== 'matchEnd') return;
+    // «Готовий» потрібен лише для серверної Дуелі; Класика стартує локально без підтвердження.
+    if (s.level === CLASSIC_LEVEL_ID) return;
     s.ready[userId] = ready;
     if (s.ready[s.players[0]] && s.ready[s.players[1]]) {
       s.ready = { [s.players[0]]: false, [s.players[1]]: false };
@@ -142,10 +133,10 @@ export class SnakeDuelManager {
 
   input(roomId: string, players: [string, string], userId: string, dir: unknown) {
     const s = this.session(roomId, players);
-    if (!isDir(dir) || !s.round || !this.isPlayer(s, userId)) return;
+    if (!isDir(dir) || !s.match || !this.isPlayer(s, userId)) return;
     // Натискання, що прийшли під час відліку, теж ставимо в буфер: перший тік їх застосує.
     if (s.phase !== 'playing' && s.phase !== 'countdown') return;
-    queueDirection(s.round, s.players[0] === userId ? 0 : 1, dir as Dir);
+    queueDirection(s.match, s.players[0] === userId ? 0 : 1, dir as Dir);
   }
 
   /** Гравець відкрив/закрив гру або втратив з'єднання. */
@@ -155,7 +146,7 @@ export class SnakeDuelManager {
     if (s.present[userId] === present) return;
     s.present[userId] = present;
 
-    const live = s.phase === 'countdown' || s.phase === 'playing' || s.phase === 'roundEnd';
+    const live = s.phase === 'countdown' || s.phase === 'playing';
     if (!present && live) {
       this.pause(s, userId);
       return;
@@ -191,11 +182,8 @@ export class SnakeDuelManager {
 
   private resetMatchState(s: Session) {
     this.clearTimers(s);
-    s.round = null;
-    s.roundNumber = 0;
-    s.wins = { [s.players[0]]: 0, [s.players[1]]: 0 };
+    s.match = null;
     s.countdown = null;
-    s.roundWinner = undefined;
     s.matchWinner = null;
     s.endReason = null;
     s.pausedFor = null;
@@ -203,23 +191,10 @@ export class SnakeDuelManager {
   }
 
   private start(s: Session) {
-    if (s.level === CLASSIC_LEVEL_ID) {
-      s.classicRun += 1;
-      s.phase = 'lobby';
-      this.broadcast(s);
-      return;
-    }
     const level = this.levelOf(s);
     if (!level) return;
     this.resetMatchState(s);
-    s.roundNumber = 0;
-    this.beginRound(s, level);
-  }
-
-  private beginRound(s: Session, level: DuelLevel) {
-    s.roundNumber += 1;
-    s.round = createRound(level, this.rng);
-    s.roundWinner = undefined;
+    s.match = createMatch(level, this.rng);
     this.runCountdown(s, COUNTDOWN_SECONDS);
   }
 
@@ -244,7 +219,7 @@ export class SnakeDuelManager {
 
   private beginPlaying(s: Session) {
     const level = this.levelOf(s);
-    if (!level || !s.round) return;
+    if (!level || !s.match) return;
     s.phase = 'playing';
     this.broadcast(s);
     this.scheduleTick(s, level);
@@ -253,47 +228,31 @@ export class SnakeDuelManager {
   /** setTimeout-ланцюжок (а не setInterval): `tickMs` може залежати від номера ходу. */
   private scheduleTick(s: Session, level: DuelLevel) {
     if (s.tickTimer) clearTimeout(s.tickTimer);
-    const round = s.round;
-    if (!round) return;
-    s.tickTimer = setTimeout(() => this.tick(s, level), level.tickMs(round.tick));
+    const match = s.match;
+    if (!match) return;
+    s.tickTimer = setTimeout(() => this.tick(s, level), level.tickMs(match.tick));
   }
 
   private tick(s: Session, level: DuelLevel) {
     s.tickTimer = null;
-    const round = s.round;
-    if (!round || s.phase !== 'playing') return;
+    const match = s.match;
+    if (!match || s.phase !== 'playing') return;
 
-    const result = stepRound(round, level);
-    if (result.outcome === 'continue') {
+    const result = stepMatch(match, level, this.rng);
+    if (result.winner === null) {
       this.broadcast(s);
       this.scheduleTick(s, level);
       return;
     }
-
-    const winnerId =
-      result.outcome === 'win0'
-        ? s.players[0]
-        : result.outcome === 'win1'
-          ? s.players[1]
-          : null;
-    this.finishRound(s, level, winnerId);
+    this.finishMatch(s, s.players[result.winner]);
   }
 
-  private finishRound(s: Session, level: DuelLevel, winnerId: string | null) {
+  private finishMatch(s: Session, winnerId: string) {
     this.clearTimers(s);
-    s.phase = 'roundEnd';
-    s.roundWinner = winnerId;
-    if (winnerId) s.wins[winnerId] = (s.wins[winnerId] ?? 0) + 1;
-
-    if (winnerId && s.wins[winnerId] >= level.winsToTake) {
-      s.phase = 'matchEnd';
-      s.matchWinner = winnerId;
-      s.endReason = 'score';
-      this.broadcast(s);
-      return;
-    }
+    s.phase = 'matchEnd';
+    s.matchWinner = winnerId;
+    s.endReason = 'score';
     this.broadcast(s);
-    s.phaseTimer = setTimeout(() => this.beginRound(s, level), ROUND_END_PAUSE_MS);
   }
 
   // ───────────── відключення ─────────────
@@ -311,18 +270,9 @@ export class SnakeDuelManager {
     if (s.graceTimer) clearTimeout(s.graceTimer);
     s.graceTimer = null;
     s.pausedFor = null;
-    const level = this.levelOf(s);
-    const was = s.resumePhase;
     s.resumePhase = null;
-    if (!level) return;
-    if (was === 'roundEnd') {
-      // Результат раунду вже зафіксований: продовжуємо з наступного.
-      s.phase = 'roundEnd';
-      this.broadcast(s);
-      s.phaseTimer = setTimeout(() => this.beginRound(s, level), ROUND_END_PAUSE_MS);
-      return;
-    }
-    // Раунд ставили на паузу посеред ходу: чесно відновлюємо через повний відлік.
+    if (!this.levelOf(s)) return;
+    // Матч стоїть на місці (рахунок, їжа, змійки): чесно відновлюємо через повний відлік.
     this.runCountdown(s, COUNTDOWN_SECONDS);
   }
 
@@ -334,7 +284,6 @@ export class SnakeDuelManager {
     s.endReason = 'disconnect';
     s.pausedFor = null;
     s.resumePhase = null;
-    if (winner) s.wins[winner] = Math.max(s.wins[winner] ?? 0, this.levelOf(s)?.winsToTake ?? 0);
     this.broadcast(s);
   }
 
@@ -355,25 +304,32 @@ export class SnakeDuelManager {
 
   private serialize(s: Session) {
     const level = this.levelOf(s);
-    const round = s.round;
+    const match = s.match;
     const duel =
-      level && round
+      level && match
         ? {
             board: level.board,
-            tickMs: level.tickMs(round.tick),
-            winsToTake: level.winsToTake,
-            round: s.roundNumber,
-            tick: round.tick,
-            food: round.food as Cell,
+            tickMs: level.tickMs(match.tick),
+            targetScore: level.targetScore,
+            tick: match.tick,
+            food: match.food as Cell,
             snakes: Object.fromEntries(
-              s.players.map((id, i) => [
-                id,
-                {
-                  body: round.snakes[i].body,
-                  dir: round.snakes[i].dir,
-                  alive: round.snakes[i].alive,
-                },
-              ]),
+              s.players.map((id, i) => {
+                const snake = match.snakes[i];
+                return [
+                  id,
+                  {
+                    body: snake.body,
+                    dir: snake.dir,
+                    alive: snake.alive,
+                    /** Скільки ще до відродження (мс); 0 — жива. */
+                    respawnInMs:
+                      snake.alive || snake.respawnAtTick === null
+                        ? 0
+                        : Math.max(0, (snake.respawnAtTick - match.tick) * level.tickMs(match.tick)),
+                  },
+                ];
+              }),
             ),
             obstacles: level.obstacles(),
           }
@@ -387,10 +343,10 @@ export class SnakeDuelManager {
       phase: s.phase,
       ready: s.ready,
       present: s.present,
-      classicRun: s.classicRun,
-      wins: s.wins,
+      scores: Object.fromEntries(
+        s.players.map((id, i) => [id, match ? match.scores[i] : 0]),
+      ),
       countdown: s.countdown,
-      roundWinner: s.roundWinner === undefined ? undefined : s.roundWinner,
       matchWinner: s.matchWinner,
       endReason: s.endReason,
       pausedFor: s.pausedFor,
