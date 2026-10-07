@@ -12,7 +12,7 @@ import {
   type HistoryEntry,
   type Level,
 } from './guess-character.engine';
-import { BIBLE_BOOKS } from './data/bible-books';
+import { characterCard } from './data/character-card';
 import { CHARACTERS, getCharacter } from './data/characters';
 import { TRAITS, TRAIT_GROUPS } from './data/traits';
 import type { Character } from './data/character.types';
@@ -437,33 +437,11 @@ export class GuessCharacterManager {
       secretId: isHider && s.phase === 'asking' ? s.secret : null,
       candidates,
       reveal:
-        over && secret && last ? { ...last, card: this.card(secret) } : null,
+        over && secret && last ? { ...last, card: characterCard(secret) } : null,
       results: s.results,
       matchWinner: s.matchWinner,
       matches: s.matchLog,
       serverTime: this.now(),
-    };
-  }
-
-  private card(c: Character) {
-    return {
-      id: c.id,
-      name: c.name,
-      about: c.about,
-      refs: c.refs.map((r) => {
-        const book = BIBLE_BOOKS[r.book - 1];
-        const tail = `${r.chapter}${r.verses ? `:${r.verses}` : ''}`;
-        return {
-          book: r.book,
-          chapter: r.chapter,
-          verses: r.verses ?? null,
-          label: {
-            ua: `${book.ua} ${tail}`,
-            ru: `${book.ru} ${tail}`,
-            en: `${book.en} ${tail}`,
-          },
-        };
-      }),
     };
   }
 }

@@ -1,0 +1,1059 @@
+{
+  "images": [
+    {
+      "id": "adam-1",
+      "characterIds": [
+        "adam",
+        "eve"
+      ],
+      "file": "/puzzles/adam-1-adam-and-eve-are-driven-out-of-eden.webp",
+      "width": 1274,
+      "height": 1600,
+      "title": "Adam and Eve Are Driven out of Eden",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:003.Adam and Eve Are Driven out of Eden.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:003.Adam_and_Eve_Are_Driven_out_of_Eden.jpg"
+    },
+    {
+      "id": "eve-1",
+      "characterIds": [
+        "eve"
+      ],
+      "file": "/puzzles/eve-1-the-creation-of-eve.webp",
+      "width": 1284,
+      "height": 1600,
+      "title": "The Creation of Eve",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:002.The Creation of Eve.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:002.The_Creation_of_Eve.jpg"
+    },
+    {
+      "id": "cain-1",
+      "characterIds": [
+        "cain",
+        "abel"
+      ],
+      "file": "/puzzles/cain-1-cain-slays-abel.webp",
+      "width": 1270,
+      "height": 1600,
+      "title": "Cain Slays Abel",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:005.Cain Slays Abel.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:005.Cain_Slays_Abel.jpg"
+    },
+    {
+      "id": "noah-1",
+      "characterIds": [
+        "noah"
+      ],
+      "file": "/puzzles/noah-1-a-dove-is-sent-forth-from-the-ark.webp",
+      "width": 1284,
+      "height": 1600,
+      "title": "A Dove Is Sent Forth from the Ark",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:008.A Dove Is Sent Forth from the Ark.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:008.A_Dove_Is_Sent_Forth_from_the_Ark.jpg"
+    },
+    {
+      "id": "noah-2",
+      "characterIds": [
+        "noah"
+      ],
+      "file": "/puzzles/noah-2-noah-curses-ham-and-canaan.webp",
+      "width": 1278,
+      "height": 1600,
+      "title": "Noah Curses Ham and Canaan",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:009.Noah Curses Ham and Canaan.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:009.Noah_Curses_Ham_and_Canaan.jpg"
+    },
+    {
+      "id": "abraham-1",
+      "characterIds": [
+        "abraham"
+      ],
+      "file": "/puzzles/abraham-1-abraham-and-the-three-angels.webp",
+      "width": 1276,
+      "height": 1600,
+      "title": "Abraham and the Three Angels",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:012.Abraham and the Three Angels.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:012.Abraham_and_the_Three_Angels.jpg"
+    },
+    {
+      "id": "abraham-2",
+      "characterIds": [
+        "abraham"
+      ],
+      "file": "/puzzles/abraham-2-the-testing-of-abraham-s-faith.webp",
+      "width": 1269,
+      "height": 1600,
+      "title": "The Testing of Abraham's Faith",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:016.The Testing of Abraham's Faith.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:016.The_Testing_of_Abraham%27s_Faith.jpg"
+    },
+    {
+      "id": "abraham-3",
+      "characterIds": [
+        "abraham"
+      ],
+      "file": "/puzzles/abraham-3-abraham-goes-to-the-land-of-canaan.webp",
+      "width": 1600,
+      "height": 1268,
+      "title": "Abraham Goes to the Land of Canaan",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:011.Abraham Goes to the Land of Canaan.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:011.Abraham_Goes_to_the_Land_of_Canaan.jpg"
+    },
+    {
+      "id": "sarah-1",
+      "characterIds": [
+        "sarah"
+      ],
+      "file": "/puzzles/sarah-1-the-burial-of-sarah.webp",
+      "width": 1274,
+      "height": 1600,
+      "title": "The Burial of Sarah",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:017.The Burial of Sarah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:017.The_Burial_of_Sarah.jpg"
+    },
+    {
+      "id": "isaac-1",
+      "characterIds": [
+        "isaac",
+        "rebekah"
+      ],
+      "file": "/puzzles/isaac-1-the-meeting-of-isaac-and-rebekah.webp",
+      "width": 1298,
+      "height": 1600,
+      "title": "The Meeting of Isaac and Rebekah",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:019.The Meeting of Isaac and Rebekah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:019.The_Meeting_of_Isaac_and_Rebekah.jpg"
+    },
+    {
+      "id": "isaac-2",
+      "characterIds": [
+        "isaac",
+        "jacob"
+      ],
+      "file": "/puzzles/isaac-2-isaac-blesses-jacob.webp",
+      "width": 1250,
+      "height": 1600,
+      "title": "Isaac Blesses Jacob",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:020.Isaac Blesses Jacob.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:020.Isaac_Blesses_Jacob.jpg"
+    },
+    {
+      "id": "rebekah-1",
+      "characterIds": [
+        "rebekah"
+      ],
+      "file": "/puzzles/rebekah-1-eliezer-and-rebekah-at-the-well.webp",
+      "width": 1256,
+      "height": 1600,
+      "title": "Eliezer and Rebekah at the Well",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:018.Eliezer and Rebekah at the Well.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:018.Eliezer_and_Rebekah_at_the_Well.jpg"
+    },
+    {
+      "id": "jacob-1",
+      "characterIds": [
+        "jacob"
+      ],
+      "file": "/puzzles/jacob-1-jacob-wrestles-with-the-angel.webp",
+      "width": 1301,
+      "height": 1600,
+      "title": "Jacob Wrestles with the Angel",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:024.Jacob Wrestles with the Angel.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:024.Jacob_Wrestles_with_the_Angel.jpg"
+    },
+    {
+      "id": "jacob-2",
+      "characterIds": [
+        "jacob"
+      ],
+      "file": "/puzzles/jacob-2-jacob-s-dream.webp",
+      "width": 1289,
+      "height": 1600,
+      "title": "Jacob's Dream",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:021.Jacob's Dream.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:021.Jacob%27s_Dream.jpg"
+    },
+    {
+      "id": "joseph-1",
+      "characterIds": [
+        "joseph"
+      ],
+      "file": "/puzzles/joseph-1-joseph-is-sold-by-his-brothers.webp",
+      "width": 1282,
+      "height": 1600,
+      "title": "Joseph Is Sold by His Brothers",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:026.Joseph Is Sold by His Brothers.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:026.Joseph_Is_Sold_by_His_Brothers.jpg"
+    },
+    {
+      "id": "joseph-2",
+      "characterIds": [
+        "joseph"
+      ],
+      "file": "/puzzles/joseph-2-joseph-reveals-himself-to-his-brothers.webp",
+      "width": 1282,
+      "height": 1600,
+      "title": "Joseph Reveals Himself to His Brothers",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:028.Joseph Reveals Himself to His Brothers.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:028.Joseph_Reveals_Himself_to_His_Brothers.jpg"
+    },
+    {
+      "id": "pharaoh-1",
+      "characterIds": [
+        "pharaoh",
+        "joseph"
+      ],
+      "file": "/puzzles/pharaoh-1-joseph-interprets-pharaoh-s-dream.webp",
+      "width": 1281,
+      "height": 1600,
+      "title": "Joseph Interprets Pharaoh's Dream",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:027.Joseph Interprets Pharaoh's Dream.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:027.Joseph_Interprets_Pharaoh%27s_Dream.jpg"
+    },
+    {
+      "id": "pharaoh-2",
+      "characterIds": [
+        "pharaoh"
+      ],
+      "file": "/puzzles/pharaoh-2-the-egyptians-ask-moses-to-depart.webp",
+      "width": 1264,
+      "height": 1600,
+      "title": "The Egyptians Ask Moses to Depart",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:036.The Egyptians Ask Moses to Depart.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:036.The_Egyptians_Ask_Moses_to_Depart.jpg"
+    },
+    {
+      "id": "moses-1",
+      "characterIds": [
+        "moses"
+      ],
+      "file": "/puzzles/moses-1-the-finding-of-moses.webp",
+      "width": 1289,
+      "height": 1600,
+      "title": "The Finding of Moses",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:031.The Finding of Moses.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:031.The_Finding_of_Moses.jpg"
+    },
+    {
+      "id": "moses-2",
+      "characterIds": [
+        "moses"
+      ],
+      "file": "/puzzles/moses-2-moses-comes-down-from-mount-sinai.webp",
+      "width": 1260,
+      "height": 1600,
+      "title": "Moses Comes Down from Mount Sinai",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:039.Moses Comes Down from Mount Sinai.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:039.Moses_Comes_Down_from_Mount_Sinai.jpg"
+    },
+    {
+      "id": "moses-3",
+      "characterIds": [
+        "moses"
+      ],
+      "file": "/puzzles/moses-3-the-giving-of-the-law-on-mount-sinai.webp",
+      "width": 1600,
+      "height": 1284,
+      "title": "The Giving of the Law on Mount Sinai",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:038.The Giving of the Law on Mount Sinai.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:038.The_Giving_of_the_Law_on_Mount_Sinai.jpg"
+    },
+    {
+      "id": "aaron-1",
+      "characterIds": [
+        "aaron",
+        "moses"
+      ],
+      "file": "/puzzles/aaron-1-moses-and-aaron-appear-before-pharaoh.webp",
+      "width": 1284,
+      "height": 1600,
+      "title": "Moses and Aaron Appear before Pharaoh",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:032.Moses and Aaron Appear before Pharaoh.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:032.Moses_and_Aaron_Appear_before_Pharaoh.jpg"
+    },
+    {
+      "id": "joshua-1",
+      "characterIds": [
+        "joshua"
+      ],
+      "file": "/puzzles/joshua-1-joshua-commands-the-sun-to-stand-still.webp",
+      "width": 1600,
+      "height": 1276,
+      "title": "Joshua Commands the Sun to Stand Still",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:051.Joshua Commands the Sun to Stand Still.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:051.Joshua_Commands_the_Sun_to_Stand_Still.jpg"
+    },
+    {
+      "id": "joshua-2",
+      "characterIds": [
+        "joshua"
+      ],
+      "file": "/puzzles/joshua-2-the-walls-of-jericho-fall-down.webp",
+      "width": 1269,
+      "height": 1600,
+      "title": "The Walls of Jericho Fall Down",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:046.The Walls of Jericho Fall Down.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:046.The_Walls_of_Jericho_Fall_Down.jpg"
+    },
+    {
+      "id": "rahab-1",
+      "characterIds": [
+        "rahab",
+        "joshua"
+      ],
+      "file": "/puzzles/rahab-1-joshua-spares-rahab.webp",
+      "width": 1263,
+      "height": 1600,
+      "title": "Joshua Spares Rahab",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:047.Joshua Spares Rahab.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:047.Joshua_Spares_Rahab.jpg"
+    },
+    {
+      "id": "deborah-1",
+      "characterIds": [
+        "deborah"
+      ],
+      "file": "/puzzles/deborah-1-deborah-praises-jael.webp",
+      "width": 1278,
+      "height": 1600,
+      "title": "Deborah Praises Jael",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:053.Deborah Praises Jael.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:053.Deborah_Praises_Jael.jpg"
+    },
+    {
+      "id": "gideon-1",
+      "characterIds": [
+        "gideon"
+      ],
+      "file": "/puzzles/gideon-1-gideon-chooses-300-soldiers.webp",
+      "width": 1600,
+      "height": 1275,
+      "title": "Gideon Chooses 300 Soldiers",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:054.Gideon Chooses 300 Soldiers.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:054.Gideon_Chooses_300_Soldiers.jpg"
+    },
+    {
+      "id": "samson-1",
+      "characterIds": [
+        "samson"
+      ],
+      "file": "/puzzles/samson-1-samson-slays-a-lion.webp",
+      "width": 1288,
+      "height": 1600,
+      "title": "Samson Slays a Lion",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:060.Samson Slays a Lion.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:060.Samson_Slays_a_Lion.jpg"
+    },
+    {
+      "id": "samson-2",
+      "characterIds": [
+        "samson"
+      ],
+      "file": "/puzzles/samson-2-the-death-of-samson.webp",
+      "width": 1270,
+      "height": 1600,
+      "title": "The Death of Samson",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:064.The Death of Samson.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:064.The_Death_of_Samson.jpg"
+    },
+    {
+      "id": "samson-3",
+      "characterIds": [
+        "samson",
+        "delilah"
+      ],
+      "file": "/puzzles/samson-3-samson-and-delilah.webp",
+      "width": 1288,
+      "height": 1600,
+      "title": "Samson and Delilah",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:063.Samson and Delilah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:063.Samson_and_Delilah.jpg"
+    },
+    {
+      "id": "ruth-1",
+      "characterIds": [
+        "ruth",
+        "boaz"
+      ],
+      "file": "/puzzles/ruth-1-ruth-and-boaz.webp",
+      "width": 1271,
+      "height": 1600,
+      "title": "Ruth and Boaz",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:069.Ruth and Boaz.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:069.Ruth_and_Boaz.jpg"
+    },
+    {
+      "id": "ruth-2",
+      "characterIds": [
+        "ruth"
+      ],
+      "file": "/puzzles/ruth-2-naomi-and-her-daughters-in-law.webp",
+      "width": 1281,
+      "height": 1600,
+      "title": "Naomi and Her Daughters-in-Law",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:068.Naomi and Her Daughters-in-Law.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:068.Naomi_and_Her_Daughters-in-Law.jpg"
+    },
+    {
+      "id": "samuel-1",
+      "characterIds": [
+        "samuel",
+        "saul"
+      ],
+      "file": "/puzzles/samuel-1-samuel-blesses-saul.webp",
+      "width": 1285,
+      "height": 1600,
+      "title": "Samuel Blesses Saul",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:070A.Samuel Blesses Saul.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:070A.Samuel_Blesses_Saul.jpg"
+    },
+    {
+      "id": "saul-1",
+      "characterIds": [
+        "saul",
+        "samuel"
+      ],
+      "file": "/puzzles/saul-1-saul-and-the-witch-of-endor.webp",
+      "width": 1263,
+      "height": 1600,
+      "title": "Saul and the Witch of Endor",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:075.Saul and the Witch of Endor.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:075.Saul_and_the_Witch_of_Endor.jpg"
+    },
+    {
+      "id": "david-1",
+      "characterIds": [
+        "david",
+        "goliath"
+      ],
+      "file": "/puzzles/david-1-david-slays-goliath.webp",
+      "width": 1273,
+      "height": 1600,
+      "title": "David Slays Goliath",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:071A.David Slays Goliath.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:071A.David_Slays_Goliath.jpg"
+    },
+    {
+      "id": "solomon-1",
+      "characterIds": [
+        "solomon"
+      ],
+      "file": "/puzzles/solomon-1-the-judgment-of-solomon.webp",
+      "width": 1300,
+      "height": 1600,
+      "title": "The Judgment of Solomon",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:084.The Judgment of Solomon.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:084.The_Judgment_of_Solomon.jpg"
+    },
+    {
+      "id": "solomon-2",
+      "characterIds": [
+        "solomon"
+      ],
+      "file": "/puzzles/solomon-2-solomon-receives-the-queen-of-sheba.webp",
+      "width": 1276,
+      "height": 1600,
+      "title": "Solomon Receives the Queen of Sheba",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:086.Solomon Receives the Queen of Sheba.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:086.Solomon_Receives_the_Queen_of_Sheba.jpg"
+    },
+    {
+      "id": "elijah-1",
+      "characterIds": [
+        "elijah"
+      ],
+      "file": "/puzzles/elijah-1-elijah-ascends-to-heaven-in-a-chariot-of-fire.webp",
+      "width": 1257,
+      "height": 1600,
+      "title": "Elijah Ascends to Heaven in a Chariot of Fire",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:095.Elijah Ascends to Heaven in a Chariot of Fire.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:095.Elijah_Ascends_to_Heaven_in_a_Chariot_of_Fire.jpg"
+    },
+    {
+      "id": "elijah-2",
+      "characterIds": [
+        "elijah"
+      ],
+      "file": "/puzzles/elijah-2-the-prophets-of-baal-are-slaughtered.webp",
+      "width": 1261,
+      "height": 1600,
+      "title": "The Prophets of Baal Are Slaughtered",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:090.The Prophets of Baal Are Slaughtered.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:090.The_Prophets_of_Baal_Are_Slaughtered.jpg"
+    },
+    {
+      "id": "elijah-3",
+      "characterIds": [
+        "elijah"
+      ],
+      "file": "/puzzles/elijah-3-elijah-is-nourished-by-an-angel.webp",
+      "width": 1275,
+      "height": 1600,
+      "title": "Elijah Is Nourished by an Angel",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:091.Elijah Is Nourished by an Angel.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:091.Elijah_Is_Nourished_by_an_Angel.jpg"
+    },
+    {
+      "id": "jezebel-1",
+      "characterIds": [
+        "jezebel"
+      ],
+      "file": "/puzzles/jezebel-1-the-death-of-jezebel.webp",
+      "width": 1270,
+      "height": 1600,
+      "title": "The Death of Jezebel",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:097.The Death of Jezebel.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:097.The_Death_of_Jezebel.jpg"
+    },
+    {
+      "id": "isaiah-1",
+      "characterIds": [
+        "isaiah"
+      ],
+      "file": "/puzzles/isaiah-1-the-prophet-isaiah.webp",
+      "width": 1280,
+      "height": 1600,
+      "title": "The Prophet Isaiah",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:120.The Prophet Isaiah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:120.The_Prophet_Isaiah.jpg"
+    },
+    {
+      "id": "jeremiah-1",
+      "characterIds": [
+        "jeremiah"
+      ],
+      "file": "/puzzles/jeremiah-1-the-prophet-jeremiah.webp",
+      "width": 1272,
+      "height": 1600,
+      "title": "The Prophet Jeremiah",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:123.The Prophet Jeremiah.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:123.The_Prophet_Jeremiah.jpg"
+    },
+    {
+      "id": "ezekiel-1",
+      "characterIds": [
+        "ezekiel"
+      ],
+      "file": "/puzzles/ezekiel-1-the-prophet-ezekiel.webp",
+      "width": 1274,
+      "height": 1600,
+      "title": "The Prophet Ezekiel",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:126.The Prophet Ezekiel.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:126.The_Prophet_Ezekiel.jpg"
+    },
+    {
+      "id": "ezekiel-2",
+      "characterIds": [
+        "ezekiel"
+      ],
+      "file": "/puzzles/ezekiel-2-ezekiel-s-vision-of-the-valley-of-dry-bones.webp",
+      "width": 1296,
+      "height": 1600,
+      "title": "Ezekiel’s Vision of the Valley of Dry Bones",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:127.Ezekiel’s Vision of the Valley of Dry Bones.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:127.Ezekiel%E2%80%99s_Vision_of_the_Valley_of_Dry_Bones.jpg"
+    },
+    {
+      "id": "daniel-1",
+      "characterIds": [
+        "daniel"
+      ],
+      "file": "/puzzles/daniel-1-daniel-in-the-lions-den.webp",
+      "width": 1263,
+      "height": 1600,
+      "title": "Daniel in the Lions' Den",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:131.Daniel in the Lions' Den.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:131.Daniel_in_the_Lions%27_Den.jpg"
+    },
+    {
+      "id": "daniel-2",
+      "characterIds": [
+        "daniel"
+      ],
+      "file": "/puzzles/daniel-2-daniel-interprets-the-writing-on-the-wall.webp",
+      "width": 1278,
+      "height": 1600,
+      "title": "Daniel Interprets the Writing on the Wall",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:130.Daniel Interprets the Writing on the Wall.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:130.Daniel_Interprets_the_Writing_on_the_Wall.jpg"
+    },
+    {
+      "id": "esther-1",
+      "characterIds": [
+        "esther"
+      ],
+      "file": "/puzzles/esther-1-esther-before-the-king.webp",
+      "width": 1277,
+      "height": 1600,
+      "title": "Esther Before the King",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:115.Esther Before the King.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:115.Esther_Before_the_King.jpg"
+    },
+    {
+      "id": "esther-2",
+      "characterIds": [
+        "esther",
+        "haman"
+      ],
+      "file": "/puzzles/esther-2-esther-accuses-haman.webp",
+      "width": 1271,
+      "height": 1600,
+      "title": "Esther Accuses Haman",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:117.Esther Accuses Haman.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:117.Esther_Accuses_Haman.jpg"
+    },
+    {
+      "id": "mordecai-1",
+      "characterIds": [
+        "mordecai",
+        "haman"
+      ],
+      "file": "/puzzles/mordecai-1-the-triumph-of-mordecai.webp",
+      "width": 1270,
+      "height": 1600,
+      "title": "The Triumph of Mordecai",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:116.The Triumph of Mordecai.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:116.The_Triumph_of_Mordecai.jpg"
+    },
+    {
+      "id": "nehemiah-1",
+      "characterIds": [
+        "nehemiah"
+      ],
+      "file": "/puzzles/nehemiah-1-nehemiah-views-the-ruins-of-jerusalem-s-walls.webp",
+      "width": 1288,
+      "height": 1600,
+      "title": "Nehemiah Views the Ruins of Jerusalem's Walls",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:108.Nehemiah Views the Ruins of Jerusalem's Walls.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:108.Nehemiah_Views_the_Ruins_of_Jerusalem%27s_Walls.jpg"
+    },
+    {
+      "id": "job-1",
+      "characterIds": [
+        "job"
+      ],
+      "file": "/puzzles/job-1-job-hears-of-his-misfortunes.webp",
+      "width": 1273,
+      "height": 1600,
+      "title": "Job Hears of His Misfortunes",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:118.Job Hears of His Misfortunes.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:118.Job_Hears_of_His_Misfortunes.jpg"
+    },
+    {
+      "id": "job-2",
+      "characterIds": [
+        "job"
+      ],
+      "file": "/puzzles/job-2-job-speaks-with-his-friends.webp",
+      "width": 1293,
+      "height": 1600,
+      "title": "Job Speaks with His Friends",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:119.Job Speaks with His Friends.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:119.Job_Speaks_with_His_Friends.jpg"
+    },
+    {
+      "id": "jonah-1",
+      "characterIds": [
+        "jonah"
+      ],
+      "file": "/puzzles/jonah-1-jonah-is-spewed-forth-by-the-whale.webp",
+      "width": 1278,
+      "height": 1600,
+      "title": "Jonah Is Spewed Forth by the Whale",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:137.Jonah Is Spewed Forth by the Whale.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:137.Jonah_Is_Spewed_Forth_by_the_Whale.jpg"
+    },
+    {
+      "id": "jonah-2",
+      "characterIds": [
+        "jonah"
+      ],
+      "file": "/puzzles/jonah-2-jonah-preaches-to-the-ninevites.webp",
+      "width": 1276,
+      "height": 1600,
+      "title": "Jonah Preaches to the Ninevites",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:138.Jonah Preaches to the Ninevites.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:138.Jonah_Preaches_to_the_Ninevites.jpg"
+    },
+    {
+      "id": "abel-1",
+      "characterIds": [
+        "abel"
+      ],
+      "file": "/puzzles/abel-1-cain-and-abel-offer-their-sacrifices.webp",
+      "width": 1290,
+      "height": 1600,
+      "title": "Cain and Abel Offer Their Sacrifices",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:004.Cain and Abel Offer Their Sacrifices.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:004.Cain_and_Abel_Offer_Their_Sacrifices.jpg"
+    },
+    {
+      "id": "lot-1",
+      "characterIds": [
+        "lot"
+      ],
+      "file": "/puzzles/lot-1-lot-flees-as-sodom-and-gomorrah-burn.webp",
+      "width": 1283,
+      "height": 1600,
+      "title": "Lot Flees as Sodom and Gomorrah Burn",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:013.Lot Flees as Sodom and Gomorrah Burn.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:013.Lot_Flees_as_Sodom_and_Gomorrah_Burn.jpg"
+    },
+    {
+      "id": "david-2",
+      "characterIds": [
+        "david"
+      ],
+      "file": "/puzzles/david-2-david-and-jonathan.webp",
+      "width": 1270,
+      "height": 1600,
+      "title": "David and Jonathan",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:073A.David and Jonathan.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:073A.David_and_Jonathan.jpg"
+    },
+    {
+      "id": "jesus-4",
+      "characterIds": [
+        "jesus"
+      ],
+      "file": "/puzzles/jesus-4-dore-bible-sermon-on-the-mount.webp",
+      "width": 1186,
+      "height": 1600,
+      "title": "Dore Bible Sermon on the Mount",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Dore Bible Sermon on the Mount.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dore_Bible_Sermon_on_the_Mount.jpg"
+    },
+    {
+      "id": "peter-1",
+      "characterIds": [
+        "peter"
+      ],
+      "file": "/puzzles/peter-1-st-peter-denying-christ.webp",
+      "width": 750,
+      "height": 1033,
+      "title": "St Peter Denying Christ",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Gustave Doré, St Peter Denying Christ.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gustave_Dor%C3%A9,_St_Peter_Denying_Christ.jpg"
+    },
+    {
+      "id": "judas-1",
+      "characterIds": [
+        "judas",
+        "jesus"
+      ],
+      "file": "/puzzles/judas-1-the-holy-bible-plate-cxli-the-judas-kiss.webp",
+      "width": 1256,
+      "height": 1600,
+      "title": "The Holy Bible - Plate CXLI, The Judas Kiss",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gustave_Dor%C3%A9_-_The_Holy_Bible_-_Plate_CXLI,_The_Judas_Kiss.jpg"
+    },
+    {
+      "id": "jesus-2",
+      "characterIds": [
+        "jesus"
+      ],
+      "file": "/puzzles/jesus-2-crucifixion-of-jesus.webp",
+      "width": 1258,
+      "height": 1600,
+      "title": "Crucifixion of Jesus",
+      "author": "Gustave Doré (engraved by J. Gauchard Brunier)",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Gustave Doré - Crucifixion of Jesus.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gustave_Dor%C3%A9_-_Crucifixion_of_Jesus.jpg"
+    },
+    {
+      "id": "jesus-3",
+      "characterIds": [
+        "jesus"
+      ],
+      "file": "/puzzles/jesus-3-l-ascension.webp",
+      "width": 968,
+      "height": 1600,
+      "title": "L'Ascension",
+      "author": "Gustave Doré",
+      "year": 1879,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Gustave Doré - L'Ascension.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Gustave_Dor%C3%A9_-_L%27Ascension.jpg"
+    },
+    {
+      "id": "stephen-1",
+      "characterIds": [
+        "stephen"
+      ],
+      "file": "/puzzles/stephen-1-the-death-of-stephen.webp",
+      "width": 1283,
+      "height": 1600,
+      "title": "The Death of Stephen",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:The Death of Stephen (89485178).jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Death_of_Stephen_(89485178).jpg"
+    },
+    {
+      "id": "paul-1",
+      "characterIds": [
+        "paul"
+      ],
+      "file": "/puzzles/paul-1-paul-addresses-the-crowd-after-his-arrest.webp",
+      "width": 1292,
+      "height": 1600,
+      "title": "Paul Addresses the Crowd After His Arrest",
+      "author": "Gustave Doré",
+      "year": 1866,
+      "license": "Public domain",
+      "licenseUrl": null,
+      "commonsTitle": "File:Paul Addresses the Crowd After His Arrest (89485728).jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Paul_Addresses_the_Crowd_After_His_Arrest_(89485728).jpg"
+    }
+  ]
+}
