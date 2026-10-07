@@ -40,6 +40,11 @@ export const STICKER_PACKS: StickerPack[] = [
     label: "Мілі",
     stickers: makeStickers("kawaii", "/stickers/kawaii/kawaii", "svg", 12),
   },
+  {
+    id: "minions",
+    label: "Міньйони",
+    stickers: makeStickers("minions", "/stickers/minions/minions", "svg", 12),
+  },
 ];
 
 export const STICKERS: StickerItem[] = STICKER_PACKS.flatMap(
