@@ -172,8 +172,8 @@ export default function PuzzleMiniGame({
   const elapsed = puzzle ? Math.max(0, (puzzle.finishedAt ?? (clock || puzzle.startedAt)) - puzzle.startedAt) : 0;
   const reveal = session?.reveal ?? null;
 
-  const imageCaption = (image: { title: string; author: string; year: number }) =>
-    t("imageCaption", { title: image.title, author: image.author, year: image.year });
+  const imageCaption = (image: { title: string; author: string; year: number; dateLabel?: string }) =>
+    t("imageCaption", { title: image.title, author: image.author, year: image.dateLabel ?? image.year });
 
   // ───────────── лобі ─────────────
 
@@ -270,7 +270,7 @@ export default function PuzzleMiniGame({
         {selectedImage && selectedCharacter ? (
           <figure className={styles.preview}>
             {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю власного WebP: оптимізатор next/image тут зайвий */}
-            <img src={selectedImage.file} alt={selectedCharacter.name[lang]} className={styles.previewImage} />
+            <img src={selectedImage.url} alt={selectedCharacter.name[lang]} className={styles.previewImage} />
             <figcaption>
               <strong>{selectedCharacter.name[lang]}</strong>
               <span className={styles.muted}>{imageCaption(selectedImage)}</span>
@@ -448,10 +448,12 @@ export default function PuzzleMiniGame({
                 </div>
               ) : null}
               <p className={styles.credit}>
-                {t("creditLine", {
+                {t(reveal.image.source === "Wikimedia Commons" ? "creditLine" : "creditLineSource", {
                   author: reveal.image.author,
                   title: reveal.image.title,
-                  year: reveal.image.year,
+                  year: reveal.image.dateLabel ?? reveal.image.year,
+                  source: reveal.image.source,
+                  license: reveal.image.license,
                 })}{" "}
                 <a href={reveal.image.sourceUrl} target="_blank" rel="noopener noreferrer">
                   {t("creditLink")}

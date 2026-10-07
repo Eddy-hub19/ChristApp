@@ -1,343 +1,1110 @@
 [
-  {
-    "character": "adam",
-    "file": "File:003.Adam and Eve Are Driven out of Eden.jpg"
-  },
-  {
-    "character": "eve",
-    "file": "File:003.Adam and Eve Are Driven out of Eden.jpg"
-  },
-  {
-    "character": "eve",
-    "file": "File:002.The Creation of Eve.jpg"
-  },
-  {
-    "character": "cain",
-    "file": "File:005.Cain Slays Abel.jpg"
-  },
-  {
-    "character": "abel",
-    "file": "File:005.Cain Slays Abel.jpg"
-  },
-  {
-    "character": "abel",
-    "file": "File:004.Cain and Abel Offer Their Sacrifices.jpg",
-    "year": 1866
-  },
-  {
-    "character": "noah",
-    "file": "File:008.A Dove Is Sent Forth from the Ark.jpg"
-  },
-  {
-    "character": "noah",
-    "file": "File:009.Noah Curses Ham and Canaan.jpg"
-  },
-  {
-    "character": "abraham",
-    "file": "File:012.Abraham and the Three Angels.jpg"
-  },
-  {
-    "character": "abraham",
-    "file": "File:016.The Testing of Abraham's Faith.jpg"
-  },
-  {
-    "character": "abraham",
-    "file": "File:011.Abraham Goes to the Land of Canaan.jpg"
-  },
-  {
-    "character": "sarah",
-    "file": "File:017.The Burial of Sarah.jpg"
-  },
-  {
-    "character": "lot",
-    "file": "File:013.Lot Flees as Sodom and Gomorrah Burn.jpg",
-    "year": 1866
-  },
-  {
-    "character": "isaac",
-    "file": "File:019.The Meeting of Isaac and Rebekah.jpg"
-  },
-  {
-    "character": "rebekah",
-    "file": "File:019.The Meeting of Isaac and Rebekah.jpg"
-  },
-  {
-    "character": "isaac",
-    "file": "File:020.Isaac Blesses Jacob.jpg"
-  },
-  {
-    "character": "rebekah",
-    "file": "File:018.Eliezer and Rebekah at the Well.jpg"
-  },
-  {
-    "character": "jacob",
-    "file": "File:024.Jacob Wrestles with the Angel.jpg"
-  },
-  {
-    "character": "jacob",
-    "file": "File:021.Jacob's Dream.jpg"
-  },
-  {
-    "character": "jacob",
-    "file": "File:020.Isaac Blesses Jacob.jpg"
-  },
-  {
-    "character": "joseph",
-    "file": "File:026.Joseph Is Sold by His Brothers.jpg"
-  },
-  {
-    "character": "joseph",
-    "file": "File:028.Joseph Reveals Himself to His Brothers.jpg"
-  },
-  {
-    "character": "pharaoh",
-    "file": "File:027.Joseph Interprets Pharaoh's Dream.jpg"
-  },
-  {
-    "character": "joseph",
-    "file": "File:027.Joseph Interprets Pharaoh's Dream.jpg"
-  },
-  {
-    "character": "pharaoh",
-    "file": "File:036.The Egyptians Ask Moses to Depart.jpg"
-  },
-  {
-    "character": "moses",
-    "file": "File:031.The Finding of Moses.jpg"
-  },
-  {
-    "character": "moses",
-    "file": "File:039.Moses Comes Down from Mount Sinai.jpg"
-  },
-  {
-    "character": "moses",
-    "file": "File:038.The Giving of the Law on Mount Sinai.jpg"
-  },
-  {
-    "character": "aaron",
-    "file": "File:032.Moses and Aaron Appear before Pharaoh.jpg"
-  },
-  {
-    "character": "moses",
-    "file": "File:032.Moses and Aaron Appear before Pharaoh.jpg"
-  },
-  {
-    "character": "joshua",
-    "file": "File:051.Joshua Commands the Sun to Stand Still.jpg"
-  },
-  {
-    "character": "joshua",
-    "file": "File:046.The Walls of Jericho Fall Down.jpg"
-  },
-  {
-    "character": "rahab",
-    "file": "File:047.Joshua Spares Rahab.jpg"
-  },
-  {
-    "character": "joshua",
-    "file": "File:047.Joshua Spares Rahab.jpg"
-  },
-  {
-    "character": "deborah",
-    "file": "File:053.Deborah Praises Jael.jpg"
-  },
-  {
-    "character": "gideon",
-    "file": "File:054.Gideon Chooses 300 Soldiers.jpg"
-  },
-  {
-    "character": "samson",
-    "file": "File:060.Samson Slays a Lion.jpg"
-  },
-  {
-    "character": "samson",
-    "file": "File:064.The Death of Samson.jpg"
-  },
-  {
-    "character": "samson",
-    "file": "File:063.Samson and Delilah.jpg"
-  },
-  {
-    "character": "delilah",
-    "file": "File:063.Samson and Delilah.jpg"
-  },
-  {
-    "character": "ruth",
-    "file": "File:069.Ruth and Boaz.jpg"
-  },
-  {
-    "character": "boaz",
-    "file": "File:069.Ruth and Boaz.jpg"
-  },
-  {
-    "character": "ruth",
-    "file": "File:068.Naomi and Her Daughters-in-Law.jpg"
-  },
-  {
-    "character": "samuel",
-    "file": "File:070A.Samuel Blesses Saul.jpg"
-  },
-  {
-    "character": "saul",
-    "file": "File:070A.Samuel Blesses Saul.jpg"
-  },
-  {
-    "character": "saul",
-    "file": "File:075.Saul and the Witch of Endor.jpg"
-  },
-  {
-    "character": "samuel",
-    "file": "File:075.Saul and the Witch of Endor.jpg"
-  },
-  {
-    "character": "david",
-    "file": "File:071A.David Slays Goliath.jpg"
-  },
-  {
-    "character": "goliath",
-    "file": "File:071A.David Slays Goliath.jpg"
-  },
-  {
-    "character": "david",
-    "file": "File:073A.David and Jonathan.jpg",
-    "year": 1866
-  },
-  {
-    "character": "solomon",
-    "file": "File:084.The Judgment of Solomon.jpg"
-  },
-  {
-    "character": "solomon",
-    "file": "File:086.Solomon Receives the Queen of Sheba.jpg"
-  },
-  {
-    "character": "elijah",
-    "file": "File:095.Elijah Ascends to Heaven in a Chariot of Fire.jpg"
-  },
-  {
-    "character": "elijah",
-    "file": "File:090.The Prophets of Baal Are Slaughtered.jpg"
-  },
-  {
-    "character": "elijah",
-    "file": "File:091.Elijah Is Nourished by an Angel.jpg"
-  },
-  {
-    "character": "jezebel",
-    "file": "File:097.The Death of Jezebel.jpg"
-  },
-  {
-    "character": "isaiah",
-    "file": "File:120.The Prophet Isaiah.jpg"
-  },
-  {
-    "character": "jeremiah",
-    "file": "File:123.The Prophet Jeremiah.jpg"
-  },
-  {
-    "character": "ezekiel",
-    "file": "File:126.The Prophet Ezekiel.jpg"
-  },
-  {
-    "character": "ezekiel",
-    "file": "File:127.Ezekiel’s Vision of the Valley of Dry Bones.jpg"
-  },
-  {
-    "character": "daniel",
-    "file": "File:131.Daniel in the Lions' Den.jpg"
-  },
-  {
-    "character": "daniel",
-    "file": "File:130.Daniel Interprets the Writing on the Wall.jpg"
-  },
-  {
-    "character": "esther",
-    "file": "File:115.Esther Before the King.jpg"
-  },
-  {
-    "character": "esther",
-    "file": "File:117.Esther Accuses Haman.jpg"
-  },
-  {
-    "character": "haman",
-    "file": "File:117.Esther Accuses Haman.jpg"
-  },
-  {
-    "character": "mordecai",
-    "file": "File:116.The Triumph of Mordecai.jpg"
-  },
-  {
-    "character": "haman",
-    "file": "File:116.The Triumph of Mordecai.jpg"
-  },
-  {
-    "character": "nehemiah",
-    "file": "File:108.Nehemiah Views the Ruins of Jerusalem's Walls.jpg"
-  },
-  {
-    "character": "job",
-    "file": "File:118.Job Hears of His Misfortunes.jpg"
-  },
-  {
-    "character": "job",
-    "file": "File:119.Job Speaks with His Friends.jpg"
-  },
-  {
-    "character": "jonah",
-    "file": "File:137.Jonah Is Spewed Forth by the Whale.jpg"
-  },
-  {
-    "character": "jonah",
-    "file": "File:138.Jonah Preaches to the Ninevites.jpg"
-  },
-  {
-    "character": "jesus",
-    "file": "File:Dore Bible Sermon on the Mount.jpg",
-    "year": 1866,
-    "author": "Gustave Doré"
-  },
-  {
-    "character": "peter",
-    "file": "File:Gustave Doré, St Peter Denying Christ.jpg",
-    "year": 1866,
-    "author": "Gustave Doré"
-  },
-  {
-    "character": "judas",
-    "file": "File:Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg",
-    "year": 1866,
-    "author": "Gustave Doré"
-  },
-  {
-    "character": "jesus",
-    "file": "File:Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg",
-    "year": 1866,
-    "author": "Gustave Doré"
-  },
-  {
-    "character": "jesus",
-    "file": "File:Gustave Doré - Crucifixion of Jesus.jpg",
-    "year": 1866,
-    "author": "Gustave Doré (engraved by J. Gauchard Brunier)"
-  },
-  {
-    "character": "jesus",
-    "file": "File:Gustave Doré - L'Ascension.jpg",
-    "year": 1879,
-    "author": "Gustave Doré"
-  },
-  {
-    "character": "stephen",
-    "file": "File:The Death of Stephen (89485178).jpg",
-    "year": 1866,
-    "author": "Gustave Doré",
-    "title": "The Death of Stephen"
-  },
-  {
-    "character": "paul",
-    "file": "File:Paul Addresses the Crowd After His Arrest (89485728).jpg",
-    "year": 1866,
-    "author": "Gustave Doré",
-    "title": "Paul Addresses the Crowd After His Arrest"
-  }
+ {
+  "character": "adam",
+  "file": "File:James Jacques Joseph Tissot - Adam and Eve Driven From Paradise - Google Art Project.jpg",
+  "title": "Adam and Eve Driven from Paradise",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "eve",
+  "file": "File:James Jacques Joseph Tissot - Adam and Eve Driven From Paradise - Google Art Project.jpg",
+  "title": "Adam and Eve Driven from Paradise",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "adam",
+  "file": "File:Peter Paul Rubens - Adam and Eve, after Titian, between 1628 and 1629.jpg",
+  "title": "Adam and Eve (after Titian)",
+  "author": "Peter Paul Rubens",
+  "year": 1628,
+  "dateLabel": "1628–1629",
+  "source": "Museo del Prado"
+ },
+ {
+  "character": "eve",
+  "file": "File:Peter Paul Rubens - Adam and Eve, after Titian, between 1628 and 1629.jpg",
+  "title": "Adam and Eve (after Titian)",
+  "author": "Peter Paul Rubens",
+  "year": 1628,
+  "dateLabel": "1628–1629",
+  "source": "Museo del Prado"
+ },
+ {
+  "character": "adam",
+  "file": "File:Man Made in the Image of God.jpg",
+  "title": "Man Made in the Image of God",
+  "author": "Providence Lithograph Company",
+  "year": 1906,
+  "source": "Providence Lithograph Company"
+ },
+ {
+  "character": "cain",
+  "file": "File:Cain leadeth abel to death tissot.jpg",
+  "title": "Cain Leadeth Abel to His Death",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "abel",
+  "file": "File:Cain leadeth abel to death tissot.jpg",
+  "title": "Cain Leadeth Abel to His Death",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "cain",
+  "file": "File:Peter Paul Rubens (1577-1640) - Cain Slaying Abel - P.1978.PG.353 - Courtauld Gallery.jpg",
+  "title": "Cain Slaying Abel",
+  "author": "Peter Paul Rubens",
+  "year": 1608,
+  "dateLabel": "1608–1609",
+  "source": "Courtauld Gallery, London"
+ },
+ {
+  "character": "abel",
+  "file": "File:Peter Paul Rubens (1577-1640) - Cain Slaying Abel - P.1978.PG.353 - Courtauld Gallery.jpg",
+  "title": "Cain Slaying Abel",
+  "author": "Peter Paul Rubens",
+  "year": 1608,
+  "dateLabel": "1608–1609",
+  "source": "Courtauld Gallery, London"
+ },
+ {
+  "character": "noah",
+  "file": "File:Tissot Building the Ark.jpg",
+  "title": "Building the Ark",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "noah",
+  "file": "File:James Tissot - Sacrifice of Noah.jpg",
+  "title": "The Sacrifice of Noah",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "abraham",
+  "file": "File:Abraham serving the angels, Rembrandt van Rijn, 1646, private collection, USA.jpg",
+  "title": "Abraham Serving the Three Angels",
+  "author": "Rembrandt van Rijn",
+  "year": 1646
+ },
+ {
+  "character": "abraham",
+  "file": "File:Rembrandt Abraham's Sacrifice (Hermitage).jpg",
+  "title": "The Sacrifice of Abraham",
+  "author": "Rembrandt van Rijn",
+  "year": 1635,
+  "source": "The Hermitage Museum"
+ },
+ {
+  "character": "abraham",
+  "file": "File:James Jacques Joseph Tissot - Abram's Counsel to Sarai - Google Art Project.jpg",
+  "title": "Abram's Counsel to Sarai",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "sarah",
+  "file": "File:James Jacques Joseph Tissot - Abram's Counsel to Sarai - Google Art Project.jpg",
+  "title": "Abram's Counsel to Sarai",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "sarah",
+  "file": "File:Tissot Sarai Is Taken to Pharaoh's Palace.jpg",
+  "title": "Sarai Is Taken to Pharaoh's Palace",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "lot",
+  "file": "File:'Lot and his Daughters' by Peter Paul Rubens, circa 1613-1614.jpg",
+  "title": "Lot and His Daughters",
+  "author": "Peter Paul Rubens",
+  "year": 1613,
+  "dateLabel": "1613–1614"
+ },
+ {
+  "character": "lot",
+  "file": "File:Peter Paul Rubens - Lot and his family leaving Sodom.JPG",
+  "title": "Lot and His Family Leaving Sodom",
+  "author": "Peter Paul Rubens",
+  "year": 1625,
+  "source": "Musée du Louvre"
+ },
+ {
+  "character": "isaac",
+  "file": "File:Sacrifice of Isaac-Caravaggio (Uffizi).jpg",
+  "title": "The Sacrifice of Isaac",
+  "author": "Caravaggio",
+  "year": 1603,
+  "source": "Uffizi Gallery"
+ },
+ {
+  "character": "isaac",
+  "file": "File:Murillo-Isaac bendice a Jacob.jpg",
+  "title": "Isaac Blessing Jacob",
+  "author": "Bartolomé Esteban Murillo",
+  "year": 1665,
+  "dateLabel": "1665–1670"
+ },
+ {
+  "character": "jacob",
+  "file": "File:Murillo-Isaac bendice a Jacob.jpg",
+  "title": "Isaac Blessing Jacob",
+  "author": "Bartolomé Esteban Murillo",
+  "year": 1665,
+  "dateLabel": "1665–1670"
+ },
+ {
+  "character": "isaac",
+  "file": "File:Tissot Jacob Deceives Isaac.jpg",
+  "title": "Jacob Deceives Isaac",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "jacob",
+  "file": "File:Tissot Jacob Deceives Isaac.jpg",
+  "title": "Jacob Deceives Isaac",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "rebekah",
+  "file": "File:Rebeca y Eliezer.jpg",
+  "title": "Rebecca and Eliezer",
+  "author": "Bartolomé Esteban Murillo",
+  "year": 1660
+ },
+ {
+  "character": "rebekah",
+  "file": "File:James Jacques Joseph Tissot - Rebecca Meets Isaac by the Way - Google Art Project.jpg",
+  "title": "Rebecca Meets Isaac by the Way",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "isaac",
+  "file": "File:James Jacques Joseph Tissot - Rebecca Meets Isaac by the Way - Google Art Project.jpg",
+  "title": "Rebecca Meets Isaac by the Way",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "jacob",
+  "file": "File:Tissot Jacob and Rachel at the Well.jpg",
+  "title": "Jacob and Rachel at the Well",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "jacob",
+  "file": "File:Tissot The Meeting of Esau and Jacob.jpg",
+  "title": "The Meeting of Esau and Jacob",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "joseph",
+  "file": "File:Tissot Joseph Makes Himself Known to His Brethren.jpg",
+  "title": "Joseph Makes Himself Known to His Brethren",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "joseph",
+  "file": "File:Tissot The Glory of Joseph.jpg",
+  "title": "The Glory of Joseph",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "joseph",
+  "file": "File:Rembrandt Workshop, Joseph Accused by Potiphar's Wife, 1655, NGA 86.jpg",
+  "title": "Joseph Accused by Potiphar's Wife",
+  "author": "Rembrandt van Rijn (workshop)",
+  "year": 1655,
+  "source": "National Gallery of Art, Washington"
+ },
+ {
+  "character": "pharaoh",
+  "file": "File:Tissot Joseph Interprets Pharaoh's Dream.jpg",
+  "title": "Joseph Interprets Pharaoh's Dream",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "joseph",
+  "file": "File:Tissot Joseph Interprets Pharaoh's Dream.jpg",
+  "title": "Joseph Interprets Pharaoh's Dream",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "pharaoh",
+  "file": "File:Tissot Pharaoh and the Midwives.jpg",
+  "title": "Pharaoh and the Midwives",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "moses",
+  "file": "File:Rembrandt - Moses with the Ten Commandments - Google Art Project.jpg",
+  "title": "Moses with the Ten Commandments",
+  "author": "Rembrandt van Rijn",
+  "year": 1659,
+  "source": "Gemäldegalerie, Berlin"
+ },
+ {
+  "character": "moses",
+  "file": "File:Moses Speaks to Pharaoh, by James Tissot.jpg",
+  "title": "Moses Speaks to Pharaoh",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "pharaoh",
+  "file": "File:Moses Speaks to Pharaoh, by James Tissot.jpg",
+  "title": "Moses Speaks to Pharaoh",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "moses",
+  "file": "File:The Death of Moses.jpg",
+  "title": "The Death of Moses",
+  "author": "Providence Lithograph Company",
+  "year": 1907,
+  "source": "Providence Lithograph Company"
+ },
+ {
+  "character": "aaron",
+  "file": "File:Tissot The Golden Calf.jpg",
+  "title": "The Golden Calf",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "aaron",
+  "file": "File:The Sin of Nadab and Abihu.jpg",
+  "title": "The Sin of Nadab and Abihu",
+  "author": "Providence Lithograph Company",
+  "year": 1907,
+  "source": "Providence Lithograph Company"
+ },
+ {
+  "character": "miriam",
+  "file": "File:El cántico de la profetisa María.jpg",
+  "title": "The Song of the Prophetess Miriam",
+  "author": "Luca Giordano",
+  "year": 1687,
+  "source": "Museo del Prado"
+ },
+ {
+  "character": "joshua",
+  "file": "File:Tissot Moses and Joshua in the Tabernacle.jpg",
+  "title": "Moses and Joshua in the Tabernacle",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "joshua",
+  "file": "File:The Two Reports of the Spies.jpg",
+  "title": "The Two Reports of the Spies",
+  "author": "Providence Lithograph Company",
+  "year": 1907,
+  "source": "Providence Lithograph Company"
+ },
+ {
+  "character": "rahab",
+  "file": "File:Tissot The Harlot of Jericho and the Two Spies.jpg",
+  "title": "The Harlot of Jericho and the Two Spies",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "deborah",
+  "file": "File:Salomon de Bray - Jael, Deborah and Barak - WGA03141.jpg",
+  "title": "Jael, Deborah and Barak",
+  "author": "Salomon de Bray",
+  "year": 1635
+ },
+ {
+  "character": "gideon",
+  "file": "File:Anoniem zeventiende eeuws naar Peter Paul Rubens - Gideon verslaat de Midianieten (Rechters 7, 16-25) - 52.9.207 - North Carolina Museum of Art.jpg",
+  "title": "Gideon Defeats the Midianites",
+  "author": "Workshop of Peter Paul Rubens",
+  "year": 1650
+ },
+ {
+  "character": "ruth",
+  "file": "File:'Ruth and Naomi' by Jan Victors, 1653.jpg",
+  "title": "Ruth and Naomi",
+  "author": "Jan Victors",
+  "year": 1653
+ },
+ {
+  "character": "ruth",
+  "file": "File:Eduard Carl Friedrich Holbein - Ruth and Boaz, 1830.jpg",
+  "title": "Ruth and Boaz",
+  "author": "Eduard Holbein",
+  "year": 1830
+ },
+ {
+  "character": "boaz",
+  "file": "File:Eduard Carl Friedrich Holbein - Ruth and Boaz, 1830.jpg",
+  "title": "Ruth and Boaz",
+  "author": "Eduard Holbein",
+  "year": 1830
+ },
+ {
+  "character": "samuel",
+  "file": "File:Hannah and Samuel in the temple, Rembrandt or his studio, c. 1650, Scottish National Gallery, Edinburgh.jpg",
+  "title": "Hannah and Samuel in the Temple",
+  "author": "Rembrandt van Rijn (or studio)",
+  "year": 1650,
+  "source": "National Galleries of Scotland"
+ },
+ {
+  "character": "saul",
+  "file": "File:Rembrandt van Rijn - Saul and David - 621 - Mauritshuis.jpg",
+  "title": "Saul and David",
+  "author": "Rembrandt van Rijn",
+  "year": 1651,
+  "dateLabel": "1651–1658",
+  "source": "Mauritshuis"
+ },
+ {
+  "character": "david",
+  "file": "File:Rembrandt van Rijn - Saul and David - 621 - Mauritshuis.jpg",
+  "title": "Saul and David",
+  "author": "Rembrandt van Rijn",
+  "year": 1651,
+  "dateLabel": "1651–1658",
+  "source": "Mauritshuis"
+ },
+ {
+  "character": "david",
+  "file": "File:CaravaggioDavidGoliathVienna.jpg",
+  "title": "David with the Head of Goliath",
+  "author": "Caravaggio",
+  "year": 1600,
+  "dateLabel": "1600–1601"
+ },
+ {
+  "character": "david",
+  "file": "File:Rubens and Jan Boeckhorst - King David playing the Harp.jpg",
+  "title": "King David Playing the Harp",
+  "author": "Peter Paul Rubens and Jan Boeckhorst",
+  "year": 1619,
+  "dateLabel": "1619–1640"
+ },
+ {
+  "character": "goliath",
+  "file": "File:Peter Paul Rubens David Slaying Goliath.jpg",
+  "title": "David Slaying Goliath",
+  "author": "Peter Paul Rubens",
+  "year": 1616,
+  "source": "Norton Simon Museum"
+ },
+ {
+  "character": "david",
+  "file": "File:Peter Paul Rubens David Slaying Goliath.jpg",
+  "title": "David Slaying Goliath",
+  "author": "Peter Paul Rubens",
+  "year": 1616,
+  "source": "Norton Simon Museum"
+ },
+ {
+  "character": "goliath",
+  "file": "File:David and Goliath by Caravaggio.jpg",
+  "title": "David and Goliath",
+  "author": "Caravaggio",
+  "year": 1600
+ },
+ {
+  "character": "bathsheba",
+  "file": "File:Bethsabée au bain tenant la lettre du roi David - Rembrandt - Musée du Louvre Peintures MI 957.jpg",
+  "title": "Bathsheba at Her Bath",
+  "author": "Rembrandt van Rijn",
+  "year": 1654,
+  "source": "Musée du Louvre"
+ },
+ {
+  "character": "bathsheba",
+  "file": "File:Peter Paul Rubens - Bathsheba at the Fountain - WGA20270.jpg",
+  "title": "Bathsheba at the Fountain",
+  "author": "Peter Paul Rubens",
+  "year": 1635
+ },
+ {
+  "character": "solomon",
+  "file": "File:Peter Paul Rubens - The Judgement of Solomon - Google Art Project.jpg",
+  "title": "The Judgement of Solomon",
+  "author": "Peter Paul Rubens",
+  "year": 1617,
+  "source": "Statens Museum for Kunst"
+ },
+ {
+  "character": "solomon",
+  "file": "File:Tissot The Wisdom of Solomon.jpg",
+  "title": "The Wisdom of Solomon",
+  "author": "James Tissot",
+  "year": 1896,
+  "dateLabel": "1896–1902",
+  "source": "The Jewish Museum, New York"
+ },
+ {
+  "character": "elijah",
+  "file": "File:Peter Paul Rubens - The Prophet Elijah Receiving Bread and Water from an Angel - WGA20436.jpg",
+  "title": "The Prophet Elijah Receiving Bread and Water from an Angel",
+  "author": "Peter Paul Rubens",
+  "year": 1625,
+  "dateLabel": "1625–1628"
+ },
+ {
+  "character": "elisha",
+  "file": "File:Elisha Raising the Son of the Shunamite, by Frederic Leighton, 1881, oil on canvas - Leighton House Museum - London - DSC01800.jpg",
+  "title": "Elisha Raising the Son of the Shunamite",
+  "author": "Frederic Leighton",
+  "year": 1881,
+  "source": "Lady Lever Art Gallery"
+ },
+ {
+  "character": "elisha",
+  "file": "File:Arent de Gelder - Elisha and the Widow of the Prophet Pouring the Flasks of Oil, 1690s.jpg",
+  "title": "Elisha and the Widow Pouring the Flasks of Oil",
+  "author": "Arent de Gelder",
+  "year": 1690,
+  "dateLabel": "1690s"
+ },
+ {
+  "character": "naaman",
+  "file": "File:Abraham van Dijck Der Prophet Elisa weist Naamans Gaben zurück c1655.jpg",
+  "title": "Elisha Refuses Naaman's Gifts",
+  "author": "Abraham van Dijck",
+  "year": 1655
+ },
+ {
+  "character": "jezebel",
+  "file": "File:Frederic Leighton (1830-1896) - Jezebel and Ahab - SMG.289 - Scarborough Art Gallery.jpg",
+  "title": "Jezebel and Ahab",
+  "author": "Frederic Leighton",
+  "year": 1863,
+  "source": "Scarborough Art Gallery"
+ },
+ {
+  "character": "isaiah",
+  "file": "File:Raffael - The Prophet Isaiah - 1511-1512.jpg",
+  "title": "The Prophet Isaiah",
+  "author": "Raphael",
+  "year": 1511,
+  "dateLabel": "1511–1512"
+ },
+ {
+  "character": "jeremiah",
+  "file": "File:Rembrandt - Jeremiah lamenting.jpg",
+  "title": "Jeremiah Lamenting the Destruction of Jerusalem",
+  "author": "Rembrandt van Rijn",
+  "year": 1630,
+  "source": "Rijksmuseum"
+ },
+ {
+  "character": "ezekiel",
+  "file": "File:Raphael - Ezekiel's Vision.jpg",
+  "title": "Ezekiel's Vision",
+  "author": "Raphael",
+  "year": 1518
+ },
+ {
+  "character": "daniel",
+  "file": "File:Belshazzar's Feast.jpg",
+  "title": "Belshazzar's Feast",
+  "author": "Rembrandt van Rijn",
+  "year": 1636,
+  "source": "National Gallery, London"
+ },
+ {
+  "character": "daniel",
+  "file": "File:Rembrandt - Daniel and Cyrus before the Idol Bel, 1633.jpg",
+  "title": "Daniel and Cyrus before the Idol Bel",
+  "author": "Rembrandt van Rijn",
+  "year": 1633,
+  "source": "J. Paul Getty Museum"
+ },
+ {
+  "character": "esther",
+  "file": "File:Rembrandt Harmensz van Rijn - Ahasuerus, Haman and Esther - Google Art Project.jpg",
+  "title": "Ahasuerus, Haman and Esther",
+  "author": "Rembrandt van Rijn",
+  "year": 1660,
+  "source": "Pushkin Museum, Moscow"
+ },
+ {
+  "character": "haman",
+  "file": "File:Rembrandt Harmensz van Rijn - Ahasuerus, Haman and Esther - Google Art Project.jpg",
+  "title": "Ahasuerus, Haman and Esther",
+  "author": "Rembrandt van Rijn",
+  "year": 1660,
+  "source": "Pushkin Museum, Moscow"
+ },
+ {
+  "character": "mordecai",
+  "file": "File:Rembrandt Harmensz van Rijn - Ahasuerus, Haman and Esther - Google Art Project.jpg",
+  "title": "Ahasuerus, Haman and Esther",
+  "author": "Rembrandt van Rijn",
+  "year": 1660,
+  "source": "Pushkin Museum, Moscow"
+ },
+ {
+  "character": "haman",
+  "file": "File:Haman begs Esther for his life, Rembrandt studio, 1660s, National Museum of Art of Romania.jpg",
+  "title": "Haman Begs Esther for His Life",
+  "author": "Rembrandt van Rijn (studio)",
+  "year": 1660,
+  "source": "National Museum of Art of Romania"
+ },
+ {
+  "character": "esther",
+  "file": "File:Haman begs Esther for his life, Rembrandt studio, 1660s, National Museum of Art of Romania.jpg",
+  "title": "Haman Begs Esther for His Life",
+  "author": "Rembrandt van Rijn (studio)",
+  "year": 1660,
+  "source": "National Museum of Art of Romania"
+ },
+ {
+  "character": "job",
+  "file": "File:Job and his friends.jpg",
+  "title": "Job and His Friends",
+  "author": "Ilya Repin",
+  "year": 1869
+ },
+ {
+  "character": "job",
+  "file": "File:Job and his Three Friends, by Henry Ossawa Tanner.jpg",
+  "title": "Job and His Three Friends",
+  "author": "Henry Ossawa Tanner",
+  "year": 1904
+ },
+ {
+  "character": "jonah",
+  "file": "File:Pieter Lastman - Jonah and the Whale - Google Art Project.jpg",
+  "title": "Jonah and the Whale",
+  "author": "Pieter Lastman",
+  "year": 1621
+ },
+ {
+  "character": "jonah",
+  "file": "File:Jacopo Tintoretto - Jonah Leaves the Whale's Belly - WGA22543.jpg",
+  "title": "Jonah Leaves the Whale's Belly",
+  "author": "Jacopo Tintoretto",
+  "year": 1577,
+  "dateLabel": "1577–1578"
+ },
+ {
+  "character": "jesus",
+  "file": "File:Gethsemane Carl Bloch.jpg",
+  "title": "Christ in Gethsemane",
+  "author": "Carl Bloch",
+  "year": 1873
+ },
+ {
+  "character": "jesus",
+  "file": "File:BSOTM.jpg",
+  "title": "The Sermon on the Mount",
+  "author": "Carl Bloch",
+  "year": 1877
+ },
+ {
+  "character": "jesus",
+  "file": "File:Brooklyn Museum - Jesus Wept (Jésus pleura) - James Tissot.jpg",
+  "title": "Jesus Wept",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "lazarus",
+  "file": "File:Brooklyn Museum - Jesus Wept (Jésus pleura) - James Tissot.jpg",
+  "title": "Jesus Wept",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "martha",
+  "file": "File:Brooklyn Museum - Jesus Wept (Jésus pleura) - James Tissot.jpg",
+  "title": "Jesus Wept",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "jesus",
+  "file": "File:Jesus Teaching on the Sea-Shore.jpg",
+  "title": "Jesus Teaching on the Sea-Shore",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "jesus",
+  "file": "File:Caravaggio - Taking of Christ - Dublin - 2.jpg",
+  "title": "The Taking of Christ",
+  "author": "Caravaggio",
+  "year": 1602,
+  "source": "National Gallery of Ireland"
+ },
+ {
+  "character": "mary",
+  "file": "File:Brooklyn Museum - The Magnificat (Le magnificat) - James Tissot - overall .jpg",
+  "title": "The Magnificat",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "mary",
+  "file": "File:TissotAnnunciation.JPG",
+  "title": "The Annunciation",
+  "author": "James Tissot",
+  "year": 1894,
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "mary",
+  "file": "File:Murillo - Holy Family, circa 1665.jpg",
+  "title": "The Holy Family",
+  "author": "Bartolomé Esteban Murillo",
+  "year": 1665
+ },
+ {
+  "character": "johnBaptist",
+  "file": "File:Baptism of Jesus by Tissot.jpg",
+  "title": "The Baptism of Jesus",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1896",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "jesus",
+  "file": "File:Baptism of Jesus by Tissot.jpg",
+  "title": "The Baptism of Jesus",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1896",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "johnBaptist",
+  "file": "File:1608 Caravaggio Beheading of Saint John the Baptist (2).jpg",
+  "title": "The Beheading of Saint John the Baptist",
+  "author": "Caravaggio",
+  "year": 1608,
+  "source": "St John's Co-Cathedral, Valletta"
+ },
+ {
+  "character": "johnBaptist",
+  "file": "File:Michelangelo Merisi da Caravaggio, Saint John the Baptist (Youth with a Ram) (c. 1602).jpg",
+  "title": "Saint John the Baptist (Youth with a Ram)",
+  "author": "Caravaggio",
+  "year": 1602
+ },
+ {
+  "character": "johnBaptist",
+  "file": "File:Rembrandt Harmensz. van Rijn - Preaching of Saint John the Baptist - Gemäldegalerie Berlin.jpg",
+  "title": "The Preaching of Saint John the Baptist",
+  "author": "Rembrandt van Rijn",
+  "year": 1634,
+  "dateLabel": "1634–1635",
+  "source": "Gemäldegalerie, Berlin"
+ },
+ {
+  "character": "peter",
+  "file": "File:The Denial of Saint Peter-Caravaggio (1610).jpg",
+  "title": "The Denial of Saint Peter",
+  "author": "Caravaggio",
+  "year": 1610
+ },
+ {
+  "character": "peter",
+  "file": "File:Crucifixion of Saint Peter - Cerasi Chapel - Santa Maria del Popolo - Rome 2015.jpg",
+  "title": "The Crucifixion of Saint Peter",
+  "author": "Caravaggio",
+  "year": 1601,
+  "source": "Santa Maria del Popolo, Rome"
+ },
+ {
+  "character": "peter",
+  "file": "File:Brooklyn Museum - Saint Peter Walks on the Sea (Saint Pierre marche sur la mer) - James Tissot - overall.jpg",
+  "title": "Saint Peter Walks on the Sea",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "peter",
+  "file": "File:Albrecht Dürer - The Four Apostles, Saints John, Peter, Mark and Paul.jpg",
+  "title": "The Four Apostles",
+  "author": "Albrecht Dürer",
+  "year": 1526,
+  "source": "Alte Pinakothek, Munich"
+ },
+ {
+  "character": "john",
+  "file": "File:Albrecht Dürer - The Four Apostles, Saints John, Peter, Mark and Paul.jpg",
+  "title": "The Four Apostles",
+  "author": "Albrecht Dürer",
+  "year": 1526,
+  "source": "Alte Pinakothek, Munich"
+ },
+ {
+  "character": "paul",
+  "file": "File:Albrecht Dürer - The Four Apostles, Saints John, Peter, Mark and Paul.jpg",
+  "title": "The Four Apostles",
+  "author": "Albrecht Dürer",
+  "year": 1526,
+  "source": "Alte Pinakothek, Munich"
+ },
+ {
+  "character": "paul",
+  "file": "File:Conversion on the Way to Damascus-Caravaggio (c.1600-1).jpg",
+  "title": "The Conversion of Saint Paul",
+  "author": "Caravaggio",
+  "year": 1600,
+  "dateLabel": "1600–1601"
+ },
+ {
+  "character": "paul",
+  "file": "File:Rembrandt St. Paul in Prison.jpg",
+  "title": "Saint Paul in Prison",
+  "author": "Rembrandt van Rijn",
+  "year": 1627
+ },
+ {
+  "character": "andrew",
+  "file": "File:Caravaggio - The Crucifixion of Saint Andrew - Post-Restoration.jpg",
+  "title": "The Crucifixion of Saint Andrew",
+  "author": "Caravaggio",
+  "year": 1607,
+  "source": "Cleveland Museum of Art"
+ },
+ {
+  "character": "andrew",
+  "file": "File:The Calling of Saints Peter and Andrew - Caravaggio (1571-1610).jpg",
+  "title": "The Calling of Saints Peter and Andrew",
+  "author": "Caravaggio",
+  "year": 1603,
+  "dateLabel": "1603–1606"
+ },
+ {
+  "character": "peter",
+  "file": "File:The Calling of Saints Peter and Andrew - Caravaggio (1571-1610).jpg",
+  "title": "The Calling of Saints Peter and Andrew",
+  "author": "Caravaggio",
+  "year": 1603,
+  "dateLabel": "1603–1606"
+ },
+ {
+  "character": "james",
+  "file": "File:Peter Paul Rubens - St James the Apostle - WGA20192.jpg",
+  "title": "Saint James the Apostle",
+  "author": "Peter Paul Rubens",
+  "year": 1612,
+  "dateLabel": "1612–1613"
+ },
+ {
+  "character": "john",
+  "file": "File:Girolamo Troppa - The Apostle John - KMSst141 - Statens Museum for Kunst.jpg",
+  "title": "The Apostle John",
+  "author": "Girolamo Troppa",
+  "year": 1665,
+  "dateLabel": "1665–1668",
+  "source": "Statens Museum for Kunst"
+ },
+ {
+  "character": "matthew",
+  "file": "File:Caravaggio, Michelangelo Merisi da - The Calling of Saint Matthew - 1599-1600 (hi res).jpg",
+  "title": "The Calling of Saint Matthew",
+  "author": "Caravaggio",
+  "year": 1599,
+  "dateLabel": "1599–1600"
+ },
+ {
+  "character": "matthew",
+  "file": "File:Rembrandt - Saint Matthew and the angel.jpg",
+  "title": "Saint Matthew and the Angel",
+  "author": "Rembrandt van Rijn",
+  "year": 1661,
+  "source": "Musée du Louvre"
+ },
+ {
+  "character": "thomas",
+  "file": "File:Caravaggio Doubting Thomas.jpg",
+  "title": "The Incredulity of Saint Thomas",
+  "author": "Caravaggio",
+  "year": 1600
+ },
+ {
+  "character": "thomas",
+  "file": "File:Rembrandt - The Incredulity of St Thomas - WGA19095.jpg",
+  "title": "The Incredulity of Saint Thomas",
+  "author": "Rembrandt van Rijn",
+  "year": 1634,
+  "source": "Pushkin Museum, Moscow"
+ },
+ {
+  "character": "thomas",
+  "file": "File:Brooklyn Museum - The Disbelief of Saint Thomas (Incredulité de Saint Thomas) - James Tissot.jpg",
+  "title": "The Disbelief of Saint Thomas",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "maryMagdalene",
+  "file": "File:Michelangelo Merisi da Caravaggio - Martha and Mary Magdalene - 73.268 - Detroit Institute of Arts.jpg",
+  "title": "Martha and Mary Magdalene",
+  "author": "Caravaggio",
+  "year": 1598,
+  "source": "Detroit Institute of Arts"
+ },
+ {
+  "character": "martha",
+  "file": "File:Michelangelo Merisi da Caravaggio - Martha and Mary Magdalene - 73.268 - Detroit Institute of Arts.jpg",
+  "title": "Martha and Mary Magdalene",
+  "author": "Caravaggio",
+  "year": 1598,
+  "source": "Detroit Institute of Arts"
+ },
+ {
+  "character": "maryMagdalene",
+  "file": "File:Rembrandt van Rijn (Leiden 1606-Amsterdam 1669) - Christ and St Mary Magdalen at the Tomb - RCIN 404816 - Royal Collection.jpg",
+  "title": "Christ and Saint Mary Magdalen at the Tomb",
+  "author": "Rembrandt van Rijn",
+  "year": 1638,
+  "source": "Royal Collection"
+ },
+ {
+  "character": "martha",
+  "file": "File:Christ in the House of Martha and Mary 1628 Jan Bruegel2 and Rubens.jpg",
+  "title": "Christ in the House of Martha and Mary",
+  "author": "Peter Paul Rubens and Jan Brueghel the Younger",
+  "year": 1628
+ },
+ {
+  "character": "lazarus",
+  "file": "File:Rembrandt Harmensz. van Rijn - The Raising of Lazarus - Google Art Project.jpg",
+  "title": "The Raising of Lazarus",
+  "author": "Rembrandt van Rijn",
+  "year": 1630,
+  "dateLabel": "1630–1632"
+ },
+ {
+  "character": "lazarus",
+  "file": "File:The Raising of Lazarus-Caravaggio (c. 1609).jpg",
+  "title": "The Raising of Lazarus",
+  "author": "Caravaggio",
+  "year": 1609,
+  "source": "Museo Regionale, Messina"
+ },
+ {
+  "character": "zacchaeus",
+  "file": "File:Hristos i Zakhey (Coninxloo).jpg",
+  "title": "Christ and Zacchaeus",
+  "author": "Gillis van Coninxloo",
+  "year": 1560,
+  "dateLabel": "1560–1607"
+ },
+ {
+  "character": "zacchaeus",
+  "file": "File:Niels Larsen Stevns- Zakæus.jpg",
+  "title": "Zacchaeus",
+  "author": "Niels Larsen Stevns",
+  "year": 1913
+ },
+ {
+  "character": "nicodemus",
+  "file": "File:Brooklyn Museum - Nicodemus (Nicodème) - James Tissot - overall.jpg",
+  "title": "Nicodemus",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "judas",
+  "file": "File:Brooklyn Museum - The Kiss of Judas (Le baiser de Judas) - James Tissot.jpg",
+  "title": "The Kiss of Judas",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "judas",
+  "file": "File:Judas Returning the Thirty Silver Pieces - Rembrandt.jpg",
+  "title": "Judas Returning the Thirty Silver Pieces",
+  "author": "Rembrandt van Rijn",
+  "year": 1629
+ },
+ {
+  "character": "pilate",
+  "file": "File:Jesus Before Pilate, First Interview.jpg",
+  "title": "Jesus Before Pilate, First Interview",
+  "author": "James Tissot",
+  "year": 1886,
+  "dateLabel": "1886–1894",
+  "source": "Brooklyn Museum"
+ },
+ {
+  "character": "herod",
+  "file": "File:Le Massacre des innocents - Nicolas Poussin - Petit Palais - 1626-1627.jpg",
+  "title": "The Massacre of the Innocents",
+  "author": "Nicolas Poussin",
+  "year": 1626,
+  "dateLabel": "1626–1627"
+ },
+ {
+  "character": "stephen",
+  "file": "File:Rembrandt-Lapidation-Saint-Étienne-MBA-Lyon.jpg",
+  "title": "The Stoning of Saint Stephen",
+  "author": "Rembrandt van Rijn",
+  "year": 1625,
+  "source": "Musée des Beaux-Arts de Lyon"
+ },
+ {
+  "character": "stephen",
+  "file": "File:Peter Paul Rubens - The Martyrdom of St Stephen - WGA20224.jpg",
+  "title": "The Martyrdom of Saint Stephen",
+  "author": "Peter Paul Rubens",
+  "year": 1616,
+  "dateLabel": "1616–1617"
+ },
+ {
+  "character": "barnabas",
+  "file": "File:Breenbergh, Bartholomeus, Saints Paul and Barnabas at Lystra (Sacrifice at Lystra), 1637.jpg",
+  "title": "Saints Paul and Barnabas at Lystra",
+  "author": "Bartholomeus Breenbergh",
+  "year": 1637,
+  "source": "Princeton University Art Museum"
+ },
+ {
+  "character": "lydia",
+  "file": "File:1861 Ellenrieder Die Taufe der Lydia anagoria.JPG",
+  "title": "The Baptism of Lydia",
+  "author": "Marie Ellenrieder",
+  "year": 1861
+ },
+ {
+  "character": "cornelius",
+  "file": "File:Gerbrand van den Eeckhout - Vision of Cornelius the Centurion - Walters 372492.jpg",
+  "title": "The Vision of Cornelius the Centurion",
+  "author": "Gerbrand van den Eeckhout",
+  "year": 1664,
+  "source": "Walters Art Museum"
+ },
+ {
+  "character": "samson",
+  "file": "File:Peter Paul Rubens - Samson and Delilah - Google Art Project.jpg",
+  "title": "Samson and Delilah",
+  "author": "Peter Paul Rubens",
+  "year": 1609,
+  "dateLabel": "1609–1610",
+  "source": "National Gallery, London"
+ },
+ {
+  "character": "delilah",
+  "file": "File:Peter Paul Rubens - Samson and Delilah - Google Art Project.jpg",
+  "title": "Samson and Delilah",
+  "author": "Peter Paul Rubens",
+  "year": 1609,
+  "dateLabel": "1609–1610",
+  "source": "National Gallery, London"
+ },
+ {
+  "character": "samson",
+  "file": "File:Rembrandt - The Blinding of Samson - WGA19097.jpg",
+  "title": "The Blinding of Samson",
+  "author": "Rembrandt van Rijn",
+  "year": 1636
+ },
+ {
+  "character": "delilah",
+  "file": "File:Rembrandt - Samson and Delilah - WGA19098.jpg",
+  "title": "Samson and Delilah",
+  "author": "Rembrandt van Rijn",
+  "year": 1628
+ },
+ {
+  "character": "samson",
+  "file": "File:Rembrandt - Samson and Delilah - WGA19098.jpg",
+  "title": "Samson and Delilah",
+  "author": "Rembrandt van Rijn",
+  "year": 1628
+ }
 ]

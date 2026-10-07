@@ -905,7 +905,7 @@
     "searchPlaceholder": "Имя героя, например Авраам",
     "noResults": "Ничего не найдено — картинки есть лишь для части героев",
     "imagesCount": "{count, plural, one {# картина} few {# картины} many {# картин} other {# картин}}",
-    "anotherImage": "Другая картина этого героя",
+    "anotherImage": "Другая картина",
     "imageCaption": "{author}, «{title}», {year}",
     "piecesTitle": "Количество кусочков",
     "start": "Начать",
@@ -929,11 +929,12 @@
     "doneTitle": "Картина собрана!",
     "timeResult": "Время: {time}",
     "placedBy": "{name}: {count} шт.",
-    "creditLine": "{author}, «{title}», {year}. Public Domain, Wikimedia Commons.",
+    "creditLine": "{author}, «{title}», {year}. Источник: Wikimedia Commons. Лицензия: {license}.",
     "creditLink": "Страница на Commons",
     "again": "Ещё раз",
     "other": "Другая картинка",
     "viewPicture": "Смотреть картину",
-    "showSummary": "Показать итог"
+    "showSummary": "Показать итог",
+    "creditLineSource": "{author}, «{title}», {year}. Коллекция: {source}; источник: Wikimedia Commons. Лицензия: {license}."
   }
 }

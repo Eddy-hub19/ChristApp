@@ -2,21 +2,27 @@ import imagesJson from './images.json';
 import { CHARACTERS } from '../../guess-character/data/characters';
 
 /**
- * Картини для «Пазлів»: суспільне надбання (Public Domain / CC0) з Wikimedia Commons.
- * Файли лежать у frontend/public/puzzles/ (WebP ~1600 px), а `images.json` ведеться скриптом
- * backend/scripts/puzzle-images/add-commons-image.mjs, який перевіряє ліцензію в метаданих Commons.
+ * Кольорові картини для «Пазлів»: суспільне надбання (Public Domain / PD-Art / CC0) з Wikimedia Commons.
+ * Самі файли (WebP ~1600 px) лежать у Cloudinary, папка `christapp/puzzles`; в git — лише `images.json`
+ * з посиланнями. Його веде скрипт backend/scripts/puzzle-images/add-commons-image.mjs, який перевіряє
+ * ліцензію, розмір і кольоровість за метаданими та пікселями.
  */
 export type PuzzleImage = {
   id: string;
   /** id персонажів із «Вгадай персонажа», яких зображено на картині. */
   characterIds: string[];
-  /** Шлях до файла на фронтенді, напр. `/puzzles/abraham-1-….webp`. */
-  file: string;
+  /** Посилання на WebP у Cloudinary (`https://res.cloudinary.com/…/christapp/puzzles/…`). */
+  url: string;
+  cloudinaryId: string;
   width: number;
   height: number;
   title: string;
   author: string;
   year: number;
+  /** Як показати дату в підписі, якщо це проміжок («1886–1894»); інакше показуємо `year`. */
+  dateLabel?: string;
+  /** Колекція/музей, де зберігається оригінал (підпис у фіналі). */
+  source: string;
   license: string;
   licenseUrl: string | null;
   commonsTitle: string;

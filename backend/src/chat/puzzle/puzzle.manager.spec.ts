@@ -6,6 +6,16 @@ import {
   puzzleCatalog,
 } from './puzzle.manager';
 import { imagesOfCharacter } from './data/puzzle-images';
+import { CHARACTERS } from '../guess-character/data/characters';
+
+// Герої беруться з каталогу, а не вшиті в тести: набір картин поповнюється скриптом.
+const CATALOG = puzzleCatalog();
+const HERO = CATALOG.characters[0].id;
+const OTHER_HERO = CATALOG.characters[1].id;
+const MULTI_HERO = CATALOG.characters.find((c) => c.imageIds.length > 1)?.id;
+const NO_IMAGE_HERO = CHARACTERS.find(
+  (c) => imagesOfCharacter(c.id).length === 0,
+)?.id;
 
 type Msg = { userId: string; event: string; payload: any };
 
@@ -60,7 +70,7 @@ function started(count = 12) {
   const ctx = setup();
   ctx.g.sync(A);
   ctx.g.sync(B);
-  ctx.g.select(A, 'byName', 'abraham');
+  ctx.g.select(A, 'byName', HERO);
   ctx.g.count(A, count);
   ctx.g.start(A);
   return ctx;
@@ -89,19 +99,37 @@ describe('PuzzleManager — вибір картини', () => {
   it("«За ім'ям»: тільки персонажі з картинами; картина — одна з його картин", () => {
     const { g, view } = setup();
     g.sync(A);
-    g.select(A, 'byName', 'abraham');
-    expect(view(A).selection.characterId).toBe('abraham');
-    expect(imagesOfCharacter('abraham').map((i) => i.id)).toContain(
+    g.select(A, 'byName', HERO);
+    expect(view(A).selection.characterId).toBe(HERO);
+    expect(imagesOfCharacter(HERO).map((i) => i.id)).toContain(
       view(A).selection.imageId,
     );
 
-    g.select(A, 'byName', 'enoch'); // персонаж є в «Вгадай», але картини немає
-    expect(view(A).selection.characterId).toBe('abraham');
+    if (NO_IMAGE_HERO) {
+      g.select(A, 'byName', NO_IMAGE_HERO); // персонаж є в «Вгадай», але кольорової картини немає
+      expect(view(A).selection.characterId).toBe(HERO);
+    }
     g.select(A, 'byName', 'not-a-character');
-    expect(view(A).selection.characterId).toBe('abraham');
+    expect(view(A).selection.characterId).toBe(HERO);
     g.select(A, 'nonsense');
-    expect(view(A).selection.characterId).toBe('abraham');
+    expect(view(A).selection.characterId).toBe(HERO);
   });
+
+  (MULTI_HERO ? it : it.skip)(
+    '«Інша картина»: той самий герой, але інша картина',
+    () => {
+      const { g, view } = setup();
+      g.sync(A);
+      g.select(A, 'byName', MULTI_HERO);
+      for (let i = 0; i < 12; i += 1) {
+        const before = view(A).selection.imageId;
+        g.select(A, 'byName', MULTI_HERO);
+        const after = view(A).selection;
+        expect(after.characterId).toBe(MULTI_HERO);
+        expect(after.imageId).not.toBe(before);
+      }
+    },
+  );
 
   it('обирає й змінює складність лише автор; другий бачить вибір', () => {
     const { g, view } = setup();
@@ -455,13 +483,14 @@ describe('PuzzleManager — фінал і статистика', () => {
     expect(v.puzzle.groups).toHaveLength(1);
     expect(v.puzzle.groups[0].placed).toBe(true);
     expect(v.reveal.elapsedMs).toBeGreaterThanOrEqual(60_000);
-    expect(v.reveal.card.id).toBe('abraham');
+    expect(v.reveal.card.id).toBe(HERO);
     expect(v.reveal.card.name.ua).toBeTruthy();
     expect(v.reveal.card.refs.length).toBeGreaterThan(0);
-    expect(v.reveal.image).toMatchObject({
-      author: 'Gustave Doré',
-      license: 'Public domain',
-    });
+    expect(v.reveal.image.author).toBeTruthy();
+    expect(v.reveal.image.title).toBeTruthy();
+    expect(v.reveal.image.source).toBeTruthy();
+    expect(v.reveal.image.license).toMatch(/public domain|pd|cc0/i);
+    expect(v.reveal.image.url).toMatch(/^https:\/\/res\.cloudinary\.com\//);
     expect(v.reveal.image.sourceUrl).toContain('commons.wikimedia.org');
   });
 
@@ -556,7 +585,7 @@ describe('PuzzleManager — сесія', () => {
     const back = ctx.view(A);
     expect(back.phase).toBe('playing');
     expect(JSON.stringify(back.puzzle.groups)).toBe(saved);
-    expect(back.selection.characterId).toBe('abraham');
+    expect(back.selection.characterId).toBe(HERO);
     expect(back.present[A]).toBe(true);
     expect(back.present[B]).toBe(false);
   });
@@ -595,7 +624,7 @@ describe('PuzzleManager — сесія', () => {
   it('одиночний режим: власна сесія, без другого гравця', () => {
     const ctx = setup();
     ctx.manager.sync(ROOM, PLAYERS, A, true);
-    ctx.manager.select(ROOM, PLAYERS, A, true, 'byName', 'moses');
+    ctx.manager.select(ROOM, PLAYERS, A, true, 'byName', OTHER_HERO);
     ctx.manager.setCount(ROOM, PLAYERS, A, true, 12);
     ctx.manager.start(ROOM, PLAYERS, A, true);
     const solo = ctx.view(A);
