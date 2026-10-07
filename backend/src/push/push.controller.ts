@@ -15,6 +15,7 @@ import {
   UnsubscribePushSubscriptionDto,
 } from './dto/push-subscription.dto';
 import { PushService } from './push.service';
+import { presence } from 'src/chat/presence.registry';
 import { roomViews } from './room-view.registry';
 
 type AuthenticatedRequest = {
@@ -62,7 +63,8 @@ export class PushController {
 
   /**
    * Клієнт згортається/блокується: сокет iOS ще кілька секунд лишається «живим», тож `roomViewState`
-   * по ньому не завжди встигає. Цей запит (fetch keepalive) миттєво знімає всі «перегляди» сокета.
+   * по ньому не завжди встигає. Цей запит (fetch keepalive) миттєво знімає всі «перегляди» сокета
+   * і так само негайно переводить цей пристрій в «away» (онлайн = застосунок видно, див. presence.registry).
    */
   @Post('view-state/clear')
   clearViewState(
@@ -71,7 +73,10 @@ export class PushController {
   ) {
     const userId = this.resolveUserId(req);
     const socketId = typeof body?.socketId === 'string' ? body.socketId : '';
-    return { ok: socketId ? roomViews.clearSocket(socketId, userId) : false };
+    if (!socketId) return { ok: false };
+    const clearedViews = roomViews.clearSocket(socketId, userId);
+    const markedAway = presence.setActive(socketId, false, userId);
+    return { ok: clearedViews || markedAway };
   }
 
   @Get('unread-summary')

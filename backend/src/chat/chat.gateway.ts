@@ -8,7 +8,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import type { OnModuleDestroy } from '@nestjs/common';
+import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import {
   MessagesService,
@@ -23,6 +23,7 @@ import {
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
 import { CHAT_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
+import { presence, type PresenceChange } from './presence.registry';
 import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
 import {
   GuessCharacterManager,
@@ -142,7 +143,11 @@ type RoomGameSession = {
   cors: { origin: '*' },
 })
 export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleInit,
+    OnModuleDestroy
 {
   @WebSocketServer()
   server!: Server;
@@ -185,7 +190,6 @@ export class ChatGateway
   private static readonly READ_SYNC_THROTTLE_MS = 2_000;
   private readonly pendingReadSync = new Map<string, ReturnType<typeof setTimeout>>();
 
-  private static readonly DISCONNECT_GRACE_MS = 3000;
   private static readonly ALLOWED_REACTIONS = ACCEPTED_CHAT_REACTIONS;
   private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
   private static readonly SOCKET_BAN_MS = 15 * 60 * 1000;
@@ -208,50 +212,67 @@ export class ChatGateway
     private pushService: PushService,
   ) {}
 
-  // userId → кількість активних з'єднань
-  private onlineUsers = new Map<string, number>();
-
   // userId → timestamps of suspicious attempts
   private readonly suspiciousAttempts = new Map<string, number[]>();
 
   // userId → epoch ms until blocked
   private readonly tempBlockedUsers = new Map<string, number>();
 
-  // таймер для "м'якого" офлайну (якщо вкладка швидко перезавантажується)
-  private pendingDisconnectTimers = new Map<
-    string,
-    ReturnType<typeof setTimeout>
-  >();
+  private unsubscribePresence: (() => void) | null = null;
 
-  /** true після onModuleDestroy — див. пояснення там і в handleDisconnect. */
+  /** true після onModuleDestroy — щоб відкладені задачі (напр. sweeper ігрової активності) не запускались знову. */
   private destroyed = false;
 
   /**
-   * Без цього "м'які" таймери офлайну з `pendingDisconnectTimers` лишаються висіти після
-   * зупинки застосунку (напр. graceful shutdown при деплої) і згодом намагаються писати в БД,
-   * якої вже нема — саме такий "тестовий" симптом (`this.prisma.user.update is not a function`
-   * вже після завершення тестів) і виявив цю прогалину.
+   * Після старту бекенду ніхто не онлайн, доки не надішле `active` (реєстр лише в пам'яті; `lastSeenAt` у БД лишається).
+   * Клієнти, що перепідключились у фоні, онлайн не стають — тільки ті, у кого застосунок видно.
    */
+  onModuleInit() {
+    presence.reset();
+    this.unsubscribePresence = presence.onChange((change) =>
+      this.publishPresenceChange(change),
+    );
+    presence.start();
+  }
+
   onModuleDestroy() {
     this.destroyed = true;
+    this.unsubscribePresence?.();
+    this.unsubscribePresence = null;
+    presence.stop();
     for (const timer of this.pendingReadSync.values()) clearTimeout(timer);
     this.pendingReadSync.clear();
-    for (const timer of this.pendingDisconnectTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.pendingDisconnectTimers.clear();
     this.snakeDuel.disposeAll();
     this.guessCharacter.disposeAll();
     if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
     this.gameActivitySweeper = null;
   }
 
-  private emitOnlinePresence() {
-    this.server.emit('onlineCount', this.onlineUsers.size);
-    this.server.emit('onlineUsers', {
-      userIds: Array.from(this.onlineUsers.keys()),
-      count: this.onlineUsers.size,
+  /** Зміна онлайну розсилається всім одразу: шапка чату, список чатів, учасники кінотеатру, панель учасників. */
+  private publishPresenceChange(change: PresenceChange) {
+    if (!change.isOnline) {
+      const lastSeenAt = change.lastSeenAt ?? new Date();
+      void this.prisma.user
+        .update({ where: { id: change.userId }, data: { lastSeenAt } })
+        .catch(() => undefined);
+    }
+    this.server.emit('userPresenceChanged', {
+      userId: change.userId,
+      isOnline: change.isOnline,
+      lastSeenAt: change.lastSeenAt?.toISOString() ?? null,
     });
+    this.emitOnlinePresence();
+  }
+
+  private onlinePresencePayload() {
+    const userIds = presence.onlineUserIds();
+    return { userIds, count: userIds.length };
+  }
+
+  private emitOnlinePresence(target: { emit: (event: string, ...args: unknown[]) => unknown } = this.server) {
+    const payload = this.onlinePresencePayload();
+    target.emit('onlineCount', payload.count);
+    target.emit('onlineUsers', payload);
   }
 
   private isAttackPayload(content: string): boolean {
@@ -439,6 +460,11 @@ export class ChatGateway
       return;
     }
 
+    // Сокет міг закритись, поки ми перевіряли токен: handleDisconnect для нього вже відпрацював би
+    // вхолосту, і пристрій лишився б у реєстрі «привидом».
+    if (!client.connected) return;
+    presence.connect(client.id, user.id);
+
     console.log('✅ Connected:', user.username);
 
     try {
@@ -449,29 +475,9 @@ export class ChatGateway
 
       await this.emitMyRooms(client, user.id);
 
-      // Оновлюємо онлайн-статус
-      const userId = user.id;
-      const previousConnections = this.onlineUsers.get(userId) || 0;
-      const reconnectTimer = this.pendingDisconnectTimers.get(userId);
-
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        this.pendingDisconnectTimers.delete(userId);
-        this.onlineUsers.set(userId, 1);
-      } else {
-        this.onlineUsers.set(userId, previousConnections + 1);
-      }
-
-      if (previousConnections === 0) {
-        this.server.emit('userPresenceChanged', {
-          userId,
-          isOnline: true,
-          lastSeenAt: null,
-        });
-      }
-
-      // Розсилаємо глобальний онлайн
-      this.emitOnlinePresence();
+      // Сокет не рахується онлайном, поки клієнт не пришле `presence:state` (застосунок видно); новому
+      // клієнту одразу віддаємо поточний список, далі зміни приходять розсилкою.
+      this.emitOnlinePresence(client);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] Post-connect initialization error:', reason);
@@ -517,50 +523,30 @@ export class ChatGateway
     void this.broadcastGameActivity(this.gameActivity.removeSocket(client.id));
 
     const userId = user.id;
+    presence.disconnect(client.id);
     // Остання вкладка користувача закрилась: гра Snake ставиться на паузу (5 с на повернення).
-    if ((this.onlineUsers.get(userId) ?? 0) <= 1) {
+    if (presence.socketCount(userId) === 0) {
       this.snakeDuel.userDisconnected(userId);
       this.guessCharacter.userDisconnected(userId);
     }
-    const currentConnections = this.onlineUsers.get(userId);
-    if (!currentConnections) return;
+  }
 
-    if (currentConnections === 1) {
-      // Застосунок уже завершує роботу (onModuleDestroy) — новий "м'який" таймер офлайну більше
-      // нікому не прибрати: сокети реально відключаються асинхронно й можуть встигнути дійти сюди
-      // вже ПІСЛЯ onModuleDestroy (саме так виявили — таймер лишався висіти й після завершення
-      // тестів). Просто прибираємо користувача одразу, без відкладеного запису в БД.
-      if (this.destroyed) {
-        this.onlineUsers.delete(userId);
-        return;
-      }
-      // Трохи чекаємо перед видаленням (якщо вкладка перезавантажується)
-      const timer = setTimeout(() => {
-        this.pendingDisconnectTimers.delete(userId);
-
-        if (this.onlineUsers.get(userId) === 1) {
-          this.onlineUsers.delete(userId);
-          const lastSeenAt = new Date();
-          void this.prisma.user
-            .update({
-              where: { id: userId },
-              data: { lastSeenAt },
-            })
-            .catch(() => undefined);
-          this.server.emit('userPresenceChanged', {
-            userId,
-            isOnline: false,
-            lastSeenAt: lastSeenAt.toISOString(),
-          });
-          this.emitOnlinePresence();
-        }
-      }, ChatGateway.DISCONNECT_GRACE_MS);
-
-      this.pendingDisconnectTimers.set(userId, timer);
-    } else {
-      this.onlineUsers.set(userId, currentConnections - 1);
-      this.emitOnlinePresence();
-    }
+  /**
+   * Клієнт повідомляє, чи застосунок на цьому пристрої зараз видно: `active: true` — відкрили/повернулись
+   * і далі раз на ~20 с (heartbeat); `false` — згорнули, заблокували, закрили. Без heartbeat 45 с пристрій
+   * вважається таким, що пішов.
+   */
+  @SubscribeMessage('presence:state')
+  async handlePresenceState(
+    @MessageBody() body: { active?: boolean } | undefined,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    // Клієнт шле це одразу на `connect`, коли handleConnection ще перевіряє токен: чекаємо авторизацію
+    // й реєструємо пристрій самі, інакше перший `active` після (пере)підключення губився б.
+    const user = await this.resolveSocketUser(client);
+    if (!user || !client.connected) return;
+    presence.connect(client.id, user.id);
+    presence.setActive(client.id, Boolean(body?.active), user.id);
   }
 
   // ================= ПРИЄДНАННЯ ДО КІМНАТИ =================

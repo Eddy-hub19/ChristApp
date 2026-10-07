@@ -325,7 +325,7 @@
     "shareJesusNotesHint": "Личное место для заметок",
     "onlineShort": "онлайн",
     "offline": "не в сети",
-    "lastSeenSeconds": "был(а) в сети {count} сек назад",
+    "lastSeenJustNow": "был(а) в сети только что",
     "lastSeenMinutes": "был(а) в сети {count} мин назад",
     "lastSeenHours": "был(а) в сети {count} ч назад",
     "lastSeenDays": "был(а) в сети {count} дн назад",

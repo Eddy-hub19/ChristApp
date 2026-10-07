@@ -24,6 +24,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
 import { clearServerViewState } from "@/lib/viewStateBeacon";
+import { attachPresenceReporter } from "@/lib/presenceReporter";
 import { showChatNotification } from "@/lib/notifications";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { Link } from "@/i18n/navigation";
@@ -1251,6 +1252,8 @@ export default function ChatPageDetails() {
     });
 
     socketRef.current = socket;
+    // «Онлайн» = застосунок видно, а не «сокет підключений» — див. presenceReporter.
+    const detachPresence = attachPresenceReporter(socket);
 
     const onConnect = () => {
       setIsSocketConnected(true);
@@ -2116,6 +2119,7 @@ export default function ChatPageDetails() {
         outgoingCallTimeoutRef.current = null;
       }
       leaveCurrentRoom(socket);
+      detachPresence();
       socket.disconnect();
       socketRef.current = null;
     };
@@ -2606,7 +2610,7 @@ export default function ChatPageDetails() {
     }
 
     const formatted = formatLastSeenRelative(lastSeenIso, nowTs, {
-      seconds: (count) => t("lastSeenSeconds", { count }),
+      justNow: () => t("lastSeenJustNow"),
       minutes: (count) => t("lastSeenMinutes", { count }),
       hours: (count) => t("lastSeenHours", { count }),
       days: (count) => t("lastSeenDays", { count }),

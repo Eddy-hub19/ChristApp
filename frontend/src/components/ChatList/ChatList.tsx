@@ -607,7 +607,7 @@ const ChatList = ({
                       !chat.isOnline &&
                       chat.lastSeenAt
                         ? formatLastSeenRelative(chat.lastSeenAt, nowMs, {
-                            seconds: (n) => t("lastSeenSeconds", { count: n }),
+                            justNow: () => t("lastSeenJustNow"),
                             minutes: (n) => t("lastSeenMinutes", { count: n }),
                             hours: (n) => t("lastSeenHours", { count: n }),
                             days: (n) => t("lastSeenDays", { count: n }),

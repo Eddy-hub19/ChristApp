@@ -325,7 +325,7 @@
     "shareJesusNotesHint": "A private space for notes",
     "onlineShort": "online",
     "offline": "offline",
-    "lastSeenSeconds": "last seen {count}s ago",
+    "lastSeenJustNow": "last seen just now",
     "lastSeenMinutes": "last seen {count}m ago",
     "lastSeenHours": "last seen {count}h ago",
     "lastSeenDays": "last seen {count}d ago",

@@ -105,7 +105,7 @@ export default function OnlineUsersDrawer({
     if (participant.isOnline) return t("onlineShort");
     if (!participant.lastSeenAt) return "";
     return formatLastSeenRelative(participant.lastSeenAt, nowMs, {
-      seconds: (count) => t("lastSeenSeconds", { count }),
+      justNow: () => t("lastSeenJustNow"),
       minutes: (count) => t("lastSeenMinutes", { count }),
       hours: (count) => t("lastSeenHours", { count }),
       days: (count) => t("lastSeenDays", { count }),

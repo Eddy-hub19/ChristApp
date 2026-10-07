@@ -325,7 +325,7 @@
     "shareJesusNotesHint": "Особистий простір для нотаток",
     "onlineShort": "онлайн",
     "offline": "не в мережі",
-    "lastSeenSeconds": "був(ла) в мережі {count} с тому",
+    "lastSeenJustNow": "був(ла) в мережі щойно",
     "lastSeenMinutes": "був(ла) в мережі {count} хв тому",
     "lastSeenHours": "був(ла) в мережі {count} год тому",
     "lastSeenDays": "був(ла) в мережі {count} дн тому",
