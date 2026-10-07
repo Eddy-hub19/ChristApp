@@ -217,7 +217,13 @@ export class PuzzleManager {
     } else {
       return;
     }
-    const image = this.pickOf(imagesOfCharacter(character));
+    // Повторний вибір того ж героя («Інша картина») не повертає ту саму картину, якщо є з чого обирати.
+    const all = imagesOfCharacter(character);
+    const others =
+      s.selection?.characterId === character
+        ? all.filter((i) => i.id !== s.selection?.imageId)
+        : all;
+    const image = this.pickOf(others.length > 0 ? others : all);
     s.selection = {
       mode: mode as SelectionMode,
       characterId: character,

@@ -10,12 +10,15 @@ export type PieceCount = 12 | 24 | 48 | 96;
 export type PuzzleImage = {
   id: string;
   characterIds: string[];
-  file: string;
+  url: string;
+  cloudinaryId: string;
   width: number;
   height: number;
   title: string;
   author: string;
   year: number;
+  dateLabel?: string;
+  source: string;
   license: string;
   licenseUrl: string | null;
   commonsTitle: string;

@@ -905,7 +905,7 @@
     "searchPlaceholder": "Character name, e.g. Abraham",
     "noResults": "Nothing found — pictures exist only for some characters",
     "imagesCount": "{count, plural, one {# picture} other {# pictures}}",
-    "anotherImage": "Another picture of this character",
+    "anotherImage": "Another picture",
     "imageCaption": "{author}, “{title}”, {year}",
     "piecesTitle": "Number of pieces",
     "start": "Start",
@@ -929,11 +929,12 @@
     "doneTitle": "Picture complete!",
     "timeResult": "Time: {time}",
     "placedBy": "{name}: {count} pcs",
-    "creditLine": "{author}, “{title}”, {year}. Public Domain, Wikimedia Commons.",
+    "creditLine": "{author}, “{title}”, {year}. Source: Wikimedia Commons. Licence: {license}.",
     "creditLink": "Commons page",
     "again": "Again",
     "other": "Another picture",
     "viewPicture": "View the picture",
-    "showSummary": "Show summary"
+    "showSummary": "Show summary",
+    "creditLineSource": "{author}, “{title}”, {year}. Collection: {source}; source: Wikimedia Commons. Licence: {license}."
   }
 }

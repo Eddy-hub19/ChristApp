@@ -100,13 +100,13 @@ export default function PuzzleBoard(props: Props) {
     img.onload = () => {
       if (cancelled) return;
       engineRef.current?.setImage(img);
-      setLoadedFile(image.file);
+      setLoadedFile(image.url);
     };
-    img.src = image.file;
+    img.src = image.url;
     return () => {
       cancelled = true;
     };
-  }, [image.file]);
+  }, [image.url]);
 
   useEffect(() => {
     engineRef.current?.setPlayers({
@@ -157,7 +157,7 @@ export default function PuzzleBoard(props: Props) {
     };
   }, [socket, roomId, userId, soundOn]);
 
-  const loading = loadedFile !== image.file;
+  const loading = loadedFile !== image.url;
   return (
     <div ref={containerRef} className={styles.boardWrap}>
       <canvas ref={canvasRef} className={styles.canvas} aria-label="Puzzle" />

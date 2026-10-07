@@ -35,12 +35,34 @@ describe('puzzle images data', () => {
     }
   });
 
-  it('the files exist, are WebP, and are not larger than ~1600px (and not blurry-small)', () => {
+  it('files are WebP in the Cloudinary puzzles folder, and big enough not to blur', () => {
     for (const image of PUZZLE_IMAGES) {
-      expect(image.file).toMatch(/^\/puzzles\/[a-z0-9-]+\.webp$/i);
-      expect(existsSync(path.join(frontendPublic, image.file))).toBe(true);
+      expect(image.url).toMatch(
+        /^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/(v\d+\/)?christapp\/puzzles\/[a-z0-9-]+(\.webp)?$/i,
+      );
+      expect(image.cloudinaryId).toMatch(/^christapp\/puzzles\//);
+      expect(image.url).toContain(image.cloudinaryId);
       expect(Math.max(image.width, image.height)).toBeLessThanOrEqual(1600);
       expect(Math.max(image.width, image.height)).toBeGreaterThanOrEqual(1000);
+    }
+  });
+
+  it('no binaries of the pictures live in the repository', () => {
+    expect(existsSync(path.join(frontendPublic, 'puzzles'))).toBe(false);
+  });
+
+  it('the black-and-white Doré engravings are gone', () => {
+    for (const image of PUZZLE_IMAGES) {
+      expect(image.author).not.toMatch(/dor[eé]/i);
+      expect(image.commonsTitle).not.toMatch(/dor[eé]|engraving/i);
+    }
+  });
+
+  it('every picture has a source line for the credit', () => {
+    for (const image of PUZZLE_IMAGES) {
+      expect(image.source.trim()).not.toBe('');
+      if (image.dateLabel !== undefined)
+        expect(image.dateLabel).toMatch(/\d{4}/);
     }
   });
 
