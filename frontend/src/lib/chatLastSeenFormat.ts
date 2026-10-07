@@ -3,7 +3,8 @@ export function formatLastSeenRelative(
   iso: string,
   nowMs: number,
   labels: {
-    seconds: (n: number) => string;
+    /** Менше хвилини тому — без секунд, як у Telegram: «щойно». */
+    justNow: () => string;
     minutes: (n: number) => string;
     hours: (n: number) => string;
     days: (n: number) => string;
@@ -16,7 +17,7 @@ export function formatLastSeenRelative(
   const diffMs = Math.max(0, nowMs - t);
   const sec = Math.floor(diffMs / 1000);
   if (sec < 60) {
-    return labels.seconds(Math.max(1, sec));
+    return labels.justNow();
   }
   const min = Math.floor(sec / 60);
   if (min < 60) {

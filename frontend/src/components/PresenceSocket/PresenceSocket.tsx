@@ -14,6 +14,7 @@ import createSocket from "socket.io-client";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
+import { attachPresenceReporter } from "@/lib/presenceReporter";
 import { usePathname } from "@/i18n/navigation";
 import { getCinemaSessionActive, subscribeCinemaSession } from "@/lib/cinemaSessionStore";
 
@@ -50,11 +51,18 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
     cinemaSessionActive || pathname === "/chat" || !pathname?.startsWith("/chat/");
   const socketRef = useRef<PresenceSocket | null>(null);
   const currentTokenRef = useRef<string | null>(null);
+  const detachPresenceRef = useRef<(() => void) | null>(null);
   const [socket, setSocket] = useState<PresenceSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    const detachPresence = () => {
+      detachPresenceRef.current?.();
+      detachPresenceRef.current = null;
+    };
+
     const disconnectSocket = () => {
+      detachPresence();
       currentTokenRef.current = null;
       setIsConnected(false);
       if (socketRef.current) {
@@ -93,6 +101,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       }
 
       if (socketRef.current) {
+        detachPresence();
         socketRef.current.disconnect();
       }
 
@@ -102,6 +111,8 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       });
       nextSocket.on("connect", () => setIsConnected(true));
       nextSocket.on("disconnect", () => setIsConnected(false));
+      // «Онлайн» = застосунок видно, а не «сокет підключений» — див. presenceReporter.
+      detachPresenceRef.current = attachPresenceReporter(nextSocket);
 
       socketRef.current = nextSocket;
       setSocket(nextSocket);
