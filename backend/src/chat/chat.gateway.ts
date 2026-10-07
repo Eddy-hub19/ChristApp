@@ -29,6 +29,7 @@ import {
   GuessCharacterManager,
   guessCatalog,
 } from './guess-character/guess-character.manager';
+import { PuzzleManager, puzzleCatalog } from './puzzle/puzzle.manager';
 import { GameActivityService } from './game-activity/game-activity.service';
 import {
   canUserPostToRoom,
@@ -49,6 +50,12 @@ interface SocketWithUser extends Socket {
     user?: SocketUser;
     /** Кімнати, які цей сокет ЗАРАЗ тримає на екрані (див. `roomViewState`). */
     viewedRooms?: Set<string>;
+    /** Перевірений контекст гри «Пазли» для цього сокета: рух шлеться ~15 разів на секунду, тож БД на кожен кадр не чіпаємо. */
+    puzzleCtx?: {
+      userId: string;
+      roomId: string;
+      players: [string, string];
+    };
   };
 }
 
@@ -175,6 +182,11 @@ export class ChatGateway
     },
   );
 
+  /** «Пазли»: сесія в пам'яті сервера, переживає вихід гравців; знімки йдуть кожному гравцеві окремо (`user:<id>`). */
+  private readonly puzzle = new PuzzleManager((userId, event, payload) => {
+    this.server?.to(`user:${userId}`).emit(event, payload);
+  });
+
   /** «Грає в …» у чаті: лише в пам'яті, без БД і пушів (heartbeat + TTL). */
   private readonly gameActivity = new GameActivityService();
   private gameActivitySweeper: ReturnType<typeof setInterval> | null = null;
@@ -244,6 +256,7 @@ export class ChatGateway
     this.pendingReadSync.clear();
     this.snakeDuel.disposeAll();
     this.guessCharacter.disposeAll();
+    this.puzzle.disposeAll();
     if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
     this.gameActivitySweeper = null;
   }
@@ -528,6 +541,7 @@ export class ChatGateway
     if (presence.socketCount(userId) === 0) {
       this.snakeDuel.userDisconnected(userId);
       this.guessCharacter.userDisconnected(userId);
+      this.puzzle.userDisconnected(userId);
     }
   }
 
@@ -770,6 +784,7 @@ export class ChatGateway
     this.gameActivitySweeper = setInterval(() => {
       void this.broadcastGameActivity(this.gameActivity.sweep(Date.now()));
       this.guessCharacter.sweepIdle();
+      this.puzzle.sweepIdle();
     }, 5_000);
     this.gameActivitySweeper.unref?.();
   }
@@ -1454,6 +1469,194 @@ export class ChatGateway
       ctx.userId,
       body?.solo === true,
     );
+  }
+
+  // ───────────── «Пазли» ─────────────
+
+  /** Контекст гри для сокета: перевіряється в БД один раз (при `puzzle-session-sync`), далі береться з пам'яті сокета. */
+  private async puzzleContext(client: SocketWithUser, rawRoomId: unknown) {
+    const roomId = typeof rawRoomId === 'string' ? rawRoomId.trim() : '';
+    const cached = client.data.puzzleCtx;
+    if (cached && cached.roomId === roomId) return cached;
+    const ctx = await this.snakeDuelContext(client, roomId);
+    if (ctx) client.data.puzzleCtx = ctx;
+    return ctx;
+  }
+
+  /** Відкрили гру / реконект: присутність, актуальний стан і каталог картин. */
+  @SubscribeMessage('puzzle-session-sync')
+  async handlePuzzleSessionSync(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    client.data.puzzleCtx = undefined;
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    await client.join(ctx.roomId);
+    client.emit('puzzle-catalog', puzzleCatalog());
+    this.puzzle.sync(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
+  }
+
+  @SubscribeMessage('puzzle-presence')
+  async handlePuzzlePresence(
+    @MessageBody() body: { roomId?: string; solo?: boolean; present?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.setPresence(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      Boolean(body?.present),
+    );
+  }
+
+  @SubscribeMessage('puzzle-select')
+  async handlePuzzleSelect(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; mode?: unknown; character?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.select(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.mode,
+      body?.character,
+    );
+  }
+
+  @SubscribeMessage('puzzle-count')
+  async handlePuzzleCount(
+    @MessageBody() body: { roomId?: string; solo?: boolean; count?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.setCount(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.count,
+    );
+  }
+
+  @SubscribeMessage('puzzle-start')
+  async handlePuzzleStart(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.start(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
+  }
+
+  @SubscribeMessage('puzzle-again')
+  async handlePuzzleAgain(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.again(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
+  }
+
+  @SubscribeMessage('puzzle-lobby')
+  async handlePuzzleLobby(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.toLobby(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
+  }
+
+  @SubscribeMessage('puzzle-grab')
+  async handlePuzzleGrab(
+    @MessageBody() body: { roomId?: string; solo?: boolean; group?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.grab(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.group,
+    );
+  }
+
+  @SubscribeMessage('puzzle-move')
+  async handlePuzzleMove(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; group?: unknown; x?: unknown; y?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.move(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.group,
+      body?.x,
+      body?.y,
+    );
+  }
+
+  @SubscribeMessage('puzzle-drop')
+  async handlePuzzleDrop(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; group?: unknown; x?: unknown; y?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.drop(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.group,
+      body?.x,
+      body?.y,
+    );
+  }
+
+  @SubscribeMessage('puzzle-cursor')
+  async handlePuzzleCursor(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; x?: unknown; y?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.cursor(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.x,
+      body?.y,
+    );
+  }
+
+  @SubscribeMessage('puzzle-gather')
+  async handlePuzzleGather(
+    @MessageBody() body: { roomId?: string; solo?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    this.puzzle.gather(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
   }
 
   @SubscribeMessage('snake-state')
