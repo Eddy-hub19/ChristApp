@@ -274,6 +274,20 @@ describe('PuzzleManager — блокування кусочка', () => {
     expect(ctx.sent.filter((m) => m.event === 'puzzle-move')).toHaveLength(1);
   });
 
+  it('той, хто вийшов з гри, не отримує ні рухів, ні знімків (його чат не навантажується)', () => {
+    const ctx = started();
+    ctx.g.grab(A, 3);
+    ctx.g.presence(B, false);
+    ctx.sent.length = 0;
+    ctx.clock.t += 100;
+    ctx.g.move(A, 3, -200, -250);
+    ctx.g.drop(A, 3, -200, -250);
+    expect(ctx.sent.filter((m) => m.userId === B)).toHaveLength(0);
+    // повернувшись, він одразу отримує повний знімок
+    ctx.g.sync(B);
+    expect(ctx.view(B).puzzle).toBeTruthy();
+  });
+
   it('позиція відкидається в межі світу', () => {
     const ctx = started();
     ctx.g.grab(A, 3);
