@@ -87,13 +87,17 @@ import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame";
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
 import ChristianFilwordMiniGame from "@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame";
 import GuessCharacterMiniGame from "@/components/GuessCharacterMiniGame/GuessCharacterMiniGame";
-import PuzzleMiniGame from "@/components/PuzzleMiniGame/PuzzleMiniGame";
 import {
   useGameActivityBroadcast,
   useGameActivityFeed,
 } from "@/hooks/useGameActivity";
 import { isGameActivityRoom } from "@/lib/games/gameActivity";
 import type { GameId } from "@/lib/games/gameRegistry";
+/** «Пазли» (доска, движок, звук) тянем только при открытии игры — чат без неё не парсит этот код. */
+const PuzzleMiniGame = dynamic(
+  () => import("@/components/PuzzleMiniGame/PuzzleMiniGame"),
+  { ssr: false },
+);
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), {
   ssr: false,
 });
@@ -4095,22 +4099,24 @@ export default function ChatPageDetails() {
           }
           onClose={() => setIsGuessOpen(false)}
         />
-        <PuzzleMiniGame
-          open={isPuzzleOpen}
-          roomId={effectiveSocketRoomId}
-          // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
-          socket={isSocketConnected ? socketRef.current : null}
-          userId={user?.id ?? ""}
-          peerName={
-            directChatTargetUser?.nickname ??
-            directChatTargetUser?.username ??
-            "Собеседник"
-          }
-          myName={user?.nickname ?? user?.username}
-          myAvatarUrl={resolvePublicAvatarUrl(user?.avatarUrl)}
-          peerAvatarUrl={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
-          onClose={() => setIsPuzzleOpen(false)}
-        />
+        {isPuzzleOpen ? (
+          <PuzzleMiniGame
+            open
+            roomId={effectiveSocketRoomId}
+            // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
+            socket={isSocketConnected ? socketRef.current : null}
+            userId={user?.id ?? ""}
+            peerName={
+              directChatTargetUser?.nickname ??
+              directChatTargetUser?.username ??
+              "Собеседник"
+            }
+            myName={user?.nickname ?? user?.username}
+            myAvatarUrl={resolvePublicAvatarUrl(user?.avatarUrl)}
+            peerAvatarUrl={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
+            onClose={() => setIsPuzzleOpen(false)}
+          />
+        ) : null}
       </section>
     </div>
   );

@@ -327,7 +327,7 @@ export class PuzzleManager {
     group.y = pos.y;
     group.heldAt = now;
     for (const id of s.players) {
-      if (id !== userId) {
+      if (id !== userId && s.present[id]) {
         this.emit(id, 'puzzle-move', {
           roomId: s.roomId,
           groupId,
@@ -352,7 +352,7 @@ export class PuzzleManager {
     if (!s || s.phase !== 'playing') return;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     for (const id of s.players) {
-      if (id !== userId) {
+      if (id !== userId && s.present[id]) {
         this.emit(id, 'puzzle-cursor', { roomId: s.roomId, x, y, by: userId });
       }
     }
@@ -390,6 +390,7 @@ export class PuzzleManager {
     this.broadcast(s);
     if (joined) {
       for (const id of s.players) {
+        if (!s.present[id]) continue;
         this.emit(id, 'puzzle-event', {
           roomId: s.roomId,
           type: s.phase === 'done' ? 'done' : 'join',
@@ -619,9 +620,10 @@ export class PuzzleManager {
 
   // ───────────── серіалізація ─────────────
 
+  /** Лише тим, хто зараз у грі: решта отримає повний знімок при `sync`, а потік рухів їхній чат не навантажує. */
   private broadcast(s: Session, except?: string) {
     for (const id of s.players) {
-      if (id !== except) this.emit(id, 'puzzle-session', this.serialize(s));
+      if (id !== except && s.present[id]) this.emit(id, 'puzzle-session', this.serialize(s));
     }
   }
 
