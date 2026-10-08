@@ -50,6 +50,20 @@ import {
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { reconcileMessages } from "@/lib/chatReconcile";
 import { readCachedMessages, writeCachedMessages } from "@/lib/chatMessageCache";
+import {
+  addRawVoiceListen,
+  appendRawMessage,
+  patchRawMessage,
+  removeRawMessage,
+  writeHistoryCache,
+} from "@/lib/chatHistoryCache";
+import { STALE } from "@/lib/queryPolicy";
+import { getUserIdFromJwt } from "@/lib/jwtUser";
+import { HISTORY_PAGE_SIZE } from "@/lib/chatHistoryPrefetch";
+
+const REACTION_CONFIRM_TIMEOUT_MS = 5000;
+const SEND_CONFIRM_TIMEOUT_MS = 12_000;
+const OPTIMISTIC_ID_PREFIX = "tmp-";
 import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import ChatSkeleton from "@/components/ChatSkeleton/ChatSkeleton";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
@@ -122,13 +136,14 @@ import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
   fetchAvatarLikesForUser,
+  optimisticAvatarLikeToggle,
   toggleAvatarLikeForUser,
+  type AvatarLikesUserResponse,
 } from "@/lib/queries/avatarLikesQueries";
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
 
 const CHAT_SOCKET_URL = getDirectApiOrigin();
 const CHAT_HTTP_API = getHttpApiBase();
-const HISTORY_PAGE_SIZE = 250;
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews";
 const MAX_REPLY_PREVIEW_LENGTH = 180;
 type AppSocket = ReturnType<typeof createSocket>;
@@ -764,12 +779,39 @@ export default function ChatPageDetails() {
     };
   }, [isGameMenuOpen]);
 
+  /**
+   * Приватний чат відкривають за id співрозмовника; справжній id кімнати раніше з'являвся лише після сокет-події
+   * `myRooms`, і до того історія запитувалась за чужим id (зайвий 4xx-запит, кеш не потрапляв). Беремо його з уже
+   * закешованого списку чатів (реактивно, без запиту) — історія з кешу показується з першого кадру.
+   */
+  const myIdForRoomLookup =
+    user?.id ?? getUserIdFromJwt(getAuthToken() ?? "") ?? undefined;
+  const { data: cachedDirectRoomId } = useQuery({
+    queryKey: chatMyRoomsQueryKey(myIdForRoomLookup),
+    queryFn: async () => [] as MyRoomItem[],
+    enabled: false,
+    staleTime: Infinity,
+    placeholderData: undefined,
+    select: (rooms: MyRoomItem[]) =>
+      routeRoomId &&
+      routeRoomId !== GLOBAL_ROOM_SLUG &&
+      routeRoomId !== SHARE_WITH_JESUS_SLUG
+        ? (findDirectRoomByUserId(rooms, myIdForRoomLookup, routeRoomId)?.id ??
+          null)
+        : null,
+  });
+
   const effectiveSocketRoomId = useMemo(() => {
     if (!routeRoomId) return null;
     if (routeRoomId === GLOBAL_ROOM_SLUG) return GLOBAL_ROOM_ID;
     if (routeRoomId === SHARE_WITH_JESUS_SLUG) return resolvedShareJesusRoomId;
-    return directRouteRoomId ?? routeRoomId;
-  }, [directRouteRoomId, routeRoomId, resolvedShareJesusRoomId]);
+    return directRouteRoomId ?? cachedDirectRoomId ?? routeRoomId;
+  }, [
+    directRouteRoomId,
+    cachedDirectRoomId,
+    routeRoomId,
+    resolvedShareJesusRoomId,
+  ]);
 
   const roomHistoryQuery = useQuery({
     queryKey: chatRoomHistoryQueryKey(effectiveSocketRoomId),
@@ -811,7 +853,8 @@ export default function ChatPageDetails() {
     },
     /** Повтори й помилки тихі: компонент не перерисовується, поки не з'явились дані. */
     notifyOnChangeProps: ["data", "isPlaceholderData"],
-    staleTime: 20_000,
+    /** Історію ведуть події сокета (дзеркало в кеші пишемо при виході з кімнати), тож вона довго лишається свіжою. */
+    staleTime: STALE.live,
     /** Холодний старт бекенду (30–60 с): довгі повтори з наростаючою паузою замість миттєвої помилки. */
     retry: shouldRetryHistory,
     retryDelay: historyRetryDelay,
@@ -1092,6 +1135,7 @@ export default function ChatPageDetails() {
       return;
     }
 
+    rawHistoryRef.current = roomHistoryQuery.data as IncomingSocketMessage[];
     const { uniqueHistory } = normalizeRoomHistory(
       roomHistoryQuery.data as IncomingSocketMessage[],
       user?.username,
@@ -1110,7 +1154,8 @@ export default function ChatPageDetails() {
 
   // Миттєвий показ: останні повідомлення з IndexedDB, поки свіжа історія ще в дорозі.
   useEffect(() => {
-    const userId = user?.id;
+    // id з JWT доступний одразу, без очікування GET /auth/me: кеш показується на першому ж кадрі.
+    const userId = user?.id ?? getUserIdFromJwt(getAuthToken() ?? "");
     if (!userId || !effectiveSocketRoomId) return;
     let cancelled = false;
     void readCachedMessages<Message>(userId, effectiveSocketRoomId).then((cached) => {
@@ -1129,7 +1174,11 @@ export default function ChatPageDetails() {
     const userId = user?.id;
     if (!userId || !effectiveSocketRoomId || !historyAppliedRef.current) return;
     const timer = window.setTimeout(() => {
-      void writeCachedMessages(userId, effectiveSocketRoomId, messages);
+      void writeCachedMessages(
+        userId,
+        effectiveSocketRoomId,
+        messages.filter((item) => !item.id.startsWith(OPTIMISTIC_ID_PREFIX)),
+      );
     }, 600);
     return () => window.clearTimeout(timer);
   }, [messages, user?.id, effectiveSocketRoomId]);
@@ -1137,6 +1186,44 @@ export default function ChatPageDetails() {
   useEffect(() => {
     if (showSkeleton) setSkeletonWasShown(true);
   }, [showSkeleton]);
+
+  /**
+   * Сирий список повідомлень кімнати для кешу RQ. Сокет-події застосовуємо до нього через ref (без перемальовування
+   * сторінки на кожне повідомлення), а в `setQueryData` пишемо при виході з кімнати — повторний вхід показує
+   * актуальну історію з кешу без запиту всієї історії.
+   */
+  const rawHistoryRef = useRef<IncomingSocketMessage[]>([]);
+  /**
+   * Надіслані тексти, що чекають ехо сервера: показуємо їх одразу (оптимістично) з тимчасовим id `tmp-…`;
+   * коли приходить власне `newMessage` з тим самим текстом — тимчасове замінюється справжнім, а без ехо за
+   * `SEND_CONFIRM_TIMEOUT_MS` — прибирається з повідомленням про помилку.
+   */
+  const pendingSendsRef = useRef<
+    Array<{ tmpId: string; content: string; timer: number }>
+  >([]);
+  /** Реакції, що чекають підтвердження сервера (оптимістичний стан + таймер відкату). */
+  const pendingReactionsRef = useRef(
+    new Map<string, { previous: NonNullable<Message["reactions"]>; timer: number }>(),
+  );
+  useEffect(() => {
+    const pending = pendingReactionsRef.current;
+    const sends = pendingSendsRef;
+    return () => {
+      pending.forEach((entry) => window.clearTimeout(entry.timer));
+      pending.clear();
+      sends.current.forEach((entry) => window.clearTimeout(entry.timer));
+      sends.current = [];
+    };
+  }, [effectiveSocketRoomId]);
+  useEffect(() => {
+    const cachedRoomId = effectiveSocketRoomId;
+    return () => {
+      if (cachedRoomId && rawHistoryRef.current.length > 0) {
+        writeHistoryCache(queryClient, cachedRoomId, rawHistoryRef.current);
+      }
+      rawHistoryRef.current = [];
+    };
+  }, [effectiveSocketRoomId, queryClient]);
 
   const refetchHistoryRef = useRef(roomHistoryQuery.refetch);
   useEffect(() => {
@@ -1366,6 +1453,7 @@ export default function ChatPageDetails() {
       }
 
       messageIdsRef.current.add(normalized.id);
+      rawHistoryRef.current = appendRawMessage(rawHistoryRef.current, msg);
 
       if (joinedId && previewLine.trim()) {
         persistLastSentPreview(joinedId, previewLine);
@@ -1402,7 +1490,25 @@ export default function ChatPageDetails() {
         return next;
       });
 
-      setMessages((prev) => [...prev, normalized]);
+      let confirmedTmpId: string | null = null;
+      if (isOwnMessage) {
+        // Ехо шукаємо за текстом; якщо сервер змінив текст — береться найстаріше очікуване (FIFO) для текстових.
+        let index = pendingSendsRef.current.findIndex(
+          (entry) => entry.content === normalized.content.trim(),
+        );
+        if (index < 0 && normalized.type === "TEXT") index = 0;
+        if (index >= 0 && index < pendingSendsRef.current.length) {
+          const [entry] = pendingSendsRef.current.splice(index, 1);
+          window.clearTimeout(entry.timer);
+          confirmedTmpId = entry.tmpId;
+        }
+      }
+      setMessages((prev) => [
+        ...(confirmedTmpId
+          ? prev.filter((item) => item.id !== confirmedTmpId)
+          : prev),
+        normalized,
+      ]);
       dispatchChatUnreadChangedEvent();
     };
     socket.on("newMessage", onNewMessage);
@@ -1413,6 +1519,11 @@ export default function ChatPageDetails() {
     }) => {
       const { messageId, userId } = payload ?? {};
       if (!messageId || !userId) return;
+      rawHistoryRef.current = addRawVoiceListen(
+        rawHistoryRef.current,
+        messageId,
+        userId,
+      );
       setMessages((prev) =>
         prev.map((message) =>
           message.id === messageId && !message.voiceListenedBy?.includes(userId)
@@ -1441,6 +1552,10 @@ export default function ChatPageDetails() {
       }
 
       messageIdsRef.current.delete(deletedMessageId);
+      rawHistoryRef.current = removeRawMessage(
+        rawHistoryRef.current,
+        deletedMessageId,
+      );
 
       setMessages((prev) =>
         prev
@@ -1489,6 +1604,11 @@ export default function ChatPageDetails() {
         return;
       }
 
+      rawHistoryRef.current = patchRawMessage(
+        rawHistoryRef.current,
+        editedMessageId,
+        { content: nextContent, isEdited: payload?.isEdited !== false },
+      );
       setMessages((prev) =>
         prev.map((messageItem) =>
           messageItem.id === editedMessageId
@@ -1540,6 +1660,7 @@ export default function ChatPageDetails() {
         }
       }
 
+      rawHistoryRef.current = history;
       applyServerHistory(uniqueHistory);
       setIsHistoryLoading(false);
       void queryClient.setQueryData(
@@ -1819,6 +1940,16 @@ export default function ChatPageDetails() {
         })
         .filter(Boolean) as NonNullable<Message["reactions"]>;
 
+      const pendingReaction = pendingReactionsRef.current.get(payload.messageId);
+      if (pendingReaction) {
+        window.clearTimeout(pendingReaction.timer);
+        pendingReactionsRef.current.delete(payload.messageId);
+      }
+      rawHistoryRef.current = patchRawMessage(
+        rawHistoryRef.current,
+        payload.messageId,
+        { reactions: normalizedReactions },
+      );
       setMessages((prev) =>
         prev.map((messageItem) =>
           messageItem.id === payload.messageId
@@ -2503,12 +2634,14 @@ export default function ChatPageDetails() {
     queryKey: avatarLikesForUserQueryKey(directChatTargetUserId ?? ""),
     queryFn: () => fetchAvatarLikesForUser(directChatTargetUserId!),
     enabled: avatarLikesQueryEnabled,
+    staleTime: STALE.slow,
   });
 
   const isPeerSelf = Boolean(user?.id && directChatTargetUserId === user.id);
   const avatarLikeCount = peerAvatarLikes?.receivedCount ?? 0;
   const isAvatarLiked = peerAvatarLikes?.likedByMe ?? false;
 
+  /** Лайк аватара: інтерфейс реагує одразу (оптимістично), при помилці — відкат до попереднього значення. */
   const toggleAvatarLikeMutation = useMutation({
     mutationFn: async () => {
       if (!directChatTargetUserId) {
@@ -2516,13 +2649,31 @@ export default function ChatPageDetails() {
       }
       return toggleAvatarLikeForUser(directChatTargetUserId);
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      if (!directChatTargetUserId) return undefined;
+      const key = avatarLikesForUserQueryKey(directChatTargetUserId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<AvatarLikesUserResponse>(key);
+      queryClient.setQueryData<AvatarLikesUserResponse>(
+        key,
+        optimisticAvatarLikeToggle(previous),
+      );
+      return { key, previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous);
+    },
+    onSuccess: (serverState) => {
       if (directChatTargetUserId) {
-        void queryClient.invalidateQueries({
-          queryKey: avatarLikesForUserQueryKey(directChatTargetUserId),
-        });
+        queryClient.setQueryData(
+          avatarLikesForUserQueryKey(directChatTargetUserId),
+          serverState,
+        );
       }
-      void queryClient.invalidateQueries({ queryKey: avatarLikesMeQueryKey });
+      // «Мої» лічильники змінюються лише при лайку власного аватара.
+      if (user?.id && directChatTargetUserId === user.id) {
+        void queryClient.invalidateQueries({ queryKey: avatarLikesMeQueryKey });
+      }
     },
   });
 
@@ -2961,6 +3112,10 @@ export default function ChatPageDetails() {
     setIsUserProfileOpen(false);
   }, [roomId]);
 
+  /**
+   * Реакція: інтерфейс реагує одразу (оптимістично), авторитетну відповідь дає `update-message-reactions`.
+   * Якщо сервер не відповів за `REACTION_CONFIRM_TIMEOUT_MS` (помилка/обрив) — відкат до попередніх реакцій.
+   */
   const handleToggleReaction = useCallback(
     (message: Message, reaction: AppReactionType) => {
       const targetRoomId = effectiveSocketRoomId;
@@ -2968,13 +3123,49 @@ export default function ChatPageDetails() {
       if (!socket || !socket.connected || !targetRoomId) {
         return;
       }
+      const myId = user?.id;
+      if (myId) {
+        const pendingMap = pendingReactionsRef.current;
+        const existing = pendingMap.get(message.id);
+        const previous = existing?.previous ?? message.reactions ?? [];
+        if (existing) window.clearTimeout(existing.timer);
+        const base = message.reactions ?? [];
+        const mine = base.find(
+          (item) => item.userId === myId && item.type === reaction,
+        );
+        const optimistic = mine
+          ? base.filter((item) => item !== mine)
+          : [
+              ...base,
+              {
+                id: `optimistic-${message.id}-${reaction}`,
+                userId: myId,
+                type: reaction,
+                createdAt: new Date().toISOString(),
+              },
+            ];
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === message.id ? { ...item, reactions: optimistic } : item,
+          ),
+        );
+        const timer = window.setTimeout(() => {
+          pendingMap.delete(message.id);
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.id === message.id ? { ...item, reactions: previous } : item,
+            ),
+          );
+        }, REACTION_CONFIRM_TIMEOUT_MS);
+        pendingMap.set(message.id, { previous, timer });
+      }
       socket.emit("toggle-reaction", {
         messageId: message.id,
         type: reaction,
         chatId: targetRoomId,
       });
     },
-    [effectiveSocketRoomId],
+    [effectiveSocketRoomId, user?.id],
   );
 
   const handleStartCall = useCallback(() => {
@@ -3247,6 +3438,43 @@ export default function ChatPageDetails() {
       content: normalizedText,
       replyToId: replyTarget?.id,
     });
+
+    if (user) {
+      const tmpId = `${OPTIMISTIC_ID_PREFIX}${Date.now()}-${pendingSendsRef.current.length}`;
+      const optimistic = normalizeIncomingMessage(
+        {
+          id: tmpId,
+          roomId: targetRoomId,
+          content: normalizedText,
+          type: "TEXT",
+          senderId: user.id,
+          username: user.nickname ?? user.username,
+          handle: user.username,
+          createdAt: new Date().toISOString(),
+          reactions: [],
+          replyTo: replyTarget
+            ? {
+                id: replyTarget.id,
+                username: replyTarget.username,
+                type: replyTarget.type,
+                content: replyTarget.content,
+                fileUrl: replyTarget.fileUrl,
+                voiceDuration: replyTarget.voiceDuration,
+              }
+            : null,
+        },
+        user.username,
+      );
+      const timer = window.setTimeout(() => {
+        pendingSendsRef.current = pendingSendsRef.current.filter(
+          (entry) => entry.tmpId !== tmpId,
+        );
+        setMessages((prev) => prev.filter((item) => item.id !== tmpId));
+        setSendNotice(t("sendWaitConnection"));
+      }, SEND_CONFIRM_TIMEOUT_MS);
+      pendingSendsRef.current.push({ tmpId, content: normalizedText, timer });
+      setMessages((prev) => [...prev, optimistic]);
+    }
     return true;
   }
 

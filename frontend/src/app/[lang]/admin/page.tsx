@@ -1,36 +1,66 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
-import { getHttpApiBase } from "@/lib/apiBase";
-import { getAuthToken } from "@/lib/auth";
-import { apiFetch } from "@/lib/apiFetch";
+import {
+  AdminHttpError,
+  adminMembersQueryKey,
+  adminMembersQueryOptions,
+  deleteAdminMember,
+  type AdminMember,
+} from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
-type AdminMember = {
-  id: string;
-  email: string;
-  username: string;
-  nickname: string | null;
-  createdAt: string;
-  isActive: boolean;
-  lastSeenAt: string | null;
-  avatarUrl: string | null;
-};
-
+const EMPTY_MEMBERS: AdminMember[] = [];
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function AdminPage() {
   const t = useTranslations("admin");
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [members, setMembers] = useState<AdminMember[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadingList, setLoadingList] = useState(false);
+  const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const isAdmin = !loading && Boolean(user) && canSeeAdminPanelNav(user?.username);
+
+  const membersQuery = useQuery(adminMembersQueryOptions(isAdmin));
+  const members = membersQuery.data ?? EMPTY_MEMBERS;
+  const loadingList = membersQuery.isFetching;
+  const loadError = membersQuery.error
+    ? membersQuery.error instanceof AdminHttpError && membersQuery.error.status === 401
+      ? t("noToken")
+      : membersQuery.error instanceof AdminHttpError
+        ? membersQuery.error.message || t("loadFailed", { status: membersQuery.error.status })
+        : t("loadFailedGeneric")
+    : null;
+
+  /** Видалення — оптимістично: рядок зникає одразу, при помилці повертається. */
+  const deleteMutation = useMutation({
+    mutationFn: (member: AdminMember) => deleteAdminMember(member.id),
+    onMutate: async (member) => {
+      await queryClient.cancelQueries({ queryKey: adminMembersQueryKey() });
+      const previous = queryClient.getQueryData<AdminMember[]>(adminMembersQueryKey());
+      queryClient.setQueryData<AdminMember[]>(adminMembersQueryKey(), (old) =>
+        (old ?? []).filter((row) => row.id !== member.id),
+      );
+      setDeletingId(member.id);
+      return { previous };
+    },
+    onError: (error, _member, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(adminMembersQueryKey(), context.previous);
+      }
+      window.alert(
+        error instanceof AdminHttpError
+          ? t("deleteFailed", { status: error.status })
+          : t("deleteFailedGeneric"),
+      );
+    },
+    onSettled: () => setDeletingId(null),
+  });
 
   useEffect(() => {
     if (loading) return;
@@ -43,44 +73,8 @@ export default function AdminPage() {
     }
   }, [user, loading, router]);
 
-  const loadMembers = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) {
-      setLoadError(t("noToken"));
-      return;
-    }
-    setLoadingList(true);
-    setLoadError(null);
-    try {
-      const res = await apiFetch(`${getHttpApiBase()}/admin/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || t("loadFailed", { status: res.status }));
-      }
-      const data = (await res.json()) as AdminMember[];
-      setMembers(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : t("loadFailedGeneric"));
-    } finally {
-      setLoadingList(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    if (loading || !user || !canSeeAdminPanelNav(user.username)) return;
-    void loadMembers();
-  }, [loadMembers, loading, user]);
-
   const deleteMember = useCallback(
-    async (member: AdminMember) => {
-      const token = getAuthToken();
-      if (!token) {
-        window.alert(t("noToken"));
-        return;
-      }
-
+    (member: AdminMember) => {
       const displayName = member.nickname?.trim() || member.username;
       const confirmed = window.confirm(
         t("deleteConfirm", {
@@ -88,32 +82,9 @@ export default function AdminPage() {
           username: member.username,
         }),
       );
-      if (!confirmed) {
-        return;
-      }
-
-      setDeletingId(member.id);
-      try {
-        const res = await apiFetch(
-          `${getHttpApiBase()}/admin/members/${member.id}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-
-        if (!res.ok) {
-          throw new Error(t("deleteFailed", { status: res.status }));
-        }
-
-        setMembers((prev) => prev.filter((row) => row.id !== member.id));
-      } catch (e) {
-        window.alert(e instanceof Error ? e.message : t("deleteFailedGeneric"));
-      } finally {
-        setDeletingId(null);
-      }
+      if (confirmed) deleteMutation.mutate(member);
     },
-    [t],
+    [deleteMutation, t],
   );
 
   const sorted = useMemo(

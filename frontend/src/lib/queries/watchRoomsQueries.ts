@@ -1,3 +1,5 @@
+import { queryKeys } from "@/lib/queryKeys";
+import { STALE } from "@/lib/queryPolicy";
 import { getHttpApiBase } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
@@ -74,7 +76,18 @@ export class WatchApiError extends Error {
 }
 
 export function watchRoomsQueryKey(userId: string | undefined) {
-  return ["watch-rooms", userId ?? "anonymous"] as const;
+  return queryKeys.cinema.rooms(userId);
+}
+
+/** Кімнати кінотеатру: рідко змінюються, оновлюємо подіями (`watch:invited`, створення) і повільним опитуванням у видимій вкладці. */
+export function watchRoomsQueryOptions(userId: string | undefined) {
+  return {
+    queryKey: watchRoomsQueryKey(userId),
+    queryFn: fetchWatchRooms,
+    enabled: Boolean(userId),
+    staleTime: STALE.live,
+    refetchInterval: 60_000,
+  };
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

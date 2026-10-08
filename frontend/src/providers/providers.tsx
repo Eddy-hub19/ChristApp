@@ -1,41 +1,49 @@
 "use client";
 
 import { TabBarOverlayProvider } from "@/contexts/TabBarOverlayContext";
-import { REACT_QUERY_PERSIST_KEY } from "@/lib/queryPersistConstants";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { createIdbPersister } from "@/lib/queryPersister";
+import {
+  STALE,
+  requestRetryDelay,
+  shouldRetryRequest,
+} from "@/lib/queryPolicy";
 import { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 
-const noopStorage: Storage = {
-  get length() {
-    return 0;
-  },
-  clear() {},
-  getItem() {
-    return null;
-  },
-  key() {
-    return null;
-  },
-  removeItem() {},
-  setItem() {},
-};
+/** Devtools — лише в dev і окремим чанком: у прод-збірку вони не потрапляють. */
+const ReactQueryDevtools =
+  process.env.NODE_ENV === "development"
+    ? dynamic(
+        () =>
+          import("@tanstack/react-query-devtools").then(
+            (m) => m.ReactQueryDevtools,
+          ),
+        { ssr: false },
+      )
+    : () => null;
 
-function shouldPersistQuery(query: { queryKey: readonly unknown[] }) {
-  const root = query.queryKey[0];
-  /** Push/unread — персонально і часто змінюється; персист давав порожні прев'ю/бейджі після завантаження. */
-  if (root === "push") {
+/**
+ * Що переживає перезапуск застосунку. Історія кімнат (`chat/room-history`) НЕ персиститься тут: останні
+ * повідомлення вже лежать у IndexedDB-кеші чату (`chatMessageCache`) — один шар на одні й ті самі дані.
+ * Живі лічильники (push, кімнати кінотеатру) теж не пишемо: вони швидко старіють і мають оновлюватись із мережі.
+ */
+export function shouldPersistQuery(query: { queryKey: readonly unknown[] }) {
+  const [root, second] = query.queryKey;
+  if (root === "push" || root === "watch-rooms") {
     return false;
+  }
+  if (root === "chat") {
+    return second === "my-rooms";
   }
   return (
     root === "chapter" ||
     root === "bible" ||
-    root === "chat" ||
     root === "verses" ||
     root === "users" ||
-    root === "auth"
+    root === "auth" ||
+    root === "daily-bread"
   );
 }
 
@@ -45,13 +53,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30_000,
+            staleTime: STALE.slow,
             gcTime: 10 * 60_000,
+            /** Повернення в застосунок не повинно «штормити» запитами: свіжість дають сокет і ручні інвалідації. */
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
-            retry: 1,
+            /** Мережа/5xx — повтор з наростаючою паузою; 401/403/404 не повторюємо. */
+            retry: shouldRetryRequest,
+            retryDelay: requestRetryDelay,
             /** Плавний UX: під час refetch показуємо попередні дані (аналог stale-while-revalidate на рівні UI). */
             placeholderData: (prev: unknown) => prev,
+            /** Структурне порівняння відповіді: незмінені частини зберігають посилання, тож компоненти не перемальовуються. */
+            structuralSharing: true,
           },
           mutations: {
             retry: 0,
@@ -60,14 +73,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
-  const [persister] = useState(() =>
-    createSyncStoragePersister({
-      storage:
-        typeof window !== "undefined" ? window.localStorage : noopStorage,
-      key: REACT_QUERY_PERSIST_KEY,
-      throttleTime: 1000,
-    }),
-  );
+  const [persister] = useState(() => createIdbPersister());
 
   return (
     <PersistQueryClientProvider
@@ -76,6 +82,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         persister,
         /** Узгоджено з gcTime статичних запитів Біблії (7 днів). */
         maxAge: 1000 * 60 * 60 * 24 * 7,
+        /** Змінюйте при несумісній зміні форми кешованих даних: старий кеш буде відкинуто. */
+        buster: "rq-idb-v3",
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>
             query.state.status === "success" && shouldPersistQuery(query),

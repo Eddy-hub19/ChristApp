@@ -20,18 +20,30 @@ import {
 import { getUserIdFromJwt } from "@/lib/jwtUser";
 import {
   fetchPushStatusForQuery,
-  fetchUnreadSummaryForQuery,
   pushStatusQueryKey,
-  pushUnreadSummaryQueryKey,
+  unreadSummaryQueryOptions,
 } from "@/lib/queries/pushQueries";
+import { STALE } from "@/lib/queryPolicy";
+import { watchRoomsQueryOptions } from "@/lib/queries/watchRoomsQueries";
 import {
   fetchSavedVersesForQuery,
   savedVersesQueryKey,
 } from "@/lib/queries/versesQueries";
-import {
-  fetchUsersDirectory,
-  usersDirectoryQueryKey,
-} from "@/lib/queries/usersQueries";
+import { usersDirectoryQueryOptions } from "@/lib/queries/usersQueries";
+
+/**
+ * Дані першого екрана — одразу й паралельно (не чекаючи /auth/me, а потім по черзі): ключі спільні з useQuery,
+ * тож запити, що вже летять, не дублюються, а свіжий кеш не перезапитується.
+ */
+export function prefetchAppEntryData(queryClient: QueryClient) {
+  const token = getAuthToken();
+  if (!token) return;
+  const userId = getUserIdFromJwt(token);
+
+  void queryClient.prefetchQuery(unreadSummaryQueryOptions(userId));
+  void queryClient.prefetchQuery(usersDirectoryQueryOptions());
+  void queryClient.prefetchQuery(watchRoomsQueryOptions(userId));
+}
 
 /** Prefetch при наведенні на таб «Чат». */
 export function prefetchTabChatData(queryClient: QueryClient) {
@@ -40,17 +52,16 @@ export function prefetchTabChatData(queryClient: QueryClient) {
 
   const userId = getUserIdFromJwt(token);
 
-  void queryClient.prefetchQuery({
-    queryKey: pushUnreadSummaryQueryKey(userId),
-    queryFn: fetchUnreadSummaryForQuery,
-    staleTime: 20_000,
-  });
+  void queryClient.prefetchQuery(unreadSummaryQueryOptions(userId));
+  void queryClient.prefetchQuery(usersDirectoryQueryOptions());
+}
 
-  void queryClient.prefetchQuery({
-    queryKey: usersDirectoryQueryKey(),
-    queryFn: fetchUsersDirectory,
-    staleTime: 60_000,
-  });
+/** Prefetch при наведенні на таб «Кіношка»: список залів і запрошень. */
+export function prefetchTabCinemaData(queryClient: QueryClient) {
+  const token = getAuthToken();
+  if (!token) return;
+
+  void queryClient.prefetchQuery(watchRoomsQueryOptions(getUserIdFromJwt(token)));
 }
 
 /** Prefetch при наведенні на таб «Профіль». */
@@ -63,13 +74,13 @@ export function prefetchTabProfileData(queryClient: QueryClient) {
   void queryClient.prefetchQuery({
     queryKey: pushStatusQueryKey(userId),
     queryFn: fetchPushStatusForQuery,
-    staleTime: 60_000,
+    staleTime: STALE.slow,
   });
 
   void queryClient.prefetchQuery({
     queryKey: savedVersesQueryKey(),
     queryFn: fetchSavedVersesForQuery,
-    staleTime: 60_000,
+    staleTime: STALE.slow,
   });
 }
 

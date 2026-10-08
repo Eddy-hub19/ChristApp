@@ -11,10 +11,19 @@ export type AvatarLikesUserResponse = {
   likedByMe: boolean;
 };
 
-export const avatarLikesMeQueryKey = ["users", "me", "avatar-likes"] as const;
+import { queryKeys } from "@/lib/queryKeys";
+
+/** Помилка запиту лайків: статус потрібен політиці повторів (4xx не повторюємо), а не підміна нулями в кеші. */
+export class AvatarLikesHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`avatar-likes request failed: ${status}`);
+  }
+}
+
+export const avatarLikesMeQueryKey = queryKeys.user.avatarLikesMe();
 
 export const avatarLikesForUserQueryKey = (userId: string) =>
-  ["users", userId, "avatar-likes"] as const;
+  queryKeys.user.avatarLikes(userId);
 
 export async function fetchMyAvatarLikesReceived(): Promise<AvatarLikesMeResponse> {
   const token = getAuthToken();
@@ -25,7 +34,7 @@ export async function fetchMyAvatarLikesReceived(): Promise<AvatarLikesMeRespons
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
-    return { receivedCount: 0 };
+    throw new AvatarLikesHttpError(res.status);
   }
   return (await res.json()) as AvatarLikesMeResponse;
 }
@@ -44,7 +53,7 @@ export async function fetchAvatarLikesForUser(
     },
   );
   if (!res.ok) {
-    return { receivedCount: 0, likedByMe: false };
+    throw new AvatarLikesHttpError(res.status);
   }
   return (await res.json()) as AvatarLikesUserResponse;
 }
@@ -70,4 +79,16 @@ export async function toggleAvatarLikeForUser(
     );
   }
   return (await res.json()) as AvatarLikesUserResponse;
+}
+
+/** Оптимістичне значення після перемикання лайка (до відповіді сервера). */
+export function optimisticAvatarLikeToggle(
+  current: AvatarLikesUserResponse | undefined,
+): AvatarLikesUserResponse {
+  const liked = current?.likedByMe ?? false;
+  const count = current?.receivedCount ?? 0;
+  return {
+    likedByMe: !liked,
+    receivedCount: Math.max(0, count + (liked ? -1 : 1)),
+  };
 }

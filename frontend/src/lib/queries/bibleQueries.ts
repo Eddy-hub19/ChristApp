@@ -1,3 +1,4 @@
+import { queryKeys } from "@/lib/queryKeys";
 import {
   fetchBooks,
   fetchChapters,
@@ -22,14 +23,14 @@ export const bibleStaticQueryOptions = {
   refetchOnMount: false,
 };
 
-export const bibleTranslationsQueryKey = ["bible", "translations"] as const;
+export const bibleTranslationsQueryKey = queryKeys.bible.translations();
 
 export function bibleBooksQueryKey(translation: string) {
-  return ["bible", "books", translation] as const;
+  return queryKeys.bible.books(translation);
 }
 
 export function bibleChaptersQueryKey(translation: string, bookId: string) {
-  return ["bible", "chapters", translation, bookId] as const;
+  return queryKeys.bible.chapters(translation, bookId);
 }
 
 export function bibleChapterTextQueryKey(
@@ -37,7 +38,7 @@ export function bibleChapterTextQueryKey(
   bookId: string,
   chapter: number,
 ) {
-  return ["chapter", translation, bookId, chapter] as const;
+  return queryKeys.bible.chapterText(translation, bookId, chapter);
 }
 
 export async function fetchBibleTranslationsForQuery(): Promise<

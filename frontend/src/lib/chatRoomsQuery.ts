@@ -1,3 +1,5 @@
+import { queryKeys } from "@/lib/queryKeys";
+
 export function chatMyRoomsQueryKey(userId: string | null | undefined) {
-  return ["chat", "my-rooms", userId ?? "anonymous"] as const;
+  return queryKeys.chat.list(userId);
 }

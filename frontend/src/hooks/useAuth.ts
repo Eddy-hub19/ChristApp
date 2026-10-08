@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/apiFetch";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { clearAppBadgeIfSupported } from "@/lib/appBadge";
 import { clearPersistedReactQueryCache } from "@/lib/queryPersistConstants";
 import { clearChatMessageCache } from "@/lib/chatMessageCache";
@@ -11,10 +10,12 @@ import {
   AUTH_ME_QUERY_ROOT,
   currentUserQueryKey,
 } from "@/lib/queries/authQueries";
-import { usersDirectoryQueryKey } from "@/lib/queries/usersQueries";
+import {
+  usersDirectoryQueryKey,
+  usersDirectoryQueryOptions,
+} from "@/lib/queries/usersQueries";
 import { getAuthToken, setAuthToken } from "@/lib/auth";
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete";
-import { getHttpApiBase } from "@/lib/apiBase";
 import {
   getNetworkFailureHint,
   messageFromApiResponseBody,
@@ -43,6 +44,15 @@ type UseAuthOptions = {
   redirectIfUnauthenticated?: string;
 };
 
+const EMPTY_USERS: AuthUser[] = [];
+
+/** Тестові акаунти ховаємо при читанні, а не в кеші: ключ спільний з іншими споживачами довідника. */
+function selectVisibleUsers(list: unknown): AuthUser[] {
+  return Array.isArray(list)
+    ? filterTesterUsers(list as AuthUser[])
+    : EMPTY_USERS;
+}
+
 function mergeUserIntoDirectoryList(
   list: AuthUser[] | undefined,
   nextUser: AuthUser,
@@ -66,7 +76,6 @@ export function useAuth(options?: UseAuthOptions) {
   const queryClient = useQueryClient();
   const redirectIfUnauthenticated = options?.redirectIfUnauthenticated;
 
-  const [users, setUsers] = useState<AuthUser[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const authSnapshot = useSyncExternalStore(
@@ -76,7 +85,14 @@ export function useAuth(options?: UseAuthOptions) {
   );
   const user = authSnapshot.user;
   const loading = !authSnapshot.initialized;
-  const API_URL = getHttpApiBase();
+
+  /** Довідник людей — один запит на всю сесію (кеш RQ, 5 хв), а не /users на кожен монтаж сторінки. */
+  const directoryQuery = useQuery({
+    ...usersDirectoryQueryOptions(),
+    enabled: Boolean(user),
+    select: selectVisibleUsers,
+  });
+  const users = directoryQuery.data ?? EMPTY_USERS;
 
   const setAuthenticatedUser = useCallback(
     (u: AuthUser) => {
@@ -124,40 +140,12 @@ export function useAuth(options?: UseAuthOptions) {
     [queryClient, user],
   );
 
-  const fetchUsers = useCallback(async () => {
-    const token = getAuthToken();
-
-    if (!token) {
-      setUsers([]);
-      queryClient.setQueryData(usersDirectoryQueryKey(), []);
-      return;
-    }
-
-    try {
-      const res = await apiFetch(`${API_URL}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        timeoutMs: 25_000,
-      });
-
-      if (!res.ok) {
-        setUsers([]);
-        queryClient.setQueryData(usersDirectoryQueryKey(), []);
-        return;
-      }
-
-      const data = await res.json();
-      const list = Array.isArray(data)
-        ? filterTesterUsers(data as AuthUser[])
-        : [];
-      setUsers(list);
-      queryClient.setQueryData(usersDirectoryQueryKey(), list);
-    } catch {
-      setUsers([]);
-      queryClient.setQueryData(usersDirectoryQueryKey(), []);
-    }
-  }, [API_URL, queryClient]);
+  /** Примусове оновлення довідника (після зміни профілю/сесії): інвалідуємо ключ, активні спостерігачі перезапитають. */
+  const fetchUsers = useCallback(
+    () =>
+      queryClient.invalidateQueries({ queryKey: usersDirectoryQueryKey() }),
+    [queryClient],
+  );
 
   const applyAuthPayload = useCallback(
     (data: AuthSessionPayload) => {
@@ -177,7 +165,6 @@ export function useAuth(options?: UseAuthOptions) {
       const snapshot = getAuthSessionSnapshot();
       if (!snapshot.user) {
         clearAuthenticatedUser();
-        setUsers([]);
         if (redirectIfUnauthenticated) {
           router.push(redirectIfUnauthenticated);
         }
@@ -186,14 +173,11 @@ export function useAuth(options?: UseAuthOptions) {
 
       setAuthenticatedUser(snapshot.user);
       recordDailyVisit();
-      await fetchUsers();
     } catch {
       clearAuthenticatedUser();
-      setUsers([]);
     }
   }, [
     clearAuthenticatedUser,
-    fetchUsers,
     redirectIfUnauthenticated,
     router,
     setAuthenticatedUser,
@@ -204,7 +188,7 @@ export function useAuth(options?: UseAuthOptions) {
     const me = await fetchCurrentUser();
     replaceUser(me);
     recordDailyVisit();
-    await fetchUsers();
+    void fetchUsers();
   }, [fetchUsers, replaceUser]);
 
   useEffect(() => {
@@ -230,7 +214,7 @@ export function useAuth(options?: UseAuthOptions) {
       } else {
         await refreshSession();
       }
-      await fetchUsers();
+      void fetchUsers();
 
       return true;
     } catch (err: unknown) {
@@ -268,7 +252,7 @@ export function useAuth(options?: UseAuthOptions) {
       } else {
         await refreshSession();
       }
-      await fetchUsers();
+      void fetchUsers();
 
       return true;
     } catch (err: unknown) {
@@ -287,7 +271,6 @@ export function useAuth(options?: UseAuthOptions) {
     void clearChatMessageCache();
     void clearAppBadgeIfSupported();
     queryClient.clear();
-    setUsers([]);
     applyUserAppearanceToDocument(null);
     await performLogout({ redirectTo: "/" });
   };

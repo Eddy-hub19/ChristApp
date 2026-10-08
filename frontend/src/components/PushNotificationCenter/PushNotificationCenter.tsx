@@ -9,9 +9,8 @@ import { getUserIdFromJwt } from "@/lib/jwtUser";
 import { requestNotificationPermissionIfNeeded } from "@/lib/notifications";
 import {
   fetchPushStatusForQuery,
-  fetchUnreadSummaryForQuery,
   pushStatusQueryKey,
-  pushUnreadSummaryQueryKey,
+  unreadSummaryQueryOptions,
 } from "@/lib/queries/pushQueries";
 import {
   getLocalPushEndpoint,
@@ -102,12 +101,10 @@ export default function PushNotificationCenter() {
     refetchInterval: REFRESH_INTERVAL_MS,
   });
 
+  /** Зведення опитує TabBar (єдиний інтервал) і оновлюють події сокета — тут лише читаємо з кешу. */
   const unreadQuery = useQuery({
-    queryKey: pushUnreadSummaryQueryKey(userId),
-    queryFn: fetchUnreadSummaryForQuery,
+    ...unreadSummaryQueryOptions(userId),
     enabled: Boolean(token && userId),
-    staleTime: 20_000,
-    refetchInterval: REFRESH_INTERVAL_MS,
   });
 
   const isPushConfigured = Boolean(pushStatusQuery.data?.enabled);
@@ -131,11 +128,7 @@ export default function PushNotificationCenter() {
         staleTime: 45_000,
       });
 
-      await queryClient.fetchQuery({
-        queryKey: pushUnreadSummaryQueryKey(userId),
-        queryFn: fetchUnreadSummaryForQuery,
-        staleTime: 20_000,
-      });
+      await queryClient.fetchQuery(unreadSummaryQueryOptions(userId));
 
       if (
         pushStatus?.hasSubscription ||
