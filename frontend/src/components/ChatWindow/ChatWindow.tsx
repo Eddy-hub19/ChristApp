@@ -63,6 +63,8 @@ type ChatWindowProps = {
   readReceiptAvatarSrc?: string;
   readReceiptLabel?: string;
   onToggleReaction?: (message: Message, reaction: AppReactionType) => void;
+  onRetryUnsent?: (message: Message) => void;
+  onDismissUnsent?: (message: Message) => void;
   resolveReactionAvatarUrl?: (userId: string) => string | undefined;
   resolveReactionUserLabel?: (userId: string) => string | undefined;
   onMissingReferencedMessage?: (messageId: string) => void;
@@ -102,6 +104,8 @@ function ChatWindow({
   readReceiptAvatarSrc,
   readReceiptLabel,
   onToggleReaction,
+  onRetryUnsent,
+  onDismissUnsent,
   resolveReactionAvatarUrl,
   resolveReactionUserLabel,
   onMissingReferencedMessage,
@@ -612,6 +616,8 @@ function ChatWindow({
             readReceiptAvatarSrc={readReceiptAvatarSrc}
             readReceiptLabel={readReceiptLabel}
             onToggleReaction={onToggleReaction}
+            onRetryUnsent={onRetryUnsent}
+            onDismissUnsent={onDismissUnsent}
             resolveReactionAvatarUrl={resolveReactionAvatarUrl}
             resolveReactionUserLabel={resolveReactionUserLabel}
             isHighlighted={highlightedMessageId === message.id}

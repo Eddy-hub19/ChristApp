@@ -95,6 +95,8 @@ model Message {
   /// Повідомлення, на яке це є відповіддю (без FK: після видалення оригіналу цитата лишається з позначкою "видалено").
   replyToId String?
   senderId  String
+  /// Ідентифікатор відправки з клієнта: повтор із тим самим id не створює дубль (ідемпотентність), ехо несе його назад.
+  clientMessageId String?
   createdAt DateTime    @default(now())
   roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
   room      Room        @relation(fields: [roomId], references: [id])
@@ -102,6 +104,7 @@ model Message {
   reactions Reaction[]
   voiceListens VoiceMessageListen[]
 
+  @@unique([senderId, clientMessageId])
   @@index([roomId, createdAt])
 }
 

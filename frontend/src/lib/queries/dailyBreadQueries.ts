@@ -1,3 +1,4 @@
+import { queryKeys } from "@/lib/queryKeys";
 import { fetchRandomVerse } from "@/lib/bibleApi";
 
 export type DailyBreadVerse = {
@@ -8,7 +9,7 @@ export type DailyBreadVerse = {
 };
 
 export const dailyBreadQueryKey = (translation: string) =>
-  ["daily-bread", translation] as const;
+  queryKeys.bible.dailyBread(translation);
 
 export async function fetchDailyBreadForQuery(
   translation: string,

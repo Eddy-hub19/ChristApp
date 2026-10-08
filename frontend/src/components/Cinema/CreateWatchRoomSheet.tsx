@@ -1,5 +1,6 @@
 "use client";
 
+import { queryKeys } from "@/lib/queryKeys";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,7 +64,7 @@ export default function CreateWatchRoomSheet({
         startSec: video.startSec || undefined,
         inviteeIds: [...selected],
       });
-      void queryClient.invalidateQueries({ queryKey: ["watch-rooms"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cinema.root() });
       onClose();
       router.push(`/cinema/${room.id}`);
     } catch (err) {

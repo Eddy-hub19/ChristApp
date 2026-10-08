@@ -16,12 +16,16 @@ import {
   type UnreadSummaryRoomLastMessage,
 } from "@/lib/push";
 import {
-  fetchUnreadSummaryForQuery,
   pushUnreadSummaryQueryKey,
+  requestUnreadSummaryRefresh,
+  unreadSummaryQueryOptions,
 } from "@/lib/queries/pushQueries";
 import { getUserIdFromJwt } from "@/lib/jwtUser";
-import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi";
-import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
+import {
+  AUTO_PREFETCH_ROOMS,
+  prefetchRoomHistory,
+  shouldSkipBackgroundPrefetch,
+} from "@/lib/chatHistoryPrefetch";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
 import { useGameActivityFeed } from "@/hooks/useGameActivity";
@@ -651,9 +655,7 @@ export default function ChatPage() {
     if (!token) {
       return;
     }
-    await queryClient.invalidateQueries({
-      queryKey: pushUnreadSummaryQueryKey(user?.id),
-    });
+    requestUnreadSummaryRefresh(queryClient, user?.id);
   }, [queryClient, user?.id]);
 
   const requestMyRooms = useCallback(
@@ -669,12 +671,7 @@ export default function ChatPage() {
     [],
   );
 
-  const unreadSummaryQuery = useQuery({
-    queryKey: pushUnreadSummaryQueryKey(user?.id),
-    enabled: Boolean(user?.id),
-    queryFn: fetchUnreadSummaryForQuery,
-    staleTime: 20_000,
-  });
+  const unreadSummaryQuery = useQuery(unreadSummaryQueryOptions(user?.id));
 
   useEffect(() => {
     if (!unreadSummaryQuery.data) {
@@ -1568,33 +1565,21 @@ export default function ChatPage() {
     [requestMyRooms, socket],
   );
 
+  const resolveRoomIdForListItem = useCallback((listItemId: string) => {
+    if (listItemId === GLOBAL_ROOM_ID) return GLOBAL_ROOM_ID;
+    return (
+      directUserIdToRoomIdRef.current.get(listItemId) ??
+      directUserIdToRoomIdRef.current.get(canonicalChatUuidKey(listItemId))
+    );
+  }, []);
+
+  /** Наведення/дотик до чату: історія в кеш заздалегідь (той самий запит і ключ, що й у кімнати). */
   const handlePrefetchChat = useCallback(
     (listItemId: string) => {
-      const token = getAuthToken();
-      if (!token) return;
-
-      const roomId =
-        listItemId === GLOBAL_ROOM_ID
-          ? GLOBAL_ROOM_ID
-          : (directUserIdToRoomIdRef.current.get(listItemId) ??
-            directUserIdToRoomIdRef.current.get(
-              canonicalChatUuidKey(listItemId),
-            ));
-      if (!roomId) return;
-
-      void queryClient.prefetchQuery({
-        queryKey: chatRoomHistoryQueryKey(roomId),
-        queryFn: () =>
-          fetchRoomMessagesOrThrow({
-            token,
-            roomId,
-            limit: 250,
-            skip: 0,
-          }),
-        staleTime: 20_000,
-      });
+      const roomId = resolveRoomIdForListItem(listItemId);
+      if (roomId) void prefetchRoomHistory(queryClient, roomId);
     },
-    [queryClient],
+    [queryClient, resolveRoomIdForListItem],
   );
 
   const chatItems = useMemo(() => {
@@ -1631,6 +1616,48 @@ export default function ChatPage() {
       };
     });
   }, [gameActivityByRoom, globalChatTitle, rooms, t]);
+
+  /** Список показано: у фоні (в простої) підвантажуємо історію кількох верхніх чатів — перехід у них миттєвий. */
+  const autoPrefetchedKeyRef = useRef("");
+  useEffect(() => {
+    if (!user?.id || shouldSkipBackgroundPrefetch()) return;
+    const roomIds: string[] = [];
+    for (const item of chatItems) {
+      if (item.id === SHARE_WITH_JESUS_CHAT_ID) continue;
+      const roomId = resolveRoomIdForListItem(item.id);
+      if (roomId) roomIds.push(roomId);
+      if (roomIds.length >= AUTO_PREFETCH_ROOMS) break;
+    }
+    const key = roomIds.join("|");
+    if (!key || key === autoPrefetchedKeyRef.current) return;
+    autoPrefetchedKeyRef.current = key;
+    const timers: number[] = [];
+    const run = () => {
+      roomIds.forEach((roomId, index) => {
+        timers.push(
+          window.setTimeout(
+            () => void prefetchRoomHistory(queryClient, roomId),
+            index * 400,
+          ),
+        );
+      });
+    };
+    const idle = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const useIdle = typeof idle.requestIdleCallback === "function";
+    const handle = useIdle
+      ? idle.requestIdleCallback!(run, { timeout: 3000 })
+      : window.setTimeout(run, 1200);
+    return () => {
+      if (useIdle) idle.cancelIdleCallback?.(handle);
+      else window.clearTimeout(handle);
+      timers.forEach((id) => window.clearTimeout(id));
+      // Если эффект прервали до запуска, ключ надо освободить, иначе префетч уже не повторится.
+      autoPrefetchedKeyRef.current = "";
+    };
+  }, [chatItems, user?.id, queryClient, resolveRoomIdForListItem]);
 
   const verseNotesVisible = useMemo(
     () => canSeeVerseNotesNav(user?.username),

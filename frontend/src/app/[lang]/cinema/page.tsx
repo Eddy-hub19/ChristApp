@@ -1,5 +1,6 @@
 "use client";
 
+import { queryKeys } from "@/lib/queryKeys";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,8 +12,7 @@ import WatchRoomCard from "@/components/Cinema/WatchRoomCard";
 import {
   acceptWatchInvite,
   declineWatchInvite,
-  fetchWatchRooms,
-  watchRoomsQueryKey,
+  watchRoomsQueryOptions,
 } from "@/lib/queries/watchRoomsQueries";
 import styles from "@/components/Cinema/Cinema.module.scss";
 
@@ -24,12 +24,7 @@ export default function CinemaPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const query = useQuery({
-    queryKey: watchRoomsQueryKey(user?.id),
-    queryFn: fetchWatchRooms,
-    enabled: Boolean(user?.id),
-    refetchInterval: 20_000,
-  });
+  const query = useQuery(watchRoomsQueryOptions(user?.id));
 
   const respond = async (roomId: string, accept: boolean) => {
     setBusyId(roomId);
@@ -42,7 +37,7 @@ export default function CinemaPage() {
       }
     } finally {
       setBusyId(null);
-      void queryClient.invalidateQueries({ queryKey: ["watch-rooms"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cinema.root() });
     }
   };
 

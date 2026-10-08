@@ -1,3 +1,5 @@
+import { queryKeys } from "@/lib/queryKeys";
+
 export function chatRoomHistoryQueryKey(roomId: string | null | undefined) {
-  return ["chat", "room-history", roomId ?? "none"] as const;
+  return queryKeys.chat.history(roomId);
 }

@@ -9,13 +9,22 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { CHAT_UNREAD_CHANGED_EVENT } from "@/lib/chatUnreadEvents";
 import {
-  fetchUnreadSummaryForQuery,
   pushUnreadSummaryQueryKey,
+  requestUnreadSummaryRefresh,
+  unreadSummaryQueryOptions,
 } from "@/lib/queries/pushQueries";
+import { queryKeys } from "@/lib/queryKeys";
+import {
+  appendToCachedHistory,
+  type RawHistoryMessage,
+} from "@/lib/chatHistoryCache";
+import { STALE } from "@/lib/queryPolicy";
 import { getUserIdFromJwt } from "@/lib/jwtUser";
 import {
   prefetchTabBibleData,
+  prefetchAppEntryData,
   prefetchTabChatData,
+  prefetchTabCinemaData,
   prefetchTabProfileData,
 } from "@/lib/tabPrefetch";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
@@ -25,12 +34,9 @@ import {
   useMediaQuery,
 } from "@/hooks/useMediaQuery";
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge";
-import {
-  fetchWatchRooms,
-  watchRoomsQueryKey,
-} from "@/lib/queries/watchRoomsQueries";
+import { watchRoomsQueryOptions } from "@/lib/queries/watchRoomsQueries";
 
-const UNREAD_REFRESH_INTERVAL_MS = 15_000;
+const UNREAD_REFRESH_INTERVAL_MS = 30_000;
 
 export default function TabBar() {
   const t = useTranslations("nav");
@@ -49,33 +55,23 @@ export default function TabBar() {
   const userId = token ? getUserIdFromJwt(token) : undefined;
 
   const unreadQuery = useQuery({
-    queryKey: pushUnreadSummaryQueryKey(userId),
-    queryFn: fetchUnreadSummaryForQuery,
-    enabled: Boolean(userId),
-    staleTime: 20_000,
+    ...unreadSummaryQueryOptions(userId),
     refetchInterval: UNREAD_REFRESH_INTERVAL_MS,
   });
 
   const unreadCount = Number(unreadQuery.data?.totalUnread ?? 0);
 
   /** Запрошення в «Кіношку» — бейдж на вкладці; оновлюється і сокет-подією `watch:invited`. */
-  const watchRoomsQuery = useQuery({
-    queryKey: watchRoomsQueryKey(userId),
-    queryFn: fetchWatchRooms,
-    enabled: Boolean(userId),
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
+  const watchRoomsQuery = useQuery(watchRoomsQueryOptions(userId));
   const watchInvitesCount = watchRoomsQuery.data?.invitations.length ?? 0;
 
   useEffect(() => {
     void syncAppBadgeFromUnreadCount(unreadCount);
   }, [unreadCount]);
 
+  /** Серія подій (focus, visibility, newMessage, зміна маршруту) зливається в один запит. */
   const refetchUnread = useCallback(() => {
-    void queryClient.invalidateQueries({
-      queryKey: pushUnreadSummaryQueryKey(userId),
-    });
+    requestUnreadSummaryRefresh(queryClient, userId);
   }, [queryClient, userId]);
 
   const hiddenRoutes = ["/", "/register", "/offline"];
@@ -95,7 +91,8 @@ export default function TabBar() {
 
   useEffect(() => {
     setTabBarClientReady(true);
-  }, []);
+    prefetchAppEntryData(queryClient);
+  }, [queryClient]);
 
   useEffect(() => {
     const bump = () => setAuthEpoch((n) => n + 1);
@@ -103,9 +100,14 @@ export default function TabBar() {
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, bump);
   }, []);
 
+  /** При навігації оновлюємо лише застарілі дані: свіжі (<20 с) беремо з кешу, без зайвого запиту на кожен перехід. */
   useEffect(() => {
-    refetchUnread();
-  }, [pathname, authEpoch, refetchUnread]);
+    const state = queryClient.getQueryState(pushUnreadSummaryQueryKey(userId));
+    if (state?.fetchStatus === "fetching") return;
+    if (!state?.dataUpdatedAt || Date.now() - state.dataUpdatedAt > STALE.counter) {
+      refetchUnread();
+    }
+  }, [pathname, authEpoch, refetchUnread, queryClient, userId]);
 
   useEffect(() => {
     const onFocus = () => refetchUnread();
@@ -130,13 +132,18 @@ export default function TabBar() {
     }
 
     const refetchWatchRooms = () =>
-      void queryClient.invalidateQueries({ queryKey: ["watch-rooms"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cinema.root() });
 
-    socket.on("newMessage", refetchUnread);
+    /** Нове повідомлення: бейдж оновлюємо, а історію закешованої (не відкритої) кімнати дописуємо прямо в кеш. */
+    const onNewMessage = (message: RawHistoryMessage) => {
+      refetchUnread();
+      appendToCachedHistory(queryClient, message?.roomId, message);
+    };
+    socket.on("newMessage", onNewMessage);
     socket.on("watch:invited", refetchWatchRooms);
 
     return () => {
-      socket.off("newMessage", refetchUnread);
+      socket.off("newMessage", onNewMessage);
       socket.off("watch:invited", refetchWatchRooms);
     };
   }, [socket, refetchUnread, queryClient]);
@@ -208,6 +215,9 @@ export default function TabBar() {
         prefetch
         aria-label={t("cinema")}
         title={t("cinema")}
+        onPointerEnter={() => prefetchTabCinemaData(queryClient)}
+        onFocus={() => prefetchTabCinemaData(queryClient)}
+        onTouchStart={() => prefetchTabCinemaData(queryClient)}
       >
         <span
           className={`${styles.iconWrap} ${isRouteActive("/cinema") ? styles.activeIcon : ""}`}

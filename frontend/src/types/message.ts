@@ -35,6 +35,10 @@ export type Message = {
   voiceListenedBy?: string[];
   createdAt: string;
   isEdited?: boolean;
+  /** Клієнтський id відправки: за ним ехо сервера замінює локальну «бульбашку»; повтор з тим самим id не дублює. */
+  clientMessageId?: string;
+  /** Лише для ще не підтверджених сервером власних повідомлень. */
+  deliveryStatus?: "sending" | "failed";
   replyTo?: MessageReply;
   reactions?: Array<{
     id: string;

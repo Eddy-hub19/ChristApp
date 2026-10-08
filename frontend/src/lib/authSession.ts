@@ -235,6 +235,11 @@ export async function initializeApp(): Promise<void> {
     return initializePromise;
   }
 
+  // Сесія вже підтверджена в цій вкладці: перехід між сторінками не повторює GET /auth/me (повний reload — повторює).
+  if (authSnapshot.initialized && authSnapshot.user) {
+    return;
+  }
+
   initializePromise = (async () => {
     const persistedToken = readStoredAccessToken();
     try {

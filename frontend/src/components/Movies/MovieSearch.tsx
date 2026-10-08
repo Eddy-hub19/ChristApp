@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
+import { STALE } from "@/lib/queryPolicy";
 import { useLocale, useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -19,42 +22,50 @@ type SearchState =
   | { status: "error"; message: string }
   | { status: "done"; results: TmdbMovieSummary[] };
 
+async function searchMovies(
+  q: string,
+  lang: string,
+  signal: AbortSignal,
+): Promise<TmdbMovieSummary[]> {
+  const res = await fetch(`/api/tmdb/search?q=${encodeURIComponent(q)}&lang=${lang}`, { signal });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    throw new Error(body?.error ?? "Search failed");
+  }
+  return ((await res.json()) as TmdbSearchResponse).results;
+}
+
 export default function MovieSearch() {
   const t = useTranslations("movies");
   const lang = useLocale();
   const [query, setQuery] = useState("");
-  const [state, setState] = useState<SearchState>({ status: "idle" });
+  const [debounced, setDebounced] = useState("");
 
-  // Пошук «на льоту» з debounce; попередній запит скасовується, щоб стара відповідь не перезаписала нову
+  // Debounce введення: запит летить, лише коли користувач на мить зупинився.
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < MIN_QUERY_LENGTH) {
-      setState({ status: "idle" });
-      return;
-    }
-    setState({ status: "loading" });
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/tmdb/search?q=${encodeURIComponent(q)}&lang=${lang}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-          throw new Error(body?.error ?? "Search failed");
-        }
-        const data = (await res.json()) as TmdbSearchResponse;
-        setState({ status: "done", results: data.results });
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        setState({ status: "error", message: e instanceof Error ? e.message : "Search failed" });
-      }
-    }, DEBOUNCE_MS);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, lang]);
+    const timer = window.setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const term = query.trim();
+  const enabled = debounced.length >= MIN_QUERY_LENGTH && term.length >= MIN_QUERY_LENGTH;
+  // useQuery скасовує попередній запит (signal) при зміні ключа й кешує відповіді: повтор того самого пошуку миттєвий.
+  const search = useQuery({
+    queryKey: queryKeys.movies.search(lang, debounced),
+    queryFn: ({ signal }) => searchMovies(debounced, lang, signal),
+    enabled,
+    staleTime: STALE.slow,
+    placeholderData: undefined,
+  });
+
+  const state: SearchState =
+    term.length < MIN_QUERY_LENGTH
+      ? { status: "idle" }
+      : search.isError
+        ? { status: "error", message: search.error instanceof Error ? search.error.message : "Search failed" }
+        : search.data && debounced === term
+          ? { status: "done", results: search.data }
+          : { status: "loading" };
 
   return (
     <div>
