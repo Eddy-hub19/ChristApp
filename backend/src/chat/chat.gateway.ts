@@ -45,6 +45,24 @@ interface SocketUser {
   email?: string;
 }
 
+/** Збережене повідомлення, яке розсилається кімнаті подією `newMessage`. */
+type NewChatMessageInput = {
+      id: string;
+      type: MessageType;
+      content: string | null;
+      fileUrl: string | null;
+      voiceDuration?: number | null;
+      mediaWidth?: number | null;
+      mediaHeight?: number | null;
+      fileSize?: number | null;
+      createdAt: Date;
+      senderId: string;
+      sender: { username: string; nickname: string | null };
+      replyToId?: string | null;
+      replyTo?: MessageReplyPreview | null;
+      clientMessageId?: string | null;
+    };
+
 interface SocketWithUser extends Socket {
   data: {
     user?: SocketUser;
@@ -2286,6 +2304,8 @@ export class ChatGateway
       type?: string;
       fileUrl?: string;
       replyToId?: string;
+      /** Клієнтський id відправки: повтор з тим самим id не створює дубль, ехо повертає його назад. */
+      clientMessageId?: string;
     },
     @ConnectedSocket() client: SocketWithUser,
   ) {
@@ -2349,27 +2369,65 @@ export class ChatGateway
         return;
       }
 
+      // Ідемпотентність: повтор з уже збереженим clientMessageId лише повертає ехо відправнику (решта вже отримала).
+      const clientMessageId = this.normalizeClientMessageId(body?.clientMessageId);
+      if (clientMessageId) {
+        const existing = await this.messagesService.findByClientMessageId(
+          user.id,
+          clientMessageId,
+        );
+        if (existing) {
+          if (existing.roomId === roomId) {
+            client.emit(
+              'newMessage',
+              this.buildNewMessagePayload(roomId, existing),
+            );
+          }
+          return;
+        }
+      }
+
       // Некоректний replyToId (чужа кімната, видалене) тихо ігноруємо — це звичайне повідомлення.
       const replyTarget = await this.messagesService.resolveReplyTarget(
         roomId,
         body?.replyToId,
       );
 
-      const message = isVideoNote
-        ? await this.messagesService.createRoomMessage({
-            type: 'VIDEO_NOTE',
-            fileUrl: normalizedFileUrl,
-            senderId: user.id,
-            roomId,
-            replyToId: replyTarget?.id,
-          })
-        : await this.messagesService.createRoomMessage({
-            type: 'TEXT',
-            content: normalizedContent,
-            senderId: user.id,
-            roomId,
-            replyToId: replyTarget?.id,
-          });
+      let message;
+      try {
+        message = isVideoNote
+          ? await this.messagesService.createRoomMessage({
+              type: 'VIDEO_NOTE',
+              fileUrl: normalizedFileUrl,
+              senderId: user.id,
+              roomId,
+              replyToId: replyTarget?.id,
+              clientMessageId,
+            })
+          : await this.messagesService.createRoomMessage({
+              type: 'TEXT',
+              content: normalizedContent,
+              senderId: user.id,
+              roomId,
+              replyToId: replyTarget?.id,
+              clientMessageId,
+            });
+      } catch (createError) {
+        // Гонка двох однакових відправок: унікальний індекс відхилив другу — віддаємо ехо першої.
+        const code = (createError as { code?: string } | null)?.code;
+        const raced =
+          code === 'P2002' && clientMessageId
+            ? await this.messagesService.findByClientMessageId(
+                user.id,
+                clientMessageId,
+              )
+            : null;
+        if (!raced) throw createError;
+        if (raced.roomId === roomId) {
+          client.emit('newMessage', this.buildNewMessagePayload(roomId, raced));
+        }
+        return;
+      }
 
       await this.broadcastNewChatMessage(roomId, message, {
         repliedToUserId: replyTarget?.senderId,
@@ -2575,12 +2633,14 @@ export class ChatGateway
 
     if (!ChatGateway.ALLOWED_REACTIONS.has(type)) {
       client.emit('error', 'Неподдерживаемая реакция');
+      client.emit('reactionError', { messageId, reason: 'unsupported' });
       return;
     }
 
     const hasAccess = await canUserPostToRoom(this.prisma, user.id, chatId);
     if (!hasAccess) {
       client.emit('error', 'Нет доступа');
+      client.emit('reactionError', { messageId, reason: 'forbidden' });
       return;
     }
 
@@ -2591,6 +2651,7 @@ export class ChatGateway
 
     if (!message || message.roomId !== chatId) {
       client.emit('error', 'Сообщение не найдено');
+      client.emit('reactionError', { messageId, reason: 'not-found' });
       return;
     }
 
@@ -2634,21 +2695,7 @@ export class ChatGateway
    */
   async broadcastNewChatMessage(
     roomId: string,
-    message: {
-      id: string;
-      type: MessageType;
-      content: string | null;
-      fileUrl: string | null;
-      voiceDuration?: number | null;
-      mediaWidth?: number | null;
-      mediaHeight?: number | null;
-      fileSize?: number | null;
-      createdAt: Date;
-      senderId: string;
-      sender: { username: string; nickname: string | null };
-      replyToId?: string | null;
-      replyTo?: MessageReplyPreview | null;
-    },
+    message: NewChatMessageInput,
     options: { repliedToUserId?: string } = {},
   ) {
     await this.messagesService.markRoomAsRead(
@@ -2657,24 +2704,9 @@ export class ChatGateway
       message.createdAt,
     );
 
-    this.server.to(roomId).emit('newMessage', {
-      id: message.id,
-      content: message.content ?? '',
-      type: message.type,
-      fileUrl: message.fileUrl ?? undefined,
-      voiceDuration: message.voiceDuration ?? undefined,
-      mediaWidth: message.mediaWidth ?? undefined,
-      mediaHeight: message.mediaHeight ?? undefined,
-      fileSize: message.fileSize ?? undefined,
-      username: message.sender.nickname || message.sender.username,
-      handle: message.sender.username,
-      senderId: message.senderId,
-      createdAt: message.createdAt,
-      roomId,
-      reactions: [],
-      replyToId: message.replyToId ?? undefined,
-      replyTo: message.replyTo ?? undefined,
-    });
+    this.server
+      .to(roomId)
+      .emit('newMessage', this.buildNewMessagePayload(roomId, message));
 
     void this.pushService
       .sendChatMessagePush({
@@ -2697,6 +2729,37 @@ export class ChatGateway
           reason,
         });
       });
+  }
+
+  /** Тіло події `newMessage`; `clientMessageId` повертається відправнику, щоб ехо замінило саме його «бульбашку». */
+  private buildNewMessagePayload(roomId: string, message: NewChatMessageInput) {
+    return {
+      id: message.id,
+      content: message.content ?? '',
+      type: message.type,
+      fileUrl: message.fileUrl ?? undefined,
+      voiceDuration: message.voiceDuration ?? undefined,
+      mediaWidth: message.mediaWidth ?? undefined,
+      mediaHeight: message.mediaHeight ?? undefined,
+      fileSize: message.fileSize ?? undefined,
+      username: message.sender.nickname || message.sender.username,
+      handle: message.sender.username,
+      senderId: message.senderId,
+      createdAt: message.createdAt,
+      roomId,
+      reactions: [],
+      replyToId: message.replyToId ?? undefined,
+      replyTo: message.replyTo ?? undefined,
+      clientMessageId: message.clientMessageId ?? undefined,
+    };
+  }
+
+  private normalizeClientMessageId(raw: unknown): string | undefined {
+    if (typeof raw !== 'string') return undefined;
+    const value = raw.trim();
+    return value && value.length <= 64 && /^[\w-]+$/.test(value)
+      ? value
+      : undefined;
   }
 
   private async emitMyRooms(client: SocketWithUser, userId: string) {

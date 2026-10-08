@@ -1,4 +1,9 @@
-type KeyedMessage = { id: string; createdAt: string };
+type KeyedMessage = {
+  id: string;
+  createdAt: string;
+  clientMessageId?: string;
+  deliveryStatus?: "sending" | "failed";
+};
 
 function sameMessage(a: unknown, b: unknown): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
@@ -28,6 +33,20 @@ export function reconcileMessages<T extends KeyedMessage>(prev: T[], fresh: T[])
     const live = prev.filter((message) => !freshIds.has(message.id) && timeOf(message) > newestFresh);
     merged.push(...live);
   }
+
+  // Власні ще не підтверджені повідомлення (sending / «Не надіслано») не губимо, поки в історії немає їхнього
+  // clientMessageId: інакше свіжа історія зі стрічкою від співрозмовника прибрала б бульбашку, що чекає ехо.
+  const mergedIds = new Set(merged.map((message) => message.id));
+  const deliveredClientIds = new Set(
+    fresh.flatMap((message) => (message.clientMessageId ? [message.clientMessageId] : [])),
+  );
+  const unsent = prev.filter(
+    (message) =>
+      message.deliveryStatus !== undefined &&
+      !mergedIds.has(message.id) &&
+      !(message.clientMessageId && deliveredClientIds.has(message.clientMessageId)),
+  );
+  merged.push(...unsent);
 
   const unchanged = merged.length === prev.length && merged.every((message, index) => message === prev[index]);
   return unchanged ? prev : merged;

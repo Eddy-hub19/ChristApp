@@ -48,4 +48,17 @@ describe("reconcileMessages", () => {
   it("drops everything when the server window is empty", () => {
     expect(reconcileMessages([msg("a", 1)], [])).toEqual([]);
   });
+
+  it("keeps unsent local messages even when the fetched window is newer", () => {
+    const local = { ...msg("tmp-c1", 1), clientMessageId: "c1", deliveryStatus: "failed" as const };
+    const result = reconcileMessages([msg("a", 1), local], [msg("a", 1), msg("peer", 5)]);
+    expect(result.map((m) => m.id)).toEqual(["a", "peer", "tmp-c1"]);
+  });
+
+  it("drops the local bubble once history contains its clientMessageId", () => {
+    const local = { ...msg("tmp-c1", 1), clientMessageId: "c1", deliveryStatus: "sending" as const };
+    const delivered = { ...msg("srv", 1), clientMessageId: "c1" };
+    const result = reconcileMessages([msg("a", 1), local], [msg("a", 1), delivered]);
+    expect(result.map((m) => m.id)).toEqual(["a", "srv"]);
+  });
 });

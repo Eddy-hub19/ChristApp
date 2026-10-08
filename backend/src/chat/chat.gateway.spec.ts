@@ -76,6 +76,7 @@ describe('ChatGateway', () => {
     getRoomMessages: jest.Mock;
     deleteMessageForUser: jest.Mock;
     resolveReplyTarget: jest.Mock;
+    findByClientMessageId: jest.Mock;
   };
   let pushService: {
     sendChatMessagePush: jest.Mock;
@@ -101,6 +102,7 @@ describe('ChatGateway', () => {
       getRoomMessages: jest.fn(),
       deleteMessageForUser: jest.fn(),
       resolveReplyTarget: jest.fn().mockResolvedValue(null),
+      findByClientMessageId: jest.fn().mockResolvedValue(null),
     };
 
     pushService = {
@@ -164,6 +166,102 @@ describe('ChatGateway', () => {
       'u2',
       expect.any(Date),
     );
+  });
+
+  describe('clientMessageId (ідемпотентність відправки)', () => {
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
+    const saved = {
+      id: 'm9',
+      type: MessageType.TEXT,
+      content: 'Привіт',
+      fileUrl: null,
+      createdAt: new Date('2026-03-13T10:05:00.000Z'),
+      senderId: 'u1',
+      roomId: 'room-1',
+      clientMessageId: 'cid-1',
+      sender: { username: 'sender', nickname: 'sender' },
+    };
+
+    it('зберігає clientMessageId й повертає його в ехо всій кімнаті', async () => {
+      const client = createClient(sender);
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.createRoomMessage.mockResolvedValue(saved);
+
+      await gateway.handleMessage(
+        { roomId: 'room-1', content: 'Привіт', clientMessageId: 'cid-1' },
+        client as never,
+      );
+
+      expect(messagesService.createRoomMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ clientMessageId: 'cid-1' }),
+      );
+      expect(roomEmit).toHaveBeenCalledWith(
+        'newMessage',
+        expect.objectContaining({ id: 'm9', clientMessageId: 'cid-1' }),
+      );
+    });
+
+    it('повтор із тим самим id не створює дубль і лише повертає ехо відправнику', async () => {
+      const client = createClient(sender);
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.findByClientMessageId.mockResolvedValue(saved);
+
+      await gateway.handleMessage(
+        { roomId: 'room-1', content: 'Привіт', clientMessageId: 'cid-1' },
+        client as never,
+      );
+
+      expect(messagesService.createRoomMessage).not.toHaveBeenCalled();
+      expect(roomEmit).not.toHaveBeenCalled();
+      expect(pushService.sendChatMessagePush).not.toHaveBeenCalled();
+      expect(client.emit).toHaveBeenCalledWith(
+        'newMessage',
+        expect.objectContaining({ id: 'm9', clientMessageId: 'cid-1' }),
+      );
+    });
+
+    it('гонка: унікальний індекс відхилив другу відправку — віддається ехо першої', async () => {
+      const client = createClient(sender);
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.findByClientMessageId
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(saved);
+      messagesService.createRoomMessage.mockRejectedValue({ code: 'P2002' });
+
+      await gateway.handleMessage(
+        { roomId: 'room-1', content: 'Привіт', clientMessageId: 'cid-1' },
+        client as never,
+      );
+
+      expect(roomEmit).not.toHaveBeenCalled();
+      expect(client.emit).toHaveBeenCalledWith(
+        'newMessage',
+        expect.objectContaining({ id: 'm9', clientMessageId: 'cid-1' }),
+      );
+      expect(client.emit).not.toHaveBeenCalledWith(
+        'error',
+        expect.anything(),
+      );
+    });
+
+    it('некоректний clientMessageId ігнорується (звичайна відправка)', async () => {
+      const client = createClient(sender);
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.createRoomMessage.mockResolvedValue({
+        ...saved,
+        clientMessageId: null,
+      });
+
+      await gateway.handleMessage(
+        { roomId: 'room-1', content: 'Привіт', clientMessageId: 'bad id!' },
+        client as never,
+      );
+
+      expect(messagesService.findByClientMessageId).not.toHaveBeenCalled();
+      expect(messagesService.createRoomMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ clientMessageId: undefined }),
+      );
+    });
   });
 
   it('sends message to room and triggers push for recipient', async () => {

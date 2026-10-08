@@ -11,6 +11,7 @@ import {
   type MouseEvent,
 } from "react";
 import Image from "next/image";
+import { RotateCw, X } from "lucide-react";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import {
   type AppReactionType,
@@ -66,6 +67,9 @@ type MessageBubbleProps = {
   readReceiptAvatarSrc?: string;
   readReceiptLabel?: string;
   onToggleReaction?: (message: Message, reaction: AppReactionType) => void;
+  /** «Не надіслано»: повторити відправку (той самий clientMessageId — без дубля) / прибрати. */
+  onRetryUnsent?: (message: Message) => void;
+  onDismissUnsent?: (message: Message) => void;
   onReplyPreviewClick?: (replyMessageId: string) => void;
   resolveReactionAvatarUrl?: (userId: string) => string | undefined;
   resolveReactionUserLabel?: (userId: string) => string | undefined;
@@ -321,6 +325,8 @@ function MessageBubble({
   onDelete,
   onEdit,
   canDeleteOwnMessage = false,
+  onRetryUnsent,
+  onDismissUnsent,
   canDeleteAnyMessage = false,
   showReadReceipt = false,
   readReceiptUsers = [],
@@ -766,6 +772,28 @@ function MessageBubble({
           </span>
         </div>
       </div>
+
+      {message.deliveryStatus === "failed" ? (
+        <div className={styles.unsentRow} role="alert">
+          <span className={styles.unsentText}>{tChat("messageNotSent")}</span>
+          <button
+            type="button"
+            className={styles.unsentRetry}
+            onClick={() => onRetryUnsent?.(message)}
+          >
+            <RotateCw size={14} aria-hidden /> {tChat("uploadRetry")}
+          </button>
+          <button
+            type="button"
+            className={styles.unsentDismiss}
+            onClick={() => onDismissUnsent?.(message)}
+            aria-label={tChat("uploadDismiss")}
+            title={tChat("uploadDismiss")}
+          >
+            <X size={14} aria-hidden />
+          </button>
+        </div>
+      ) : null}
 
       {onToggleReaction || (message.reactions?.length ?? 0) > 0 ? (
         <ReactionPills

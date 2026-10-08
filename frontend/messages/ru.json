@@ -424,6 +424,7 @@
     "uploadErrVoice": "Не удалось отправить голосовое. Попробуйте ещё раз",
     "uploadErrServer": "Не удалось отправить.",
     "uploadRetry": "Повторить",
+    "messageNotSent": "Не отправлено",
     "uploadDismiss": "Убрать",
     "uploadCancel": "Отменить загрузку",
     "uploadPreparing": "Готовим…",

@@ -118,7 +118,7 @@ export class MessagesService {
   }
 
   async createRoomMessage(
-    params: { replyToId?: string | null } & (
+    params: { replyToId?: string | null; clientMessageId?: string | null } & (
       | {
           roomId: string;
           senderId: string;
@@ -175,6 +175,7 @@ export class MessagesService {
         mediaHeight: type === 'IMAGE' ? (params.mediaHeight ?? null) : null,
         fileSize: type === 'FILE' ? (params.fileSize ?? null) : null,
         replyToId: params.replyToId ?? null,
+        clientMessageId: params.clientMessageId ?? null,
         senderId,
         roomId,
       },
@@ -183,6 +184,17 @@ export class MessagesService {
       },
     });
     const [withReply] = await this.attachReplies([created]);
+    return withReply;
+  }
+
+  /** Повідомлення, вже збережене під цим clientMessageId (повторна відправка того самого), або null. */
+  async findByClientMessageId(senderId: string, clientMessageId: string) {
+    const existing = await this.prisma.message.findUnique({
+      where: { senderId_clientMessageId: { senderId, clientMessageId } },
+      include: { sender: true },
+    });
+    if (!existing) return null;
+    const [withReply] = await this.attachReplies([existing]);
     return withReply;
   }
 

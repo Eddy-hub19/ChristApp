@@ -424,6 +424,7 @@
     "uploadErrVoice": "Couldn't send the voice message. Please try again",
     "uploadErrServer": "Couldn't send.",
     "uploadRetry": "Retry",
+    "messageNotSent": "Not sent",
     "uploadDismiss": "Dismiss",
     "uploadCancel": "Cancel upload",
     "uploadPreparing": "Preparing…",
