@@ -81,19 +81,32 @@ import { focusChatComposer } from "@/lib/chatComposerFocus";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
 import { Gamepad2, Phone } from "lucide-react";
 import dynamic from "next/dynamic";
-import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame";
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame";
-import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame";
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
-import ChristianFilwordMiniGame from "@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame";
-import GuessCharacterMiniGame from "@/components/GuessCharacterMiniGame/GuessCharacterMiniGame";
 import {
   useGameActivityBroadcast,
   useGameActivityFeed,
 } from "@/hooks/useGameActivity";
 import { isGameActivityRoom } from "@/lib/games/gameActivity";
 import type { GameId } from "@/lib/games/gameRegistry";
-/** «Пазли» (доска, движок, звук) тянем только при открытии игры — чат без неё не парсит этот код. */
+/** Мини-игры тянем только при открытии (и монтируем только пока открыты) — чат без них не парсит их код. */
+const DoodleMiniGame = dynamic(
+  () => import("@/components/DoodleMiniGame/DoodleMiniGame"),
+  { ssr: false },
+);
+const SnakeMiniGame = dynamic(
+  () => import("@/components/SnakeMiniGame/SnakeMiniGame"),
+  { ssr: false },
+);
+const ChristianFilwordMiniGame = dynamic(
+  () =>
+    import("@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame"),
+  { ssr: false },
+);
+const GuessCharacterMiniGame = dynamic(
+  () => import("@/components/GuessCharacterMiniGame/GuessCharacterMiniGame"),
+  { ssr: false },
+);
 const PuzzleMiniGame = dynamic(
   () => import("@/components/PuzzleMiniGame/PuzzleMiniGame"),
   { ssr: false },
@@ -637,6 +650,10 @@ export default function ChatPageDetails() {
   const [gamePingMs, setGamePingMs] = useState<number | null>(null);
   // Режим Snake (Класика/Дуель) для статусу «грає у Snake»: від нього залежить, чи показувати «Приєднатися».
   const [snakeMode, setSnakeMode] = useState<"classic" | "duel" | null>(null);
+  // Snake раніше сам скидав режим при закритті (open=false); тепер компонент розмонтовується, тож скидаємо тут.
+  useEffect(() => {
+    if (!isSnakeOpen) setSnakeMode(null);
+  }, [isSnakeOpen]);
   const [mySnakeScore, setMySnakeScore] = useState(0);
   const [peerSnakeScore, setPeerSnakeScore] = useState(0);
   const [peerSnakeState, setPeerSnakeState] =
@@ -4047,58 +4064,66 @@ export default function ChatPageDetails() {
           }}
           onCallEnded={handleCallEnded}
         />
-        <DoodleMiniGame
-          open={isDoodleOpen}
-          myScore={myDoodleScore}
-          peerScore={peerDoodleScore}
-          peerName={
-            directChatTargetUser?.nickname ??
-            directChatTargetUser?.username ??
-            "Собеседник"
-          }
-          peerState={peerDoodleState}
-          pingMs={gamePingMs}
-          onClose={() => setIsDoodleOpen(false)}
-          onScoreChange={handleDoodleScoreChange}
-          onStateChange={handleDoodleStateChange}
-        />
-        <SnakeMiniGame
-          open={isSnakeOpen}
-          roomId={effectiveSocketRoomId}
-          // eslint-disable-next-line react-hooks/refs -- гра підписується на поточний (живий) сокет кімнати; зміна isSocketConnected перерендерює сторінку
-          socket={isSocketConnected ? socketRef.current : null}
-          userId={user?.id ?? ""}
-          myScore={mySnakeScore}
-          peerScore={peerSnakeScore}
-          peerName={
-            directChatTargetUser?.nickname ??
-            directChatTargetUser?.username ??
-            "Собеседник"
-          }
-          peerState={peerSnakeState}
-          pingMs={gamePingMs}
-          onClose={() => setIsSnakeOpen(false)}
-          onScoreChange={handleSnakeScoreChange}
-          onStateChange={handleSnakeStateChange}
-          onModeChange={setSnakeMode}
-        />
-        <ChristianFilwordMiniGame
-          open={isFilwordOpen}
-          onClose={() => setIsFilwordOpen(false)}
-        />
-        <GuessCharacterMiniGame
-          open={isGuessOpen}
-          roomId={effectiveSocketRoomId}
-          // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
-          socket={isSocketConnected ? socketRef.current : null}
-          userId={user?.id ?? ""}
-          peerName={
-            directChatTargetUser?.nickname ??
-            directChatTargetUser?.username ??
-            "Собеседник"
-          }
-          onClose={() => setIsGuessOpen(false)}
-        />
+        {isDoodleOpen ? (
+          <DoodleMiniGame
+            open
+            myScore={myDoodleScore}
+            peerScore={peerDoodleScore}
+            peerName={
+              directChatTargetUser?.nickname ??
+              directChatTargetUser?.username ??
+              "Собеседник"
+            }
+            peerState={peerDoodleState}
+            pingMs={gamePingMs}
+            onClose={() => setIsDoodleOpen(false)}
+            onScoreChange={handleDoodleScoreChange}
+            onStateChange={handleDoodleStateChange}
+          />
+        ) : null}
+        {isSnakeOpen ? (
+          <SnakeMiniGame
+            open
+            roomId={effectiveSocketRoomId}
+            // eslint-disable-next-line react-hooks/refs -- гра підписується на поточний (живий) сокет кімнати; зміна isSocketConnected перерендерює сторінку
+            socket={isSocketConnected ? socketRef.current : null}
+            userId={user?.id ?? ""}
+            myScore={mySnakeScore}
+            peerScore={peerSnakeScore}
+            peerName={
+              directChatTargetUser?.nickname ??
+              directChatTargetUser?.username ??
+              "Собеседник"
+            }
+            peerState={peerSnakeState}
+            pingMs={gamePingMs}
+            onClose={() => setIsSnakeOpen(false)}
+            onScoreChange={handleSnakeScoreChange}
+            onStateChange={handleSnakeStateChange}
+            onModeChange={setSnakeMode}
+          />
+        ) : null}
+        {isFilwordOpen ? (
+          <ChristianFilwordMiniGame
+            open
+            onClose={() => setIsFilwordOpen(false)}
+          />
+        ) : null}
+        {isGuessOpen ? (
+          <GuessCharacterMiniGame
+            open
+            roomId={effectiveSocketRoomId}
+            // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
+            socket={isSocketConnected ? socketRef.current : null}
+            userId={user?.id ?? ""}
+            peerName={
+              directChatTargetUser?.nickname ??
+              directChatTargetUser?.username ??
+              "Собеседник"
+            }
+            onClose={() => setIsGuessOpen(false)}
+          />
+        ) : null}
         {isPuzzleOpen ? (
           <PuzzleMiniGame
             open
