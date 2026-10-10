@@ -78,3 +78,43 @@ jobs:
 
       - name: Unit tests
         run: npm test --workspace backend
+
+  # Регресія: `prisma migrate deploy` на ПОРОЖНІЙ базі має відтворювати рівно schema.prisma
+  # (див. backend/prisma/MIGRATIONS.md).
+  migrations:
+    name: Prisma migrations (empty database)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install (root, npm ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: migrate deploy on an empty database
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Database matches schema.prisma
+        working-directory: backend
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
