@@ -1,0 +1,29 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 10px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, #5fae59 40%, var(--line-soft));
+  background: color-mix(in srgb, #7cc576 20%, var(--surface-elevated));
+  color: var(--foreground);
+}
+
+.text {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.btn {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}

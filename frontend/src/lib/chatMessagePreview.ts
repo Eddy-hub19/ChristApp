@@ -3,6 +3,7 @@ import {
   type PreviewTranslator,
 } from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
+import { parseFlockInvite } from "@/lib/flockInviteMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
@@ -28,6 +29,9 @@ export function chatMessagePreview(
   const text = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(text)) {
     return t ? t("previewSticker") : "Стікер";
+  }
+  if (parseFlockInvite(text)) {
+    return t ? t("previewFlockInvite") : "🐑 Запрошення в Отару";
   }
   const verseShare = parseVerseSharePayload(text);
   if (verseShare.payload) {

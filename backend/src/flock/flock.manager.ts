@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { FLOCK_CONFIG, BONUS_KINDS } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
@@ -12,6 +13,7 @@ import {
   FX_FROZEN,
   FX_GHOST,
   FX_MAGNET,
+  FX_PAUSED,
   FX_SHIELD,
   FX_SPEED,
   encodeBoard,
@@ -28,7 +30,12 @@ export type SendFn = (
 ) => void;
 
 interface Session {
-  connKey: string;
+  /** Поточний сокет; null = гравець у паузі (чекає повернення). */
+  connKey: string | null;
+  /** Токен відновлення сесії (віддається в `welcome`, ротується при поверненні). */
+  token: string;
+  /** Коли пауза спливає (мс, годинник менеджера); null = гравець підключений. */
+  pausedUntil: number | null;
   userId: string;
   pid: number;
   arena: Arena;
@@ -45,6 +52,7 @@ interface Session {
 
 class Arena {
   readonly world: FlockWorld;
+  /** Сесії арени за userId (пауза тримає місце в лімiті). */
   readonly sessions = new Map<string, Session>();
   readonly bots = new Set<number>();
   private timer: NodeJS.Timeout | null = null;
@@ -59,6 +67,7 @@ class Arena {
     readonly id: number,
     private readonly rng: Rng,
     private readonly send: SendFn,
+    private readonly now: () => number = Date.now,
   ) {
     this.world = new FlockWorld(rng);
   }
@@ -158,11 +167,13 @@ class Arena {
     const top = sendBoard ? w.leaderboard(10) : [];
     const ranked = sendBoard ? w.leaderboard(1000) : [];
     for (const s of this.sessions.values()) {
+      const key = s.connKey;
+      if (!key) continue; // у паузі: нікуди слати
       const p = w.players.get(s.pid);
       if (!p) continue;
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
-        this.send(s.connKey, 'd', {
+        this.send(key, 'd', {
           survivedMs: Math.round(p.diedAt - p.spawnedAt),
           maxMass: Math.round(p.maxMass),
           kills: p.kills,
@@ -174,7 +185,7 @@ class Arena {
       if (!p.alive) continue;
       const buf = encodeState(this.buildState(s, p));
       this.bytesOut += buf.length;
-      this.send(s.connKey, 's', buf);
+      this.send(key, 's', buf);
       if (sendBoard) {
         const board = encodeBoard({
           top: top.map((t) => ({ pid: t.id, mass: t.total, name: t.name })),
@@ -191,7 +202,7 @@ class Arena {
           }),
         });
         this.bytesOut += board.length;
-        this.send(s.connKey, 'l', board);
+        this.send(key, 'l', board);
       }
     }
   }
@@ -257,6 +268,7 @@ class Arena {
       if (w.isShielded(o)) fx |= FX_SHIELD;
       if (w.isGhost(o)) fx |= FX_GHOST;
       if (w.now < o.frozenUntil) fx |= FX_FROZEN;
+      if (o.paused) fx |= FX_PAUSED;
       if (w.hasEffect(o, 'speed')) fx |= FX_SPEED;
       if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
       cells.push({ id: c.id, pid: c.pid, x: c.x, y: c.y, mass: c.mass, fx });
@@ -288,6 +300,16 @@ class Arena {
 
     const inView = (x: number, y: number) =>
       Math.abs(x - cen.x) <= hx && Math.abs(y - cen.y) <= hy;
+    const pausedInView: StateInput['paused'] = [];
+    const nowMs = this.now();
+    for (const o of this.sessions.values()) {
+      if (o.pausedUntil !== null && seenPids.has(o.pid)) {
+        pausedInView.push({
+          pid: o.pid,
+          remainingMs: Math.max(0, o.pausedUntil - nowMs),
+        });
+      }
+    }
     const effects: StateInput['effects'] = [];
     for (const k of BONUS_KINDS) {
       const until = p.effects[k] ?? 0;
@@ -322,25 +344,48 @@ class Arena {
           x: b.x,
           y: b.y,
         })),
+      paused: pausedInView,
     };
   }
 }
 
+export interface JoinOptions {
+  /** Токен відновлення з попереднього `welcome`. */
+  resume?: string;
+  /** Лише відновлення: якщо сесії вже нема - не створювати нову овечку, а повернути `expired` (клієнт покаже лобі). */
+  resumeOnly?: boolean;
+  /** Арена з посилання-запрошення. Немає такої (закрита) - заходимо в доступну без жодних повідомлень. */
+  arena?: number;
+}
+
 export interface JoinResult {
   ok: boolean;
-  error?: 'full' | 'busy';
+  error?: 'full' | 'busy' | 'expired';
   pid?: number;
   arenaId?: number;
   humans?: number;
+  /** Токен для відновлення сесії після вильоту. */
+  token?: string;
+  /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
+  resumed?: boolean;
+  /** Клієнт прислав токен, але сесія вже завершилась: звичайний вхід. */
+  resumeFailed?: boolean;
 }
+
+const newToken = () => randomBytes(16).toString('hex');
 
 /**
  * Менеджер арен "Отари". Арена існує, лише поки в ній є живі гравці:
  * без людей світ повністю знищується (боти "засинають", пам'ять і CPU звільняються).
+ *
+ * Сесія гравця живе за userId і не прив'язана до сокета: при розриві (не явному виході)
+ * овечка лишається на арені в паузі `resumePauseMs`, місце в ліміті за нею зарезервоване.
  */
 export class FlockManager {
   private readonly arenas = new Map<number, Arena>();
-  private readonly sessions = new Map<string, Session>();
+  /** Сесія за поточним сокетом (у паузі запису немає). */
+  private readonly byConn = new Map<string, Session>();
+  private readonly byUser = new Map<string, Session>();
   private nextArenaId = 1;
   private sweeper: NodeJS.Timeout | null = null;
 
@@ -349,7 +394,7 @@ export class FlockManager {
     private readonly rng: Rng = Math.random,
     private readonly now: () => number = Date.now,
   ) {
-    this.sweeper = setInterval(() => this.sweepAfk(), 5000);
+    this.sweeper = setInterval(() => this.sweep(), 1000);
     this.sweeper.unref?.();
   }
 
@@ -358,43 +403,42 @@ export class FlockManager {
     userId: string,
     name: string,
     skin: number,
+    opts: JoinOptions = {},
   ): JoinResult {
-    const existing = this.sessions.get(connKey);
-    if (existing) {
-      // повторний вхід = переродження
-      const p = existing.arena.world.players.get(existing.pid);
+    const sameConn = this.byConn.get(connKey);
+    if (sameConn) {
+      // повторний вхід з того ж сокета = переродження
+      const p = sameConn.arena.world.players.get(sameConn.pid);
       if (p && !p.alive) {
-        existing.arena.world.respawn(p);
-        existing.deadSent = false;
-        existing.knownChunks.clear();
-        existing.knownPlayers.clear();
-        existing.lastInputAt = this.now();
+        sameConn.arena.world.respawn(p);
+        sameConn.deadSent = false;
+        sameConn.knownChunks.clear();
+        sameConn.knownPlayers.clear();
+        sameConn.lastInputAt = this.now();
       }
-      return {
-        ok: true,
-        pid: existing.pid,
-        arenaId: existing.arena.id,
-        humans: existing.arena.humans,
-      };
+      return this.joined(sameConn);
     }
-    // той самий користувач у двох вкладках - одна сесія, стара відкидається
-    for (const s of [...this.sessions.values()])
-      if (s.userId === userId) this.leave(s.connKey);
 
-    let arena = [...this.arenas.values()].find(
-      (a) => a.humans < C.maxHumansPerArena,
-    );
-    if (!arena) {
-      if (this.arenas.size >= C.maxArenas) return { ok: false, error: 'full' };
-      arena = new Arena(this.nextArenaId++, this.rng, this.send);
-      this.arenas.set(arena.id, arena);
+    const prev = this.byUser.get(userId);
+    let resumeFailed = false;
+    if (opts.resume) {
+      if (prev && prev.token === opts.resume) return this.resume(prev, connKey);
+      resumeFailed = true;
+      if (opts.resumeOnly) return { ok: false, error: 'expired', resumeFailed };
     }
+    // явний новий вхід (або токен не підійшов): стара сесія цього користувача (вкладка/пауза) закривається
+    if (prev) this.removeSession(prev);
+
+    const arena = this.pickArena(opts.arena);
+    if (!arena) return { ok: false, error: 'full', resumeFailed };
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
       skin,
     });
     const session: Session = {
       connKey,
+      token: newToken(),
+      pausedUntil: null,
       userId,
       pid: player.id,
       arena,
@@ -406,16 +450,57 @@ export class FlockManager {
       deadSent: false,
       aspect: 1,
     };
-    arena.sessions.set(connKey, session);
-    this.sessions.set(connKey, session);
+    arena.sessions.set(userId, session);
+    this.byConn.set(connKey, session);
+    this.byUser.set(userId, session);
     arena.syncBots();
     arena.start();
+    return { ...this.joined(session), resumeFailed };
+  }
+
+  private joined(s: Session): JoinResult {
     return {
       ok: true,
-      pid: player.id,
-      arenaId: arena.id,
-      humans: arena.humans,
+      pid: s.pid,
+      arenaId: s.arena.id,
+      humans: s.arena.humans,
+      token: s.token,
     };
+  }
+
+  /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
+  private pickArena(requested?: number): Arena | null {
+    const has = (a: Arena) => a.humans < C.maxHumansPerArena;
+    const wanted = requested ? this.arenas.get(requested) : undefined;
+    if (wanted && has(wanted)) return wanted;
+    const any = [...this.arenas.values()].find(has);
+    if (any) return any;
+    if (this.arenas.size >= C.maxArenas) return null;
+    const arena = new Arena(this.nextArenaId++, this.rng, this.send, this.now);
+    this.arenas.set(arena.id, arena);
+    return arena;
+  }
+
+  private resume(s: Session, connKey: string): JoinResult {
+    // старий сокет ще "живий" (мережа блимнула, сервер не помітив): новий його витісняє
+    if (s.connKey && s.connKey !== connKey) {
+      const old = s.connKey;
+      this.byConn.delete(old);
+      this.send(old, 'e', { code: 'taken' });
+    }
+    s.connKey = connKey;
+    s.pausedUntil = null;
+    s.token = newToken();
+    s.lastInputAt = this.now();
+    s.inputWindowStart = this.now();
+    s.inputCount = 0;
+    s.knownChunks.clear();
+    s.knownPlayers.clear();
+    const p = s.arena.world.players.get(s.pid);
+    if (p && !p.alive) s.deadSent = false;
+    s.arena.world.resumePlayer(s.pid, C.resumeShieldMs);
+    this.byConn.set(connKey, s);
+    return { ...this.joined(s), resumed: true };
   }
 
   /** Ввід: тільки напрямок/сила/кнопки. Не більше ~40 повідомлень/с на гравця. */
@@ -427,7 +512,7 @@ export class FlockManager {
     thr: boolean,
     aspect = 1,
   ) {
-    const s = this.sessions.get(connKey);
+    const s = this.byConn.get(connKey);
     if (!s) return;
     const t = this.now();
     if (t - s.inputWindowStart >= 1000) {
@@ -445,12 +530,35 @@ export class FlockManager {
     if (thr) w.queueThrow(s.pid);
   }
 
-  leave(connKey: string) {
-    const s = this.sessions.get(connKey);
+  /**
+   * Сокет обірвався не з волі гравця (мережа, згорнув, закрив вкладку, iOS вивантажив):
+   * овечка лишається на арені в паузі. Мертвий гравець пауз не потребує.
+   */
+  disconnect(connKey: string) {
+    const s = this.byConn.get(connKey);
     if (!s) return;
-    this.sessions.delete(connKey);
+    this.byConn.delete(connKey);
+    const p = s.arena.world.players.get(s.pid);
+    if (!p || !p.alive || C.resumePauseMs <= 0) {
+      this.removeSession(s);
+      return;
+    }
+    s.connKey = null;
+    s.pausedUntil = this.now() + C.resumePauseMs;
+    s.arena.world.pausePlayer(s.pid);
+  }
+
+  /** Явний вихід (хрестик): одразу, без паузи. */
+  leave(connKey: string) {
+    const s = this.byConn.get(connKey);
+    if (s) this.removeSession(s);
+  }
+
+  private removeSession(s: Session) {
+    if (s.connKey) this.byConn.delete(s.connKey);
+    this.byUser.delete(s.userId);
     const arena = s.arena;
-    arena.sessions.delete(connKey);
+    arena.sessions.delete(s.userId);
     arena.world.removePlayer(s.pid);
     if (arena.humans === 0) {
       arena.stop();
@@ -460,12 +568,15 @@ export class FlockManager {
     }
   }
 
-  private sweepAfk() {
+  /** Раз на секунду: пауза, що спливла, і AFK. Публічний для тестів з керованим годинником. */
+  sweep() {
     const t = this.now();
-    for (const s of [...this.sessions.values()]) {
-      if (t - s.lastInputAt > C.afkKickMs) {
+    for (const s of [...this.byUser.values()]) {
+      if (s.pausedUntil !== null) {
+        if (t >= s.pausedUntil) this.removeSession(s);
+      } else if (s.connKey && t - s.lastInputAt > C.afkKickMs) {
         this.send(s.connKey, 'e', { code: 'afk' });
-        this.leave(s.connKey);
+        this.removeSession(s);
       }
     }
   }
@@ -494,7 +605,8 @@ export class FlockManager {
     if (this.sweeper) clearInterval(this.sweeper);
     for (const a of this.arenas.values()) a.stop();
     this.arenas.clear();
-    this.sessions.clear();
+    this.byConn.clear();
+    this.byUser.clear();
   }
 }
 

@@ -720,7 +720,8 @@
     "cancelEdit": "Cancel editing",
     "deleteConfirm": "Delete this message?",
     "openIn": "Open in…",
-    "download": "Download"
+    "download": "Download",
+    "previewFlockInvite": "🐑 Flock invitation"
   },
   "movies": {
     "title": "Movies",
@@ -979,7 +980,10 @@
     "status": {
       "full": "The arena is full, try again in a bit",
       "afk": "You were disconnected for inactivity",
-      "error": "Could not connect to the arena"
+      "error": "Could not connect to the arena",
+      "expired": "Your session has ended, starting over",
+      "resuming": "Getting you back into the game…",
+      "taken": "The game is open in another window"
     },
     "bonuses": {
       "speed": "Speed boost",
@@ -1003,6 +1007,39 @@
       "9": "Black wolf",
       "10": "Sheepdog",
       "11": "Ginger sheep"
+    },
+    "resuming": "Returning…",
+    "reconnecting": "Connection lost · reconnecting… {seconds}s",
+    "invite": {
+      "button": "Invite",
+      "share": "Share",
+      "copy": "Copy link",
+      "toChat": "Send to chat",
+      "pickChat": "Pick a chat",
+      "loading": "Loading…",
+      "noChats": "No chats yet",
+      "back": "Back",
+      "copied": "Link copied",
+      "failed": "Couldn't share",
+      "sent": "Sent to “{chat}”",
+      "sendFailed": "Couldn't send",
+      "shareTitle": "Flock",
+      "shareText": "Join me in Flock: graze, grow and don't get eaten!"
+    },
+    "card": {
+      "title": "{name} invites you to Flock",
+      "titleOwn": "You invited friends to Flock",
+      "sub": "A shared arena of sheep and wolves",
+      "play": "Play"
+    },
+    "resume": {
+      "text": "Your sheep is waiting for you · {seconds}s",
+      "button": "Return"
+    },
+    "og": {
+      "title": "Flock — play together with friends",
+      "description": "A shared arena: graze, grow and hide from wolves behind bushes. Join with one tap.",
+      "imageAlt": "Flock: sheep and wolves on a green meadow"
     }
   },
   "games": {

@@ -17,6 +17,11 @@ export interface FlockCfg {
   speed: { base: number; exp: number; min: number; boost: number };
   durations: Record<string, number>;
   magnetRadius: number;
+  /** Скільки сервер тримає овечку в паузі після розриву. */
+  pauseMs: number;
+  resumeToken: string;
+  resumed: boolean;
+  resumeFailed: boolean;
   /** Радіус огляду від маси: base + perSqrtMass*sqrt(маса), не більше max (дзеркало серверної формули). */
   view: { base: number; perSqrtMass: number; max: number };
 }
@@ -82,6 +87,8 @@ export class FlockModel {
   thorns: { id: number; x: number; y: number; mass: number }[] = [];
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
   effects: ActiveEffect[] = [];
+  /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
+  readonly pausedUntil = new Map<number, number>();
   board: DecodedBoard = { top: [], selfRank: 0, alive: 0, map: [] };
   total = 0;
   alive = false;
@@ -113,6 +120,12 @@ export class FlockModel {
     const s = this.cfg.speed;
     const v = Math.max(s.min, s.base * Math.pow(mass, s.exp));
     return boosted ? v * s.boost : v;
+  }
+
+  /** Скільки мс лишилось у гравця на паузі (0, якщо не на паузі). */
+  pauseLeftMs(pid: number, now = Date.now()) {
+    const until = this.pausedUntil.get(pid);
+    return until ? Math.max(0, until - now) : 0;
   }
 
   hasEffect(kind: string) {
@@ -205,6 +218,10 @@ export class FlockModel {
       } else this.blobs.set(b.id, { id: b.id, x: b.x, y: b.y, tx: b.x, ty: b.y });
     }
     for (const id of this.blobs.keys()) if (!seenBlobs.has(id)) this.blobs.delete(id);
+
+    this.pausedUntil.clear();
+    const nowLocal = Date.now();
+    for (const p of s.paused) this.pausedUntil.set(p.pid, nowLocal + p.remainingMs);
 
     this.thorns = s.thorns;
     this.bonuses = s.bonuses.map((b) => ({ id: b.id, kind: BONUS_CODE[b.kind] ?? "golden", x: b.x, y: b.y }));

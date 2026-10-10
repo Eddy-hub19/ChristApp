@@ -1,0 +1,45 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(260px, 70vw);
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #7cc576 22%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, #5fae59 40%, var(--line-soft));
+  color: var(--foreground);
+}
+
+.sheep {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.play {
+  flex: none;
+  padding: 7px 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}

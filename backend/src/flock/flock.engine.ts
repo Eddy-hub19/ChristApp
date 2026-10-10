@@ -42,6 +42,9 @@ export interface Player {
   lastSplitAt: number;
   lastThrowAt: number;
   spawnedAt: number;
+  /** Пауза після розриву зʼєднання: стоїть, недоторкана, нікого не їсть, ефекти не тікають. */
+  paused: boolean;
+  pausedAt: number;
   diedAt: number;
   total: number;
   maxMass: number;
@@ -173,6 +176,8 @@ export class FlockWorld {
       lastSplitAt: -1e9,
       lastThrowAt: -1e9,
       spawnedAt: this.now,
+      paused: false,
+      pausedAt: 0,
       diedAt: 0,
       total: 0,
       maxMass: 0,
@@ -196,6 +201,7 @@ export class FlockWorld {
     p.effects = {};
     p.frozenUntil = 0;
     p.spawnedAt = this.now;
+    p.paused = false;
     p.maxMass = C.startMass;
     p.total = C.startMass;
     p.topMs = 0;
@@ -270,6 +276,40 @@ export class FlockWorld {
   queueThrow(pid: number) {
     const p = this.players.get(pid);
     if (p) p.wantThrow = true;
+  }
+
+  /** Гравець відключився не за власним бажанням: тримаємо його овечку на арені в режимі паузи. */
+  pausePlayer(pid: number) {
+    const p = this.players.get(pid);
+    if (!p || !p.alive || p.paused) return;
+    p.paused = true;
+    p.pausedAt = this.now;
+    p.power = 0;
+    p.wantSplit = p.wantThrow = false;
+  }
+
+  /**
+   * Повернення після паузи: усі таймери, що йшли "у світовому часі", зсуваємо на тривалість паузи,
+   * щоб бонуси, злиття частин і статистика не "згоріли" поки гравця не було. Далі - короткий щит.
+   */
+  resumePlayer(pid: number, shieldMs: number) {
+    const p = this.players.get(pid);
+    if (!p) return;
+    if (p.paused) {
+      const delta = Math.max(0, this.now - p.pausedAt);
+      for (const k of Object.keys(p.effects) as BonusKind[]) {
+        const until = p.effects[k] ?? 0;
+        if (until > p.pausedAt) p.effects[k] = until + delta;
+      }
+      if (p.frozenUntil > p.pausedAt) p.frozenUntil += delta;
+      for (const c of p.cells) {
+        c.mergeAt += delta;
+        if (c.thornImmuneUntil > p.pausedAt) c.thornImmuneUntil += delta;
+      }
+      p.spawnedAt += delta;
+      p.paused = false;
+    }
+    p.effects.shield = Math.max(p.effects.shield ?? 0, this.now + shieldMs);
   }
 
   isShielded(p: Player) {
@@ -380,6 +420,12 @@ export class FlockWorld {
 
     for (const p of this.players.values()) {
       if (!p.alive) continue;
+      if (p.paused) {
+        // стоїмо: імпульс (поділ/кидок) плавно згасає, керування й злиття не працюють
+        p.power = 0;
+        this.moveCells(p, dt);
+        continue;
+      }
       if (p.wantSplit) this.doSplit(p);
       if (p.wantThrow) this.doThrow(p);
       p.wantSplit = p.wantThrow = false;
@@ -406,7 +452,9 @@ export class FlockWorld {
       if (!p.alive) continue;
       let total = 0;
       for (const c of p.cells) {
-        if (c.mass > C.decayFromMass) c.mass -= c.mass * C.decayPerSec * dt;
+        if (!p.paused && c.mass > C.decayFromMass) {
+          c.mass -= c.mass * C.decayPerSec * dt;
+        }
         total += c.mass;
       }
       p.total = total;
@@ -414,7 +462,7 @@ export class FlockWorld {
       if (!leader || total > leader.total) leader = p;
     }
     this.leaderPid = leader?.id ?? 0;
-    if (leader) leader.topMs += dt * 1000;
+    if (leader && !leader.paused) leader.topMs += dt * 1000;
 
     // поповнення їжі (порціями, щоб не стрибало)
     for (let i = 0; i < 8 && this.foodById.size < C.maxFood; i++)
@@ -544,7 +592,7 @@ export class FlockWorld {
 
   private stepMagnet(dt: number) {
     for (const p of this.players.values()) {
-      if (!p.alive || !this.hasEffect(p, 'magnet')) continue;
+      if (!p.alive || p.paused || !this.hasEffect(p, 'magnet')) continue;
       for (const c of p.cells) {
         this.foodNear(c.x, c.y, C.magnetRadius, (f) => {
           const dx = c.x - f.x;
@@ -578,7 +626,7 @@ export class FlockWorld {
       this.cellGrid.query(b.x, b.y, 80, (c) => {
         if (eaten) return;
         const owner = this.players.get(c.pid);
-        if (!owner || this.isGhost(owner)) return;
+        if (!owner || owner.paused || this.isGhost(owner)) return;
         if (c.pid === b.ownerPid && this.now - b.bornAt < 350) return;
         if (Math.hypot(c.x - b.x, c.y - b.y) < radiusOf(c.mass)) {
           c.mass +=
@@ -592,7 +640,7 @@ export class FlockWorld {
 
   private stepCellVsCell() {
     for (const p of this.players.values()) {
-      if (!p.alive || this.isGhost(p)) continue;
+      if (!p.alive || p.paused || this.isGhost(p)) continue;
       for (const a of [...p.cells]) {
         if (!this.cellsById.has(a.id)) continue;
         const ra = radiusOf(a.mass);
@@ -605,7 +653,7 @@ export class FlockWorld {
             return;
           if (a.mass < b.mass * C.eatRatio) return;
           const victim = this.players.get(b.pid);
-          if (!victim || !victim.alive) return;
+          if (!victim || !victim.alive || victim.paused) return;
           // боти не чіпають новачків (жорстке правило рушія, а не лише ШІ)
           if (
             p.bot &&
@@ -638,7 +686,7 @@ export class FlockWorld {
 
   private stepFood() {
     for (const p of this.players.values()) {
-      if (!p.alive || this.isGhost(p)) continue;
+      if (!p.alive || p.paused || this.isGhost(p)) continue;
       const gain = C.foodMass * (this.hasEffect(p, 'double') ? 2 : 1);
       for (const c of p.cells) {
         const r = radiusOf(c.mass);
@@ -657,7 +705,7 @@ export class FlockWorld {
 
   private stepThorns() {
     for (const p of this.players.values()) {
-      if (!p.alive || this.isGhost(p)) continue;
+      if (!p.alive || p.paused || this.isGhost(p)) continue;
       for (const c of [...p.cells]) {
         if (
           c.mass <= C.thornMass * C.thornPopRatio ||
@@ -700,8 +748,10 @@ export class FlockWorld {
       let takerCell: Cell | null = null;
       this.cellGrid.query(b.x, b.y, 60, (c) => {
         if (taker) return;
+        const pl = this.players.get(c.pid);
+        if (!pl || pl.paused) return; // у паузі бонуси не підбираються
         if (Math.hypot(c.x - b.x, c.y - b.y) < radiusOf(c.mass) + 14) {
-          taker = this.players.get(c.pid) ?? null;
+          taker = pl;
           takerCell = c;
         }
       });
@@ -721,7 +771,7 @@ export class FlockWorld {
     if (kind === 'freeze') {
       const near: { p: Player; d: number }[] = [];
       for (const o of this.players.values()) {
-        if (o === p || !o.alive) continue;
+        if (o === p || !o.alive || o.paused) continue;
         const cc = this.centroid(o);
         const d = Math.hypot(cc.x - cell.x, cc.y - cell.y);
         if (d <= C.freezeRadius) near.push({ p: o, d });

@@ -55,6 +55,7 @@
   border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
   background: linear-gradient(135deg, color-mix(in srgb, #7cc576 22%, var(--surface-elevated)), var(--surface-elevated));
   color: var(--foreground);
+  text-decoration: none;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 

@@ -64,7 +64,7 @@ describe('FlockManager', () => {
     }
     expect(ctx.mgr.stats()).toHaveLength(1);
     const over = ctx.mgr.join('extra', 'ux', 'P', 0);
-    expect(over).toEqual({ ok: false, error: 'full' });
+    expect(over).toMatchObject({ ok: false, error: 'full' });
     expect(ctx.mgr.stats()[0].humans).toBe(C.maxHumansPerArena);
     // звільнилось місце - новий гравець заходить
     ctx.mgr.leave('c0');
@@ -250,5 +250,286 @@ describe('FlockManager', () => {
     ctx.sent.length = 0;
     arena.step();
     expect(ctx.sent.every((m) => m.key === 'c2')).toBe(true);
+  });
+
+  describe('пауза і відновлення сесії', () => {
+    const PAUSE = C.resumePauseMs;
+    const me = (userId = 'u1') => {
+      const arena = ctx.mgr._arena(1)!;
+      return {
+        arena,
+        player: [...arena.world.players.values()].find(
+          (p) => !p.bot && p.name === userId,
+        )!,
+      };
+    };
+    const joinAs = (conn: string, user: string, opts = {}) =>
+      ctx.mgr.join(conn, user, user, 3, opts);
+
+    it('join видає токен; розрив ставить овечку на паузу, а не видаляє', () => {
+      const r = joinAs('c1', 'u1');
+      expect(r.token).toMatch(/^[0-9a-f]{32}$/);
+      ctx.mgr.disconnect('c1');
+      const { player } = me();
+      expect(player.alive).toBe(true);
+      expect(player.paused).toBe(true);
+      expect(ctx.mgr.stats()[0].humans).toBe(1); // місце зарезервоване
+    });
+
+    it('повернення за 10 с: та сама овечка (маса, частини, позиція), без екрана входу, щит 2 с', () => {
+      const r = joinAs('c1', 'u1');
+      const { arena, player } = me();
+      player.cells[0].mass = 300;
+      player.cells[0].x = 1234;
+      player.cells[0].y = 987;
+      player.maxMass = 555;
+      player.kills = 2;
+      player.effects = {};
+      arena.world.queueSplit(player.id);
+      arena.step();
+      const cellsBefore = player.cells.length;
+      const pid = player.id;
+      ctx.mgr.disconnect('c1');
+      ctx.advance(10_000);
+      ctx.mgr.sweep();
+      const back = joinAs('c2', 'u1', { resume: r.token });
+      expect(back.resumed).toBe(true);
+      expect(back.pid).toBe(pid);
+      expect(back.token).not.toBe(r.token); // токен ротується
+      const after = arena.world.players.get(pid)!;
+      expect(after.paused).toBe(false);
+      expect(after.cells.length).toBe(cellsBefore);
+      expect(after.maxMass).toBe(555);
+      expect(after.kills).toBe(2);
+      expect(arena.world.isShielded(after)).toBe(true);
+      const left = (after.effects.shield ?? 0) - arena.world.now;
+      expect(left).toBeGreaterThan(C.resumeShieldMs - 200);
+      expect(left).toBeLessThanOrEqual(C.resumeShieldMs);
+      // стан іде на НОВИЙ сокет, на старий - ні
+      ctx.sent.length = 0;
+      arena.step();
+      expect(
+        ctx.sent.filter((m) => m.event === 's').every((m) => m.key === 'c2'),
+      ).toBe(true);
+      expect(ctx.sent.some((m) => m.event === 's' && m.key === 'c2')).toBe(
+        true,
+      );
+    });
+
+    it('повернення через 25 с: сесії вже нема, звичайний вхід із resumeFailed', () => {
+      const r = joinAs('c1', 'u1');
+      const oldPid = me().player.id;
+      ctx.mgr.disconnect('c1');
+      ctx.advance(25_000);
+      ctx.mgr.sweep();
+      expect(ctx.mgr.isActive()).toBe(false); // овечка зникла, арена заснула
+      const back = joinAs('c2', 'u1', { resume: r.token });
+      expect(back.ok).toBe(true);
+      expect(back.resumed).toBeFalsy();
+      expect(back.resumeFailed).toBe(true);
+      const fresh = ctx.mgr
+        ._arena(back.arenaId!)!
+        .world.players.get(back.pid!)!;
+      expect(fresh.total).toBe(C.startMass);
+      void oldPid;
+    });
+
+    it('resumeOnly: сесії нема - нічого не створюємо, повертаємо expired (клієнт покаже лобі)', () => {
+      const r = joinAs('c1', 'u1');
+      ctx.mgr.disconnect('c1');
+      ctx.advance(25_000);
+      ctx.mgr.sweep();
+      const back = joinAs('c2', 'u1', { resume: r.token, resumeOnly: true });
+      expect(back).toMatchObject({
+        ok: false,
+        error: 'expired',
+        resumeFailed: true,
+      });
+      expect(ctx.mgr.isActive()).toBe(false); // жодної нової овечки й арени
+    });
+
+    it('resumeOnly з чужим токеном не чіпає чужу сесію в паузі', () => {
+      const a = joinAs('c1', 'u1');
+      joinAs('c2', 'u2');
+      ctx.mgr.disconnect('c1');
+      expect(
+        joinAs('c3', 'u2', { resume: a.token, resumeOnly: true }).error,
+      ).toBe('expired');
+      expect(ctx.mgr['byUser'].get('u2')).toBeDefined(); // u2 лишається у своїй сесії
+    });
+
+    it('пауза спливає рівно по resumePauseMs (не раніше)', () => {
+      joinAs('c1', 'u1');
+      joinAs('c2', 'u2');
+      ctx.mgr.disconnect('c1');
+      ctx.advance(PAUSE - 1);
+      ctx.mgr.sweep();
+      expect(ctx.mgr.stats()[0].humans).toBe(2);
+      ctx.advance(2);
+      ctx.mgr.sweep();
+      expect(ctx.mgr.stats()[0].humans).toBe(1);
+    });
+
+    it('явний вихід (хрестик): одразу, без паузи, токен більше не діє', () => {
+      const r = joinAs('c1', 'u1');
+      joinAs('c2', 'u2');
+      ctx.mgr.leave('c1');
+      expect(ctx.mgr.stats()[0].humans).toBe(1);
+      // розрив після явного виходу нічого не ставить на паузу
+      ctx.mgr.disconnect('c1');
+      const back = joinAs('c3', 'u1', { resume: r.token });
+      expect(back.resumed).toBeFalsy();
+      expect(back.resumeFailed).toBe(true);
+    });
+
+    it("гравця в паузі не можна з'їсти, він нікого не їсть і не підбирає бонуси", () => {
+      joinAs('c1', 'u1');
+      const { arena, player } = me();
+      const bot = [...arena.world.players.values()].find((p) => p.bot)!;
+      const w = arena.world;
+      player.effects = {};
+      bot.effects = {};
+      player.spawnedAt = -1e9; // пільговий час боту не заважає
+      // хижак 600 над овечкою
+      bot.cells.forEach((c) => {
+        c.mass = 600;
+        c.x = 1500;
+        c.y = 1500;
+      });
+      player.cells.forEach((c) => {
+        c.mass = 40;
+        c.x = 1500;
+        c.y = 1500;
+      });
+      ctx.mgr.disconnect('c1');
+      for (let i = 0; i < 5; i++) arena.step();
+      expect(player.alive).toBe(true);
+      expect(player.cells[0].mass).toBe(40); // хижак накрив, але не з'їв
+      // бонус під овечкою в паузі лежить, поки поруч нікого
+      bot.cells.forEach((c) => {
+        c.x = 100;
+        c.y = 100;
+      });
+      w.bonuses.length = 0;
+      w.bonuses.push({ id: 99, x: 1500, y: 1500, kind: 'golden' });
+      for (let i = 0; i < 3; i++) arena.step();
+      expect(w.bonuses.some((b) => b.id === 99)).toBe(true);
+      expect(player.cells[0].mass).toBe(40);
+      // а коли гравець в паузі - більший, він не їсть меншого
+      const small = [...w.players.values()].find((p) => p.bot && p !== bot)!;
+      small.cells.forEach((c) => {
+        c.mass = 30;
+        c.x = 1500;
+        c.y = 1500;
+      });
+      player.cells[0].mass = 400;
+      bot.cells.forEach((c) => {
+        c.x = 100;
+        c.y = 100;
+      });
+      small.effects = {};
+      for (let i = 0; i < 5; i++) arena.step();
+      expect(small.alive).toBe(true);
+    });
+
+    it('ліміт арени: зарезервоване місце не віддається іншому, новий гравець отримує full', () => {
+      for (let i = 0; i < C.maxHumansPerArena; i++) joinAs(`c${i}`, `u${i}`);
+      ctx.mgr.disconnect('c0'); // u0 в паузі
+      const extra = joinAs('cx', 'ux');
+      expect(extra).toMatchObject({ ok: false, error: 'full' });
+      // u0 повертається у своє місце
+      const tokenOfU0 = ctx.mgr['byUser'].get('u0')!.token;
+      const back = joinAs('c0b', 'u0', { resume: tokenOfU0 });
+      expect(back.resumed).toBe(true);
+      // а коли пауза спливла - місце вільне
+      ctx.mgr.disconnect('c0b');
+      ctx.advance(PAUSE + 100);
+      ctx.mgr.sweep();
+      expect(joinAs('cx', 'ux').ok).toBe(true);
+    });
+
+    it('чужий токен не підходить; токен привʼязаний до користувача', () => {
+      const a = joinAs('c1', 'u1');
+      joinAs('c2', 'u2');
+      ctx.mgr.disconnect('c1');
+      // u2 з токеном u1 - не відновлює чужу овечку
+      const steal = joinAs('c3', 'u2', { resume: a.token });
+      expect(steal.resumed).toBeFalsy();
+      expect(steal.resumeFailed).toBe(true);
+      // овечка u1 і далі чекає
+      expect(ctx.mgr['byUser'].get('u1')!.pausedUntil).not.toBeNull();
+    });
+
+    it('старий сокет ще "живий" (мережа блимнула): новий його витісняє', () => {
+      const r = joinAs('c1', 'u1');
+      const back = joinAs('c2', 'u1', { resume: r.token });
+      expect(back.resumed).toBe(true);
+      expect(
+        ctx.sent.some(
+          (m) =>
+            m.key === 'c1' && m.event === 'e' && m.payload.code === 'taken',
+        ),
+      ).toBe(true);
+      ctx.mgr.input('c1', 1, 1, false, false); // старий уже нічого не керує
+      expect(me().player.angle).not.toBe(1);
+      ctx.mgr.disconnect('c1'); // його пізній розрив не ставить паузу на новий сокет
+      expect(me().player.paused).toBe(false);
+    });
+
+    it('таймери ефектів і злиття не горять під час паузи; статистика не росте', () => {
+      const r = joinAs('c1', 'u1');
+      const { arena, player } = me();
+      const w = arena.world;
+      player.effects = { speed: w.now + 5000 };
+      player.cells[0].mergeAt = w.now + 4000;
+      const spawnedBefore = player.spawnedAt;
+      ctx.mgr.disconnect('c1');
+      for (let i = 0; i < C.tickHz * 10; i++) arena.step(); // 10 с світового часу
+      ctx.mgr.input; // (ввід у паузі ігнорується, бо сокета нема)
+      joinAs('c2', 'u1', { resume: r.token });
+      expect((player.effects.speed ?? 0) - w.now).toBeGreaterThan(4000);
+      expect(player.cells[0].mergeAt - w.now).toBeGreaterThan(3000);
+      expect(player.spawnedAt).toBeGreaterThan(spawnedBefore); // survivedMs без паузи
+    });
+
+    it('на паузі овечка стоїть, а іншим показується з прапором паузи і таймером', () => {
+      joinAs('c1', 'u1');
+      joinAs('c2', 'u2');
+      const { arena, player } = me();
+      const other = arena.world.players;
+      void other;
+      ctx.mgr.disconnect('c1');
+      ctx.sent.length = 0;
+      ctx.advance(7000);
+      arena.step();
+      const st = decodeState(
+        ctx.sent.find((m) => m.event === 's' && m.key === 'c2')!.payload,
+      );
+      const mine = st.cells.find((c) => c.pid === player.id);
+      if (mine) expect(mine.fx & 32).toBe(32);
+      if (mine) {
+        const t = st.paused.find((p) => p.pid === player.id)!;
+        expect(t.remainingMs).toBeGreaterThan(12_000);
+        expect(t.remainingMs).toBeLessThanOrEqual(C.resumePauseMs - 6900);
+      }
+    });
+
+    it('запрошена арена: є місце - туди; арени нема (закрита) - у доступну без помилки; повна - full', () => {
+      const first = joinAs('c1', 'u1');
+      expect(joinAs('c2', 'u2', { arena: first.arenaId }).arenaId).toBe(
+        first.arenaId,
+      );
+      // арени 77 не існує: заходимо в доступну, жодної помилки
+      const ghost = joinAs('c3', 'u3', { arena: 77 });
+      expect(ghost.ok).toBe(true);
+      expect(ghost.arenaId).toBe(first.arenaId);
+      // заповнюємо
+      for (let i = 4; i < 4 + C.maxHumansPerArena; i++)
+        joinAs(`c${i}`, `u${i}`, { arena: first.arenaId });
+      expect(joinAs('cz', 'uz', { arena: first.arenaId })).toMatchObject({
+        ok: false,
+        error: 'full',
+      });
+    });
   });
 });

@@ -13,12 +13,16 @@ const cfg: FlockCfg = {
   durations: { speed: 7000 },
   magnetRadius: 340,
   view: { base: 400, perSqrtMass: 6.5, max: 1100 },
+  pauseMs: 20000,
+  resumeToken: "0123456789abcdef0123456789abcdef",
+  resumed: false,
+  resumeFailed: false,
 };
 
 const base = (over: Partial<DecodedState> = {}): DecodedState => ({
   tick: 1, alive: true, total: 30, selfPid: 1, effects: [], forgetChunks: [], chunks: [], foodEvents: [],
   players: [{ pid: 1, skin: 0, bot: false, name: "me" }], cells: [{ id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 }],
-  thorns: [], blobs: [], bonuses: [], ...over,
+  thorns: [], blobs: [], bonuses: [], paused: [], ...over,
 });
 
 describe("FlockModel", () => {
@@ -94,5 +98,17 @@ describe("FlockModel", () => {
     }
     // вузький телефон: персонаж більший, ніж у старій квадратній схемі
     expect(viewScale(390, 844, 500)).toBeGreaterThan(390 / (2 * 500 * 1.15));
+  });
+
+  it("гравці в паузі: таймер рахується від локального часу, зникає, коли пауза скінчилась", () => {
+    const m = new FlockModel(cfg);
+    m.applyState(base({ paused: [{ pid: 9, remainingMs: 12_000 }] }));
+    const now = Date.now();
+    expect(m.pauseLeftMs(9, now)).toBeGreaterThan(11_900);
+    expect(m.pauseLeftMs(9, now + 5_000)).toBeLessThan(7_100);
+    expect(m.pauseLeftMs(9, now + 60_000)).toBe(0);
+    expect(m.pauseLeftMs(1, now)).toBe(0);
+    m.applyState(base({ paused: [] })); // повернувся - плашка зникає
+    expect(m.pauseLeftMs(9, now)).toBe(0);
   });
 });
