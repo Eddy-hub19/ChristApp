@@ -148,7 +148,17 @@
     "procPid": "PID",
     "procNode": "Node",
     "procNoSamples": "Collecting data…",
-    "procHistoryHint": "last 5 minutes"
+    "procHistoryHint": "last 5 minutes",
+    "procSecBench": "CPU speed (vs M2)",
+    "procBenchButton": "Measure CPU speed",
+    "procBenchRunning": "Measuring…",
+    "procBenchNone": "Not measured since the server started. Press the button (~0.1 s of load).",
+    "procBenchAt": "measured at {time}",
+    "procBenchFactor": "Core is slower than M2 by",
+    "procBenchDetail": "median {ms} ms, M2 reference {ref} ms",
+    "procBenchArena": "Flock arena, {count} players",
+    "procBenchArenaSub": "≈ {ms} ms CPU/s",
+    "procBenchHint": "Share of the free Render budget (~0.1 vCPU ≈ 100 ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The result is kept until the server restarts."
   },
   "profile": {
     "title": "Profile",

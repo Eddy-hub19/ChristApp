@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminServerStatus } from "@/lib/queries/adminQueries";
-import { evaluateServerHealth } from "./adminHealth";
+import { evaluateCpuSlowdown, evaluateServerHealth } from "./adminHealth";
 
 function status(over: {
   cpu?: number;
@@ -52,5 +52,16 @@ describe("evaluateServerHealth", () => {
     const s = status({});
     s.latest = null;
     expect(evaluateServerHealth(s).overall).toBe("ok");
+  });
+});
+
+describe("evaluateCpuSlowdown", () => {
+  it("traffic light by how much slower than M2 the server core is", () => {
+    expect(evaluateCpuSlowdown(1)).toBe("ok");
+    expect(evaluateCpuSlowdown(2.49)).toBe("ok");
+    expect(evaluateCpuSlowdown(2.5)).toBe("warn");
+    expect(evaluateCpuSlowdown(3.99)).toBe("warn");
+    expect(evaluateCpuSlowdown(4)).toBe("bad");
+    expect(evaluateCpuSlowdown(7)).toBe("bad");
   });
 });

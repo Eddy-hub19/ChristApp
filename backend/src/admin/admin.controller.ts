@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
 import { ServerMetricsService } from './server-metrics.service';
+import { CpuBenchmarkService } from './cpu-benchmark.service';
 import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Controller('admin')
@@ -24,6 +26,7 @@ export class AdminController {
     private readonly prisma: PrismaService,
     private readonly metrics: ServerMetricsService,
     private readonly chatGateway: ChatGateway,
+    private readonly cpuBenchmark: CpuBenchmarkService,
   ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
@@ -62,6 +65,18 @@ export class AdminController {
       realtime: this.chatGateway.getRealtimeStats(),
       users: { total: usersTotal, active: usersActive },
     };
+  }
+
+  /** Останній замір швидкості CPU (null - ще не міряли від запуску процесу). */
+  @Get('cpu-benchmark')
+  latestCpuBenchmark() {
+    return { result: this.cpuBenchmark.latest() };
+  }
+
+  /** Заміряти швидкість ядра цього сервера відносно M2 (синхронно, ~100 мс). */
+  @Post('cpu-benchmark')
+  runCpuBenchmark() {
+    return this.cpuBenchmark.run();
   }
 
   /** Усі учасники: максимум полів для огляду в адмінці. */
