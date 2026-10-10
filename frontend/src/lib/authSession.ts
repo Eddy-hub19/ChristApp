@@ -1,6 +1,7 @@
 "use client";
 
 import { getHttpApiBase } from "@/lib/apiBase";
+import { clearUserCaches } from "@/lib/clearUserCaches";
 import {
   clearAuthToken,
   getAuthToken,
@@ -400,6 +401,8 @@ export async function logout(options?: {
     rejectQueue(createUnauthorizedError("Logged out"));
     isRefreshing = false;
     resetClientAuthState();
+    // Єдине місце для всіх виходів (кнопка, 401, синхронізація вкладок): локальні кеші не переживають сесію.
+    await clearUserCaches();
     setAuthSnapshot({
       initialized: true,
       user: null,

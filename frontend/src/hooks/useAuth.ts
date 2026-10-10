@@ -4,8 +4,6 @@ import { useCallback, useEffect, useSyncExternalStore, useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { clearAppBadgeIfSupported } from "@/lib/appBadge";
-import { clearPersistedReactQueryCache } from "@/lib/queryPersistConstants";
-import { clearChatMessageCache } from "@/lib/chatMessageCache";
 import {
   AUTH_ME_QUERY_ROOT,
   currentUserQueryKey,
@@ -267,8 +265,6 @@ export function useAuth(options?: UseAuthOptions) {
   };
 
   const logout = async () => {
-    clearPersistedReactQueryCache();
-    void clearChatMessageCache();
     void clearAppBadgeIfSupported();
     queryClient.clear();
     applyUserAppearanceToDocument(null);
