@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import os from 'node:os';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { resolveCpuBudgetMs } from './cpu-benchmark.service';
 
 const SAMPLE_INTERVAL_MS = 5_000;
 /** Період опитування гістограми: Node включає його в кожне значення, тож віднімаємо, щоб порожній цикл давав ~0. */
@@ -91,6 +92,8 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
   snapshot() {
     const mem = process.memoryUsage();
     return {
+      /** Бюджет CPU інстанса, мс CPU/с (RENDER_CPU_BUDGET_MS): cpuPercent 100 = 1000 мс/с. */
+      cpuBudgetMs: resolveCpuBudgetMs(),
       process: {
         pid: process.pid,
         nodeVersion: process.version,

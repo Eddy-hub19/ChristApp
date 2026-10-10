@@ -10,7 +10,7 @@ import {
   type AdminMetricSample,
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { evaluateCpuSlowdown, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
+import { cpuBudgetShare, evaluateArenaBudget, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -127,7 +127,7 @@ function CpuBenchmark({ active }: { active: boolean }) {
           <div className={styles.statGrid}>
             <Stat
               label={t("procBenchFactor")}
-              level={evaluateCpuSlowdown(result.slowdown)}
+              level={evaluateArenaBudget(Math.max(...result.arena.map((a) => a.budgetPercent)))}
               value={`×${result.slowdown}`}
               sub={t("procBenchDetail", { ms: result.medianMs, ref: result.refMs })}
             />
@@ -135,13 +135,13 @@ function CpuBenchmark({ active }: { active: boolean }) {
               <Stat
                 key={a.players}
                 label={t("procBenchArena", { count: a.players })}
-                level={a.budgetPercent >= 100 ? "bad" : a.budgetPercent >= 75 ? "warn" : "ok"}
+                level={evaluateArenaBudget(a.budgetPercent)}
                 value={`${a.budgetPercent}%`}
                 sub={t("procBenchArenaSub", { ms: a.cpuMsPerSec })}
               />
             ))}
           </div>
-          <p className={styles.metaSmall}>{t("procBenchHint")}</p>
+          <p className={styles.metaSmall}>{t("procBenchHint", { vcpu: Math.round((result.budgetMs / 1000) * 100) / 100, ms: result.budgetMs })}</p>
         </>
       ) : (
         <p className={styles.metaSmall}>{latest.isLoading ? t("procLoading") : t("procBenchNone")}</p>
@@ -205,7 +205,7 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             label={t("procCpu")}
             level={health.cpu}
             value={latest ? `${latest.cpuPercent}%` : "—"}
-            sub={latest ? undefined : t("procNoSamples")}
+            sub={latest ? t("procCpuBudget", { percent: cpuBudgetShare(data), ms: data.cpuBudgetMs ?? 1000 }) : t("procNoSamples")}
             spark={<Sparkline samples={history} pick={(s) => s.cpuPercent} />}
           />
           <Stat

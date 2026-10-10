@@ -35,10 +35,19 @@ export type ServerHealth = {
   pool: HealthLevel;
 };
 
+/**
+ * Доля бюджета CPU инстанса, %. `cpuPercent` меряется от одного ядра (100 = 1000 мс CPU/с), а Render душит процесс
+ * по квоте (0.5 vCPU = 500 мс/с), поэтому «светофор» смотрит на долю квоты, а не ядра.
+ */
+export function cpuBudgetShare(status: AdminServerStatus): number {
+  const budgetMs = status.cpuBudgetMs && status.cpuBudgetMs > 0 ? status.cpuBudgetMs : 1000;
+  return Math.round(((status.latest?.cpuPercent ?? 0) * 10 / budgetMs) * 1000) / 10;
+}
+
 /** Оценивает состояние сервера по снимку `/admin/server`. */
 export function evaluateServerHealth(status: AdminServerStatus): ServerHealth {
   const t = HEALTH_THRESHOLDS;
-  const cpu = levelByThreshold(status.latest?.cpuPercent ?? 0, t.cpuWarn);
+  const cpu = levelByThreshold(cpuBudgetShare(status), t.cpuWarn);
   const loopLag = levelByThreshold(
     status.latest?.loopLagP99Ms ?? 0,
     t.loopLagWarnMs,
@@ -52,12 +61,7 @@ export function evaluateServerHealth(status: AdminServerStatus): ServerHealth {
   return { overall, cpu, loopLag, db, pool };
 }
 
-/**
- * Світлофор для коефіцієнта швидкості CPU (у скільки разів ядро повільніше за M2):
- * до 2.5x арена на 2-6 гравців вкладається в безкоштовний бюджет; 2.5-4x - на межі; далі - не вкладається.
- */
-export const CPU_SLOWDOWN_THRESHOLDS = { warn: 2.5, bad: 4 } as const;
-
-export function evaluateCpuSlowdown(slowdown: number): HealthLevel {
-  return levelByThreshold(slowdown, CPU_SLOWDOWN_THRESHOLDS.warn, CPU_SLOWDOWN_THRESHOLDS.bad);
+/** Світлофор для частки бюджету CPU, яку займає арена "Отара": до 75% - комфортно, 75-100% - на межі, далі - не вкладається. */
+export function evaluateArenaBudget(percent: number): HealthLevel {
+  return levelByThreshold(percent, 75, 100);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminServerStatus } from "@/lib/queries/adminQueries";
-import { evaluateCpuSlowdown, evaluateServerHealth } from "./adminHealth";
+import { cpuBudgetShare, evaluateArenaBudget, evaluateServerHealth } from "./adminHealth";
 
 function status(over: {
   cpu?: number;
@@ -55,13 +55,22 @@ describe("evaluateServerHealth", () => {
   });
 });
 
-describe("evaluateCpuSlowdown", () => {
-  it("traffic light by how much slower than M2 the server core is", () => {
-    expect(evaluateCpuSlowdown(1)).toBe("ok");
-    expect(evaluateCpuSlowdown(2.49)).toBe("ok");
-    expect(evaluateCpuSlowdown(2.5)).toBe("warn");
-    expect(evaluateCpuSlowdown(3.99)).toBe("warn");
-    expect(evaluateCpuSlowdown(4)).toBe("bad");
-    expect(evaluateCpuSlowdown(7)).toBe("bad");
+describe("cpuBudgetShare", () => {
+  it("expresses single-core % as a share of the CPU budget", () => {
+    const s = status({ cpu: 40 });
+    expect(cpuBudgetShare(s)).toBe(40); // без бюджета - целое ядро
+    s.cpuBudgetMs = 500;
+    expect(cpuBudgetShare(s)).toBe(80);
+    expect(evaluateServerHealth(s).cpu).toBe("warn");
+  });
+});
+
+describe("evaluateArenaBudget", () => {
+  it("is ok below 75%, warn up to 100%, bad from 100%", () => {
+    expect(evaluateArenaBudget(7)).toBe("ok");
+    expect(evaluateArenaBudget(74)).toBe("ok");
+    expect(evaluateArenaBudget(75)).toBe("warn");
+    expect(evaluateArenaBudget(99)).toBe("warn");
+    expect(evaluateArenaBudget(100)).toBe("bad");
   });
 });

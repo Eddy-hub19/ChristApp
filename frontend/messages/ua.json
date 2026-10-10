@@ -129,6 +129,7 @@
     "procSecRealtime": "Реалтайм",
     "procSecHost": "Хост",
     "procCpu": "CPU (1 ядро)",
+    "procCpuBudget": "{percent}% бюджету ({ms} мс/с)",
     "procRss": "Пам'ять RSS",
     "procHeap": "Heap",
     "procLoopLag": "Лаг event loop (p99)",
@@ -158,7 +159,7 @@
     "procBenchDetail": "медіана {ms} мс, еталон M2 {ref} мс",
     "procBenchArena": "Арена «Отара», {count} гравц.",
     "procBenchArenaSub": "≈ {ms} мс CPU/с",
-    "procBenchHint": "Частка безкоштовного бюджету Render (~0.1 vCPU ≈ 100 мс CPU/с). Менше ~75% — комфортно; понад 100% — арена не вкладається, зменште maxHumansPerArena. Результат зберігається до перезапуску сервера."
+    "procBenchHint": "Частка бюджету (~{vcpu} vCPU ≈ {ms} мс CPU/с). Менше ~75% — комфортно; понад 100% — арена не вкладається, зменште maxHumansPerArena. Бюджет береться зі змінної RENDER_CPU_BUDGET_MS на сервері. Результат зберігається до перезапуску сервера."
   },
   "profile": {
     "title": "Профіль",

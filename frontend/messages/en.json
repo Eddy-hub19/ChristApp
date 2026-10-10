@@ -129,6 +129,7 @@
     "procSecRealtime": "Realtime",
     "procSecHost": "Host",
     "procCpu": "CPU (1 core)",
+    "procCpuBudget": "{percent}% of budget ({ms} ms/s)",
     "procRss": "Memory RSS",
     "procHeap": "Heap",
     "procLoopLag": "Event loop lag (p99)",
@@ -158,7 +159,7 @@
     "procBenchDetail": "median {ms} ms, M2 reference {ref} ms",
     "procBenchArena": "Flock arena, {count} players",
     "procBenchArenaSub": "≈ {ms} ms CPU/s",
-    "procBenchHint": "Share of the free Render budget (~0.1 vCPU ≈ 100 ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The result is kept until the server restarts."
+    "procBenchHint": "Share of the budget (~{vcpu} vCPU ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from RENDER_CPU_BUDGET_MS on the server. The result is kept until the server restarts."
   },
   "profile": {
     "title": "Profile",

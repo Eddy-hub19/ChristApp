@@ -6,6 +6,7 @@ import {
   cpuWorkload,
   measureCpuMs,
   REF_M2_MS,
+  resolveCpuBudgetMs,
 } from './cpu-benchmark.service';
 
 describe('buildResult', () => {
@@ -18,18 +19,30 @@ describe('buildResult', () => {
     expect(r.measuredAt).toBe('2026-10-10T10:00:00.000Z');
   });
 
-  it('estimates arena cost as a share of the 0.1 vCPU free budget, scaled by the slowdown', () => {
-    const same = buildResult(Array(9).fill(REF_M2_MS), new Date());
+  it('estimates arena cost as a share of the CPU budget (default 500 ms/s), scaled by the slowdown', () => {
+    const same = buildResult(Array(9).fill(REF_M2_MS), new Date(), 100);
     const six = same.arena.find((a) => a.players === 6)!;
     expect(six.cpuMsPerSec).toBeCloseTo(
       ARENA_BASE_MS + ARENA_PER_PLAYER_MS * 6,
       1,
     );
-    expect(six.budgetPercent).toBe(33); // як у docs/flock-perf.md
-    const slow = buildResult(Array(9).fill(REF_M2_MS * 4), new Date());
+    expect(six.budgetPercent).toBe(33); // бюджет 100 мс/с, як у docs/flock-perf.md
+    const slow = buildResult(Array(9).fill(REF_M2_MS * 4), new Date(), 100);
     expect(slow.arena.find((a) => a.players === 2)!.budgetPercent).toBe(100);
     expect(slow.arena.find((a) => a.players === 6)!.budgetPercent).toBe(134);
     expect(slow.arena.map((a) => a.players)).toEqual([2, 3, 4, 6]);
+  });
+});
+
+describe('CPU budget', () => {
+  it('defaults to 500 ms/s (0.5 vCPU) and reads RENDER_CPU_BUDGET_MS', () => {
+    expect(resolveCpuBudgetMs(undefined)).toBe(500);
+    expect(resolveCpuBudgetMs('1000')).toBe(1000);
+    expect(resolveCpuBudgetMs('abc')).toBe(500);
+    expect(resolveCpuBudgetMs('0')).toBe(500);
+    const r = buildResult(Array(9).fill(REF_M2_MS), new Date(), 500);
+    expect(r.budgetMs).toBe(500);
+    expect(r.arena.find((a) => a.players === 6)!.budgetPercent).toBe(7);
   });
 });
 

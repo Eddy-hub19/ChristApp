@@ -72,6 +72,8 @@ export type AdminMetricSample = {
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
 export type AdminServerStatus = {
   generatedAt: string;
+  /** Бюджет CPU інстанса, мс CPU/с (відсутній у старих версіях бекенду). */
+  cpuBudgetMs?: number;
   process: {
     pid: number;
     nodeVersion: string;
@@ -134,7 +136,9 @@ export type AdminCpuBenchmark = {
   refMs: number;
   /** У скільки разів ядро сервера повільніше за M2 (1 = як M2). */
   slowdown: number;
-  /** Скільки % безкоштовного бюджету 0.1 vCPU з'їсть арена "Отара" з N гравців. */
+  /** Бюджет CPU сервера, мс CPU/с (RENDER_CPU_BUDGET_MS; 500 = 0.5 vCPU). */
+  budgetMs: number;
+  /** Скільки % бюджету CPU з'їсть арена "Отара" з N гравців. */
   arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];
 };
 
