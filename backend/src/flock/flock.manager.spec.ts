@@ -22,6 +22,8 @@ function setup() {
   return { mgr, sent, advance: (ms: number) => (t += ms), time: () => t };
 }
 
+const BOARD_TICKS = Math.round(C.tickHz * C.boardEverySec);
+
 describe('FlockManager', () => {
   let ctx: ReturnType<typeof setup>;
   beforeEach(() => (ctx = setup()));
@@ -95,9 +97,9 @@ describe('FlockManager', () => {
   it('арена шле стан і таблицю лідерів бінарними пакетами тільки своїм гравцям', () => {
     ctx.mgr.join('c1', 'u1', 'Аня', 1);
     const arena = ctx.mgr._arena(1)!;
-    for (let i = 0; i < C.tickHz + 1; i++) arena.step();
+    for (let i = 0; i < BOARD_TICKS + 1; i++) arena.step();
     const states = ctx.sent.filter((m) => m.event === 's');
-    expect(states.length).toBe(C.tickHz + 1);
+    expect(states.length).toBe(BOARD_TICKS + 1);
     expect(states.every((m) => m.key === 'c1')).toBe(true);
     expect(packetType(states[0].payload)).toBe(PKT_STATE);
     const first = decodeState(states[0].payload);

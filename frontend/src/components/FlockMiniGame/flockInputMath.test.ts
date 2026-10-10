@@ -17,7 +17,8 @@ describe("input math", () => {
     expect(inputChanged(null, d, 0)).toBe(true);
     expect(inputChanged(d, { angle: 1.01, power: 1 }, 50)).toBe(false);
     expect(inputChanged(d, { angle: 1.2, power: 1 }, 50)).toBe(true);
-    expect(inputChanged(d, d, 500)).toBe(true);
+    expect(inputChanged(d, d, 500)).toBe(false);
+    expect(inputChanged(d, d, 1000)).toBe(true);
     expect(inputChanged({ angle: 3.13, power: 1 }, { angle: -3.13, power: 1 }, 10)).toBe(false); // перехід через ±π
   });
 });

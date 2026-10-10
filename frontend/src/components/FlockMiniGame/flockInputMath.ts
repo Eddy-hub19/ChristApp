@@ -22,7 +22,7 @@ export function joystickDir(px: number, py: number, baseX: number, baseY: number
 }
 
 /** Чи варто слати ввід: змінився кут/сила помітно або минув keepalive. */
-export function inputChanged(prev: Dir | null, next: Dir, sinceMs: number, keepaliveMs = 400) {
+export function inputChanged(prev: Dir | null, next: Dir, sinceMs: number, keepaliveMs = 1000) {
   if (!prev) return true;
   if (sinceMs >= keepaliveMs) return true;
   let da = Math.abs(next.angle - prev.angle);

@@ -29,8 +29,10 @@ export interface FlockCfg {
 export interface RCell {
   id: number;
   pid: number;
+  /** Позиція для малювання: чужі - інтерполяція між знімками сервера, свої - передбачення. */
   x: number;
   y: number;
+  /** Останній знімок сервера (для зʼїдання/камери). */
   tx: number;
   ty: number;
   mass: number;
@@ -38,8 +40,18 @@ export interface RCell {
   fx: number;
   /** Фаза погойдування. */
   phase: number;
-  /** Швидкість, оцінена за оновленнями (для нахилу/погойдування). */
+  /** Швидкість (од/с), оцінена за знімками (для нахилу/погойдування). */
   speed: number;
+  /** Історія знімків сервера (до HIST штук, від старих до нових) + найновіший і швидкість (од/мс) між двома останніми. */
+  ht: Float64Array;
+  hx: Float64Array;
+  hy: Float64Array;
+  hn: number;
+  t1: number;
+  x1: number;
+  y1: number;
+  vx: number;
+  vy: number;
 }
 export interface RFood {
   id: number;
@@ -53,6 +65,15 @@ export interface RBlob {
   y: number;
   tx: number;
   ty: number;
+  ht: Float64Array;
+  hx: Float64Array;
+  hy: Float64Array;
+  hn: number;
+  t1: number;
+  x1: number;
+  y1: number;
+  vx: number;
+  vy: number;
 }
 export interface RDying {
   x: number;
@@ -89,7 +110,7 @@ export class FlockModel {
   effects: ActiveEffect[] = [];
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
   readonly pausedUntil = new Map<number, number>();
-  board: DecodedBoard = { top: [], selfRank: 0, alive: 0, map: [] };
+  board: DecodedBoard = { top: [], alive: 0, map: [] };
   total = 0;
   alive = false;
   tick = 0;
@@ -100,6 +121,19 @@ export class FlockModel {
   /** Співвідношення сторін екрана (ширина/висота); сервер шле область такої ж форми. */
   aspect = 1;
   private haveCam = false;
+  /** Локальний годинник моделі (мс). У браузері його задає кадр (performance.now), у тестах - сума dt. */
+  localNow = 0;
+  /**
+   * Звʼязок годинників: локальний час - час сервера. Береться з "найраніших" пакетів (асиметрична EMA), тож
+   * джитер мережі не псує часову шкалу; затримку інтерполяції беремо з запасом на розкид.
+   */
+  private clockBase: number | null = null;
+  private lastSrvT = -1;
+  private spacing = 100;
+  /** Затримка відмальовки чужих (мс): ~1.25 інтервалу між знімками + запас; клємпи [110, 260]. */
+  interpDelay = 130;
+  /** Час сервера, який зараз малюємо для чужих; наздоганяє ціль плавно (до +35% швидкості), а не стрибком. */
+  private renderT: number | null = null;
 
   constructor(cfg: FlockCfg) {
     this.cfg = cfg;
@@ -132,15 +166,30 @@ export class FlockModel {
     return this.effects.some((e) => e.kind === kind);
   }
 
+  /** Місце гравця за масою (1 = лідер): таблиця надсилається одна на всіх, відсортована, тож шукаємо свій pid. */
+  rank(): number {
+    const i = this.board.map.findIndex((p) => p.pid === this.cfg.pid);
+    return i < 0 ? 0 : i + 1;
+  }
+
   ownCells(): RCell[] {
     const out: RCell[] = [];
     for (const c of this.cells.values()) if (c.pid === this.cfg.pid) out.push(c);
     return out;
   }
 
-  applyState(pkt: ArrayBuffer | Uint8Array | DecodedState) {
+  applyState(pkt: ArrayBuffer | Uint8Array | DecodedState, recvMs: number = this.localNow) {
     const s = pkt instanceof ArrayBuffer || pkt instanceof Uint8Array ? decodeState(pkt) : pkt;
-    this.tick = s.tick;
+    const srvT = s.tick; // час сервера, мс
+    const sample = recvMs - srvT;
+    if (this.clockBase === null) this.clockBase = sample;
+    else this.clockBase += (sample - this.clockBase) * (sample < this.clockBase ? 0.25 : 0.03);
+    if (this.lastSrvT >= 0 && srvT > this.lastSrvT) {
+      this.spacing += (srvT - this.lastSrvT - this.spacing) * 0.2;
+      this.interpDelay = Math.min(260, Math.max(110, this.spacing * 1.25 + 25));
+    }
+    this.lastSrvT = srvT;
+    this.tick = srvT;
     this.alive = s.alive;
     this.total = s.total;
     this.effects = s.effects.map((e) => {
@@ -167,7 +216,8 @@ export class FlockModel {
       seen.add(c.id);
       const cur = this.cells.get(c.id);
       if (cur) {
-        cur.speed = Math.hypot(c.x - cur.tx, c.y - cur.ty) * this.cfg.tickHz;
+        pushSnap(cur, srvT, c.x, c.y);
+        cur.speed = Math.hypot(cur.vx, cur.vy) * 1000;
         cur.tx = c.x;
         cur.ty = c.y;
         cur.tmass = c.mass;
@@ -186,6 +236,7 @@ export class FlockModel {
           fx: c.fx,
           phase: (c.id * PHASE_STEP) % (Math.PI * 2),
           speed: 0,
+          ...newHist(srvT, c.x, c.y),
         });
       }
     }
@@ -213,9 +264,12 @@ export class FlockModel {
       seenBlobs.add(b.id);
       const cur = this.blobs.get(b.id);
       if (cur) {
+        pushSnap(cur, srvT, b.x, b.y);
         cur.tx = b.x;
         cur.ty = b.y;
-      } else this.blobs.set(b.id, { id: b.id, x: b.x, y: b.y, tx: b.x, ty: b.y });
+      } else {
+        this.blobs.set(b.id, { id: b.id, x: b.x, y: b.y, tx: b.x, ty: b.y, ...newHist(srvT, b.x, b.y) });
+      }
     }
     for (const id of this.blobs.keys()) if (!seenBlobs.has(id)) this.blobs.delete(id);
 
@@ -232,14 +286,28 @@ export class FlockModel {
   }
 
   /**
-   * Крок кадру: згладжування чужих клітин, ПЕРЕДБАЧЕННЯ своїх (рухаються одразу за вводом,
-   * сервер лише м'яко підтягує), анімація маси, камера.
+   * Крок кадру. Чужі клітини малюємо у минулому на `interpDelay` мс - між двома знімками сервера (лінійна
+   * інтерполяція; якщо знімок запізнюється - коротка екстраполяція за швидкістю). Свої - ПЕРЕДБАЧЕННЯ за
+   * вводом (рух одразу), а сервер м'яко підтягує до свого знімка, екстрапольованого "на зараз".
+   * `now` - локальний час кадру (performance.now()); без нього рахуємо від dt (тести).
    */
-  step(dt: number, input: { angle: number; power: number }) {
+  step(dt: number, input: { angle: number; power: number }, now?: number) {
     dt = Math.min(dt, 0.1);
-    const kOther = 1 - Math.exp(-dt * 16);
+    this.localNow = now ?? this.localNow + dt * 1000;
+    const base = this.clockBase ?? this.localNow;
+    const srvNow = this.localNow - base; // оцінка поточного часу сервера
+    const target = srvNow - this.interpDelay; // момент, який хочемо малювати для чужих
+    if (this.renderT === null || Math.abs(target - this.renderT) > 800) this.renderT = target;
+    else {
+      // після затримки пакетів (пачка) наздоганяємо трохи швидше за реальний час, а не стрибаємо
+      const err = target - this.renderT;
+      this.renderT += dt * 1000 * (1 + Math.max(-0.25, Math.min(0.35, err / 400)));
+    }
+    // не забігаємо за дані: поки пакетів нема, тримаємось (екстраполяція до 120 мс), інакше після пачки був би стрибок
+    if (this.lastSrvT >= 0 && this.renderT > this.lastSrvT + 120) this.renderT = this.lastSrvT + 120;
+    const tr = this.renderT;
     const kMass = 1 - Math.exp(-dt * 9);
-    const kOwn = 1 - Math.exp(-dt * 7);
+    const kOther = 1 - Math.exp(-dt * 16);
     const boosted = this.hasEffect("speed");
     const frozen = this.cells.size > 0 && this.ownCells().every((c) => (c.fx & FX_FROZEN) !== 0);
     const dx = Math.cos(input.angle);
@@ -253,18 +321,25 @@ export class FlockModel {
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
         }
-        c.x += (c.tx - c.x) * kOwn;
-        c.y += (c.ty - c.y) * kOwn;
+        // ціль: знімок сервера, екстрапольований до "зараз" за його ж швидкістю (враховує поділ/імпульси)
+        const age = Math.min(250, Math.max(0, srvNow - c.t1));
+        const ex = c.x1 + c.vx * age - c.x;
+        const ey = c.y1 + c.vy * age - c.y;
+        const dist = Math.hypot(ex, ey);
+        if (dist > 400) {
+          c.x += ex;
+          c.y += ey;
+        } else if (dist > 6) {
+          const k = 1 - Math.exp(-dt * (dist > 60 ? 10 : 4));
+          c.x += ex * k;
+          c.y += ey * k;
+        }
       } else {
-        c.x += (c.tx - c.x) * kOther;
-        c.y += (c.ty - c.y) * kOther;
+        sampleSnap(c, tr);
       }
       c.phase += dt * (3 + Math.min(c.speed, 300) / 40);
     }
-    for (const b of this.blobs.values()) {
-      b.x += (b.tx - b.x) * kOther;
-      b.y += (b.ty - b.y) * kOther;
-    }
+    for (const b of this.blobs.values()) sampleSnap(b, tr);
     for (let i = this.dying.length - 1; i >= 0; i--) {
       const d = this.dying[i];
       d.life -= dt * 7;
@@ -313,4 +388,76 @@ export class FlockModel {
  */
 export function viewScale(width: number, height: number, camR: number) {
   return Math.sqrt(width * height) / (2 * camR * 1.04);
+}
+
+/** Скільки знімків тримаємо: 8 = ~800 мс при 10 Гц - вистачає і на затримку інтерполяції, і на пачку пакетів після затримки мережі. */
+const HIST = 8;
+
+type Snap = {
+  x: number;
+  y: number;
+  ht: Float64Array;
+  hx: Float64Array;
+  hy: Float64Array;
+  hn: number;
+  t1: number;
+  x1: number;
+  y1: number;
+  vx: number;
+  vy: number;
+};
+
+function newHist(t: number, x: number, y: number) {
+  const ht = new Float64Array(HIST);
+  const hx = new Float64Array(HIST);
+  const hy = new Float64Array(HIST);
+  ht[0] = t;
+  hx[0] = x;
+  hy[0] = y;
+  return { ht, hx, hy, hn: 1, t1: t, x1: x, y1: y, vx: 0, vy: 0 };
+}
+
+/** Додає знімок (час сервера мс, позиція); пакети з несвіжим часом ігноруємо. */
+function pushSnap(c: Snap, t: number, x: number, y: number) {
+  if (t <= c.t1) return;
+  if (c.hn === HIST) {
+    c.ht.copyWithin(0, 1);
+    c.hx.copyWithin(0, 1);
+    c.hy.copyWithin(0, 1);
+    c.hn--;
+  }
+  const i = c.hn++;
+  c.ht[i] = t;
+  c.hx[i] = x;
+  c.hy[i] = y;
+  const dt = t - c.t1;
+  c.vx = (x - c.x1) / dt;
+  c.vy = (y - c.y1) / dt;
+  c.t1 = t;
+  c.x1 = x;
+  c.y1 = y;
+}
+
+/**
+ * Позиція в момент `tr` (час сервера): лінійна інтерполяція між двома знімками, що його охоплюють;
+ * новіше за останній знімок - коротка екстраполяція за швидкістю, давніше за найстаріший - він же.
+ */
+function sampleSnap(c: Snap, tr: number) {
+  const n = c.hn;
+  if (tr >= c.ht[n - 1]) {
+    const ext = Math.min(tr - c.ht[n - 1], 120);
+    c.x = c.x1 + c.vx * ext;
+    c.y = c.y1 + c.vy * ext;
+    return;
+  }
+  if (tr <= c.ht[0]) {
+    c.x = c.hx[0];
+    c.y = c.hy[0];
+    return;
+  }
+  let i = n - 2;
+  while (i > 0 && c.ht[i] > tr) i--;
+  const f = (tr - c.ht[i]) / (c.ht[i + 1] - c.ht[i]);
+  c.x = c.hx[i] + (c.hx[i + 1] - c.hx[i]) * f;
+  c.y = c.hy[i] + (c.hy[i + 1] - c.hy[i]) * f;
 }

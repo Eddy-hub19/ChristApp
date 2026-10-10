@@ -3,6 +3,8 @@ import {
   BTN_THROW,
   decodeBoard,
   decodeInput,
+  decodeInputPacked,
+  encodeInputPacked,
   decodeState,
   encodeBoard,
   encodeInput,
@@ -77,14 +79,13 @@ describe('бінарний протокол', () => {
         { pid: 1, mass: 99999, name: 'A' },
         { pid: 2, mass: 5, name: 'Ягня Сем' },
       ],
-      selfRank: 2,
       alive: 31,
       map: [{ pid: 1, x: 10, y: 255, size: 40 }],
     });
     expect(packetType(buf)).toBe(PKT_BOARD);
     const d = decodeBoard(buf);
     expect(d.top[1]).toEqual({ pid: 2, mass: 5, name: 'Ягня Сем' });
-    expect(d.selfRank).toBe(2);
+    expect(d.map).toHaveLength(1);
     expect(d.map[0]).toEqual({ pid: 1, x: 10, y: 255, size: 40 });
   });
 
@@ -102,6 +103,20 @@ describe('бінарний протокол', () => {
     expect(decodeInput(encodeInput(0, 1, 0, 2.2))!.aspect).toBeCloseTo(2.2, 1);
     expect(decodeInput(encodeInput(0, 1, 0))!.aspect).toBe(1);
     expect(decodeInput(Uint8Array.of(10, 20, 0))!.aspect).toBe(1);
+  });
+
+  it('ввід одним числом: туди-назад, у межах 26 біт, без бінарного вкладення', () => {
+    const n = encodeInputPacked(Math.PI / 2, 0.5, BTN_SPLIT | BTN_THROW, 2.2);
+    expect(Number.isInteger(n) && n >= 0 && n < 2 ** 26).toBe(true);
+    const m = decodeInput(n)!;
+    expect(m.angle).toBeCloseTo(Math.PI / 2, 1);
+    expect(m.power).toBeCloseTo(0.5, 1);
+    expect(m.split && m.throw).toBe(true);
+    expect(m.aspect).toBeCloseTo(2.2, 1);
+    expect(decodeInputPacked(-1)).toBeNull();
+    expect(decodeInputPacked(NaN)).toBeNull();
+    expect(decodeInputPacked(2 ** 40)).toBeNull();
+    expect(typeof n).toBe('number'); // socket.io шле число одним текстовим кадром
   });
 
   it('сміття на вході не падає', () => {

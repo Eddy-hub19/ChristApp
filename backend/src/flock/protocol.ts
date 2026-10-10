@@ -62,7 +62,7 @@ export interface DecodedState {
 }
 export interface DecodedBoard {
   top: { pid: number; mass: number; name: string }[];
-  selfRank: number;
+  /** Одна й та сама для всіх гравців (кодується раз). Місце гравця = індекс його pid у `map` (вона відсортована за масою). */
   alive: number;
   map: { pid: number; x: number; y: number; size: number }[];
 }
@@ -330,7 +330,6 @@ export function encodeBoard(b: DecodedBoard): Uint8Array {
     w.u32(Math.round(t.mass));
     w.str(t.name);
   }
-  w.u16(b.selfRank);
   w.u16(b.alive);
   w.u16(b.map.length);
   for (const m of b.map) {
@@ -350,7 +349,6 @@ export function decodeBoard(buf: ArrayBuffer | Uint8Array): DecodedBoard {
     mass: r.u32(),
     name: r.str(),
   }));
-  const selfRank = r.u16();
   const alive = r.u16();
   const map = Array.from({ length: r.u16() }, () => ({
     pid: r.u16(),
@@ -358,7 +356,7 @@ export function decodeBoard(buf: ArrayBuffer | Uint8Array): DecodedBoard {
     y: r.u8(),
     size: r.u8(),
   }));
-  return { top, selfRank, alive, map };
+  return { top, alive, map };
 }
 
 export function encodeInput(
@@ -380,7 +378,36 @@ export function encodeInput(
   );
 }
 
-export function decodeInput(buf: ArrayBuffer | Uint8Array | null | undefined) {
+/**
+ * Ввід одним числом (кут 8 біт | сила 8 біт | кнопки 2 біти | екран 8 біт): socket.io шле таке одним
+ * текстовим кадром, без бінарного вкладення (воно коштує вдвічі більше кадрів і розбору на сервері).
+ */
+export function encodeInputPacked(
+  angle: number,
+  power: number,
+  buttons: number,
+  aspect = 1,
+): number {
+  const b = encodeInput(angle, power, buttons, aspect);
+  return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 18);
+}
+
+export function decodeInputPacked(n: number) {
+  if (!Number.isFinite(n) || n < 0 || n > 0x3ffffff) return null;
+  const v = n | 0;
+  return decodeInput(
+    Uint8Array.of(v & 255, (v >> 8) & 255, (v >> 16) & 3, (v >> 18) & 255),
+  );
+}
+
+export function decodeInput(
+  buf: ArrayBuffer | Uint8Array | number | null | undefined,
+): ReturnType<typeof decodeInputBytes> {
+  if (typeof buf === 'number') return decodeInputPacked(buf);
+  return decodeInputBytes(buf);
+}
+
+function decodeInputBytes(buf: ArrayBuffer | Uint8Array | null | undefined) {
   if (!buf) return null;
   const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   if (u8.length < 3) return null;
