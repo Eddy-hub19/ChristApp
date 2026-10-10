@@ -204,7 +204,7 @@ export class FlockWorld {
     p.killerPid = 0;
     p.wantSplit = p.wantThrow = false;
     // коротка недоторканність після народження
-    p.effects.shield = this.now + 2500;
+    p.effects.shield = this.now + C.spawnShieldMs;
   }
 
   removePlayer(pid: number) {
@@ -606,6 +606,13 @@ export class FlockWorld {
           if (a.mass < b.mass * C.eatRatio) return;
           const victim = this.players.get(b.pid);
           if (!victim || !victim.alive) return;
+          // боти не чіпають новачків (жорстке правило рушія, а не лише ШІ)
+          if (
+            p.bot &&
+            !victim.bot &&
+            this.now - victim.spawnedAt < C.botGraceMs
+          )
+            return;
           if (this.isShielded(victim) || this.isGhost(victim)) return;
           const rb = radiusOf(b.mass);
           if (Math.hypot(a.x - b.x, a.y - b.y) >= ra - rb * C.eatOverlap)

@@ -59,6 +59,7 @@ describe('ШІ ботів', () => {
     const { w, rng } = world();
     const b = bot(w, rng, 1500, 1500, 300, 'aggressive');
     const prey = w.addPlayer({ name: 'prey', skin: 1 });
+    prey.spawnedAt = -1e9; // давно на арені: пільговий час новачка минув
     prey.effects = {};
     prey.cells[0].x = 1500;
     prey.cells[0].y = 1800;
@@ -68,10 +69,29 @@ describe('ШІ ботів', () => {
     expect(Math.sin(b.angle)).toBeGreaterThan(0.8); // вниз (y росте)
   });
 
+  it('не полює на людину-новачка, але полює, коли пільговий час минув', () => {
+    const { w, rng } = world();
+    const b = bot(w, rng, 1500, 1500, 300, 'aggressive');
+    const prey = w.addPlayer({ name: 'newbie', skin: 1 });
+    prey.effects = {};
+    prey.cells[0].x = 1500;
+    prey.cells[0].y = 1800;
+    prey.cells[0].mass = 40;
+    prime(w);
+    b.angle = 0;
+    think(w, b, rng);
+    expect(Math.sin(b.angle)).toBeLessThan(0.8); // не женеться вниз до новачка
+    w.now += C.botGraceMs + 100;
+    prime(w);
+    think(w, b, rng);
+    expect(Math.sin(b.angle)).toBeGreaterThan(0.8);
+  });
+
   it('обережний не женеться за далекою здобиччю, а шукає їжу', () => {
     const { w, rng } = world();
     const b = bot(w, rng, 1500, 1500, 300, 'cautious');
     const prey = w.addPlayer({ name: 'prey', skin: 1 });
+    prey.spawnedAt = -1e9; // давно на арені: пільговий час новачка минув
     prey.effects = {};
     prey.cells[0].x = 1500;
     prey.cells[0].y = 1900; // 400 > huntRadius обережного
@@ -103,6 +123,7 @@ describe('ШІ ботів', () => {
     const { w, rng } = world();
     const b = bot(w, rng, 1500, 1500, 400, 'aggressive');
     const prey = w.addPlayer({ name: 'prey', skin: 1 });
+    prey.spawnedAt = -1e9; // давно на арені: пільговий час новачка минув
     prey.effects = {};
     prey.cells[0].x = 1500;
     prey.cells[0].y = 1700;
@@ -121,6 +142,7 @@ describe('ШІ ботів', () => {
     const { w, rng } = world();
     const b = bot(w, rng, 1500, 1500, 400, 'cautious');
     const prey = w.addPlayer({ name: 'prey', skin: 1 });
+    prey.spawnedAt = -1e9; // давно на арені: пільговий час новачка минув
     prey.effects = {};
     prey.cells[0].x = 1500;
     prey.cells[0].y = 1650;

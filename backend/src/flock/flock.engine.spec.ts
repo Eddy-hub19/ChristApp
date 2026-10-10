@@ -125,12 +125,44 @@ describe('FlockWorld: поїдання', () => {
     expect(small.alive && big.alive).toBe(true);
   });
 
-  it('щит після народження знімається за кілька секунд', () => {
+  it('стартовий щит тримається spawnShieldMs (5 с) і потім зникає', () => {
     const w = emptyWorld();
     const p = w.addPlayer({ name: 'n', skin: 1 });
+    expect(C.spawnShieldMs).toBe(5000);
     expect(w.isShielded(p)).toBe(true);
-    w.now += 3000;
+    w.now += 4900;
+    expect(w.isShielded(p)).toBe(true);
+    w.now += 200;
     expect(w.isShielded(p)).toBe(false);
+  });
+
+  it('бот не їсть людину, що на арені менше botGraceMs, але їсть після', () => {
+    const w = emptyWorld();
+    const bot = w.addPlayer({ name: 'bot', skin: 0, bot: true });
+    const human = w.addPlayer({ name: 'h', skin: 0 });
+    for (const p of [bot, human]) p.effects = {};
+    bot.cells[0].mass = 300;
+    bot.cells[0].x = bot.cells[0].y = 1000;
+    human.cells[0].mass = 40;
+    human.cells[0].x = human.cells[0].y = 1000;
+    step(w, 3);
+    expect(human.alive).toBe(true); // новачок
+    w.now += C.botGraceMs + 100;
+    step(w, 2);
+    expect(human.alive).toBe(false);
+  });
+
+  it('людина їсть ботів і людей одразу, без пільгового періоду', () => {
+    const w = emptyWorld();
+    const human = w.addPlayer({ name: 'h', skin: 0 });
+    const bot = w.addPlayer({ name: 'bot', skin: 0, bot: true });
+    for (const p of [bot, human]) p.effects = {};
+    human.cells[0].mass = 300;
+    human.cells[0].x = human.cells[0].y = 1000;
+    bot.cells[0].mass = 40;
+    bot.cells[0].x = bot.cells[0].y = 1000;
+    step(w, 2);
+    expect(bot.alive).toBe(false);
   });
 
   it('їжа росте масу; ✖2 подвоює приріст', () => {
