@@ -41,11 +41,15 @@ export class FlockGateway
       const sock = this.ns?.sockets.get(connKey);
       if (!sock) return;
       if (payload instanceof Uint8Array) {
-        // volatile: застарілий стан не має сенсу ставити в чергу на повільному каналі
-        sock.volatile.emit(
-          event,
-          Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength),
+        const data = Buffer.from(
+          payload.buffer,
+          payload.byteOffset,
+          payload.byteLength,
         );
+        // Стан - volatile: застарілий кадр на повільному каналі не варто ставити в чергу.
+        // Таблиця лідерів йде слідом у тому ж тіку і не має губитись (volatile її відкидав би).
+        if (event === 's') sock.volatile.emit(event, data);
+        else sock.emit(event, data);
       } else {
         sock.emit(event, payload);
       }
