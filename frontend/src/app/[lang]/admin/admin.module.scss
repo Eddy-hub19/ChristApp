@@ -295,3 +295,27 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.benchRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.benchBtn {
+  font-family: "Inter", sans-serif;
+  padding: 9px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-elevated));
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}

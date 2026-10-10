@@ -148,7 +148,17 @@
     "procPid": "PID",
     "procNode": "Node",
     "procNoSamples": "Собираем данные…",
-    "procHistoryHint": "последние 5 минут"
+    "procHistoryHint": "последние 5 минут",
+    "procSecBench": "Скорость CPU (относительно M2)",
+    "procBenchButton": "Замерить скорость CPU",
+    "procBenchRunning": "Измеряем…",
+    "procBenchNone": "Ещё не измеряли с запуска сервера. Нажмите кнопку (~0.1 с нагрузки).",
+    "procBenchAt": "измерено в {time}",
+    "procBenchFactor": "Ядро медленнее M2 в",
+    "procBenchDetail": "медиана {ms} мс, эталон M2 {ref} мс",
+    "procBenchArena": "Арена «Отара», {count} игр.",
+    "procBenchArenaSub": "≈ {ms} мс CPU/с",
+    "procBenchHint": "Доля бесплатного бюджета Render (~0.1 vCPU ≈ 100 мс CPU/с). Меньше ~75% — комфортно; больше 100% — арена не помещается, уменьшите maxHumansPerArena. Результат хранится до перезапуска сервера."
   },
   "profile": {
     "title": "Профиль",

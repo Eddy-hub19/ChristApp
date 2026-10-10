@@ -1,13 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
   AdminHttpError,
+  adminCpuBenchmarkQueryOptions,
   adminServerQueryOptions,
+  runAdminCpuBenchmark,
   type AdminMetricSample,
 } from "@/lib/queries/adminQueries";
-import { evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
+import { queryKeys } from "@/lib/queryKeys";
+import { evaluateCpuSlowdown, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -85,6 +88,65 @@ function Stat({
       {sub ? <div className={styles.statSub}>{sub}</div> : null}
       {spark}
     </div>
+  );
+}
+
+/** Замір швидкості ядра сервера відносно M2: кнопка, коефіцієнт, оцінка навантаження арени "Отара". */
+function CpuBenchmark({ active }: { active: boolean }) {
+  const t = useTranslations("admin");
+  const queryClient = useQueryClient();
+  const latest = useQuery(adminCpuBenchmarkQueryOptions(active));
+  const run = useMutation({
+    mutationFn: runAdminCpuBenchmark,
+    onSuccess: (result) => queryClient.setQueryData(queryKeys.admin.cpuBenchmark(), result),
+  });
+  const result = run.data ?? latest.data ?? null;
+
+  return (
+    <section className={styles.procSection}>
+      <h2 className={styles.procHeading}>{t("procSecBench")}</h2>
+      <div className={styles.benchRow}>
+        <button type="button" className={styles.benchBtn} onClick={() => run.mutate()} disabled={run.isPending}>
+          {run.isPending ? t("procBenchRunning") : t("procBenchButton")}
+        </button>
+        {result ? (
+          <span className={styles.meta}>
+            {t("procBenchAt", { time: new Date(result.measuredAt).toLocaleTimeString() })}
+          </span>
+        ) : null}
+      </div>
+      {run.error ? (
+        <p className={styles.error}>
+          {run.error instanceof AdminHttpError
+            ? t("procLoadFailed", { status: run.error.status })
+            : t("procLoadFailedGeneric")}
+        </p>
+      ) : null}
+      {result ? (
+        <>
+          <div className={styles.statGrid}>
+            <Stat
+              label={t("procBenchFactor")}
+              level={evaluateCpuSlowdown(result.slowdown)}
+              value={`×${result.slowdown}`}
+              sub={t("procBenchDetail", { ms: result.medianMs, ref: result.refMs })}
+            />
+            {result.arena.map((a) => (
+              <Stat
+                key={a.players}
+                label={t("procBenchArena", { count: a.players })}
+                level={a.budgetPercent >= 100 ? "bad" : a.budgetPercent >= 75 ? "warn" : "ok"}
+                value={`${a.budgetPercent}%`}
+                sub={t("procBenchArenaSub", { ms: a.cpuMsPerSec })}
+              />
+            ))}
+          </div>
+          <p className={styles.metaSmall}>{t("procBenchHint")}</p>
+        </>
+      ) : (
+        <p className={styles.metaSmall}>{latest.isLoading ? t("procLoading") : t("procBenchNone")}</p>
+      )}
+    </section>
   );
 }
 
@@ -220,6 +282,8 @@ export default function AdminProcesses({ active }: { active: boolean }) {
           />
         </div>
       </section>
+
+      <CpuBenchmark active={active} />
 
       <section className={styles.procSection}>
         <h2 className={styles.procHeading}>{t("procSecHost")}</h2>

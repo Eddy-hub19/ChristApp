@@ -51,3 +51,13 @@ export function evaluateServerHealth(status: AdminServerStatus): ServerHealth {
   const overall = [cpu, loopLag, db, pool].reduce(worst, "ok" as HealthLevel);
   return { overall, cpu, loopLag, db, pool };
 }
+
+/**
+ * Світлофор для коефіцієнта швидкості CPU (у скільки разів ядро повільніше за M2):
+ * до 2.5x арена на 2-6 гравців вкладається в безкоштовний бюджет; 2.5-4x - на межі; далі - не вкладається.
+ */
+export const CPU_SLOWDOWN_THRESHOLDS = { warn: 2.5, bad: 4 } as const;
+
+export function evaluateCpuSlowdown(slowdown: number): HealthLevel {
+  return levelByThreshold(slowdown, CPU_SLOWDOWN_THRESHOLDS.warn, CPU_SLOWDOWN_THRESHOLDS.bad);
+}

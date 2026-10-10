@@ -125,3 +125,47 @@ export function adminServerQueryOptions(enabled: boolean) {
     placeholderData: (prev: AdminServerStatus | undefined) => prev,
   };
 }
+
+/** Замір швидкості CPU сервера відносно еталонного M2 (`POST /admin/cpu-benchmark`). */
+export type AdminCpuBenchmark = {
+  measuredAt: string;
+  medianMs: number;
+  runsMs: number[];
+  refMs: number;
+  /** У скільки разів ядро сервера повільніше за M2 (1 = як M2). */
+  slowdown: number;
+  /** Скільки % безкоштовного бюджету 0.1 vCPU з'їсть арена "Отара" з N гравців. */
+  arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];
+};
+
+async function adminCpuBenchmarkRequest<T>(method: "GET" | "POST"): Promise<T> {
+  const token = getAuthToken();
+  if (!token) throw new AdminHttpError(401, "no token");
+  const res = await apiFetch(`${getHttpApiBase()}/admin/cpu-benchmark`, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new AdminHttpError(res.status, await res.text().catch(() => ""));
+  }
+  return (await res.json()) as T;
+}
+
+export async function fetchAdminCpuBenchmark(): Promise<AdminCpuBenchmark | null> {
+  return (await adminCpuBenchmarkRequest<{ result: AdminCpuBenchmark | null }>("GET")).result;
+}
+
+export async function runAdminCpuBenchmark(): Promise<AdminCpuBenchmark> {
+  return (await adminCpuBenchmarkRequest<{ result: AdminCpuBenchmark }>("POST")).result;
+}
+
+/** Останній результат живе на сервері до його перезапуску: тут його лише читаємо, без опитування. */
+export function adminCpuBenchmarkQueryOptions(enabled: boolean) {
+  return {
+    queryKey: queryKeys.admin.cpuBenchmark(),
+    queryFn: fetchAdminCpuBenchmark,
+    enabled,
+    staleTime: 30_000,
+    gcTime: 60_000,
+  };
+}
