@@ -26,6 +26,7 @@ import {
   pushStatusQueryKey,
 } from "@/lib/queries/pushQueries";
 import { getHttpApiBase } from "@/lib/apiBase";
+import { clearUserCaches } from "@/lib/clearUserCaches";
 import { BUILD_SHA, BUILD_DATE } from "@/lib/buildInfo";
 import { currentUserQueryKey } from "@/lib/queries/authQueries";
 import {
@@ -92,6 +93,7 @@ export default function ProfilePage() {
     redirectIfUnauthenticated: "/",
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [pushPermission, setPushPermission] =
     useState<PushPermissionState>("unsupported");
@@ -549,6 +551,15 @@ export default function ProfilePage() {
     void refreshPushState();
   }, [refreshPushState]);
 
+  /** Локальні кеші стираємо без виходу з акаунта; перезавантаження підтягує свіжі дані з сервера. */
+  const handleClearCacheFromMenu = async () => {
+    if (isClearingCache) return;
+    setIsClearingCache(true);
+    queryClient.clear();
+    await clearUserCaches();
+    window.location.reload();
+  };
+
   const handleLogoutFromMenu = () => {
     setIsSettingsOpen(false);
     logout();
@@ -709,6 +720,19 @@ export default function ProfilePage() {
                 >
                   <span>{t("menuNotifications")}</span>
                   <span className={styles.menuHint}>{pushHint}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  disabled={isClearingCache}
+                  onClick={() => void handleClearCacheFromMenu()}
+                >
+                  <span>
+                    {isClearingCache ? t("menuClearCacheBusy") : t("menuClearCache")}
+                  </span>
+                  <span className={styles.menuHint}>{t("menuClearCacheHint")}</span>
                 </button>
 
                 <button
