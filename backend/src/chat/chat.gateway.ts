@@ -2683,6 +2683,15 @@ export class ChatGateway
     });
   }
 
+  /** Знімок реалтайму для адмін-панелі: сокети, онлайн-користувачі, активні кімнати. */
+  getRealtimeStats() {
+    return {
+      connectedSockets: this.server?.engine?.clientsCount ?? 0,
+      onlineUsers: presence.onlineUserIds().length,
+      activeRooms: this.server?.sockets?.adapter?.rooms?.size ?? 0,
+    };
+  }
+
   /** Повідомляє кімнату, що голосове прослухали (для індикатора в відправника). */
   emitVoiceListened(roomId: string, messageId: string, userId: string) {
     this.server.to(roomId).emit('voiceListened', { roomId, messageId, userId });
