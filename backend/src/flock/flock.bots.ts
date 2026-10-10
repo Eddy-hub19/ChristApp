@@ -129,6 +129,8 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
     } else if (
       myMax >= c.mass * C.eatRatio &&
       !world.isShielded(o) &&
+      // новачків-людей боти не переслідують (див. botGraceMs)
+      !(!o.bot && world.now - o.spawnedAt < C.botGraceMs) &&
       d < prof.huntRadius
     ) {
       const score = d - c.mass; // більша здобич ціннішa

@@ -43,24 +43,47 @@ describe('FlockManager', () => {
   });
 
   it('боти зменшуються, коли приходять люди (але не нижче мінімуму)', () => {
-    for (let i = 0; i < 20; i++) ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
+    ctx.mgr.join('c0', 'u0', 'P0', 0);
+    expect(ctx.mgr.stats()[0].bots).toBe(C.botTarget);
+    for (let i = 1; i < C.maxHumansPerArena; i++) {
+      ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
+    }
     const s = ctx.mgr.stats()[0];
-    expect(s.humans).toBe(20);
-    expect(s.bots).toBe(Math.max(C.botMin, C.botTotalTarget - 20));
-    for (let i = 20; i < 35; i++) ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
-    expect(ctx.mgr.stats()[0].bots).toBe(C.botMin);
+    expect(s.humans).toBe(C.maxHumansPerArena);
+    expect(s.bots).toBe(
+      Math.max(C.botMin, Math.min(C.botTarget, C.botTotalTarget - s.humans)),
+    );
+    expect(s.bots).toBeLessThan(C.botTarget);
+    expect(s.bots).toBeGreaterThanOrEqual(C.botMin);
   });
 
-  it('після 50 людей відкривається друга арена, після ліміту - відмова', () => {
-    for (let i = 0; i < C.maxHumansPerArena * C.maxArenas; i++) {
+  it('арена одна й має ліміт людей: сьомий - відмова full, без входу', () => {
+    expect(C.maxArenas).toBe(1);
+    for (let i = 0; i < C.maxHumansPerArena; i++) {
       expect(ctx.mgr.join(`c${i}`, `u${i}`, 'P', 0).ok).toBe(true);
     }
-    expect(ctx.mgr.stats().map((a) => a.humans)).toEqual([
-      C.maxHumansPerArena,
-      C.maxHumansPerArena,
-    ]);
+    expect(ctx.mgr.stats()).toHaveLength(1);
     const over = ctx.mgr.join('extra', 'ux', 'P', 0);
     expect(over).toEqual({ ok: false, error: 'full' });
+    expect(ctx.mgr.stats()[0].humans).toBe(C.maxHumansPerArena);
+    // звільнилось місце - новий гравець заходить
+    ctx.mgr.leave('c0');
+    expect(ctx.mgr.join('extra', 'ux', 'P', 0).ok).toBe(true);
+  });
+
+  it('при ліміті двох арен нова відкривається, лише коли перша заповнена', () => {
+    const cfg = C as unknown as Record<string, number>;
+    const prev = cfg.maxArenas;
+    cfg.maxArenas = 2;
+    try {
+      for (let i = 0; i < C.maxHumansPerArena; i++)
+        ctx.mgr.join(`c${i}`, `u${i}`, 'P', 0);
+      expect(ctx.mgr.stats()).toHaveLength(1);
+      expect(ctx.mgr.join('x', 'ux', 'P', 0).ok).toBe(true);
+      expect(ctx.mgr.stats()).toHaveLength(2);
+    } finally {
+      cfg.maxArenas = prev;
+    }
   });
 
   it('один користувач у двох вкладках = одна сесія', () => {
@@ -135,6 +158,7 @@ describe('FlockManager', () => {
     const killer = [...arena.world.players.values()].find((p) => p.bot)!;
     me.effects = {};
     killer.effects = {};
+    me.spawnedAt = -1e9; // пільговий час новачка минув
     killer.cells[0].mass = 500;
     killer.cells[0].x = me.cells[0].x;
     killer.cells[0].y = me.cells[0].y;
