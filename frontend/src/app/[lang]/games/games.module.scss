@@ -1,0 +1,112 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px 16px;
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+  }
+  p {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+}
+
+.back {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+}
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, #7cc576 22%, var(--surface-elevated)), var(--surface-elevated));
+  color: var(--foreground);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 12px 24px -18px rgba(0, 0, 0, 0.55);
+  }
+  &:active {
+    transform: scale(0.99);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.art {
+  position: relative;
+  width: 92px;
+  height: 56px;
+  flex: none;
+}
+.blob {
+  position: absolute;
+  top: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22), inset -4px -5px 0 rgba(0, 0, 0, 0.07);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.cardTitle {
+  font-size: 18px;
+  font-weight: 800;
+}
+.cardDesc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.cta {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}

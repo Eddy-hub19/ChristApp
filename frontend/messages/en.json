@@ -464,9 +464,12 @@
         "snake": "Snake",
         "filword": "Word Search",
         "guess": "Guess the Character",
-        "puzzle": "Puzzles"
+        "puzzle": "Puzzles",
+        "flock": "Flock"
       }
-    }
+    },
+    "gamesAria": "Games",
+    "gamesTitle": "Games"
   },
   "randomVerse": {
     "cardLabel": "Verse for you",
@@ -937,5 +940,79 @@
     "viewPicture": "View the picture",
     "showSummary": "Show summary",
     "creditLineSource": "{author}, “{title}”, {year}. Collection: {source}; source: Wikimedia Commons. Licence: {license}."
+  },
+  "flock": {
+    "title": "Flock",
+    "tagline": "Graze, grow and don't get eaten",
+    "play": "Play",
+    "again": "Play again",
+    "close": "Close",
+    "retry": "Try again",
+    "connecting": "Connecting…",
+    "chooseSkin": "Pick your look",
+    "controls": {
+      "title": "Controls",
+      "follow": "Follow finger",
+      "mouse": "Follow mouse",
+      "joystick": "Joystick",
+      "split": "Split",
+      "throw": "Throw",
+      "keys": "Mouse — move · Space — split · W — throw"
+    },
+    "stats": {
+      "best": "Biggest size",
+      "eaten": "Eaten",
+      "top1": "Time at #1"
+    },
+    "hud": {
+      "mass": "Mass",
+      "leaderboard": "Top 10"
+    },
+    "dead": {
+      "title": "You got eaten",
+      "by": "Eaten by {name}",
+      "maxSize": "Max size",
+      "time": "Time",
+      "ate": "Eaten",
+      "nobody": "nobody"
+    },
+    "status": {
+      "full": "The arena is full, try again in a bit",
+      "afk": "You were disconnected for inactivity",
+      "error": "Could not connect to the arena"
+    },
+    "bonuses": {
+      "speed": "Speed boost",
+      "magnet": "Magnet",
+      "shield": "Shield",
+      "ghost": "Ghost",
+      "double": "Double mass",
+      "freeze": "Freeze",
+      "golden": "Golden fleece"
+    },
+    "skins": {
+      "0": "White sheep",
+      "1": "Pink sheep",
+      "2": "Blue sheep",
+      "3": "Yellow sheep",
+      "4": "Mint sheep",
+      "5": "Lavender sheep",
+      "6": "Lamb",
+      "7": "Ram",
+      "8": "Gray wolf",
+      "9": "Black wolf",
+      "10": "Sheepdog",
+      "11": "Ginger sheep"
+    }
+  },
+  "games": {
+    "title": "Games",
+    "subtitle": "Play together with everyone",
+    "back": "Back",
+    "flock": {
+      "title": "Flock",
+      "desc": "A shared arena: graze, grow and hide from wolves behind bushes",
+      "cta": "Play"
+    }
   }
 }

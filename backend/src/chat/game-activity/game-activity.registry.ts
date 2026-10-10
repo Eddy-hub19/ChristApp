@@ -26,6 +26,8 @@ export const GAME_ACTIVITY_REGISTRY: Record<string, GameActivityDef> = {
   },
   guess: { id: 'guess', joinable: true, maxPlayers: 2 },
   puzzle: { id: 'puzzle', joinable: true, maxPlayers: 2 },
+  // Спільна арена: у DM «приєднатися» веде на ту саму арену, місця рахує сама арена.
+  flock: { id: 'flock', joinable: true, maxPlayers: 2 },
   filword: { id: 'filword', joinable: false, maxPlayers: 1 },
 };
 

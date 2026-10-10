@@ -96,6 +96,12 @@ describe('бінарний протокол', () => {
     expect(decodeInput(encodeInput(-1, 2, 0))!.power).toBe(1);
   });
 
+  it('ввід: співвідношення сторін (4-й байт); старі клієнти без нього = квадрат', () => {
+    expect(decodeInput(encodeInput(0, 1, 0, 2.2))!.aspect).toBeCloseTo(2.2, 1);
+    expect(decodeInput(encodeInput(0, 1, 0))!.aspect).toBe(1);
+    expect(decodeInput(Uint8Array.of(10, 20, 0))!.aspect).toBe(1);
+  });
+
   it('сміття на вході не падає', () => {
     expect(decodeInput(null)).toBeNull();
     expect(decodeInput(new Uint8Array([1]))).toBeNull();
