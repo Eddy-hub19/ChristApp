@@ -13,8 +13,13 @@
 import { spawn } from 'child_process';
 import { FLOCK_CONFIG } from '../src/flock/flock.config';
 import { FlockManager } from '../src/flock/flock.manager';
+import { createSender } from '../src/flock/flock.transport';
 import { initBot, thinkBot } from '../src/flock/flock.bots';
-import { encodeInput } from '../src/flock/protocol';
+import {
+  decodeInput,
+  encodeInput,
+  encodeInputPacked,
+} from '../src/flock/protocol';
 
 const [mode = 'sim', humansArg, botsArg, hzArg, lastArg, clientFlag] =
   process.argv.slice(2);
@@ -123,31 +128,18 @@ async function netServer() {
   });
   const ns = io.of('/flock');
   let bytes = 0;
+  const sender = createSender((key) => ns.sockets.get(key));
   const mgr = new FlockManager((key, event, payload) => {
-    const s = ns.sockets.get(key);
-    if (!s) return;
-    if (payload instanceof Uint8Array) {
-      bytes += payload.length;
-      s.volatile.emit(
-        event,
-        Buffer.from(payload.buffer, payload.byteOffset, payload.byteLength),
-      );
-    } else s.emit(event, payload);
+    if (payload instanceof Uint8Array) bytes += payload.length;
+    sender(key, event, payload);
   });
   ns.on('connection', (s) => {
     s.on('j', (b: { skin?: number }) =>
       mgr.join(s.id, s.id, `Гравець ${s.id.slice(0, 3)}`, b?.skin ?? 0),
     );
-    s.on('i', (buf: Uint8Array) => {
-      if (!buf || buf.length < 3) return;
-      const u8 = new Uint8Array(buf);
-      mgr.input(
-        s.id,
-        ((u8[0] + 0.5) / 256) * Math.PI * 2,
-        u8[1] / 255,
-        !!(u8[2] & 1),
-        !!(u8[2] & 2),
-      );
+    s.on('i', (body: number | Uint8Array) => {
+      const m = decodeInput(body);
+      if (m) mgr.input(s.id, m.angle, m.power, m.split, m.throw, m.aspect);
     });
     s.on('disconnect', () => mgr.leave(s.id));
   });
@@ -181,6 +173,10 @@ async function netServer() {
       ),
     );
   }
+  const { monitorEventLoopDelay } = await import('perf_hooks');
+  const eld = monitorEventLoopDelay({ resolution: 5 });
+  const snap0 = JSON.parse(JSON.stringify(mgr.stats()[0] ?? null));
+  eld.enable();
   const cpu0 = process.cpuUsage();
   const bytes0 = bytes;
   const wall0 = Date.now();
@@ -199,8 +195,31 @@ async function netServer() {
   }
   const wall = (Date.now() - wall0) / 1000;
   const cpuMs = (cpu.user + cpu.system) / 1000;
+  eld.disable();
   const stats = mgr.stats()[0];
   const perTick = cpuMs / (wall * HZ);
+  if (stats && snap0) {
+    const n = stats.ticks - snap0.ticks;
+    const ph = (k: 'think' | 'world' | 'encode' | 'send') =>
+      (stats.phase[k] - snap0.phase[k]) / n;
+    const lateN = stats.lateness.n - snap0.lateness.n;
+    const pk = stats.packets - snap0.packets;
+    console.log(
+      `\n--- розбивка тіка (арена, мс/тік; ${n} тіків за ${wall.toFixed(0)} с) ---`,
+    );
+    console.log(
+      `ШІ ботів ${ph('think').toFixed(3)} | світ ${ph('world').toFixed(3)} | кодування ${ph('encode').toFixed(3)} | socket.emit ${ph('send').toFixed(3)} | разом ${(ph('think') + ph('world') + ph('encode') + ph('send')).toFixed(3)}`,
+    );
+    console.log(
+      `тіків/с: ${(n / wall).toFixed(2)} (ціль ${HZ}); запізнення таймера: avg ${((stats.lateness.sum - snap0.lateness.sum) / lateN).toFixed(2)} мс, max ${stats.lateness.max.toFixed(1)} мс, >50 мс: ${stats.lateness.over50 - snap0.lateness.over50} із ${lateN}`,
+    );
+    console.log(
+      `event loop delay: mean ${(eld.mean / 1e6).toFixed(2)} мс, p99 ${(eld.percentile(99) / 1e6).toFixed(2)} мс, max ${(eld.max / 1e6).toFixed(1)} мс`,
+    );
+    console.log(
+      `пакетів/с: ${(pk / wall).toFixed(1)} (на людину ${(pk / wall / HUMANS).toFixed(1)}), середній пакет ${((bytes - bytes0) / pk) | 0} Б`,
+    );
+  }
   report(
     `net (socket.io, CPU всього процесу; арена: ${stats?.humans} людей/${stats?.bots} ботів)`,
     perTick,
@@ -216,6 +235,8 @@ async function netServer() {
   process.exit(0);
 }
 
+const T0 = Date.now();
+const gaps: number[] = [];
 async function netClients() {
   const mod: any = await import('socket.io-client');
   const io = mod.io ?? mod.default?.io ?? mod.default;
@@ -226,17 +247,41 @@ async function netClients() {
     });
     let angle = Math.random() * 6.28;
     s.on('connect', () => s.emit('j', { skin: n % 12 }));
-    s.on('s', () => {});
+    let lastAt = 0;
+    s.on('s', () => {
+      const now = Date.now();
+      if (now - T0 > 15_000 && lastAt) gaps.push(now - lastAt);
+      lastAt = now;
+    });
     s.on('d', () => s.emit('j', { skin: n % 12 }));
-    // 20 повідомлень/с, іноді поворот / розділення / кидок
-    setInterval(() => {
-      if (Math.random() < 0.05) angle = Math.random() * 6.28;
-      const btn = Math.random() < 0.01 ? 1 : Math.random() < 0.02 ? 2 : 0;
-      s.emit('i', Buffer.from(encodeInput(angle, 1, btn)));
-    }, 50);
+    // Людина водить мишею/пальцем: кут міняється постійно. old = бінарний ввід 15/с (як було), new = число 10/с.
+    const legacy = process.env.FLOCK_CLIENT_MODE === 'old';
+    setInterval(
+      () => {
+        angle += (Math.random() - 0.5) * 0.4;
+        const btn = Math.random() < 0.01 ? 1 : Math.random() < 0.02 ? 2 : 0;
+        if (legacy) s.emit('i', Buffer.from(encodeInput(angle, 1, btn, 0.46)));
+        else s.emit('i', encodeInputPacked(angle, 1, btn, 0.46));
+      },
+      legacy ? 66 : 100,
+    );
     return s;
   });
   void sockets;
+  // Підсумок інтервалів між пакетами стану, які бачить клієнт: це і є "плавність" з боку мережі/сервера.
+  setTimeout(
+    () => {
+      const a = [...gaps].sort((x, y) => x - y);
+      const q = (p: number) =>
+        a[Math.min(a.length - 1, Math.floor(a.length * p))];
+      const tick = 1000 / HZ;
+      console.log(
+        `\n--- інтервали між пакетами стану на клієнті (${a.length} шт; ціль ${tick.toFixed(0)} мс) ---\n` +
+          `p50 ${q(0.5)} | p95 ${q(0.95)} | p99 ${q(0.99)} | max ${a[a.length - 1]} мс; пауз >2.5 тіка (${(tick * 2.5).toFixed(0)} мс): ${a.filter((x) => x > tick * 2.5).length} (${((a.filter((x) => x > tick * 2.5).length / a.length) * 100).toFixed(1)}%)`,
+      );
+    },
+    (15 + LAST - 1) * 1000,
+  );
 }
 
 if (mode === 'sim') simMode();

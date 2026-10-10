@@ -8,6 +8,7 @@ import {
   type Rng,
 } from './flock.engine';
 import { BOT_NAMES, initBot, thinkBot } from './flock.bots';
+import { AdaptiveRate } from './flock.adaptive';
 import {
   BONUS_CODE,
   FX_FROZEN,
@@ -62,6 +63,21 @@ class Arena {
   cpuMs = 0;
   ticks = 0;
   bytesOut = 0;
+  /** Розбивка по фазах тіка (мс, сумарно) і "запізнення" таймера (мс) - щоб бачити, де йде CPU і чи пливуть тіки. */
+  readonly phase = { think: 0, world: 0, encode: 0, send: 0 };
+  readonly lateness = { sum: 0, max: 0, over50: 0, n: 0 };
+  packets = 0;
+  private expectedAt = 0;
+  private lastBoardAt = -Infinity;
+  /** Спільне для всіх глядачів у цьому тіку: рахуємо один раз, а не по разу на кожного гравця. */
+  private shared: {
+    fx: Map<number, number>;
+    thorns: StateInput['thorns'];
+    blobs: StateInput['blobs'];
+    bonuses: StateInput['bonuses'];
+  } = { fx: new Map(), thorns: [], blobs: [], bonuses: [] };
+  /** Поточна частота (знижується запобіжником, коли CPU не встигає). */
+  readonly rate = new AdaptiveRate();
 
   constructor(
     readonly id: number,
@@ -78,7 +94,8 @@ class Arena {
 
   start() {
     if (this.timer) return;
-    this.nextAt = Date.now() + 1000 / C.tickHz;
+    this.nextAt = Date.now() + 1000 / this.rate.hz;
+    this.expectedAt = this.nextAt;
     this.schedule();
   }
 
@@ -90,8 +107,15 @@ class Arena {
   private schedule() {
     this.timer = setTimeout(
       () => {
+        const late = Math.max(0, Date.now() - this.nextAt);
+        const l = this.lateness;
+        l.sum += late;
+        l.n++;
+        if (late > l.max) l.max = late;
+        if (late > 50) l.over50++;
+        const hz = this.rate.update(late, Date.now());
         this.step();
-        const tickMs = 1000 / C.tickHz;
+        const tickMs = 1000 / hz;
         this.nextAt += tickMs;
         // не наздоганяємо відставання пачкою тіків: перегрузка = просто повільніша гра
         if (this.nextAt < Date.now() - tickMs * 2) this.nextAt = Date.now();
@@ -140,6 +164,7 @@ class Arena {
   step() {
     const t0 = process.hrtime.bigint();
     const w = this.world;
+    const tA = performance.now();
     this.syncBots();
     for (const id of this.bots) {
       const p = w.players.get(id);
@@ -155,7 +180,11 @@ class Arena {
       }
       thinkBot(w, p, this.rng);
     }
-    w.tick(1 / C.tickHz);
+    const tB = performance.now();
+    w.tick(1 / this.rate.hz);
+    const tC = performance.now();
+    this.phase.think += tB - tA;
+    this.phase.world += tC - tB;
     this.broadcast();
     this.cpuMs += Number(process.hrtime.bigint() - t0) / 1e6;
     this.ticks++;
@@ -163,9 +192,38 @@ class Arena {
 
   private broadcast() {
     const w = this.world;
-    const sendBoard = w.tickNo % Math.round(C.tickHz) === 0;
-    const top = sendBoard ? w.leaderboard(10) : [];
-    const ranked = sendBoard ? w.leaderboard(1000) : [];
+    const t0 = performance.now();
+    let sentMs = 0;
+    const send = (key: string, ev: string, payload: Uint8Array | object) => {
+      const ts = performance.now();
+      this.send(key, ev, payload);
+      sentMs += performance.now() - ts;
+      this.packets++;
+    };
+    // Таблиця лідерів + мінікарта - одна на всіх, кодується раз і рідко (boardEverySec).
+    this.prepareShared();
+    const sendBoard = w.now - this.lastBoardAt >= C.boardEverySec * 1000;
+    if (sendBoard) this.lastBoardAt = w.now;
+    let boardBuf: Uint8Array | null = null;
+    if (sendBoard) {
+      const ranked = w.leaderboard(1000);
+      boardBuf = encodeBoard({
+        top: ranked
+          .slice(0, 10)
+          .map((t) => ({ pid: t.id, mass: t.total, name: t.name })),
+        alive: ranked.length,
+        // відсортована за масою: місце гравця = індекс його pid (клієнт рахує сам)
+        map: ranked.map((r) => {
+          const c = w.centroid(r);
+          return {
+            pid: r.id,
+            x: Math.min(255, Math.floor((c.x / C.worldSize) * 256)),
+            y: Math.min(255, Math.floor((c.y / C.worldSize) * 256)),
+            size: Math.min(255, Math.round(Math.sqrt(r.total) * 4)),
+          };
+        }),
+      });
+    }
     for (const s of this.sessions.values()) {
       const key = s.connKey;
       if (!key) continue; // у паузі: нікуди слати
@@ -173,7 +231,7 @@ class Arena {
       if (!p) continue;
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
-        this.send(key, 'd', {
+        send(key, 'd', {
           survivedMs: Math.round(p.diedAt - p.spawnedAt),
           maxMass: Math.round(p.maxMass),
           kills: p.kills,
@@ -185,26 +243,45 @@ class Arena {
       if (!p.alive) continue;
       const buf = encodeState(this.buildState(s, p));
       this.bytesOut += buf.length;
-      this.send(key, 's', buf);
-      if (sendBoard) {
-        const board = encodeBoard({
-          top: top.map((t) => ({ pid: t.id, mass: t.total, name: t.name })),
-          selfRank: ranked.findIndex((r) => r.id === p.id) + 1,
-          alive: ranked.length,
-          map: ranked.map((r) => {
-            const c = w.centroid(r);
-            return {
-              pid: r.id,
-              x: Math.min(255, Math.floor((c.x / C.worldSize) * 256)),
-              y: Math.min(255, Math.floor((c.y / C.worldSize) * 256)),
-              size: Math.min(255, Math.round(Math.sqrt(r.total) * 4)),
-            };
-          }),
-        });
-        this.bytesOut += board.length;
-        this.send(key, 'l', board);
+      send(key, 's', buf);
+      if (boardBuf) {
+        this.bytesOut += boardBuf.length;
+        send(key, 'l', boardBuf);
       }
     }
+    this.phase.send += sentMs;
+    this.phase.encode += performance.now() - t0 - sentMs;
+  }
+
+  /** Прапорці ефектів гравців і списки кущів / кинутої маси / бонусів - одноразово на тік. */
+  private prepareShared() {
+    const w = this.world;
+    const sh = this.shared;
+    sh.fx.clear();
+    for (const o of w.players.values()) {
+      if (!o.alive) continue;
+      let fx = 0;
+      if (w.isShielded(o)) fx |= FX_SHIELD;
+      if (w.isGhost(o)) fx |= FX_GHOST;
+      if (w.now < o.frozenUntil) fx |= FX_FROZEN;
+      if (o.paused) fx |= FX_PAUSED;
+      if (w.hasEffect(o, 'speed')) fx |= FX_SPEED;
+      if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
+      sh.fx.set(o.id, fx);
+    }
+    sh.thorns = w.thorns.map((t) => ({
+      id: t.id,
+      x: t.x,
+      y: t.y,
+      mass: t.mass,
+    }));
+    sh.blobs = w.blobs.map((b) => ({ id: b.id, x: b.x, y: b.y }));
+    sh.bonuses = w.bonuses.map((b) => ({
+      id: b.id,
+      kind: BONUS_CODE.indexOf(b.kind),
+      x: b.x,
+      y: b.y,
+    }));
   }
 
   private buildState(s: Session, p: Player): StateInput {
@@ -264,13 +341,7 @@ class Arena {
       const o = w.players.get(c.pid);
       if (!o || !o.alive) return;
       if (Math.abs(c.x - cen.x) > hx || Math.abs(c.y - cen.y) > hy) return;
-      let fx = 0;
-      if (w.isShielded(o)) fx |= FX_SHIELD;
-      if (w.isGhost(o)) fx |= FX_GHOST;
-      if (w.now < o.frozenUntil) fx |= FX_FROZEN;
-      if (o.paused) fx |= FX_PAUSED;
-      if (w.hasEffect(o, 'speed')) fx |= FX_SPEED;
-      if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
+      const fx = this.shared.fx.get(c.pid) ?? 0;
       cells.push({ id: c.id, pid: c.pid, x: c.x, y: c.y, mass: c.mass, fx });
       seenPids.add(c.pid);
     });
@@ -320,7 +391,8 @@ class Arena {
         });
     }
     return {
-      tick: w.tickNo,
+      // час сервера (мс): за ним клієнт інтерполює, тож зміна частоти (запобіжник) для нього прозора
+      tick: Math.round(w.now),
       alive: true,
       total: p.total,
       selfPid: p.id,
@@ -330,20 +402,9 @@ class Arena {
       foodEvents,
       players,
       cells,
-      thorns: w.thorns
-        .filter((t) => inView(t.x, t.y))
-        .map((t) => ({ id: t.id, x: t.x, y: t.y, mass: t.mass })),
-      blobs: w.blobs
-        .filter((b) => inView(b.x, b.y))
-        .map((b) => ({ id: b.id, x: b.x, y: b.y })),
-      bonuses: w.bonuses
-        .filter((b) => inView(b.x, b.y))
-        .map((b) => ({
-          id: b.id,
-          kind: BONUS_CODE.indexOf(b.kind),
-          x: b.x,
-          y: b.y,
-        })),
+      thorns: this.shared.thorns.filter((t) => inView(t.x, t.y)),
+      blobs: this.shared.blobs.filter((b) => inView(b.x, b.y)),
+      bonuses: this.shared.bonuses.filter((b) => inView(b.x, b.y)),
       paused: pausedInView,
     };
   }
@@ -591,8 +652,12 @@ export class FlockManager {
       humans: a.humans,
       bots: a.bots.size,
       ticks: a.ticks,
+      hz: a.rate.hz,
       cpuMsPerTick: a.ticks ? a.cpuMs / a.ticks : 0,
       bytesOut: a.bytesOut,
+      packets: a.packets,
+      phase: { ...a.phase },
+      lateness: { ...a.lateness },
     }));
   }
 

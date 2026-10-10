@@ -27,13 +27,19 @@ export const FLOCK_CONFIG = {
   /** Скільки арен одночасно. Нова відкривається, лише коли попередня заповнена. */
   maxArenas: 1,
   /** Ботів на арені, коли людей мало; зменшується з приходом людей. */
-  botTarget: 8,
+  botTarget: 4,
   /** Ботів = clamp(botTotalTarget - люди, botMin, botTarget). */
-  botTotalTarget: 10,
-  botMin: 3,
+  botTotalTarget: 7,
+  botMin: 2,
 
   worldSize: 3200,
   chunkSize: 320,
+  /** Як часто шлемо таблицю лідерів і мінікарту (с). */
+  boardEverySec: 1.5,
+  /** Запобіжник: якщо таймер тіка запізнюється (EMA, мс) довше за lagBackoffMs - знижуємо частоту до цих значень; повертаємо, коли < lagRecoverMs. */
+  tickHzFallback: [8, 6],
+  lagBackoffMs: 25,
+  lagRecoverMs: 8,
 
   // --- решта лімітів світу ---
   maxCellsPerPlayer: 16,
@@ -93,7 +99,7 @@ export const FLOCK_CONFIG = {
 
   // --- боти ---
   /** ШІ бота думає раз на N тіків (зі зсувом за id). */
-  botThinkEvery: 4,
+  botThinkEvery: 5,
   botRespawnMs: 3000,
 
   // --- бонуси ---

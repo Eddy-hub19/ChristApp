@@ -12,6 +12,7 @@ import type { Namespace, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FLOCK_CONFIG, NUM_SKINS } from './flock.config';
 import { FlockManager } from './flock.manager';
+import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
 
 interface FlockSocket extends Socket {
@@ -37,27 +38,25 @@ export class FlockGateway
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
   ) {
-    this.manager = new FlockManager((connKey, event, payload) => {
-      const sock = this.ns?.sockets.get(connKey);
-      if (!sock) return;
-      if (payload instanceof Uint8Array) {
-        const data = Buffer.from(
-          payload.buffer,
-          payload.byteOffset,
-          payload.byteLength,
-        );
-        // Стан - volatile: застарілий кадр на повільному каналі не варто ставити в чергу.
-        // Таблиця лідерів йде слідом у тому ж тіку і не має губитись (volatile її відкидав би).
-        if (event === 's') sock.volatile.emit(event, data);
-        else sock.emit(event, data);
-      } else {
-        sock.emit(event, payload);
-      }
-    });
+    this.manager = new FlockManager(
+      createSender((key) => this.ns?.sockets.get(key)),
+    );
   }
 
   afterInit(ns: Namespace) {
     this.ns = ns;
+    // Стиснення кадрів (permessage-deflate) їсть CPU на кожен пакет стану, а виграє копійки (пакет ~70 Б).
+    // За замовчуванням воно вимкнене; якщо хтось увімкне його в налаштуваннях сервера - скажемо про це в лог.
+    const engineOpts = (
+      ns.server as unknown as {
+        engine?: { opts?: { perMessageDeflate?: unknown } };
+      }
+    ).engine?.opts;
+    if (engineOpts?.perMessageDeflate) {
+      this.log.warn(
+        'socket.io perMessageDeflate увімкнено: це зайве навантаження на CPU для ігрового namespace /flock',
+      );
+    }
     ns.use(async (socket: FlockSocket, next) => {
       try {
         const raw =
@@ -143,7 +142,8 @@ export class FlockGateway
 
   @SubscribeMessage('i')
   input(@ConnectedSocket() client: FlockSocket, @MessageBody() body: unknown) {
-    const msg = decodeInput(body as ArrayBuffer | Uint8Array);
+    // число (одним текстовим кадром) - основний формат; бінарні 3-4 байти - сумісність зі старими клієнтами
+    const msg = decodeInput(body as number | ArrayBuffer | Uint8Array);
     if (!msg) return;
     this.manager.input(
       client.id,

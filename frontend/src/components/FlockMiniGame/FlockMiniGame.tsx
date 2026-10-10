@@ -64,6 +64,12 @@ function lagFromEnv() {
   return Number.isFinite(v) && v > 0 && v < 2000 ? v : 0;
 }
 
+/** `?flockDebug=1`: кладе модель в window.__flockModel (для замірів плавності/FPS у браузерних тестах). */
+function debugFromEnv() {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("flockDebug") === "1";
+}
+
 function formatDuration(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -220,6 +226,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const mctx = mini?.getContext("2d");
     if (!cv || !ctx) return;
     let raf = 0;
+    const debug = debugFromEnv();
     let last = performance.now();
     let lastMini = 0;
     let w = 0;
@@ -251,7 +258,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       const dt = (now - last) / 1000;
       last = now;
       model.aspect = aspectRef.current;
-      model.step(dt, dirRef.current);
+      model.step(dt, dirRef.current, now);
+      if (debug) (window as unknown as { __flockModel?: unknown }).__flockModel = model;
       if (model.total > maxTotalRef.current) maxTotalRef.current = model.total;
       drawScene(ctx, model, {
         width: w,
@@ -276,7 +284,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       if (!model) return;
       setHud({
         total: model.total,
-        rank: model.board.selfRank,
+        rank: model.rank(),
         alive: model.board.alive,
         top: model.board.top,
         selfPid: model.cfg.pid,
@@ -285,7 +293,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       });
     }, 250);
 
-    // ввід: ≤15 повідомлень/с, лише при зміні + keepalive
+    // ввід: не частіше за тік сервера (10/с) - зайві повідомлення сервер усе одно відкине; лише при зміні + keepalive
     const sendTimer = setInterval(() => {
       const client = clientRef.current;
       if (!client) return;
@@ -299,7 +307,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         client.sendInput(dir, split, thr, aspectRef.current);
         lastSentRef.current = { dir: { ...dir }, at: nowMs };
       }
-    }, 66);
+    }, 100);
 
     return () => {
       cancelAnimationFrame(raf);

@@ -37,19 +37,28 @@ describe("FlockModel", () => {
     expect([...m.foods.keys()]).toEqual([2]);
   });
 
-  it("своя клітина передбачається одразу, чужа згладжується до цілі", () => {
+  it("своя клітина передбачається одразу, чужа інтерполюється між знімками з затримкою", () => {
     const m = new FlockModel(cfg);
-    m.applyState(base({ cells: [{ id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 }, { id: 2, pid: 9, x: 700, y: 500, mass: 30, fx: 0 }] }));
-    m.applyState(base({ cells: [{ id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 }, { id: 2, pid: 9, x: 800, y: 500, mass: 30, fx: 0 }] }));
-    m.step(0.05, { angle: 0, power: 1 });
-    const own = m.cells.get(1)!;
-    const other = m.cells.get(2)!;
-    expect(own.x).toBeGreaterThan(500); // поїхала без очікування сервера
-    expect(other.x).toBeGreaterThan(700);
-    expect(other.x).toBeLessThan(800);
-    for (let i = 0; i < 60; i++) m.step(0.05, { angle: 0, power: 0 });
-    expect(other.x).toBeCloseTo(800, 0);
-    expect(own.x).toBeCloseTo(500, 0); // сервер підтягнув назад
+    const cellsAt = (x: number) => [
+      { id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 },
+      { id: 2, pid: 9, x, y: 500, mass: 30, fx: 0 },
+    ];
+    m.applyState(base({ tick: 1000, cells: cellsAt(700) }), 1000);
+    m.applyState(base({ tick: 1100, cells: cellsAt(800) }), 1100);
+    expect(m.interpDelay).toBeCloseTo(150, 0); // 100 мс між знімками * 1.25 + 25
+    // 1230 мс: малюємо момент 1230-150 = 1080 => 80% шляху між знімками
+    m.step(0.05, { angle: 0, power: 1 }, 1230);
+    expect(m.cells.get(2)!.x).toBeCloseTo(780, 0);
+    expect(m.cells.get(1)!.x).toBeGreaterThan(500); // своя поїхала без очікування сервера
+  });
+
+  it("свою клітину сервер лише м'яко підтягує до свого знімка; без вводу вона стоїть на серверній позиції", () => {
+    const m = new FlockModel(cfg);
+    m.applyState(base({ tick: 1000 }), 1000);
+    m.step(0.05, { angle: 0, power: 1 }, 1050);
+    m.step(0.05, { angle: 0, power: 1 }, 1100);
+    for (let i = 0; i < 80; i++) m.step(0.05, { angle: 0, power: 0 }, 1100 + (i + 1) * 50);
+    expect(Math.abs(m.cells.get(1)!.x - 500)).toBeLessThan(7); // м'яка мертва зона 6 од.
   });
 
   it("сила 0 - клітина стоїть; прискорення збільшує швидкість", () => {
@@ -110,5 +119,75 @@ describe("FlockModel", () => {
     expect(m.pauseLeftMs(1, now)).toBe(0);
     m.applyState(base({ paused: [] })); // повернувся - плашка зникає
     expect(m.pauseLeftMs(9, now)).toBe(0);
+  });
+
+  describe("плавність при джитері мережі (інтерполяція за часом сервера)", () => {
+    /** Сервер: чужа клітина їде 0.1 од/мс (100 од/с), знімок кожні 100 мс; пакети приходять із розкидом. */
+    function simulate(jitterMs: number, stallAt?: [number, number]) {
+      const m = new FlockModel(cfg);
+      let seed = 3;
+      const rnd = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+      const packets: { srv: number; recv: number }[] = [];
+      let lastRecv = 0;
+      for (let srv = 1000; srv <= 9000; srv += 100) {
+        let recv = srv + 40 + rnd() * jitterMs;
+        if (stallAt && srv >= stallAt[0] && srv < stallAt[1]) recv = stallAt[1] + 40 + (srv - stallAt[0]) * 0.02; // пакети застрягли й прийшли пачкою
+        recv = Math.max(recv, lastRecv + 1); // TCP зберігає порядок
+        lastRecv = recv;
+        packets.push({ srv, recv });
+      }
+      const xs: number[] = [];
+      let pi = 0;
+      for (let t = 0; t <= 9400; t += 16.667) {
+        while (pi < packets.length && packets[pi].recv <= t) {
+          const p = packets[pi++];
+          m.applyState(
+            base({
+              tick: p.srv,
+              cells: [
+                { id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 },
+                { id: 2, pid: 9, x: 700 + (p.srv - 1000) * 0.1, y: 500, mass: 30, fx: 0 },
+              ],
+            }),
+            p.recv,
+          );
+        }
+        m.step(0.016667, { angle: 0, power: 0 }, t);
+        if (t > 2500 && t < 8800 && m.cells.has(2)) xs.push(m.cells.get(2)!.x);
+      }
+      const steps = xs.slice(1).map((x, i) => x - xs[i]);
+      const sorted = [...steps].sort((a, b) => a - b);
+      return { med: sorted[sorted.length >> 1], min: sorted[0], max: sorted[sorted.length - 1], steps, m };
+    }
+
+    it("без джитера рух рівний: кроки кадрів майже однакові", () => {
+      const r = simulate(0);
+      expect(r.med).toBeCloseTo(1.667, 1);
+      expect(r.max).toBeLessThan(r.med * 1.15);
+      expect(r.min).toBeGreaterThan(r.med * 0.85);
+    });
+
+    it("джитер до 60 мс не дає ні завмирань, ні ривків (буфер ~150 мс це ховає)", () => {
+      const r = simulate(60);
+      expect(r.min).toBeGreaterThan(r.med * 0.6);
+      expect(r.max).toBeLessThan(r.med * 1.6);
+      for (const st of r.steps) expect(st).toBeGreaterThanOrEqual(0); // ніколи не повзе назад
+    });
+
+    it("затримка інтерполяції підлаштовується під частоту сервера (запобіжник 10 -> 6 Гц)", () => {
+      const m = new FlockModel(cfg);
+      for (let i = 0; i < 40; i++) m.applyState(base({ tick: 1000 + i * 100 }), 1000 + i * 100);
+      const at10 = m.interpDelay;
+      for (let i = 0; i < 60; i++) m.applyState(base({ tick: 5000 + i * 167 }), 5000 + i * 167);
+      expect(m.interpDelay).toBeGreaterThan(at10 + 40); // ~167 мс між знімками => ~233 мс буфера
+      expect(m.interpDelay).toBeLessThanOrEqual(260);
+    });
+
+    it("якщо пакети зникли на ~0.5 с: коротка екстраполяція, потім утримання - без втечі за екран", () => {
+      const r = simulate(0, [4000, 4500]);
+      // після пачки пакетів час малювання наздоганяє плавно (до +35% швидкості), без стрибка на сотні мс
+      expect(r.max).toBeLessThan(r.med * 1.8);
+      expect(r.steps.filter((x) => x === 0).length).toBeLessThan(40); // завмирання лише на час самої затримки
+    });
   });
 });
