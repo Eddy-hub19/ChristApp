@@ -127,6 +127,10 @@ const GuessCharacterMiniGame = dynamic(
   () => import("@/components/GuessCharacterMiniGame/GuessCharacterMiniGame"),
   { ssr: false },
 );
+const FlockMiniGame = dynamic(
+  () => import("@/components/FlockMiniGame/FlockMiniGame"),
+  { ssr: false },
+);
 const PuzzleMiniGame = dynamic(
   () => import("@/components/PuzzleMiniGame/PuzzleMiniGame"),
   { ssr: false },
@@ -592,6 +596,7 @@ export default function ChatPageDetails() {
   const t = useTranslations("chat");
   const tGuess = useTranslations("guessCharacter");
   const tPuzzle = useTranslations("puzzle");
+  const tFlock = useTranslations("flock");
   const tShared = useTranslations("chatShared");
   const lang = useLocale();
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" });
@@ -667,6 +672,7 @@ export default function ChatPageDetails() {
   const [isFilwordOpen, setIsFilwordOpen] = useState(false);
   const [isGuessOpen, setIsGuessOpen] = useState(false);
   const [isPuzzleOpen, setIsPuzzleOpen] = useState(false);
+  const [isFlockOpen, setIsFlockOpen] = useState(false);
   const [isGameMenuOpen, setIsGameMenuOpen] = useState(false);
   const [myDoodleScore, setMyDoodleScore] = useState(0);
   const [peerDoodleScore, setPeerDoodleScore] = useState(0);
@@ -887,7 +893,9 @@ export default function ChatPageDetails() {
           ? "guess"
           : isPuzzleOpen
             ? "puzzle"
-            : null;
+            : isFlockOpen
+              ? "flock"
+              : null;
   // eslint-disable-next-line react-hooks/refs -- як і для ігор нижче: підписуємось на поточний живий сокет кімнати
   const activitySocket = isSocketConnected ? socketRef.current : null;
   useGameActivityBroadcast(
@@ -1346,6 +1354,7 @@ export default function ChatPageDetails() {
     setIsDoodleOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
+    setIsFlockOpen(false);
     setMyDoodleScore(0);
     setPeerDoodleScore(0);
     setPeerDoodleState(null);
@@ -3269,6 +3278,7 @@ export default function ChatPageDetails() {
     setIsFilwordOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
+    setIsFlockOpen(false);
     setIsGameMenuOpen(false);
     setIsDoodleOpen(true);
     setMyDoodleScore(0);
@@ -3329,6 +3339,7 @@ export default function ChatPageDetails() {
     setIsFilwordOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
+    setIsFlockOpen(false);
     setIsGameMenuOpen(false);
     setIsSnakeOpen(true);
     setMySnakeScore(0);
@@ -3348,6 +3359,7 @@ export default function ChatPageDetails() {
     setIsSnakeOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
+    setIsFlockOpen(false);
     setIsGameMenuOpen(false);
     setIsFilwordOpen(true);
   }, [directChatTargetUserId, effectiveSocketRoomId]);
@@ -3362,6 +3374,7 @@ export default function ChatPageDetails() {
     setIsFilwordOpen(false);
     setIsGameMenuOpen(false);
     setIsPuzzleOpen(false);
+    setIsFlockOpen(false);
     setIsGuessOpen(true);
   }, [directChatTargetUserId, effectiveSocketRoomId]);
 
@@ -3378,14 +3391,29 @@ export default function ChatPageDetails() {
     setIsPuzzleOpen(true);
   }, [directChatTargetUserId, effectiveSocketRoomId]);
 
+  /** Арена спільна для всіх: стан живе на сервері, відкриття нічого не скидає. */
+  const handleOpenFlock = useCallback(() => {
+    if (!directChatTargetUserId || !effectiveSocketRoomId) {
+      return;
+    }
+    setIsDoodleOpen(false);
+    setIsSnakeOpen(false);
+    setIsFilwordOpen(false);
+    setIsGuessOpen(false);
+    setIsPuzzleOpen(false);
+    setIsGameMenuOpen(false);
+    setIsFlockOpen(true);
+  }, [directChatTargetUserId, effectiveSocketRoomId]);
+
   const handleJoinGame = useCallback(
     (game: GameId) => {
       if (game === "doodle") handleOpenDoodle({ join: true });
       else if (game === "snake") handleOpenSnake({ join: true });
       else if (game === "guess") handleOpenGuess();
       else if (game === "puzzle") handleOpenPuzzle();
+      else if (game === "flock") handleOpenFlock();
     },
-    [handleOpenDoodle, handleOpenSnake, handleOpenGuess, handleOpenPuzzle],
+    [handleOpenDoodle, handleOpenSnake, handleOpenGuess, handleOpenPuzzle, handleOpenFlock],
   );
 
   const handleSnakeScoreChange = useCallback((score: number) => {
@@ -4002,6 +4030,14 @@ export default function ChatPageDetails() {
                         >
                           {tPuzzle("title")}
                         </button>
+                        <button
+                          type="button"
+                          className={styles.gameMenuItem}
+                          role="menuitem"
+                          onClick={handleOpenFlock}
+                        >
+                          {tFlock("title")}
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -4435,6 +4471,13 @@ export default function ChatPageDetails() {
             myAvatarUrl={resolvePublicAvatarUrl(user?.avatarUrl)}
             peerAvatarUrl={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
             onClose={() => setIsPuzzleOpen(false)}
+          />
+        ) : null}
+        {isFlockOpen ? (
+          <FlockMiniGame
+            open
+            userId={user?.id ?? ""}
+            onClose={() => setIsFlockOpen(false)}
           />
         ) : null}
       </section>

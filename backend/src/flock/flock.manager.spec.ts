@@ -127,6 +127,71 @@ describe('FlockManager', () => {
     }
   });
 
+  it('форма області видимості залежить від екрана, площа - ні', () => {
+    ctx.mgr.join('c1', 'u1', 'Аня', 1);
+    const arena = ctx.mgr._arena(1)!;
+    const w = arena.world;
+    const me = [...w.players.values()].find((p) => !p.bot)!;
+    const bot = [...w.players.values()].find((p) => p.bot)!;
+    me.cells.forEach((c) => {
+      c.x = 1500;
+      c.y = 1500;
+    });
+    const cen = w.centroid(me);
+    const R = w.viewRadius(me);
+    // ціль за межами квадрата, але в межах широкого екрана
+    bot.cells.forEach((c) => {
+      c.x = cen.x + R * 1.15 * 1.3;
+      c.y = cen.y;
+      c.mass = 20;
+    });
+    bot.effects.shield = w.now + 60_000;
+    const seen = () => {
+      ctx.sent.length = 0;
+      arena.step();
+      const st = decodeState(ctx.sent.find((m) => m.event === 's')!.payload);
+      return st.cells.some((c) => c.pid === bot.id);
+    };
+    expect(seen()).toBe(false); // квадрат (aspect=1) не бачить
+    ctx.mgr.input('c1', 0, 0, false, false, 2.2); // широкий екран
+    bot.cells.forEach((c) => {
+      c.x = cen.x + R * 1.15 * 1.3;
+      c.y = cen.y;
+    });
+    expect(seen()).toBe(true);
+    // а по вертикалі такий екран бачить менше, ніж квадрат
+    bot.cells.forEach((c) => {
+      c.x = cen.x;
+      c.y = cen.y + R * 1.15 * 0.9;
+    });
+    expect(seen()).toBe(false);
+  });
+
+  it('співвідношення сторін обмежене (не можна зажадати нескінченний огляд)', () => {
+    ctx.mgr.join('c1', 'u1', 'Аня', 1);
+    ctx.mgr.input('c1', 0, 0, false, false, 1e9);
+    const arena = ctx.mgr._arena(1)!;
+    const me = [...arena.world.players.values()].find((p) => !p.bot)!;
+    const bot = [...arena.world.players.values()].find((p) => p.bot)!;
+    me.cells.forEach((c) => {
+      c.x = 1000;
+      c.y = 1500;
+    });
+    const cen = arena.world.centroid(me);
+    bot.cells.forEach((c) => {
+      c.x = Math.min(
+        3190,
+        cen.x +
+          arena.world.viewRadius(me) * 1.15 * Math.sqrt(C.aspectMax) * 1.2,
+      );
+      c.y = cen.y;
+    });
+    ctx.sent.length = 0;
+    arena.step();
+    const st = decodeState(ctx.sent.find((m) => m.event === 's')!.payload);
+    expect(st.cells.some((c) => c.pid === bot.id)).toBe(false);
+  });
+
   it('ввід обмежений за частотою (античіт)', () => {
     ctx.mgr.join('c1', 'u1', 'Аня', 1);
     const w = ctx.mgr._arena(1)!.world;

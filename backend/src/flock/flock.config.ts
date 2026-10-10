@@ -110,9 +110,12 @@ export const FLOCK_CONFIG = {
   goldenMinMass: 40,
 
   // --- область видимості ---
-  viewBase: 520,
-  viewPerSqrtMass: 7,
-  viewMax: 1300,
+  viewBase: 400,
+  viewPerSqrtMass: 6.5,
+  viewMax: 1100,
+  /** Допустиме співвідношення сторін екрана клієнта (ширина/висота); площа огляду від нього не залежить. */
+  aspectMin: 0.4,
+  aspectMax: 2.5,
 } as const;
 
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;

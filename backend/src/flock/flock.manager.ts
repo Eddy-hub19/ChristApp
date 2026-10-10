@@ -39,6 +39,8 @@ interface Session {
   inputWindowStart: number;
   inputCount: number;
   deadSent: boolean;
+  /** Співвідношення сторін екрана клієнта: форма області видимості (площа від нього не залежить). */
+  aspect: number;
 }
 
 class Arena {
@@ -198,19 +200,23 @@ class Arena {
     const w = this.world;
     const cen = w.centroid(p);
     const R = w.viewRadius(p);
+    // область видимості - прямокутник тієї ж площі, що й квадрат R×R, під форму екрана клієнта
+    const sa = Math.sqrt(s.aspect);
+    const hx = R * sa * 1.15;
+    const hy = (R / sa) * 1.15;
 
     // чанки в зоні видимості (+ поле, щоб їжа не "спалахувала" на краю)
     const cs = C.chunkSize;
     const pad = cs * 0.5;
-    const x0 = Math.max(0, Math.floor((cen.x - R - pad) / cs));
+    const x0 = Math.max(0, Math.floor((cen.x - hx - pad) / cs));
     const x1 = Math.min(
       CHUNKS_PER_SIDE - 1,
-      Math.floor((cen.x + R + pad) / cs),
+      Math.floor((cen.x + hx + pad) / cs),
     );
-    const y0 = Math.max(0, Math.floor((cen.y - R - pad) / cs));
+    const y0 = Math.max(0, Math.floor((cen.y - hy - pad) / cs));
     const y1 = Math.min(
       CHUNKS_PER_SIDE - 1,
-      Math.floor((cen.y + R + pad) / cs),
+      Math.floor((cen.y + hy + pad) / cs),
     );
     const want = new Set<number>();
     for (let cy = y0; cy <= y1; cy++)
@@ -243,11 +249,10 @@ class Arena {
 
     const cells: StateInput['cells'] = [];
     const seenPids = new Set<number>();
-    w.queryCells(cen.x, cen.y, R * 1.15, (c) => {
+    w.queryCells(cen.x, cen.y, Math.max(hx, hy), (c) => {
       const o = w.players.get(c.pid);
       if (!o || !o.alive) return;
-      if (Math.abs(c.x - cen.x) > R * 1.15 || Math.abs(c.y - cen.y) > R * 1.15)
-        return;
+      if (Math.abs(c.x - cen.x) > hx || Math.abs(c.y - cen.y) > hy) return;
       let fx = 0;
       if (w.isShielded(o)) fx |= FX_SHIELD;
       if (w.isGhost(o)) fx |= FX_GHOST;
@@ -282,7 +287,7 @@ class Arena {
     }
 
     const inView = (x: number, y: number) =>
-      Math.abs(x - cen.x) <= R * 1.15 && Math.abs(y - cen.y) <= R * 1.15;
+      Math.abs(x - cen.x) <= hx && Math.abs(y - cen.y) <= hy;
     const effects: StateInput['effects'] = [];
     for (const k of BONUS_KINDS) {
       const until = p.effects[k] ?? 0;
@@ -399,6 +404,7 @@ export class FlockManager {
       inputWindowStart: this.now(),
       inputCount: 0,
       deadSent: false,
+      aspect: 1,
     };
     arena.sessions.set(connKey, session);
     this.sessions.set(connKey, session);
@@ -419,6 +425,7 @@ export class FlockManager {
     power: number,
     split: boolean,
     thr: boolean,
+    aspect = 1,
   ) {
     const s = this.sessions.get(connKey);
     if (!s) return;
@@ -429,6 +436,9 @@ export class FlockManager {
     }
     if (++s.inputCount > 40) return;
     s.lastInputAt = t;
+    if (Number.isFinite(aspect)) {
+      s.aspect = Math.max(C.aspectMin, Math.min(C.aspectMax, aspect));
+    }
     const w = s.arena.world;
     w.setInput(s.pid, angle, power);
     if (split) w.queueSplit(s.pid);

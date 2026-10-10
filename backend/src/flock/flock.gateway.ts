@@ -112,6 +112,11 @@ export class FlockGateway
       },
       durations: FLOCK_CONFIG.bonusDurations,
       magnetRadius: FLOCK_CONFIG.magnetRadius,
+      view: {
+        base: FLOCK_CONFIG.viewBase,
+        perSqrtMass: FLOCK_CONFIG.viewPerSqrtMass,
+        max: FLOCK_CONFIG.viewMax,
+      },
     });
   }
 
@@ -119,7 +124,14 @@ export class FlockGateway
   input(@ConnectedSocket() client: FlockSocket, @MessageBody() body: unknown) {
     const msg = decodeInput(body as ArrayBuffer | Uint8Array);
     if (!msg) return;
-    this.manager.input(client.id, msg.angle, msg.power, msg.split, msg.throw);
+    this.manager.input(
+      client.id,
+      msg.angle,
+      msg.power,
+      msg.split,
+      msg.throw,
+      msg.aspect,
+    );
   }
 
   @SubscribeMessage('x')

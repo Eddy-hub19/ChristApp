@@ -11,6 +11,7 @@ import {
   type TouchEvent as ReactTouchEvent,
 } from "react";
 import Image from "next/image";
+import { Gamepad2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import styles from "@/components/ChatList/ChatList.module.scss";
@@ -479,6 +480,14 @@ const ChatList = ({
         <div className={styles.header}>
           <h2>ChristApp</h2>
           <div className={styles.headerActions}>
+            <Link
+              href="/games"
+              className={styles.gamesButton}
+              aria-label={t("gamesAria")}
+              title={t("gamesTitle")}
+            >
+              <Gamepad2 size={20} strokeWidth={2.1} aria-hidden />
+            </Link>
             <Link
               href="/verse-notes"
               className={`${styles.verseNotesButton} ${!verseNotesVisible ? styles.headerActionHidden : ""}`}
