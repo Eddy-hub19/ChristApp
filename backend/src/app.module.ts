@@ -12,6 +12,7 @@ import { PushModule } from './push/push.module';
 import { AdminModule } from './admin/admin.module';
 import { CallsModule } from './calls/calls.module';
 import { WatchPartyModule } from './watch-party/watch-party.module';
+import { FlockModule } from './flock/flock.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { WatchPartyModule } from './watch-party/watch-party.module';
     AdminModule,
     CallsModule,
     WatchPartyModule,
+    FlockModule,
   ],
   controllers: [AppController],
   providers: [AppService],
