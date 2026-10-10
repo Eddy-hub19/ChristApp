@@ -151,6 +151,8 @@ function startDelayProxy(
   rttMs: number,
 ): Promise<{ url: string; close: () => void }> {
   const target = new URL(targetUrl);
+  const upstreamPort = Number(target.port || 5432);
+  const upstreamHost = target.hostname;
   const delay = rttMs / 2;
   const pipe = (from: net.Socket, to: net.Socket) => {
     from.on('data', (chunk) =>
@@ -160,7 +162,7 @@ function startDelayProxy(
     from.on('error', () => to.destroy());
   };
   const srv = net.createServer((client) => {
-    const upstream = net.connect(Number(target.port || 5432), target.hostname);
+    const upstream = net.connect(upstreamPort, upstreamHost);
     client.setNoDelay(true);
     upstream.setNoDelay(true);
     pipe(client, upstream);
