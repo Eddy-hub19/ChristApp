@@ -13,6 +13,7 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
+import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
 import { ServerMetricsService } from './server-metrics.service';
@@ -61,6 +62,8 @@ export class AdminController {
           waiting: pool.waitingCount,
           max: pool.options.max ?? 10,
         },
+        /** Запити до БД за 5 хвилин: графік (запитів/с по 5 с) і топ-5 найчастіших. */
+        queries: this.prisma.queryStats.snapshot(),
       },
       realtime: this.chatGateway.getRealtimeStats(),
       users: { total: usersTotal, active: usersActive },
@@ -127,6 +130,7 @@ export class AdminController {
     }
 
     await this.prisma.user.delete({ where: { id: target.id } });
+    authUserCache.invalidate(target.id);
     return {
       id: target.id,
       username: target.username,

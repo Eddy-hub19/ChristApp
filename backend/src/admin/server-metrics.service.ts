@@ -1,6 +1,12 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import os from 'node:os';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveCpuBudgetMs } from './cpu-benchmark.service';
 
 const SAMPLE_INTERVAL_MS = 5_000;
@@ -20,6 +26,10 @@ export type MetricSample = {
   loopLagP50Ms: number;
   loopLagP99Ms: number;
   loopLagMaxMs: number;
+  /** Найбільша черга на з'єднання з пулом БД за інтервал (0 = пул ні разу не був вичерпаний). */
+  dbPoolWaitingMax: number;
+  /** Запитів до БД за секунду (середнє за інтервал). */
+  dbQueriesPerSec: number;
 };
 
 /** CPU-навантаження процесу за інтервал (у % одного ядра) за приростом `process.cpuUsage()`. */
@@ -53,6 +63,11 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastCpu = process.cpuUsage();
   private lastAt = Date.now();
+  private poolTimer: ReturnType<typeof setInterval> | null = null;
+  private poolWaitingMax = 0;
+  private lastQueryTotal = 0;
+
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
 
   onModuleInit() {
     this.loopDelay.enable();
@@ -61,11 +76,22 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
     this.lastAt = Date.now();
     this.timer = setInterval(() => this.sample(), SAMPLE_INTERVAL_MS);
     this.timer.unref?.();
+    // Черга пулу миготить за долі секунди: раз на 5 с її можна не побачити, тож стежимо щосекунди й беремо максимум.
+    this.lastQueryTotal = this.prisma?.queryStats.totalRecorded() ?? 0;
+    this.poolTimer = setInterval(() => {
+      this.poolWaitingMax = Math.max(
+        this.poolWaitingMax,
+        this.prisma?.pool.waitingCount ?? 0,
+      );
+    }, 1_000);
+    this.poolTimer.unref?.();
   }
 
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    if (this.poolTimer) clearInterval(this.poolTimer);
+    this.poolTimer = null;
     this.loopDelay.disable();
   }
 
@@ -73,6 +99,8 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
     const now = Date.now();
     const cpu = process.cpuUsage(this.lastCpu);
     const mem = process.memoryUsage();
+    const queryTotal = this.prisma?.queryStats.totalRecorded() ?? 0;
+    const elapsedSec = Math.max(0.001, (now - this.lastAt) / 1000);
     const sample: MetricSample = {
       t: now,
       cpuPercent: computeCpuPercent(cpu.user, cpu.system, now - this.lastAt),
@@ -81,7 +109,15 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
       loopLagP50Ms: toLagMs(this.loopDelay.percentile(50)),
       loopLagP99Ms: toLagMs(this.loopDelay.percentile(99)),
       loopLagMaxMs: toLagMs(this.loopDelay.max),
+      dbPoolWaitingMax: Math.max(
+        this.poolWaitingMax,
+        this.prisma?.pool.waitingCount ?? 0,
+      ),
+      dbQueriesPerSec:
+        Math.round(((queryTotal - this.lastQueryTotal) / elapsedSec) * 10) / 10,
     };
+    this.poolWaitingMax = 0;
+    this.lastQueryTotal = queryTotal;
     this.lastCpu = process.cpuUsage();
     this.lastAt = now;
     this.loopDelay.reset();

@@ -1,4 +1,4 @@
-import { canUserPostToRoom } from './user-may-post-to-room';
+import { canUserPostToRoom, resolveRoomAccess } from './user-may-post-to-room';
 import type { PrismaService } from 'src/prisma/prisma.service';
 
 function makePrisma(opts: { members: string[]; title: string }) {
@@ -38,6 +38,16 @@ describe('canUserPostToRoom (shared by REST messages/room and socket joinRoom)',
   });
 });
 
+describe('resolveRoomAccess', () => {
+  it('returns the room title so callers need no second lookup', async () => {
+    const prisma = makePrisma({ members: ['a', 'b'], title: 'dm:a:b' });
+    await expect(resolveRoomAccess(prisma, 'a', 'room-1')).resolves.toEqual({
+      title: 'dm:a:b',
+    });
+    await expect(resolveRoomAccess(prisma, 'c', 'room-1')).resolves.toBeNull();
+  });
+});
+
 describe('canUserReadRoom', () => {
   const room = 'room-1';
   const { canUserReadRoom } = jest.requireActual('./user-may-post-to-room');
@@ -49,10 +59,18 @@ describe('canUserReadRoom', () => {
 
   it('never lets a stranger read a dm, member row or not', async () => {
     await expect(
-      canUserReadRoom(makePrisma({ members: ['a', 'b', 'c'], title: 'dm:a:b' }), 'c', room),
+      canUserReadRoom(
+        makePrisma({ members: ['a', 'b', 'c'], title: 'dm:a:b' }),
+        'c',
+        room,
+      ),
     ).resolves.toBe(false);
     await expect(
-      canUserReadRoom(makePrisma({ members: ['a', 'b'], title: 'dm:a:b' }), 'c', room),
+      canUserReadRoom(
+        makePrisma({ members: ['a', 'b'], title: 'dm:a:b' }),
+        'c',
+        room,
+      ),
     ).resolves.toBe(false);
   });
 

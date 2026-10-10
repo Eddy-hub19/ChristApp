@@ -7,7 +7,6 @@ import {
   adminCpuBenchmarkQueryOptions,
   adminServerQueryOptions,
   runAdminCpuBenchmark,
-  type AdminMetricSample,
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { cpuBudgetShare, evaluateArenaBudget, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
@@ -22,16 +21,9 @@ function formatUptime(totalSec: number): string {
   return `${m}м ${totalSec % 60}с`;
 }
 
-/** Мини-график по истории зразков (inline SVG, без библиотек). */
-function Sparkline({
-  samples,
-  pick,
-}: {
-  samples: AdminMetricSample[];
-  pick: (s: AdminMetricSample) => number;
-}) {
-  if (samples.length < 2) return <div className={styles.sparkEmpty} />;
-  const values = samples.map(pick);
+/** Мини-график по ряду значений (inline SVG, без библиотек). */
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return <div className={styles.sparkEmpty} />;
   const max = Math.max(...values, 1);
   const w = 100;
   const h = 28;
@@ -172,6 +164,7 @@ export default function AdminProcesses({ active }: { active: boolean }) {
   const health = evaluateServerHealth(data);
   const latest = data.latest;
   const history = data.history;
+  const queries = data.db.queries;
   const memUsedPct = Math.round(
     ((data.host.totalMemMb - data.host.freeMemMb) / data.host.totalMemMb) * 100,
   );
@@ -206,7 +199,7 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             level={health.cpu}
             value={latest ? `${latest.cpuPercent}%` : "—"}
             sub={latest ? t("procCpuBudget", { percent: cpuBudgetShare(data), ms: data.cpuBudgetMs ?? 1000 }) : t("procNoSamples")}
-            spark={<Sparkline samples={history} pick={(s) => s.cpuPercent} />}
+            spark={<Sparkline values={history.map((s) => s.cpuPercent)} />}
           />
           <Stat
             label={t("procLoopLag")}
@@ -217,17 +210,17 @@ export default function AdminProcesses({ active }: { active: boolean }) {
                 ? t("procLoopLagMax", { ms: latest.loopLagMaxMs })
                 : undefined
             }
-            spark={<Sparkline samples={history} pick={(s) => s.loopLagP99Ms} />}
+            spark={<Sparkline values={history.map((s) => s.loopLagP99Ms)} />}
           />
           <Stat
             label={t("procRss")}
             value={`${data.process.rssMb} МБ`}
-            spark={<Sparkline samples={history} pick={(s) => s.rssMb} />}
+            spark={<Sparkline values={history.map((s) => s.rssMb)} />}
           />
           <Stat
             label={t("procHeap")}
             value={`${data.process.heapUsedMb} / ${data.process.heapTotalMb} МБ`}
-            spark={<Sparkline samples={history} pick={(s) => s.heapUsedMb} />}
+            spark={<Sparkline values={history.map((s) => s.heapUsedMb)} />}
           />
         </div>
         <p className={styles.metaSmall}>{t("procHistoryHint")}</p>
@@ -240,6 +233,12 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             label={t("procDbPing")}
             level={health.db}
             value={data.db.ok ? `${data.db.pingMs} мс` : t("procDbDown")}
+          />
+          <Stat
+            label={t("procDbQueries")}
+            value={queries ? `${queries.perSec}/с` : "—"}
+            sub={queries ? t("procDbQueriesSub", { total: queries.total }) : undefined}
+            spark={queries ? <Sparkline values={queries.series} /> : undefined}
           />
           <Stat
             label={t("procPool")}
@@ -256,6 +255,22 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             }
           />
         </div>
+        {queries && queries.top.length > 0 ? (
+          <>
+            <h3 className={styles.procSubheading}>{t("procDbTop")}</h3>
+            <ol className={styles.topList}>
+              {queries.top.map((q) => (
+                <li key={q.label} className={styles.topRow}>
+                  <span className={styles.topLabel}>{q.label}</span>
+                  <span className={styles.topValue}>
+                    {t("procDbTopValue", { count: q.count, perSec: q.perSec, ms: q.avgMs })}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : null}
+        <p className={styles.metaSmall}>{t("procHistoryHint")}</p>
       </section>
 
       <section className={styles.procSection}>

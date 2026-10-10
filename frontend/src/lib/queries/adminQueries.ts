@@ -67,6 +67,19 @@ export type AdminMetricSample = {
   loopLagP50Ms: number;
   loopLagP99Ms: number;
   loopLagMaxMs: number;
+  /** Найбільша черга на з'єднання з пулом БД за інтервал (відсутня у старих версіях бекенду). */
+  dbPoolWaitingMax?: number;
+  /** Запитів до БД за секунду (середнє за інтервал). */
+  dbQueriesPerSec?: number;
+};
+
+export type AdminDbQueries = {
+  windowSec: number;
+  total: number;
+  perSec: number;
+  /** Запитів/с по 5-секундних стовпчиках, від старого до нового. */
+  series: number[];
+  top: { label: string; count: number; perSec: number; avgMs: number }[];
 };
 
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
@@ -95,6 +108,8 @@ export type AdminServerStatus = {
     ok: boolean;
     pingMs: number;
     pool: { total: number; idle: number; waiting: number; max: number };
+    /** Відсутнє у старих версіях бекенду. */
+    queries?: AdminDbQueries;
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
   users: { total: number; active: number };

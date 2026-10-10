@@ -24,6 +24,8 @@ import {
 } from 'src/chat/room-access.util';
 import { CHAT_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import { presence, type PresenceChange } from './presence.registry';
+import { LastSeenWriter } from './last-seen-writer';
+import { RoomAccessCache } from './room-access.cache';
 import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
 import {
   GuessCharacterManager,
@@ -205,6 +207,14 @@ export class ChatGateway
     this.server?.to(`user:${userId}`).emit(event, payload);
   });
 
+  /** Кеш доступу до кімнат для частих подій (набір, перегляд, heartbeat ігор, ходи): без нього кожна коштувала 2-3 запити до БД. */
+  private readonly roomAccess = new RoomAccessCache();
+
+  /** `User.lastSeenAt`: лише при переході в офлайн, з тротлінгом на користувача. */
+  private readonly lastSeen = new LastSeenWriter((userId, lastSeenAt) =>
+    this.prisma.user.update({ where: { id: userId }, data: { lastSeenAt } }),
+  );
+
   /** «Грає в …» у чаті: лише в пам'яті, без БД і пушів (heartbeat + TTL). */
   private readonly gameActivity = new GameActivityService();
   private gameActivitySweeper: ReturnType<typeof setInterval> | null = null;
@@ -270,6 +280,7 @@ export class ChatGateway
     this.unsubscribePresence?.();
     this.unsubscribePresence = null;
     presence.stop();
+    this.lastSeen.dispose();
     for (const timer of this.pendingReadSync.values()) clearTimeout(timer);
     this.pendingReadSync.clear();
     this.snakeDuel.disposeAll();
@@ -282,10 +293,8 @@ export class ChatGateway
   /** Зміна онлайну розсилається всім одразу: шапка чату, список чатів, учасники кінотеатру, панель учасників. */
   private publishPresenceChange(change: PresenceChange) {
     if (!change.isOnline) {
-      const lastSeenAt = change.lastSeenAt ?? new Date();
-      void this.prisma.user
-        .update({ where: { id: change.userId }, data: { lastSeenAt } })
-        .catch(() => undefined);
+      // Пишемо лише при переході в офлайн і не частіше за раз на 15 с на людину (швидке «згорнув-розгорнув»).
+      this.lastSeen.schedule(change.userId, change.lastSeenAt ?? new Date());
     }
     this.server.emit('userPresenceChanged', {
       userId: change.userId,
@@ -719,7 +728,7 @@ export class ChatGateway
       return;
     }
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
     if (!hasAccess) {
       client.emit('error', 'Нет доступа');
       return;
@@ -760,7 +769,7 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
     if (!hasAccess) return;
 
     client.to(roomId).emit('userTyping', {
@@ -825,7 +834,7 @@ export class ChatGateway
     if (game !== null && typeof game !== 'string') return;
     if (
       game !== null &&
-      !(await canUserPostToRoom(this.prisma, user.id, roomId))
+      !(await this.roomAccess.resolve(this.prisma, user.id, roomId))
     ) {
       return;
     }
@@ -931,7 +940,7 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
     if (!hasAccess) return;
 
     const viewed = (client.data.viewedRooms ??= new Set<string>());
@@ -1044,7 +1053,7 @@ export class ChatGateway
     const kind: GameKind = body?.game === 'snake' ? 'snake' : 'doodle';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
     if (!hasAccess) return;
 
     const session = this.getOrCreateGameSession(roomId, kind);
@@ -1068,14 +1077,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const rawScore = Number(body?.score);
     if (!Number.isFinite(rawScore)) return;
@@ -1103,14 +1106,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const session = this.resetGameSession(roomId, 'doodle');
     this.server.to(roomId).emit('doodle-reset', {
@@ -1130,14 +1127,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const state = body?.state;
     if (!state) return;
@@ -1189,14 +1180,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const rawScore = Number(body?.score);
     if (!Number.isFinite(rawScore)) return;
@@ -1224,14 +1209,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const session = this.resetGameSession(roomId, 'snake');
     this.server.to(roomId).emit('snake-reset', {
@@ -1253,12 +1232,9 @@ export class ChatGateway
     if (!user) return null;
     const roomId = typeof rawRoomId === 'string' ? rawRoomId.trim() : '';
     if (!roomId) return null;
-    if (!(await canUserPostToRoom(this.prisma, user.id, roomId))) return null;
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    const parts = room?.title?.split(':') ?? [];
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access) return null;
+    const parts = access.title?.split(':') ?? [];
     if (parts.length !== 3 || parts[0] !== 'dm') return null;
     return { userId: user.id, roomId, players: [parts[1], parts[2]] };
   }
@@ -1688,14 +1664,8 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
-    if (!hasAccess) return;
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-    if (!room?.title?.startsWith('dm:')) return;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access?.title?.startsWith('dm:')) return;
 
     const state = body?.state;
     if (!state) return;
@@ -1857,6 +1827,7 @@ export class ChatGateway
         },
       },
     });
+    this.roomAccess.invalidate(user.id, roomId);
 
     await this.prisma.roomReadState.deleteMany({
       where: { roomId, userId: user.id },

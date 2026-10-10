@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { authUserCache } from '../auth/auth-user-cache';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { normalizeUsernameHandle } from './username.util';
@@ -129,7 +130,7 @@ export class UsersService {
           : dto.bio.trim();
 
     try {
-      return await this.prisma.user.update({
+      const updated = await this.prisma.user.update({
         where: { id: userId },
         data: {
           ...(nextUsername !== undefined ? { username: nextUsername } : {}),
@@ -141,6 +142,9 @@ export class UsersService {
         },
         select: profileSelect,
       });
+      // JwtStrategy кешує користувача на 30 с: власна правка має бути видна одразу.
+      authUserCache.invalidate(userId);
+      return updated;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -159,11 +163,13 @@ export class UsersService {
   }
 
   async setAvatarUrl(userId: string, avatarUrl: string) {
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { avatarUrl },
       select: profileSelect,
     });
+    authUserCache.invalidate(userId);
+    return updated;
   }
 
   async getAvatarLikesReceivedCount(targetUserId: string) {
