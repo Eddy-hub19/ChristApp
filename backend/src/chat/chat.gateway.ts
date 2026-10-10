@@ -2363,35 +2363,31 @@ export class ChatGateway
     }
 
     try {
-      const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+      // Усе, що потрібно ДО збереження, читаємо паралельно: до `emit` лишається один RTT до БД + insert.
+      const clientMessageId = this.normalizeClientMessageId(body?.clientMessageId);
+      const [hasAccess, existing, replyTarget] = await Promise.all([
+        canUserPostToRoom(this.prisma, user.id, roomId),
+        // Ідемпотентність: повтор з уже збереженим clientMessageId лише повертає ехо відправнику (решта вже отримала).
+        clientMessageId
+          ? this.messagesService.findByClientMessageId(user.id, clientMessageId)
+          : null,
+        // Некоректний replyToId (чужа кімната, видалене) тихо ігноруємо — це звичайне повідомлення.
+        this.messagesService.resolveReplyTarget(roomId, body?.replyToId),
+      ]);
       if (!hasAccess) {
         client.emit('error', 'Нет доступа');
         return;
       }
 
-      // Ідемпотентність: повтор з уже збереженим clientMessageId лише повертає ехо відправнику (решта вже отримала).
-      const clientMessageId = this.normalizeClientMessageId(body?.clientMessageId);
-      if (clientMessageId) {
-        const existing = await this.messagesService.findByClientMessageId(
-          user.id,
-          clientMessageId,
-        );
-        if (existing) {
-          if (existing.roomId === roomId) {
-            client.emit(
-              'newMessage',
-              this.buildNewMessagePayload(roomId, existing),
-            );
-          }
-          return;
+      if (existing) {
+        if (existing.roomId === roomId) {
+          client.emit(
+            'newMessage',
+            this.buildNewMessagePayload(roomId, existing),
+          );
         }
+        return;
       }
-
-      // Некоректний replyToId (чужа кімната, видалене) тихо ігноруємо — це звичайне повідомлення.
-      const replyTarget = await this.messagesService.resolveReplyTarget(
-        roomId,
-        body?.replyToId,
-      );
 
       let message;
       try {
@@ -2400,6 +2396,7 @@ export class ChatGateway
               type: 'VIDEO_NOTE',
               fileUrl: normalizedFileUrl,
               senderId: user.id,
+              sender: { username: user.username, nickname: user.nickname },
               roomId,
               replyToId: replyTarget?.id,
               clientMessageId,
@@ -2408,6 +2405,7 @@ export class ChatGateway
               type: 'TEXT',
               content: normalizedContent,
               senderId: user.id,
+              sender: { username: user.username, nickname: user.nickname },
               roomId,
               replyToId: replyTarget?.id,
               clientMessageId,
@@ -2698,11 +2696,17 @@ export class ChatGateway
     message: NewChatMessageInput,
     options: { repliedToUserId?: string } = {},
   ) {
-    await this.messagesService.markRoomAsRead(
-      roomId,
-      message.senderId,
-      message.createdAt,
-    );
+    // Read receipt відправника пишемо паралельно з розсилкою, а не перед нею: `emit` не чекає запису в БД.
+    const readReceipt = this.messagesService
+      .markRoomAsRead(roomId, message.senderId, message.createdAt)
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.error('[WS] markRoomAsRead failed:', {
+          roomId,
+          userId: message.senderId,
+          reason,
+        });
+      });
 
     this.server
       .to(roomId)
@@ -2729,6 +2733,8 @@ export class ChatGateway
           reason,
         });
       });
+
+    await readReceipt;
   }
 
   /** Тіло події `newMessage`; `clientMessageId` повертається відправнику, щоб ехо замінило саме його «бульбашку». */

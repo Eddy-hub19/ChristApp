@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MessageType, Prisma } from '@prisma/client';
+import { MessageType, Prisma, type User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
@@ -118,7 +118,15 @@ export class MessagesService {
   }
 
   async createRoomMessage(
-    params: { replyToId?: string | null; clientMessageId?: string | null } & (
+    params: {
+      replyToId?: string | null;
+      clientMessageId?: string | null;
+      /**
+       * Уже известный автор (напр. из сокета): тогда insert идёт одним запросом, без `include`.
+       * `create` с `include` Prisma выполняет транзакцией BEGIN/INSERT/SELECT/SELECT/COMMIT — это 5 обращений к БД до `emit`.
+       */
+      sender?: Pick<User, 'username' | 'nickname'>;
+    } & (
       | {
           roomId: string;
           senderId: string;
@@ -165,24 +173,30 @@ export class MessagesService {
         ? params.fileUrl
         : null;
     const voiceDuration = type === 'VOICE' ? params.voiceDuration : null;
-    const created = await this.prisma.message.create({
-      data: {
-        type: type as MessageType,
-        content,
-        fileUrl,
-        voiceDuration: voiceDuration || null,
-        mediaWidth: type === 'IMAGE' ? (params.mediaWidth ?? null) : null,
-        mediaHeight: type === 'IMAGE' ? (params.mediaHeight ?? null) : null,
-        fileSize: type === 'FILE' ? (params.fileSize ?? null) : null,
-        replyToId: params.replyToId ?? null,
-        clientMessageId: params.clientMessageId ?? null,
-        senderId,
-        roomId,
-      },
-      include: {
-        sender: true,
-      },
-    });
+    const data = {
+      type: type as MessageType,
+      content,
+      fileUrl,
+      voiceDuration: voiceDuration || null,
+      mediaWidth: type === 'IMAGE' ? (params.mediaWidth ?? null) : null,
+      mediaHeight: type === 'IMAGE' ? (params.mediaHeight ?? null) : null,
+      fileSize: type === 'FILE' ? (params.fileSize ?? null) : null,
+      replyToId: params.replyToId ?? null,
+      clientMessageId: params.clientMessageId ?? null,
+      senderId,
+      roomId,
+    };
+    const created = params.sender
+      ? {
+          ...(await this.prisma.message.create({ data })),
+          sender: params.sender,
+        }
+      : await this.prisma.message.create({
+          data,
+          include: {
+            sender: true,
+          },
+        });
     const [withReply] = await this.attachReplies([created]);
     return withReply;
   }

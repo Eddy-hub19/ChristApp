@@ -13,26 +13,24 @@ export async function canUserPostToRoom(
     return true;
   }
 
-  const membership = await prisma.roomMember.findUnique({
-    where: {
-      roomId_userId: {
-        roomId,
-        userId,
+  // Членство й title кімнати незалежні — читаємо паралельно: один RTT до БД замість двох до `emit`.
+  const [membership, room] = await Promise.all([
+    prisma.roomMember.findUnique({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId,
+        },
       },
-    },
-    select: { userId: true },
-  });
+      select: { userId: true },
+    }),
+    prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    }),
+  ]);
 
-  if (!membership) {
-    return false;
-  }
-
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    select: { title: true },
-  });
-
-  if (!room) {
+  if (!membership || !room) {
     return false;
   }
 

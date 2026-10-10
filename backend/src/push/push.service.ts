@@ -10,6 +10,7 @@ import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MessagesService } from 'src/messages/messages.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
+import { AsyncLimiter } from './async-limiter';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
@@ -58,6 +59,9 @@ export class PushService implements OnModuleDestroy {
 
   /** Лічильники відправки по типах подій (для логів і діагностики). */
   readonly deliveryStats = new PushDeliveryStats();
+
+  /** Одночасно обробляємо не більше двох «чат-пушів»: інакше фонова робота витісняє realtime-запити з пулу БД. */
+  private readonly chatPushLimiter = new AsyncLimiter(2);
 
   private readonly isConfigured: boolean;
   private readonly publicKey: string | null;
@@ -250,7 +254,16 @@ export class PushService implements OnModuleDestroy {
     };
   }
 
-  async sendChatMessagePush(input: ChatPushNotificationInput) {
+  /**
+   * Пуш про нове повідомлення. Виконується в обмеженій черзі: для Global це запит по всіх активних
+   * користувачах + підрахунок бейджів + відправка, і без ліміту така робота займає весь пул з'єднань БД
+   * та затримує `emit` наступних повідомлень.
+   */
+  sendChatMessagePush(input: ChatPushNotificationInput) {
+    return this.chatPushLimiter.run(() => this.dispatchChatMessagePush(input));
+  }
+
+  private async dispatchChatMessagePush(input: ChatPushNotificationInput) {
     if (!this.isConfigured) {
       return;
     }

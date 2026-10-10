@@ -5,7 +5,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 describe('MessagesService', () => {
   let service: MessagesService;
   let prisma: {
-    message: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+    message: {
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
   };
 
   beforeEach(async () => {
@@ -14,6 +19,7 @@ describe('MessagesService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+        create: jest.fn(),
       },
     };
     const module: TestingModule = await Test.createTestingModule({
@@ -136,6 +142,54 @@ describe('MessagesService', () => {
       await expect(
         service.resolveReplyTarget('room-1', undefined),
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('createRoomMessage', () => {
+    const row = {
+      id: 'm1',
+      type: 'TEXT',
+      content: 'Привіт',
+      senderId: 'u1',
+      roomId: 'room-1',
+      replyToId: null,
+    };
+
+    it('з відомим автором робить один insert без include (без зайвих запитів до emit)', async () => {
+      prisma.message.create.mockResolvedValue(row);
+      const sender = { username: 'sender', nickname: 'Sender' };
+
+      const result = await service.createRoomMessage({
+        type: 'TEXT',
+        content: 'Привіт',
+        senderId: 'u1',
+        roomId: 'room-1',
+        sender,
+      });
+
+      expect(prisma.message.create).toHaveBeenCalledTimes(1);
+      expect(prisma.message.create.mock.calls[0][0]).not.toHaveProperty(
+        'include',
+      );
+      expect(result.sender).toEqual(sender);
+      expect(result.id).toBe('m1');
+    });
+
+    it('без автора (REST-завантаження) підтягує sender через include, як раніше', async () => {
+      const sender = { username: 'sender', nickname: 'Sender' };
+      prisma.message.create.mockResolvedValue({ ...row, sender });
+
+      const result = await service.createRoomMessage({
+        type: 'TEXT',
+        content: 'Привіт',
+        senderId: 'u1',
+        roomId: 'room-1',
+      });
+
+      expect(prisma.message.create.mock.calls[0][0]).toMatchObject({
+        include: { sender: true },
+      });
+      expect(result.sender).toEqual(sender);
     });
   });
 });
