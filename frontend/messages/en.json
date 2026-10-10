@@ -977,7 +977,7 @@
       "nobody": "nobody"
     },
     "status": {
-      "full": "All arenas are full right now, try again in a bit",
+      "full": "The arena is full, try again in a bit",
       "afk": "You were disconnected for inactivity",
       "error": "Could not connect to the arena"
     },
