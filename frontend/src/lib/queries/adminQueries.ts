@@ -73,6 +73,29 @@ export type AdminMetricSample = {
   dbQueriesPerSec?: number;
 };
 
+/** Чистий RTT до БД: 50 x `SELECT 1` на одному з'єднанні, мс. */
+export type AdminDbLatency = {
+  measuredAt: string;
+  samples: number;
+  medianMs: number;
+  p95Ms: number;
+  minMs: number;
+  maxMs: number;
+};
+
+export async function runAdminDbLatency(): Promise<AdminDbLatency> {
+  const token = getAuthToken();
+  if (!token) throw new AdminHttpError(401, "no token");
+  const res = await apiFetch(`${getHttpApiBase()}/admin/db-latency`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new AdminHttpError(res.status, await res.text().catch(() => ""));
+  }
+  return ((await res.json()) as { result: AdminDbLatency }).result;
+}
+
 export type AdminDbQueries = {
   windowSec: number;
   total: number;
@@ -110,6 +133,12 @@ export type AdminServerStatus = {
     pool: { total: number; idle: number; waiting: number; max: number };
     /** Відсутнє у старих версіях бекенду. */
     queries?: AdminDbQueries;
+    location?: {
+      database: { host: string; vendor: string; region: string | null; pooled: boolean | null } | null;
+      /** Регіон сервера з RENDER_REGION (Render не віддає його у змінних середовища). */
+      server: { renderRegion: string | null; awsRegion: string | null };
+    };
+    latency?: AdminDbLatency | null;
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
   users: { total: number; active: number };

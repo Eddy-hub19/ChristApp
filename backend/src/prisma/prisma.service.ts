@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { resolvePoolSettings } from './db-info';
 import { DbQueryStats, queryLabel } from './db-query-stats';
 
 @Injectable()
@@ -17,6 +18,9 @@ export class PrismaService
   constructor() {
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
+      // connection_limit / pool_timeout з URL тут не діють (driver adapter): пул налаштовується лише так.
+      ...resolvePoolSettings(),
+      keepAlive: true,
     });
 
     const adapter = new PrismaPg(pool);

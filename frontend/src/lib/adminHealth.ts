@@ -61,6 +61,11 @@ export function evaluateServerHealth(status: AdminServerStatus): ServerHealth {
   return { overall, cpu, loopLag, db, pool };
 }
 
+/** Світлофор для чистого RTT до БД (SELECT 1): одна область ~1-5 мс, сусідні ~20-30 мс, різні материки ~90+ мс. */
+export function evaluateDbRtt(medianMs: number): HealthLevel {
+  return levelByThreshold(medianMs, 30, 80);
+}
+
 /** Світлофор для частки бюджету CPU, яку займає арена "Отара": до 75% - комфортно, 75-100% - на межі, далі - не вкладається. */
 export function evaluateArenaBudget(percent: number): HealthLevel {
   return levelByThreshold(percent, 75, 100);

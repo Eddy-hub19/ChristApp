@@ -7,9 +7,10 @@ import {
   adminCpuBenchmarkQueryOptions,
   adminServerQueryOptions,
   runAdminCpuBenchmark,
+  runAdminDbLatency,
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { cpuBudgetShare, evaluateArenaBudget, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
+import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -144,7 +145,12 @@ function CpuBenchmark({ active }: { active: boolean }) {
 
 export default function AdminProcesses({ active }: { active: boolean }) {
   const t = useTranslations("admin");
+  const queryClient = useQueryClient();
   const query = useQuery(adminServerQueryOptions(active));
+  const latencyRun = useMutation({
+    mutationFn: runAdminDbLatency,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.server() }),
+  });
   const data = query.data;
 
   if (!data) {
@@ -165,6 +171,10 @@ export default function AdminProcesses({ active }: { active: boolean }) {
   const latest = data.latest;
   const history = data.history;
   const queries = data.db.queries;
+  const latency = data.db.latency ?? null;
+  const dbLoc = data.db.location?.database ?? null;
+  const serverLoc = data.db.location?.server ?? null;
+  const regionMismatch = Boolean(dbLoc?.region && serverLoc?.awsRegion && dbLoc.region !== serverLoc.awsRegion);
   const memUsedPct = Math.round(
     ((data.host.totalMemMb - data.host.freeMemMb) / data.host.totalMemMb) * 100,
   );
@@ -254,6 +264,55 @@ export default function AdminProcesses({ active }: { active: boolean }) {
                 : undefined
             }
           />
+        </div>
+        <div className={styles.statGrid}>
+          <Stat
+            label={t("procDbRegion")}
+            level={regionMismatch ? "warn" : undefined}
+            value={dbLoc?.region ?? "—"}
+            sub={
+              dbLoc
+                ? `${dbLoc.vendor}${dbLoc.pooled === null ? "" : dbLoc.pooled ? ` · ${t("procDbPooled")}` : ` · ${t("procDbDirect")}`}`
+                : undefined
+            }
+          />
+          <Stat
+            label={t("procServerRegion")}
+            level={regionMismatch ? "warn" : undefined}
+            value={serverLoc?.renderRegion ?? t("procServerRegionUnknown")}
+            sub={
+              regionMismatch
+                ? t("procRegionMismatch")
+                : serverLoc?.renderRegion
+                  ? serverLoc.awsRegion ?? undefined
+                  : t("procServerRegionHint")
+            }
+          />
+          <Stat
+            label={t("procDbRtt")}
+            level={latency ? evaluateDbRtt(latency.medianMs) : undefined}
+            value={latency ? `${latency.medianMs} мс` : "—"}
+            sub={
+              latency
+                ? t("procDbRttSub", { p95: latency.p95Ms, n: latency.samples })
+                : t("procDbRttNone")
+            }
+          />
+        </div>
+        <div className={styles.benchRow}>
+          <button
+            type="button"
+            className={styles.benchBtn}
+            onClick={() => latencyRun.mutate()}
+            disabled={latencyRun.isPending}
+          >
+            {latencyRun.isPending ? t("procBenchRunning") : t("procDbRttButton")}
+          </button>
+          {latency ? (
+            <span className={styles.meta}>
+              {t("procBenchAt", { time: new Date(latency.measuredAt).toLocaleTimeString() })}
+            </span>
+          ) : null}
         </div>
         {queries && queries.top.length > 0 ? (
           <>

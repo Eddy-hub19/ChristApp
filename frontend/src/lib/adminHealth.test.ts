@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminServerStatus } from "@/lib/queries/adminQueries";
-import { cpuBudgetShare, evaluateArenaBudget, evaluateServerHealth } from "./adminHealth";
+import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth } from "./adminHealth";
 
 function status(over: {
   cpu?: number;
@@ -72,5 +72,13 @@ describe("evaluateArenaBudget", () => {
     expect(evaluateArenaBudget(75)).toBe("warn");
     expect(evaluateArenaBudget(99)).toBe("warn");
     expect(evaluateArenaBudget(100)).toBe("bad");
+  });
+});
+
+describe("evaluateDbRtt", () => {
+  it("is ok within a region, warn across neighbours, bad across continents", () => {
+    expect(evaluateDbRtt(3)).toBe("ok");
+    expect(evaluateDbRtt(30)).toBe("warn");
+    expect(evaluateDbRtt(94)).toBe("bad");
   });
 });
