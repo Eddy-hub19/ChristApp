@@ -288,12 +288,16 @@ describe('ChatGateway', () => {
       client as never,
     );
 
-    expect(messagesService.createRoomMessage).toHaveBeenCalledWith({
-      type: 'TEXT',
-      content: 'Свежое сообщение для получателя',
-      senderId: 'u1',
-      roomId: 'room-1',
-    });
+    // Автор передаётся из сокета: createRoomMessage не делает лишних запросов (include sender) до emit.
+    expect(messagesService.createRoomMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'TEXT',
+        content: 'Свежое сообщение для получателя',
+        senderId: 'u1',
+        roomId: 'room-1',
+        sender: { username: 'sender', nickname: 'sender' },
+      }),
+    );
 
     expect(roomEmit).toHaveBeenCalledWith('newMessage', {
       id: 'm3',
@@ -381,7 +385,76 @@ describe('ChatGateway', () => {
     expect(client.emit).toHaveBeenCalledWith('error', 'Нет доступа');
     expect(messagesService.createRoomMessage).not.toHaveBeenCalled();
     expect(pushService.sendChatMessagePush).not.toHaveBeenCalled();
-    expect(prisma.room.findUnique).not.toHaveBeenCalled();
+    expect(roomEmit).not.toHaveBeenCalled();
+  });
+
+  describe('шлях до emit (затримка доставки)', () => {
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
+    const saved = {
+      id: 'm20',
+      type: MessageType.TEXT,
+      content: 'Швидко',
+      fileUrl: null,
+      createdAt: new Date('2026-03-13T10:07:00.000Z'),
+      senderId: 'u1',
+      sender: { username: 'sender', nickname: 'sender' },
+    };
+
+    it('розсилає newMessage, не чекаючи запису read receipt у БД', async () => {
+      const client = createClient(sender);
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.createRoomMessage.mockResolvedValue(saved);
+      // Запис read receipt «висить» — emit мусить відбутись раніше.
+      let releaseRead!: () => void;
+      messagesService.markRoomAsRead.mockReturnValue(
+        new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        }),
+      );
+
+      const pending = gateway.handleMessage(
+        { roomId: 'room-1', content: 'Швидко' },
+        client as never,
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(roomEmit).toHaveBeenCalledWith(
+        'newMessage',
+        expect.objectContaining({ id: 'm20' }),
+      );
+      expect(pushService.sendChatMessagePush).toHaveBeenCalled();
+
+      releaseRead();
+      await pending;
+      expect(messagesService.markRoomAsRead).toHaveBeenCalledWith(
+        'room-1',
+        'u1',
+        saved.createdAt,
+      );
+    });
+
+    it('збій запису read receipt не перетворює збережене повідомлення на «Ошибка сохранения»', async () => {
+      const client = createClient(sender);
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u1' });
+      messagesService.createRoomMessage.mockResolvedValue(saved);
+      messagesService.markRoomAsRead.mockRejectedValue(new Error('db down'));
+
+      await gateway.handleMessage(
+        { roomId: 'room-1', content: 'Швидко' },
+        client as never,
+      );
+
+      expect(roomEmit).toHaveBeenCalledWith(
+        'newMessage',
+        expect.objectContaining({ id: 'm20' }),
+      );
+      expect(client.emit).not.toHaveBeenCalledWith(
+        'error',
+        'Ошибка сохранения сообщения',
+      );
+      errorSpy.mockRestore();
+    });
   });
 
   it('rejects send when user is not a participant of dm title despite membership row', async () => {
