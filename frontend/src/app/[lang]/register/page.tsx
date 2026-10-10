@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { consumePostLoginPath } from "@/lib/postLoginRedirect";
 import {
   type RegisterFieldErrors,
   validateRegisterForm,
@@ -54,7 +55,8 @@ export default function RegisterPage() {
     });
 
     if (success) {
-      router.push("/chat");
+      // запрошення (Кіношка / Отара): після реєстрації - туди, куди кликали
+      router.push(consumePostLoginPath() ?? "/chat");
     }
   };
 

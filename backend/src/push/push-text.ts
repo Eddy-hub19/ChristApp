@@ -1,6 +1,9 @@
 import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
 import { bookPreviewLabel } from 'src/messages/book-sniff.util';
-import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from 'src/messages/voice-message';
+import {
+  VOICE_META_PREFIX,
+  VOICE_META_SUFFIX,
+} from 'src/messages/voice-message';
 
 /**
  * Тексти пушів. Сервер не знає мову інтерфейсу кожного пристрою, тому підписи медіа — фіксовані (укр.),
@@ -12,10 +15,12 @@ export const PUSH_LABELS = {
   file: '📎 Файл',
   video: '🎥 Відео',
   sticker: 'Стікер',
+  flockInvite: '🐑 Запрошення в Отару',
 } as const;
 
 const STICKER_META_PREFIX = '[[sticker:';
 const VERSE_SHARE_META_PREFIX = '[[verse-share:';
+const FLOCK_INVITE_RE = /^\[\[flock-invite:\d{1,9}\]\]$/;
 const META_SUFFIX = ']]';
 
 export const PUSH_BODY_MAX_LEN = 220;
@@ -46,7 +51,8 @@ export function pushMessageText(
 
   if (
     type === 'VOICE' ||
-    (trimmed.startsWith(VOICE_META_PREFIX) && trimmed.endsWith(VOICE_META_SUFFIX))
+    (trimmed.startsWith(VOICE_META_PREFIX) &&
+      trimmed.endsWith(VOICE_META_SUFFIX))
   ) {
     return PUSH_LABELS.voice;
   }
@@ -56,9 +62,14 @@ export function pushMessageText(
 
   const withoutReply = stripLegacyReplyPrefix(raw).trim();
   if (withoutReply.startsWith(STICKER_META_PREFIX)) return PUSH_LABELS.sticker;
+  if (FLOCK_INVITE_RE.test(withoutReply)) return PUSH_LABELS.flockInvite;
   if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
-    const end = withoutReply.indexOf(META_SUFFIX, VERSE_SHARE_META_PREFIX.length);
-    const after = end === -1 ? withoutReply : withoutReply.slice(end + META_SUFFIX.length);
+    const end = withoutReply.indexOf(
+      META_SUFFIX,
+      VERSE_SHARE_META_PREFIX.length,
+    );
+    const after =
+      end === -1 ? withoutReply : withoutReply.slice(end + META_SUFFIX.length);
     return collapse(stripHtml(after));
   }
   return collapse(withoutReply);
@@ -85,7 +96,9 @@ export function buildPushDisplay(input: {
 }): PushDisplay {
   const sender = input.senderName.trim() || 'ChristApp';
   const text = truncatePushText(input.text);
-  const prefix = input.isReplyToRecipient ? `${sender} відповів(ла) вам: ` : null;
+  const prefix = input.isReplyToRecipient
+    ? `${sender} відповів(ла) вам: `
+    : null;
 
   if (input.kind === 'watch') {
     return {
@@ -99,7 +112,10 @@ export function buildPushDisplay(input: {
       body: prefix ? truncatePushText(`${prefix}${text}`) : text,
     };
   }
-  const title = input.kind === 'global' ? 'Загальний чат' : (input.roomTitle ?? '').trim() || 'ChristApp';
+  const title =
+    input.kind === 'global'
+      ? 'Загальний чат'
+      : (input.roomTitle ?? '').trim() || 'ChristApp';
   return {
     title,
     body: truncatePushText(`${prefix ?? `${sender}: `}${text}`),

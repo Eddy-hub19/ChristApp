@@ -18,6 +18,8 @@ export const FX_GHOST = 2;
 export const FX_FROZEN = 4;
 export const FX_SPEED = 8;
 export const FX_MAGNET = 16;
+/** Гравець у паузі (відключився, чекає повернення). */
+export const FX_PAUSED = 32;
 
 export const BONUS_CODE = [
   'speed',
@@ -56,6 +58,8 @@ export interface DecodedState {
   thorns: { id: number; x: number; y: number; mass: number }[];
   blobs: { id: number; x: number; y: number }[];
   bonuses: { id: number; kind: number; x: number; y: number }[];
+  /** Таймери пауз гравців у зоні видимості (мс до зникнення). */
+  paused: { pid: number; remainingMs: number }[];
 }
 export interface DecodedBoard {
   top: { pid: number; mass: number; name: string }[];
@@ -118,6 +122,8 @@ export interface StateInput {
   thorns: { id: number; x: number; y: number; mass: number }[];
   blobs: { id: number; x: number; y: number }[];
   bonuses: { id: number; kind: number; x: number; y: number }[];
+  /** Таймери пауз гравців у зоні видимості (мс до зникнення). */
+  paused: { pid: number; remainingMs: number }[];
 }
 
 export function encodeState(s: StateInput): Uint8Array {
@@ -188,6 +194,11 @@ export function encodeState(s: StateInput): Uint8Array {
     w.u8(b.kind);
     w.pos(b.x);
     w.pos(b.y);
+  }
+  w.u16(s.paused.length);
+  for (const p of s.paused) {
+    w.u16(p.pid);
+    w.u16(Math.min(65535, Math.round(p.remainingMs / 100)));
   }
   return w.out();
 }
@@ -289,6 +300,10 @@ export function decodeState(buf: ArrayBuffer | Uint8Array): DecodedState {
     x: r.pos(),
     y: r.pos(),
   }));
+  const paused = Array.from({ length: r.u16() }, () => ({
+    pid: r.u16(),
+    remainingMs: r.u16() * 100,
+  }));
   return {
     tick,
     alive,
@@ -303,6 +318,7 @@ export function decodeState(buf: ArrayBuffer | Uint8Array): DecodedState {
     thorns,
     blobs,
     bonuses,
+    paused,
   };
 }
 

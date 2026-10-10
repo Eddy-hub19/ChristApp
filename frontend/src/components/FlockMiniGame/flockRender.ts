@@ -1,5 +1,5 @@
 import type { FlockModel, RCell } from "./flockModel";
-import { FX_FROZEN, FX_GHOST, FX_SHIELD, FX_SPEED } from "./flockProtocol";
+import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { skinOf, type Skin } from "./flockSkins";
 import { viewScale } from "./flockModel";
 
@@ -474,7 +474,9 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
   if (!own && c.speed < 8) ang = ((c.id * 2.399) % (Math.PI * 2)) - Math.PI;
   const wobble = Math.min(1, c.speed / 140 + (own ? 0.15 : 0.1));
   const ghost = (c.fx & FX_GHOST) !== 0;
+  const paused = (c.fx & FX_PAUSED) !== 0;
   if (ghost) ctx.globalAlpha = 0.45;
+  if (paused) ctx.globalAlpha = 0.42;
   if ((c.fx & FX_SPEED) !== 0) {
     ctx.strokeStyle = "rgba(255,210,74,0.7)";
     ctx.lineWidth = r * 0.08;
@@ -504,6 +506,34 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+  if (paused) drawPauseBadge(ctx, m, c, r, o, scale);
+}
+
+/** Іконка паузи й таймер над овечкою, що чекає на повернення гравця. */
+function drawPauseBadge(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, r: number, o: DrawOpts, scale: number) {
+  const left = m.pauseLeftMs(c.pid);
+  const size = Math.max(r * 0.55, 13 / scale);
+  const cy = c.y - r - size * 0.9;
+  ctx.fillStyle = o.theme.dark ? "rgba(20,32,26,0.85)" : "rgba(255,255,255,0.9)";
+  circle(ctx, c.x, cy, size);
+  ctx.fill();
+  ctx.fillStyle = o.theme.dark ? "#f4fff0" : "#2a4a2a";
+  const bw = size * 0.22;
+  const bh = size * 0.8;
+  ctx.fillRect(c.x - bw * 1.45, cy - bh / 2, bw, bh);
+  ctx.fillRect(c.x + bw * 0.45, cy - bh / 2, bw, bh);
+  if (left > 0) {
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${size * 0.95}px system-ui, sans-serif`;
+    ctx.lineJoin = "round";
+    ctx.lineWidth = size * 0.28;
+    ctx.strokeStyle = o.theme.nameStroke;
+    ctx.fillStyle = o.theme.nameFill;
+    const txt = `${Math.ceil(left / 1000)}`;
+    ctx.strokeText(txt, c.x, cy - size * 1.5);
+    ctx.fillText(txt, c.x, cy - size * 1.5);
+  }
 }
 
 /** Мінікарта: світ у квадраті `size` px; гравці - точки за масою, ти - з обідком. */

@@ -26,10 +26,12 @@ describe("flockProtocol", () => {
         thorns: [],
         blobs: [],
         bonuses: [{ id: 1, kind: 5, x: 5, y: 6 }],
+        paused: [{ pid: 3, remainingMs: 9_800 }],
       }),
     );
     expect(state.players[0]).toEqual({ pid: 3, skin: 4, bot: true, name: "Ягня Сем" });
     expect(state.cells[0].mass).toBe(55);
+    expect(state.paused).toEqual([{ pid: 3, remainingMs: 9_800 }]);
     const board = decodeBoard(encodeBoard({ top: [{ pid: 1, mass: 10, name: "A" }], selfRank: 1, alive: 2, map: [] }));
     expect(board.top[0].name).toBe("A");
   });

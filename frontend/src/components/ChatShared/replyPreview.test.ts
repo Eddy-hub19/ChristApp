@@ -4,6 +4,7 @@ import { replyPreviewText } from "./replyPreview";
 // Фейковий t: повертає людський підпис за ключем, як ua-переклад.
 const labels: Record<string, string> = {
   previewSticker: "Стікер",
+  previewFlockInvite: "🐑 Запрошення в Отару",
   previewPhoto: "🖼 Фото",
   previewVoice: "🎤 Голосове",
   previewVideoNote: "🎥 Відеокружок",
@@ -43,5 +44,10 @@ describe("replyPreviewText", () => {
     expect(replyPreviewText(t, { content: "", type: "VOICE", voiceDuration: 12 })).toBe("🎤 Голосове 0:12");
     expect(replyPreviewText(t, { content: "report.docx", type: "FILE" })).toBe("📎 report.docx");
     expect(replyPreviewText(t, { content: "захід сонця", type: "IMAGE" })).toBe("🖼 захід сонця");
+  });
+
+  it("labels a Flock invite instead of showing the raw prefix, even as a legacy reply", () => {
+    expect(replyPreviewText(t, { content: "[[flock-invite:3]]" })).toBe("🐑 Запрошення в Отару");
+    expect(replyPreviewText(t, { content: legacy("[[flock-invite:0]]") })).toBe("🐑 Запрошення в Отару");
   });
 });

@@ -113,7 +113,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
   world.queryCells(me.x, me.y, scan, (c) => {
     if (c.pid === p.id) return;
     const o = world.players.get(c.pid);
-    if (!o || !o.alive) return;
+    if (!o || !o.alive || o.paused) return; // гравців у паузі боти не помічають
     if (world.isGhost(o) || world.isGhost(p)) return;
     const d = Math.hypot(c.x - me.x, c.y - me.y) || 1;
     if (

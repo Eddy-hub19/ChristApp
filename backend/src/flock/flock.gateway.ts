@@ -84,22 +84,43 @@ export class FlockGateway
   @SubscribeMessage('j')
   join(
     @ConnectedSocket() client: FlockSocket,
-    @MessageBody() body: { skin?: unknown },
+    @MessageBody()
+    body: {
+      skin?: unknown;
+      resume?: unknown;
+      arena?: unknown;
+      resumeOnly?: unknown;
+    },
   ) {
     const skin = typeof body?.skin === 'number' ? Math.floor(body.skin) : 0;
+    const resume =
+      typeof body?.resume === 'string' && /^[0-9a-f]{32}$/.test(body.resume)
+        ? body.resume
+        : undefined;
+    const arena =
+      typeof body?.arena === 'number' &&
+      Number.isInteger(body.arena) &&
+      body.arena > 0
+        ? body.arena
+        : undefined;
     const res = this.manager.join(
       client.id,
       client.data.userId!,
       client.data.name ?? 'Овечка',
       Math.max(0, Math.min(NUM_SKINS - 1, skin)),
+      { resume, arena, resumeOnly: body?.resumeOnly === true },
     );
     if (!res.ok) {
-      client.emit('e', { code: res.error });
+      client.emit('e', { code: res.error, resumeFailed: !!res.resumeFailed });
       return;
     }
     client.emit('w', {
       pid: res.pid,
       arenaId: res.arenaId,
+      resumeToken: res.token,
+      resumed: !!res.resumed,
+      resumeFailed: !!res.resumeFailed,
+      pauseMs: FLOCK_CONFIG.resumePauseMs,
       world: FLOCK_CONFIG.worldSize,
       chunk: FLOCK_CONFIG.chunkSize,
       tickHz: FLOCK_CONFIG.tickHz,
@@ -139,8 +160,9 @@ export class FlockGateway
     this.manager.leave(client.id);
   }
 
+  /** Розрив зʼєднання не з волі гравця: овечка лишається в паузі (явний вихід іде через `x`). */
   handleDisconnect(client: FlockSocket) {
-    this.manager.leave(client.id);
+    this.manager.disconnect(client.id);
   }
 
   /** Чи є зараз живі гравці (для статусу "грає в Отару"). */

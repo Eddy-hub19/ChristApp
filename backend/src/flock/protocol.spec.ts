@@ -28,6 +28,7 @@ describe('бінарний протокол', () => {
     thorns: [{ id: 2, x: 10, y: 20, mass: 70 }],
     blobs: [{ id: 4, x: 1, y: 2 }],
     bonuses: [{ id: 3, kind: 6, x: 3199, y: 0.5 }],
+    paused: [{ pid: 7, remainingMs: 12_300 }],
   };
 
   it('стан: encode -> decode без втрат (у межах квантування)', () => {
@@ -55,6 +56,7 @@ describe('бінарний протокол', () => {
     });
     expect(d.bonuses[0].x).toBeCloseTo(3199, 1);
     expect(d.foodEvents[0].y).toBe(3000);
+    expect(d.paused).toEqual([{ pid: 7, remainingMs: 12_300 }]);
   });
 
   it('вся арена в області видимості займає десятки-сотні байт, а не кілобайти', () => {

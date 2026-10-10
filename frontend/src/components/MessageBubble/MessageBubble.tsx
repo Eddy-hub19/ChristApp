@@ -36,6 +36,8 @@ import {
 import { Link } from "@/i18n/navigation";
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
+import { parseFlockInvite } from "@/lib/flockInviteMessage";
+import FlockInviteCard from "@/components/FlockMiniGame/FlockInviteCard";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import ChatImage from "@/components/ChatImage/ChatImage";
@@ -358,6 +360,7 @@ function MessageBubble({
       message.username === "Ты";
 
   const stickerPayload = parseStickerMessagePayload(message.content);
+  const flockInvite = parseFlockInvite(message.content);
   const isMediaMessage =
     message.type === "IMAGE" ||
     message.type === "FILE" ||
@@ -378,6 +381,7 @@ function MessageBubble({
   const isPlainText =
     (!message.type || message.type === "TEXT") &&
     !stickerPayload &&
+    !flockInvite &&
     !parseVoiceMessageUrl(message.content);
   const canEditThisMessage = Boolean(isOwnMessage && onEdit && isPlainText);
   const copyText = isPlainText ? stripLegacyReplyPrefix(message.content).trim() : "";
@@ -456,6 +460,16 @@ function MessageBubble({
           !hideSenderName && !(hideOwnSenderName && isOwnMessage);
         const showCompactSender =
           senderNameMode === "compact-above" && canShowSenderName;
+
+        if (flockInvite) {
+          return (
+            <FlockInviteCard
+              senderName={senderName}
+              arenaId={flockInvite.arenaId}
+              isOwn={isOwnMessage}
+            />
+          );
+        }
 
         if (stickerPayload) {
           return (

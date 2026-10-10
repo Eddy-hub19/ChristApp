@@ -403,3 +403,62 @@
     transform: none;
   }
 }
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  font-size: 13px;
+}
+
+.lobbyInvite {
+  align-self: flex-start;
+}
+
+.hudInvite {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: calc(max(12px, env(safe-area-inset-left, 0px)) + 50px);
+  z-index: 3;
+}
+
+.reconnect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  box-shadow: 0 16px 36px -20px rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--foreground) 25%, transparent);
+  border-top-color: var(--accent);
+  animation: flockSpin 0.9s linear infinite;
+}
+
+@keyframes flockSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

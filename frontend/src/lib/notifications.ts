@@ -1,6 +1,7 @@
 import { hasActivePushSubscription } from "@/lib/push";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
+import { parseFlockInvite } from "@/lib/flockInviteMessage";
 
 const VERSE_SHARE_META_PREFIX = "[[verse-share:";
 const VERSE_SHARE_META_SUFFIX = "]]";
@@ -14,6 +15,7 @@ type ChatNotificationPayload = {
 
 export function normalizeNotificationBody(rawBody: string) {
   const withoutReply = stripLegacyReplyPrefix(String(rawBody ?? ""));
+  if (parseFlockInvite(withoutReply)) return "🐑 Запрошення в Отару";
   if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
     const suffixIndex = withoutReply.indexOf(
       VERSE_SHARE_META_SUFFIX,

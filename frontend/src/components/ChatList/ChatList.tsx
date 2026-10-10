@@ -16,6 +16,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import styles from "@/components/ChatList/ChatList.module.scss";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
+import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
 import { GLOBAL_ROOM_ID, SHARE_WITH_JESUS_CHAT_ID } from "@/lib/chatRooms";
 import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
@@ -536,6 +537,8 @@ const ChatList = ({
         <div className={styles.searchBar}>
           {renderSearchField("chat-list-search")}
         </div>
+
+        <FlockResumeBanner />
 
         <ul className={styles.chatList}>
           {isLoading

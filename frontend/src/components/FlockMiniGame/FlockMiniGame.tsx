@@ -6,7 +6,9 @@ import { X } from "lucide-react";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
-import { FlockClient, type DeathInfo, type FlockStatus } from "./flockClient";
+import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus } from "./flockClient";
+import FlockInvite from "./FlockInvite";
+import { loadFlockSession } from "./flockSession";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
 import { SKINS, skinOf } from "./flockSkins";
@@ -23,6 +25,8 @@ import styles from "./FlockMiniGame.module.scss";
 type Props = {
   open: boolean;
   userId: string;
+  /** Арена з посилання-запрошення (для нового входу). */
+  arenaId?: number | null;
   onClose: () => void;
 };
 
@@ -33,9 +37,10 @@ type Hud = {
   top: { pid: number; mass: number; name: string }[];
   selfPid: number;
   effects: { kind: string; remainingMs: number; totalMs: number }[];
+  arenaId: number | null;
 };
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], selfPid: 0, effects: [] };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], selfPid: 0, effects: [], arenaId: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 
@@ -79,7 +84,7 @@ function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
   return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden />;
 }
 
-export default function FlockMiniGame({ open, userId, onClose }: Props) {
+export default function FlockMiniGame({ open, userId, arenaId = null, onClose }: Props) {
   const t = useTranslations("flock");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const miniRef = useRef<HTMLCanvasElement | null>(null);
@@ -104,6 +109,8 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
   const [isTouch, setIsTouch] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [notice, setNotice] = useState<FlockNotice>(null);
+  const [reconnectLeft, setReconnectLeft] = useState(0);
 
   useEffect(() => {
     setSkin(loadSkin());
@@ -148,6 +155,9 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
         url: `${getDirectApiOrigin()}/flock`,
         token,
         lagMs: lagFromEnv(),
+        arenaId,
+        autoResume: true,
+        onNotice: setNotice,
         onStatus: (s) => setStatus(s),
         onDeath: (info) => {
           setDeath(info);
@@ -161,7 +171,7 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
       client?.dispose();
       clientRef.current = null;
     };
-  }, [open, userId, attempt]);
+  }, [open, userId, attempt, arenaId]);
 
   const play = useCallback(() => {
     try {
@@ -181,7 +191,27 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
   };
 
   // --- цикл відмальовки: жодних React-рендерів на кадр ---
-  const playing = status === "playing";
+  // reconnecting: звʼязок обірвався, але екран гри лишається (овечка чекає на сервері)
+  const playing = status === "playing" || status === "reconnecting";
+  const reconnecting = status === "reconnecting";
+
+  useEffect(() => {
+    if (!reconnecting) return;
+    const tick = () => {
+      const s = loadFlockSession();
+      setReconnectLeft(s ? Math.max(0, Math.ceil((s.pauseMs - (Date.now() - s.savedAt)) / 1000)) : 0);
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [reconnecting]);
+
+  /** Явний вихід: сервер прибирає овечку одразу, без паузи. */
+  const handleClose = useCallback(() => {
+    clientRef.current?.leave();
+    clientRef.current = null;
+    onClose();
+  }, [onClose]);
   useEffect(() => {
     if (!open || !playing) return;
     const cv = canvasRef.current;
@@ -250,6 +280,7 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
         alive: model.board.alive,
         top: model.board.top,
         selfPid: model.cfg.pid,
+        arenaId: model.cfg.arenaId,
         effects: model.effects.map((e) => ({ ...e })),
       });
     }, 250);
@@ -288,7 +319,7 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
       } else if (e.code === "KeyW") {
         throwHeldRef.current = true;
       } else if (e.code === "Escape" && !playing) {
-        onClose();
+        handleClose();
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -300,7 +331,7 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [open, playing, onClose]);
+  }, [open, playing, handleClose]);
 
   // жести на канвасі
   const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -364,7 +395,14 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
   if (!open) return null;
 
   const rank = hud.rank > 0 ? `#${hud.rank}/${hud.alive}` : "—";
-  const showLobby = status === "ready" || status === "connecting" || status === "full" || status === "error" || status === "afk";
+  const showLobby =
+    status === "ready" ||
+    status === "connecting" ||
+    status === "resuming" ||
+    status === "full" ||
+    status === "error" ||
+    status === "afk" ||
+    status === "taken";
 
   return (
     <div className={styles.overlay} role="dialog" aria-label={t("title")}>
@@ -381,12 +419,19 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
         <div ref={stickKnobRef} className={styles.stickKnob} />
       </div>
 
-      <button type="button" className={styles.closeBtn} onClick={onClose} aria-label={t("close")} title={t("close")}>
+      <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t("close")} title={t("close")}>
         <X size={20} aria-hidden />
       </button>
 
       {playing ? (
         <>
+          <FlockInvite arenaId={() => clientRef.current?.model?.cfg.arenaId ?? hud.arenaId} className={styles.hudInvite} />
+          {reconnecting ? (
+            <div className={styles.reconnect} role="status">
+              <span className={styles.spinner} aria-hidden />
+              <span>{t("reconnecting", { seconds: reconnectLeft })}</span>
+            </div>
+          ) : null}
           <div className={styles.massBadge} aria-live="off">
             <span className={styles.massLabel}>{t("hud.mass")}</span>
             <span className={styles.massValue}>{Math.round(hud.total)}</span>
@@ -473,7 +518,7 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
               <button type="button" className={styles.primary} onClick={play} autoFocus>
                 {t("again")}
               </button>
-              <button type="button" className={styles.secondary} onClick={onClose}>
+              <button type="button" className={styles.secondary} onClick={handleClose}>
                 {t("close")}
               </button>
             </div>
@@ -530,24 +575,28 @@ export default function FlockMiniGame({ open, userId, onClose }: Props) {
               </div>
             </dl>
 
+            {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
+            {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
             {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}
             {status === "afk" ? <p className={styles.error}>{t("status.afk")}</p> : null}
+            {status === "taken" ? <p className={styles.error}>{t("status.taken")}</p> : null}
             {status === "error" ? <p className={styles.error}>{t("status.error")}</p> : null}
 
             <div className={styles.cardButtons}>
-              {status === "error" || status === "afk" || status === "full" ? (
+              {status === "error" || status === "afk" || status === "full" || status === "taken" ? (
                 <button type="button" className={styles.primary} onClick={() => setAttempt((n) => n + 1)}>
                   {t("retry")}
                 </button>
               ) : (
                 <button type="button" className={styles.primary} onClick={play} disabled={status !== "ready"}>
-                  {status === "ready" ? t("play") : t("connecting")}
+                  {status === "ready" ? t("play") : status === "resuming" ? t("resuming") : t("connecting")}
                 </button>
               )}
-              <button type="button" className={styles.secondary} onClick={onClose}>
+              <button type="button" className={styles.secondary} onClick={handleClose}>
                 {t("close")}
               </button>
             </div>
+            <FlockInvite arenaId={arenaId} className={styles.lobbyInvite} direction="up" />
           </div>
         </div>
       ) : null}

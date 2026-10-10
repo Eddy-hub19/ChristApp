@@ -1,21 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
+import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
 import styles from "./games.module.scss";
-
-// Арена вантажиться тільки коли гравець її відкрив (як і решта ігор).
-const FlockMiniGame = dynamic(() => import("@/components/FlockMiniGame/FlockMiniGame"), { ssr: false });
 
 export default function GamesPage() {
   const t = useTranslations("games");
-  const { user } = useAuth({ redirectIfUnauthenticated: "/" });
-  const [flockOpen, setFlockOpen] = useState(false);
+  useAuth({ redirectIfUnauthenticated: "/" });
 
   return (
     <section className={styles.page}>
@@ -32,7 +27,8 @@ export default function GamesPage() {
       </header>
 
       <div className={styles.cards}>
-        <button type="button" className={styles.card} onClick={() => setFlockOpen(true)} disabled={!user}>
+        <FlockResumeBanner />
+        <Link href="/games/flock" className={styles.card} prefetch={false}>
           <span className={styles.art} aria-hidden>
             {SKINS.slice(0, 3).map((s, i) => (
               <span key={i} className={styles.blob} style={{ background: s.fur, left: `${i * 26}px`, zIndex: 3 - i }} />
@@ -43,10 +39,8 @@ export default function GamesPage() {
             <span className={styles.cardDesc}>{t("flock.desc")}</span>
           </span>
           <span className={styles.cta}>{t("flock.cta")}</span>
-        </button>
+        </Link>
       </div>
-
-      {user ? <FlockMiniGame open={flockOpen} userId={user.id} onClose={() => setFlockOpen(false)} /> : null}
     </section>
   );
 }
