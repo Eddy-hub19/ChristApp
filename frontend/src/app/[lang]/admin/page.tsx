@@ -13,7 +13,10 @@ import {
   deleteAdminMember,
   type AdminMember,
 } from "@/lib/queries/adminQueries";
+import AdminProcesses from "./AdminProcesses";
 import styles from "./admin.module.scss";
+
+type AdminTab = "users" | "processes";
 
 const EMPTY_MEMBERS: AdminMember[] = [];
 const NEW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -24,16 +27,22 @@ export default function AdminPage() {
   const { user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const isAdmin = !loading && Boolean(user) && canSeeAdminPanelNav(user?.username);
+  const [tab, setTab] = useState<AdminTab>("users");
+  const isAdmin =
+    !loading && Boolean(user) && canSeeAdminPanelNav(user?.username);
 
-  const membersQuery = useQuery(adminMembersQueryOptions(isAdmin));
+  const membersQuery = useQuery(
+    adminMembersQueryOptions(isAdmin && tab === "users"),
+  );
   const members = membersQuery.data ?? EMPTY_MEMBERS;
   const loadingList = membersQuery.isFetching;
   const loadError = membersQuery.error
-    ? membersQuery.error instanceof AdminHttpError && membersQuery.error.status === 401
+    ? membersQuery.error instanceof AdminHttpError &&
+      membersQuery.error.status === 401
       ? t("noToken")
       : membersQuery.error instanceof AdminHttpError
-        ? membersQuery.error.message || t("loadFailed", { status: membersQuery.error.status })
+        ? membersQuery.error.message ||
+          t("loadFailed", { status: membersQuery.error.status })
         : t("loadFailedGeneric")
     : null;
 
@@ -42,7 +51,9 @@ export default function AdminPage() {
     mutationFn: (member: AdminMember) => deleteAdminMember(member.id),
     onMutate: async (member) => {
       await queryClient.cancelQueries({ queryKey: adminMembersQueryKey() });
-      const previous = queryClient.getQueryData<AdminMember[]>(adminMembersQueryKey());
+      const previous = queryClient.getQueryData<AdminMember[]>(
+        adminMembersQueryKey(),
+      );
       queryClient.setQueryData<AdminMember[]>(adminMembersQueryKey(), (old) =>
         (old ?? []).filter((row) => row.id !== member.id),
       );
@@ -113,67 +124,90 @@ export default function AdminPage() {
       <h1 className={styles.title}>{t("title")}</h1>
       <p className={styles.meta}>{t("subtitle")}</p>
 
-      {loadError ? <p className={styles.error}>{loadError}</p> : null}
-      {loadingList ? <p className={styles.meta}>{t("loadingList")}</p> : null}
+      <div className={styles.tabs} role="tablist" aria-label={t("tabsAria")}>
+        {(["users", "processes"] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`}
+            onClick={() => setTab(id)}
+          >
+            {id === "users" ? t("tabUsers") : t("tabProcesses")}
+          </button>
+        ))}
+      </div>
 
-      <ul className={styles.list}>
-        {sorted.map((m) => {
-          const created = new Date(m.createdAt);
-          const isNew =
-            !Number.isNaN(created.getTime()) &&
-            Date.now() - created.getTime() < NEW_MS;
-          const lastSeenLabel = m.lastSeenAt
-            ? new Date(m.lastSeenAt).toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })
-            : t("neverOnline");
+      {tab === "processes" ? <AdminProcesses active={isAdmin} /> : null}
 
-          return (
-            <li key={m.id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div className={styles.nameRow}>
-                  <span className={styles.displayName}>
-                    {m.nickname?.trim() || m.username}
-                  </span>
-                  <span className={styles.handle}>@{m.username}</span>
-                </div>
-                <div className={styles.badgeRow}>
-                  {isNew ? (
-                    <span className={`${styles.badge} ${styles.badgeNew}`}>
-                      {t("badgeNew")}
+      {tab === "users" && loadError ? (
+        <p className={styles.error}>{loadError}</p>
+      ) : null}
+      {tab === "users" && loadingList ? (
+        <p className={styles.meta}>{t("loadingList")}</p>
+      ) : null}
+
+      {tab === "users" ? (
+        <ul className={styles.list}>
+          {sorted.map((m) => {
+            const created = new Date(m.createdAt);
+            const isNew =
+              !Number.isNaN(created.getTime()) &&
+              Date.now() - created.getTime() < NEW_MS;
+            const lastSeenLabel = m.lastSeenAt
+              ? new Date(m.lastSeenAt).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : t("neverOnline");
+
+            return (
+              <li key={m.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div className={styles.nameRow}>
+                    <span className={styles.displayName}>
+                      {m.nickname?.trim() || m.username}
                     </span>
-                  ) : null}
-                  <span
-                    className={`${styles.badge} ${m.isActive ? "" : styles.badgeOff}`}
-                  >
-                    {m.isActive ? t("statusActive") : t("statusInactive")}
-                  </span>
+                    <span className={styles.handle}>@{m.username}</span>
+                  </div>
+                  <div className={styles.badgeRow}>
+                    {isNew ? (
+                      <span className={`${styles.badge} ${styles.badgeNew}`}>
+                        {t("badgeNew")}
+                      </span>
+                    ) : null}
+                    <span
+                      className={`${styles.badge} ${m.isActive ? "" : styles.badgeOff}`}
+                    >
+                      {m.isActive ? t("statusActive") : t("statusInactive")}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <p className={styles.meta}>
-                <strong>{t("labelId")}</strong> {m.id}
-                <br />
-                <strong>{t("labelEmail")}</strong> {m.email}
-                <br />
-                <strong>{t("labelJoined")}</strong> {created.toLocaleString()}
-                <br />
-                <strong>{t("labelLastSeen")}</strong> {lastSeenLabel}
-              </p>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.deleteBtn}
-                  disabled={deletingId === m.id}
-                  onClick={() => void deleteMember(m)}
-                >
-                  {deletingId === m.id ? t("deleting") : t("deleteMember")}
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                <p className={styles.meta}>
+                  <strong>{t("labelId")}</strong> {m.id}
+                  <br />
+                  <strong>{t("labelEmail")}</strong> {m.email}
+                  <br />
+                  <strong>{t("labelJoined")}</strong> {created.toLocaleString()}
+                  <br />
+                  <strong>{t("labelLastSeen")}</strong> {lastSeenLabel}
+                </p>
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className={styles.deleteBtn}
+                    disabled={deletingId === m.id}
+                    onClick={() => void deleteMember(m)}
+                  >
+                    {deletingId === m.id ? t("deleting") : t("deleteMember")}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </div>
   );
 }

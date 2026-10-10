@@ -38,6 +38,7 @@ export const queryKeys = {
   },
   admin: {
     members: () => ["admin", "members"] as const,
+    server: () => ["admin", "server"] as const,
   },
   verses: {
     saved: () => ["verses", "saved"] as const,

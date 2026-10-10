@@ -14,14 +14,54 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
+import { ServerMetricsService } from './server-metrics.service';
+import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly metrics: ServerMetricsService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
     return value?.trim().toLowerCase() ?? '';
+  }
+
+  /** Стан сервера для вкладки «Процеси»: процес, хост, БД, реалтайм. */
+  @Get('server')
+  async serverStatus() {
+    const dbStartedAt = performance.now();
+    const [dbOk, usersTotal, usersActive] = await Promise.all([
+      this.prisma.$queryRaw`SELECT 1`.then(
+        () => true,
+        () => false,
+      ),
+      this.prisma.user.count(),
+      this.prisma.user.count({ where: { isActive: true } }),
+    ]);
+    const dbPingMs = Math.round((performance.now() - dbStartedAt) * 10) / 10;
+    const { pool } = this.prisma;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      ...this.metrics.snapshot(),
+      db: {
+        ok: dbOk,
+        /** Час відповіді трьох паралельних запитів (ping + 2 count) — верхня оцінка RTT до БД. */
+        pingMs: dbPingMs,
+        pool: {
+          total: pool.totalCount,
+          idle: pool.idleCount,
+          waiting: pool.waitingCount,
+          max: pool.options.max ?? 10,
+        },
+      },
+      realtime: this.chatGateway.getRealtimeStats(),
+      users: { total: usersTotal, active: usersActive },
+    };
   }
 
   /** Усі учасники: максимум полів для огляду в адмінці. */
