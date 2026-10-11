@@ -12,8 +12,16 @@ const COOLDOWN_MS = 3_000;
  */
 export const ARENA_BASE_MS = 20.65;
 export const ARENA_PER_PLAYER_MS = 2.125;
-/** Безкоштовний Render: ~0.1 vCPU = ~100 мс CPU/с. */
-export const FREE_TIER_BUDGET_MS = 100;
+/** Бюджет CPU інстанса за замовчуванням: 0.5 vCPU на Render = ~500 мс CPU/с. */
+export const DEFAULT_CPU_BUDGET_MS = 500;
+
+/** Бюджет CPU (мс/с) зі змінної `RENDER_CPU_BUDGET_MS`; сміття й нуль -> значення за замовчуванням. */
+export function resolveCpuBudgetMs(
+  raw: string | undefined = process.env.RENDER_CPU_BUDGET_MS,
+): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_CPU_BUDGET_MS;
+}
 const ESTIMATE_PLAYERS = [2, 3, 4, 6] as const;
 
 /** Суміш арифметики, Map і Buffer (схоже на тік арени й socket.io), без залежностей. */
@@ -49,13 +57,16 @@ export type CpuBenchmarkResult = {
   refMs: number;
   /** У скільки разів ядро цього сервера повільніше за M2 (1 = як M2). */
   slowdown: number;
-  /** Скільки відсотків безкоштовного бюджету 0.1 vCPU з'їсть арена з N гравців. */
+  /** Бюджет CPU інстанса, мс CPU/с (RENDER_CPU_BUDGET_MS). */
+  budgetMs: number;
+  /** Скільки відсотків бюджету CPU з'їсть арена з N гравців. */
   arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];
 };
 
 export function buildResult(
   runsMs: number[],
   measuredAt: Date,
+  budgetMs: number = resolveCpuBudgetMs(),
 ): CpuBenchmarkResult {
   const sorted = [...runsMs].sort((a, b) => a - b);
   const medianMs = sorted[Math.floor(sorted.length / 2)];
@@ -67,13 +78,14 @@ export function buildResult(
     runsMs: runsMs.map((r) => round(r)),
     refMs: REF_M2_MS,
     slowdown: round(slowdown),
+    budgetMs,
     arena: ESTIMATE_PLAYERS.map((players) => {
       const cpuMsPerSec =
         (ARENA_BASE_MS + ARENA_PER_PLAYER_MS * players) * slowdown;
       return {
         players,
         cpuMsPerSec: round(cpuMsPerSec, 10),
-        budgetPercent: Math.round((cpuMsPerSec / FREE_TIER_BUDGET_MS) * 100),
+        budgetPercent: Math.round((cpuMsPerSec / budgetMs) * 100),
       };
     }),
   };

@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { authUserCache } from './auth-user-cache';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -28,6 +29,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return null;
     }
 
+    const cached = authUserCache.get(payload.sub);
+    if (cached) return cached;
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -49,6 +53,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return null;
     }
 
+    authUserCache.set(payload.sub, user);
     return user;
   }
 }

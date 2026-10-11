@@ -2,15 +2,21 @@ import type { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 
-/** Користувач може надсилати повідомлення в кімнату (загальний чат або учасник з доступом за title). */
-export async function canUserPostToRoom(
+/** Результат перевірки доступу: `title` кімнати потрібен для dm-ігор (у загальної кімнати його не читаємо - `null`). */
+export type RoomAccess = { title: string | null };
+
+/**
+ * Користувач може надсилати повідомлення в кімнату (загальний чат або учасник з доступом за title).
+ * Повертає title кімнати (щоб не читати її вдруге) або `null`, якщо доступу нема.
+ */
+export async function resolveRoomAccess(
   prisma: PrismaService,
   userId: string,
   roomId: string,
-): Promise<boolean> {
+): Promise<RoomAccess | null> {
   const globalRoom = resolveGlobalRoomId();
   if (roomId === globalRoom) {
-    return true;
+    return { title: null };
   }
 
   // Членство й title кімнати незалежні — читаємо паралельно: один RTT до БД замість двох до `emit`.
@@ -31,10 +37,21 @@ export async function canUserPostToRoom(
   ]);
 
   if (!membership || !room) {
-    return false;
+    return null;
   }
 
-  return userMayAccessRoomByTitle(userId, room.title);
+  return userMayAccessRoomByTitle(userId, room.title)
+    ? { title: room.title }
+    : null;
+}
+
+/** Користувач може надсилати повідомлення в кімнату (загальний чат або учасник з доступом за title). */
+export async function canUserPostToRoom(
+  prisma: PrismaService,
+  userId: string,
+  roomId: string,
+): Promise<boolean> {
+  return (await resolveRoomAccess(prisma, userId, roomId)) !== null;
 }
 
 /**

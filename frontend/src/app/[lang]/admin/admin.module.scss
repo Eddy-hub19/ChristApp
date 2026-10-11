@@ -296,6 +296,44 @@
   color: var(--text-muted);
 }
 
+.procSubheading {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.topList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  font-size: 13px;
+}
+
+.topLabel {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.topValue {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .benchRow {
   display: flex;
   flex-wrap: wrap;

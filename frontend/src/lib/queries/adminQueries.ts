@@ -67,11 +67,49 @@ export type AdminMetricSample = {
   loopLagP50Ms: number;
   loopLagP99Ms: number;
   loopLagMaxMs: number;
+  /** Найбільша черга на з'єднання з пулом БД за інтервал (відсутня у старих версіях бекенду). */
+  dbPoolWaitingMax?: number;
+  /** Запитів до БД за секунду (середнє за інтервал). */
+  dbQueriesPerSec?: number;
+};
+
+/** Чистий RTT до БД: 50 x `SELECT 1` на одному з'єднанні, мс. */
+export type AdminDbLatency = {
+  measuredAt: string;
+  samples: number;
+  medianMs: number;
+  p95Ms: number;
+  minMs: number;
+  maxMs: number;
+};
+
+export async function runAdminDbLatency(): Promise<AdminDbLatency> {
+  const token = getAuthToken();
+  if (!token) throw new AdminHttpError(401, "no token");
+  const res = await apiFetch(`${getHttpApiBase()}/admin/db-latency`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new AdminHttpError(res.status, await res.text().catch(() => ""));
+  }
+  return ((await res.json()) as { result: AdminDbLatency }).result;
+}
+
+export type AdminDbQueries = {
+  windowSec: number;
+  total: number;
+  perSec: number;
+  /** Запитів/с по 5-секундних стовпчиках, від старого до нового. */
+  series: number[];
+  top: { label: string; count: number; perSec: number; avgMs: number }[];
 };
 
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
 export type AdminServerStatus = {
   generatedAt: string;
+  /** Бюджет CPU інстанса, мс CPU/с (відсутній у старих версіях бекенду). */
+  cpuBudgetMs?: number;
   process: {
     pid: number;
     nodeVersion: string;
@@ -93,6 +131,14 @@ export type AdminServerStatus = {
     ok: boolean;
     pingMs: number;
     pool: { total: number; idle: number; waiting: number; max: number };
+    /** Відсутнє у старих версіях бекенду. */
+    queries?: AdminDbQueries;
+    location?: {
+      database: { host: string; vendor: string; region: string | null; pooled: boolean | null } | null;
+      /** Регіон сервера з RENDER_REGION (Render не віддає його у змінних середовища). */
+      server: { renderRegion: string | null; awsRegion: string | null };
+    };
+    latency?: AdminDbLatency | null;
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
   users: { total: number; active: number };
@@ -134,7 +180,9 @@ export type AdminCpuBenchmark = {
   refMs: number;
   /** У скільки разів ядро сервера повільніше за M2 (1 = як M2). */
   slowdown: number;
-  /** Скільки % безкоштовного бюджету 0.1 vCPU з'їсть арена "Отара" з N гравців. */
+  /** Бюджет CPU сервера, мс CPU/с (RENDER_CPU_BUDGET_MS; 500 = 0.5 vCPU). */
+  budgetMs: number;
+  /** Скільки % бюджету CPU з'їсть арена "Отара" з N гравців. */
   arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];
 };
 

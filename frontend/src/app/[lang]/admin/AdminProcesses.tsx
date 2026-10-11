@@ -7,10 +7,10 @@ import {
   adminCpuBenchmarkQueryOptions,
   adminServerQueryOptions,
   runAdminCpuBenchmark,
-  type AdminMetricSample,
+  runAdminDbLatency,
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
-import { evaluateCpuSlowdown, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
+import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -22,16 +22,9 @@ function formatUptime(totalSec: number): string {
   return `${m}м ${totalSec % 60}с`;
 }
 
-/** Мини-график по истории зразков (inline SVG, без библиотек). */
-function Sparkline({
-  samples,
-  pick,
-}: {
-  samples: AdminMetricSample[];
-  pick: (s: AdminMetricSample) => number;
-}) {
-  if (samples.length < 2) return <div className={styles.sparkEmpty} />;
-  const values = samples.map(pick);
+/** Мини-график по ряду значений (inline SVG, без библиотек). */
+function Sparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return <div className={styles.sparkEmpty} />;
   const max = Math.max(...values, 1);
   const w = 100;
   const h = 28;
@@ -127,7 +120,7 @@ function CpuBenchmark({ active }: { active: boolean }) {
           <div className={styles.statGrid}>
             <Stat
               label={t("procBenchFactor")}
-              level={evaluateCpuSlowdown(result.slowdown)}
+              level={evaluateArenaBudget(Math.max(...result.arena.map((a) => a.budgetPercent)))}
               value={`×${result.slowdown}`}
               sub={t("procBenchDetail", { ms: result.medianMs, ref: result.refMs })}
             />
@@ -135,13 +128,13 @@ function CpuBenchmark({ active }: { active: boolean }) {
               <Stat
                 key={a.players}
                 label={t("procBenchArena", { count: a.players })}
-                level={a.budgetPercent >= 100 ? "bad" : a.budgetPercent >= 75 ? "warn" : "ok"}
+                level={evaluateArenaBudget(a.budgetPercent)}
                 value={`${a.budgetPercent}%`}
                 sub={t("procBenchArenaSub", { ms: a.cpuMsPerSec })}
               />
             ))}
           </div>
-          <p className={styles.metaSmall}>{t("procBenchHint")}</p>
+          <p className={styles.metaSmall}>{t("procBenchHint", { vcpu: Math.round((result.budgetMs / 1000) * 100) / 100, ms: result.budgetMs })}</p>
         </>
       ) : (
         <p className={styles.metaSmall}>{latest.isLoading ? t("procLoading") : t("procBenchNone")}</p>
@@ -152,7 +145,12 @@ function CpuBenchmark({ active }: { active: boolean }) {
 
 export default function AdminProcesses({ active }: { active: boolean }) {
   const t = useTranslations("admin");
+  const queryClient = useQueryClient();
   const query = useQuery(adminServerQueryOptions(active));
+  const latencyRun = useMutation({
+    mutationFn: runAdminDbLatency,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.server() }),
+  });
   const data = query.data;
 
   if (!data) {
@@ -172,6 +170,11 @@ export default function AdminProcesses({ active }: { active: boolean }) {
   const health = evaluateServerHealth(data);
   const latest = data.latest;
   const history = data.history;
+  const queries = data.db.queries;
+  const latency = data.db.latency ?? null;
+  const dbLoc = data.db.location?.database ?? null;
+  const serverLoc = data.db.location?.server ?? null;
+  const regionMismatch = Boolean(dbLoc?.region && serverLoc?.awsRegion && dbLoc.region !== serverLoc.awsRegion);
   const memUsedPct = Math.round(
     ((data.host.totalMemMb - data.host.freeMemMb) / data.host.totalMemMb) * 100,
   );
@@ -205,8 +208,8 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             label={t("procCpu")}
             level={health.cpu}
             value={latest ? `${latest.cpuPercent}%` : "—"}
-            sub={latest ? undefined : t("procNoSamples")}
-            spark={<Sparkline samples={history} pick={(s) => s.cpuPercent} />}
+            sub={latest ? t("procCpuBudget", { percent: cpuBudgetShare(data), ms: data.cpuBudgetMs ?? 1000 }) : t("procNoSamples")}
+            spark={<Sparkline values={history.map((s) => s.cpuPercent)} />}
           />
           <Stat
             label={t("procLoopLag")}
@@ -217,17 +220,17 @@ export default function AdminProcesses({ active }: { active: boolean }) {
                 ? t("procLoopLagMax", { ms: latest.loopLagMaxMs })
                 : undefined
             }
-            spark={<Sparkline samples={history} pick={(s) => s.loopLagP99Ms} />}
+            spark={<Sparkline values={history.map((s) => s.loopLagP99Ms)} />}
           />
           <Stat
             label={t("procRss")}
             value={`${data.process.rssMb} МБ`}
-            spark={<Sparkline samples={history} pick={(s) => s.rssMb} />}
+            spark={<Sparkline values={history.map((s) => s.rssMb)} />}
           />
           <Stat
             label={t("procHeap")}
             value={`${data.process.heapUsedMb} / ${data.process.heapTotalMb} МБ`}
-            spark={<Sparkline samples={history} pick={(s) => s.heapUsedMb} />}
+            spark={<Sparkline values={history.map((s) => s.heapUsedMb)} />}
           />
         </div>
         <p className={styles.metaSmall}>{t("procHistoryHint")}</p>
@@ -240,6 +243,12 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             label={t("procDbPing")}
             level={health.db}
             value={data.db.ok ? `${data.db.pingMs} мс` : t("procDbDown")}
+          />
+          <Stat
+            label={t("procDbQueries")}
+            value={queries ? `${queries.perSec}/с` : "—"}
+            sub={queries ? t("procDbQueriesSub", { total: queries.total }) : undefined}
+            spark={queries ? <Sparkline values={queries.series} /> : undefined}
           />
           <Stat
             label={t("procPool")}
@@ -256,6 +265,71 @@ export default function AdminProcesses({ active }: { active: boolean }) {
             }
           />
         </div>
+        <div className={styles.statGrid}>
+          <Stat
+            label={t("procDbRegion")}
+            level={regionMismatch ? "warn" : undefined}
+            value={dbLoc?.region ?? "—"}
+            sub={
+              dbLoc
+                ? `${dbLoc.vendor}${dbLoc.pooled === null ? "" : dbLoc.pooled ? ` · ${t("procDbPooled")}` : ` · ${t("procDbDirect")}`}`
+                : undefined
+            }
+          />
+          <Stat
+            label={t("procServerRegion")}
+            level={regionMismatch ? "warn" : undefined}
+            value={serverLoc?.renderRegion ?? t("procServerRegionUnknown")}
+            sub={
+              regionMismatch
+                ? t("procRegionMismatch")
+                : serverLoc?.renderRegion
+                  ? serverLoc.awsRegion ?? undefined
+                  : t("procServerRegionHint")
+            }
+          />
+          <Stat
+            label={t("procDbRtt")}
+            level={latency ? evaluateDbRtt(latency.medianMs) : undefined}
+            value={latency ? `${latency.medianMs} мс` : "—"}
+            sub={
+              latency
+                ? t("procDbRttSub", { p95: latency.p95Ms, n: latency.samples })
+                : t("procDbRttNone")
+            }
+          />
+        </div>
+        <div className={styles.benchRow}>
+          <button
+            type="button"
+            className={styles.benchBtn}
+            onClick={() => latencyRun.mutate()}
+            disabled={latencyRun.isPending}
+          >
+            {latencyRun.isPending ? t("procBenchRunning") : t("procDbRttButton")}
+          </button>
+          {latency ? (
+            <span className={styles.meta}>
+              {t("procBenchAt", { time: new Date(latency.measuredAt).toLocaleTimeString() })}
+            </span>
+          ) : null}
+        </div>
+        {queries && queries.top.length > 0 ? (
+          <>
+            <h3 className={styles.procSubheading}>{t("procDbTop")}</h3>
+            <ol className={styles.topList}>
+              {queries.top.map((q) => (
+                <li key={q.label} className={styles.topRow}>
+                  <span className={styles.topLabel}>{q.label}</span>
+                  <span className={styles.topValue}>
+                    {t("procDbTopValue", { count: q.count, perSec: q.perSec, ms: q.avgMs })}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : null}
+        <p className={styles.metaSmall}>{t("procHistoryHint")}</p>
       </section>
 
       <section className={styles.procSection}>

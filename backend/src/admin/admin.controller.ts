@@ -13,10 +13,13 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
+import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
 import { ServerMetricsService } from './server-metrics.service';
 import { CpuBenchmarkService } from './cpu-benchmark.service';
+import { DbLatencyService } from './db-latency.service';
+import { describeDatabaseUrl, describeServerRegion } from 'src/prisma/db-info';
 import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Controller('admin')
@@ -27,6 +30,7 @@ export class AdminController {
     private readonly metrics: ServerMetricsService,
     private readonly chatGateway: ChatGateway,
     private readonly cpuBenchmark: CpuBenchmarkService,
+    private readonly dbLatency: DbLatencyService,
   ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
@@ -61,10 +65,25 @@ export class AdminController {
           waiting: pool.waitingCount,
           max: pool.options.max ?? 10,
         },
+        /** Запити до БД за 5 хвилин: графік (запитів/с по 5 с) і топ-5 найчастіших. */
+        queries: this.prisma.queryStats.snapshot(),
+        /** Де база (регіон з хоста DATABASE_URL, пулер) і де сервер (RENDER_REGION; Render регіон у env не віддає). */
+        location: {
+          database: describeDatabaseUrl(),
+          server: describeServerRegion(),
+        },
+        /** Чистий RTT до БД (SELECT 1 x50); null - ще не мірили. */
+        latency: this.dbLatency.latest(),
       },
       realtime: this.chatGateway.getRealtimeStats(),
       users: { total: usersTotal, active: usersActive },
     };
+  }
+
+  /** Заміряти RTT до БД: 50 `SELECT 1` на одному з'єднанні (~5 с при 100 мс RTT). */
+  @Post('db-latency')
+  async runDbLatency() {
+    return this.dbLatency.measure();
   }
 
   /** Останній замір швидкості CPU (null - ще не міряли від запуску процесу). */
@@ -127,6 +146,7 @@ export class AdminController {
     }
 
     await this.prisma.user.delete({ where: { id: target.id } });
+    authUserCache.invalidate(target.id);
     return {
       id: target.id,
       username: target.username,
