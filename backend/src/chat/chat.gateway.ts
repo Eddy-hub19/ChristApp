@@ -2260,6 +2260,17 @@ export class ChatGateway
     }
   }
 
+  /** Поточний список онлайну на вимогу: списки людей (кінотеатр) відкриваються вже після підключення. */
+  @SubscribeMessage('getOnlineUsers')
+  async handleGetOnlineUsers(@ConnectedSocket() client: SocketWithUser) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('error', 'Не авторизован');
+      return;
+    }
+    this.emitOnlinePresence(client);
+  }
+
   // ================= МОЇ КІМНАТИ =================
   @SubscribeMessage('getMyRooms')
   async handleGetMyRooms(

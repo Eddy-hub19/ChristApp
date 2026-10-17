@@ -14,6 +14,9 @@ import { buildFlockInviteMessage } from "@/lib/flockInviteMessage";
 import GameIcon from "@/lib/games/gameIcons";
 import { PAIR_GAMES, buildGameInviteMessage, type PairGameId } from "@/lib/gameInviteMessage";
 import { openQuickInvite, type QuickInviteClient } from "@/lib/quickInvite";
+import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
+import { sortByActivity, activitySectionOf } from "@/lib/memberActivity";
+import { useSettledOrder } from "@/hooks/useSettledOrder";
 import { getInitials } from "@/lib/utils";
 import styles from "./GlobalGamesMenu.module.scss";
 
@@ -23,6 +26,7 @@ export type GamePeer = {
   nickname?: string | null;
   avatarUrl?: string | null;
   isOnline: boolean;
+  lastSeenAt?: string | null;
 };
 
 type Props = {
@@ -57,11 +61,20 @@ export default function GlobalGamesMenu({
 }: Props) {
   const t = useTranslations("globalGames");
   const tInvite = useTranslations("chatShared.gameInvite");
+  const tChat = useTranslations("chat");
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickGame, setPickGame] = useState<PairGameId | null>(null);
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** Підписи «був у мережі» й розділ «нещодавно» рахуємо від моменту відкриття списку. */
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const pickerOpen = pickGame !== null;
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const timer = setTimeout(() => setNowMs(Date.now()), 0);
+    return () => clearTimeout(timer);
+  }, [pickerOpen]);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<QuickInviteClient | null>(null);
 
@@ -149,22 +162,45 @@ export default function GlobalGamesMenu({
     }
   };
 
+  const sortedPeople = useMemo(
+    () =>
+      sortByActivity(
+        participants.filter((p) => p.id !== currentUserId),
+        (p) => ({ name: peerName(p), isOnline: p.isOnline, lastSeenAt: p.lastSeenAt }),
+      ),
+    [participants, currentUserId],
+  );
+
+  // Порядок за активністю, але без «стрибків» під пальцем: пересортування з затримкою і не під час скролу.
+  const settledPeople = useSettledOrder(
+    sortedPeople,
+    (p) => p.id,
+    (p) =>
+      activitySectionOf({ name: "", isOnline: p.isOnline, lastSeenAt: p.lastSeenAt }, nowMs),
+  );
+
   const people = useMemo(() => {
     const needle = query.trim().toLowerCase().replace(/^@/, "");
-    return participants
-      .filter((p) => p.id !== currentUserId)
+    return settledPeople
+      .map(({ item }) => item)
       .filter(
         (p) =>
           !needle ||
           p.username.toLowerCase().includes(needle) ||
           (p.nickname ?? "").toLowerCase().includes(needle),
-      )
-      .sort(
-        (a, b) =>
-          Number(b.isOnline) - Number(a.isOnline) ||
-          peerName(a).localeCompare(peerName(b), undefined, { sensitivity: "base" }),
       );
-  }, [participants, currentUserId, query]);
+  }, [settledPeople, query]);
+
+  const statusFor = (p: GamePeer) => {
+    if (p.isOnline) return t("online");
+    if (!p.lastSeenAt) return tChat("lastSeenLongAgo");
+    return formatLastSeenRelative(p.lastSeenAt, nowMs, {
+      justNow: () => tChat("lastSeenJustNow"),
+      minutes: (count) => tChat("lastSeenMinutes", { count }),
+      hours: (count) => tChat("lastSeenHours", { count }),
+      days: (count) => tChat("lastSeenDays", { count }),
+    });
+  };
 
   return (
     <div className={wrapClassName} ref={wrapRef}>
@@ -238,7 +274,7 @@ export default function GlobalGamesMenu({
                 </span>
                 <span className={styles.name}>{peerName(p)}</span>
                 <span className={styles.status}>
-                  {busyId === p.id ? t("sending") : p.isOnline ? t("online") : ""}
+                  {busyId === p.id ? t("sending") : statusFor(p)}
                 </span>
               </button>
             </li>

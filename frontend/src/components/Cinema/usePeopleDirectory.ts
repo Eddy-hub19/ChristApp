@@ -8,6 +8,8 @@ import {
   fetchUsersDirectory,
   usersDirectoryQueryKey,
 } from "@/lib/queries/usersQueries";
+import { usePresenceOnline } from "@/hooks/usePresenceOnline";
+import { laterIso } from "@/lib/memberActivity";
 import { filterTesterUsers } from "@/lib/testerUsers";
 
 export type DirectoryPerson = {
@@ -17,11 +19,14 @@ export type DirectoryPerson = {
   avatarUrl: string | null;
   /** Є особистий чат із цією людиною — показуємо першою. */
   isChatPartner: boolean;
+  isOnline: boolean;
+  lastSeenAt: string | null;
 };
 
 /** Люди для запрошення: співрозмовники з особистих чатів + увесь довідник для пошуку. */
 export function usePeopleDirectory(currentUserId: string | undefined) {
   const { socket } = usePresenceSocket();
+  const { onlineIds, lastSeenById } = usePresenceOnline(Boolean(currentUserId));
   const [partnerIds, setPartnerIds] = useState<Set<string>>(() => new Set());
 
   const directory = useQuery({
@@ -55,6 +60,7 @@ export function usePeopleDirectory(currentUserId: string | undefined) {
         nickname?: string | null;
         avatarUrl?: string | null;
         isActive?: boolean;
+        lastSeenAt?: string | null;
       }>,
     );
     return rows
@@ -65,8 +71,10 @@ export function usePeopleDirectory(currentUserId: string | undefined) {
         nickname: u.nickname ?? null,
         avatarUrl: u.avatarUrl ?? null,
         isChatPartner: partnerIds.has(u.id),
+        isOnline: onlineIds.has(u.id),
+        lastSeenAt: laterIso(u.lastSeenAt, lastSeenById.get(u.id)),
       }));
-  }, [directory.data, currentUserId, partnerIds]);
+  }, [directory.data, currentUserId, partnerIds, onlineIds, lastSeenById]);
 
   return { people, isLoading: directory.isLoading };
 }

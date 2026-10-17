@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSettledOrder } from "@/hooks/useSettledOrder";
+import { sortByActivity } from "@/lib/memberActivity";
 import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
@@ -26,20 +28,37 @@ export default function PeoplePicker({
   const t = useTranslations("cinema.people");
   const [query, setQuery] = useState("");
 
+  const sortedPeople = useMemo(
+    () =>
+      sortByActivity(people, (p) => ({
+        name: p.nickname || p.username,
+        isOnline: p.isOnline,
+        lastSeenAt: p.lastSeenAt,
+      })),
+    [people],
+  );
+  // Порядок за активністю (онлайн → недавно → давно) змінюється з затримкою й не під час скролу.
+  const settledPeople = useSettledOrder(
+    sortedPeople,
+    (p) => p.id,
+    (p) => (p.isOnline ? "online" : "offline"),
+  );
+
   const { partners, others } = useMemo(() => {
     const needle = query.trim().toLowerCase().replace(/^@/, "");
+    const ordered = settledPeople.map(({ item }) => item);
     const matches = needle
-      ? people.filter(
+      ? ordered.filter(
           (p) =>
             p.username.toLowerCase().includes(needle) ||
             (p.nickname ?? "").toLowerCase().includes(needle),
         )
-      : people;
+      : ordered;
     return {
       partners: matches.filter((p) => p.isChatPartner),
       others: matches.filter((p) => !p.isChatPartner),
     };
-  }, [people, query]);
+  }, [settledPeople, query]);
 
   const renderPerson = (person: DirectoryPerson) => {
     const locked = lockedLabels?.get(person.id);

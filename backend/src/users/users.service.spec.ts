@@ -10,7 +10,10 @@ describe('UsersService', () => {
     user: {
       findFirst: jest.Mock;
       update: jest.Mock;
+      findMany: jest.Mock;
     };
+    message: { groupBy: jest.Mock };
+    refreshSession: { groupBy: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -18,7 +21,10 @@ describe('UsersService', () => {
       user: {
         findFirst: jest.fn(),
         update: jest.fn(),
+        findMany: jest.fn(),
       },
+      message: { groupBy: jest.fn() },
+      refreshSession: { groupBy: jest.fn() },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -36,6 +42,35 @@ describe('UsersService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('getAllUsers lastSeenAt', () => {
+    const d = (iso: string) => new Date(iso);
+
+    it('restores a missing lastSeenAt from the latest message or login, keeps the freshest value', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        { id: 'a', lastSeenAt: null },
+        { id: 'b', lastSeenAt: d('2026-01-05T00:00:00Z') },
+        { id: 'c', lastSeenAt: d('2026-01-01T00:00:00Z') },
+        { id: 'd', lastSeenAt: null },
+      ]);
+      prisma.message.groupBy.mockResolvedValue([
+        { senderId: 'a', _max: { createdAt: d('2026-01-02T00:00:00Z') } },
+        { senderId: 'c', _max: { createdAt: d('2026-01-03T00:00:00Z') } },
+      ]);
+      prisma.refreshSession.groupBy.mockResolvedValue([
+        { userId: 'a', _max: { createdAt: d('2026-01-04T00:00:00Z') } },
+        { userId: 'b', _max: { createdAt: d('2026-01-02T00:00:00Z') } },
+      ]);
+
+      const result = await service.getAllUsers();
+      const byId = Object.fromEntries(result.map((u) => [u.id, u.lastSeenAt]));
+
+      expect(byId.a).toEqual(d('2026-01-04T00:00:00Z'));
+      expect(byId.b).toEqual(d('2026-01-05T00:00:00Z'));
+      expect(byId.c).toEqual(d('2026-01-03T00:00:00Z'));
+      expect(byId.d).toBeNull();
+    });
   });
 
   describe('updateProfile @username', () => {

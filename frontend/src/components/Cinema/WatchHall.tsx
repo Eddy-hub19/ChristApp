@@ -42,6 +42,7 @@ import { useChatOverlayEnabled } from "./chatOverlayStore";
 import { CHAT_MIN_WIDTH, clampChatWidth, useChatLayout } from "./chatLayoutStore";
 import FloatingReactions from "./FloatingReactions";
 import HeaderMemberStack from "./HeaderMemberStack";
+import { useDirectoryLastSeen } from "./useDirectoryLastSeen";
 import HostControls from "./HostControls";
 import InviteSheet, { buildInviteUrl } from "./InviteSheet";
 import ManualStage from "./ManualStage";
@@ -122,6 +123,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
 
   const isActiveRoom = cinema.activeRoomId === roomId;
   const hall = cinema.hall;
+  const lastSeenById = useDirectoryLastSeen();
   useEffect(() => {
     membersRef.current = hall.members;
   }, [hall.members]);
@@ -450,6 +452,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         <HeaderMemberStack
           members={hall.members}
           presentIds={hall.presentIds}
+          lastSeenById={lastSeenById}
           onClick={() => setDialog("participants")}
           label={t("hall.participants")}
         />
@@ -717,6 +720,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
             members={hall.members}
             hostId={state.hostId}
             presentIds={hall.presentIds}
+            lastSeenById={lastSeenById}
             currentUserId={me}
             canTransfer={isHost}
             onSeatClick={(member) => setDialog({ transferTo: member })}
@@ -785,6 +789,7 @@ export default function WatchHall({ roomId }: { roomId: string }) {
         members={hall.members}
         hostId={state.hostId}
         presentIds={hall.presentIds}
+        lastSeenById={lastSeenById}
         currentUserId={me}
         isHost={isHost}
         onTransfer={(member) => setDialog({ transferTo: member })}

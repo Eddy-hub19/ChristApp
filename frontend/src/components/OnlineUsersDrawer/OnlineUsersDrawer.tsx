@@ -4,11 +4,13 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
+import { activitySectionOf, sortByActivity, type ActivitySection } from "@/lib/memberActivity";
+import { useSettledOrder } from "@/hooks/useSettledOrder";
 import { isTesterUsername } from "@/lib/testerUsers";
 import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./OnlineUsersDrawer.module.scss";
 
@@ -37,6 +39,12 @@ const SEARCH_MIN_PARTICIPANTS = 8;
 const SWIPE_CLOSE_OFFSET_PX = 80;
 const SWIPE_CLOSE_VELOCITY = 500;
 
+const SECTION_LABEL_KEY = {
+  online: "participantsSectionOnline",
+  recent: "participantsSectionRecent",
+  earlier: "participantsSectionEarlier",
+} as const;
+
 function displayName(participant: DrawerUser) {
   return participant.nickname?.trim() || participant.username;
 }
@@ -56,26 +64,36 @@ export default function OnlineUsersDrawer({
   const [nowMs, setNowMs] = useState(() => Date.now());
   const isOpen = Boolean(open && onClose);
 
+
   const sorted = useMemo(
     () =>
-      participants
-        .filter((participant) => !isTesterUsername(participant.username))
-        .sort((a, b) => {
-          if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-          return displayName(a).localeCompare(displayName(b));
-        }),
+      sortByActivity(
+        participants.filter((participant) => !isTesterUsername(participant.username)),
+        (p) => ({ name: displayName(p), isOnline: p.isOnline, lastSeenAt: p.lastSeenAt }),
+      ),
     [participants],
+  );
+
+  // Порядок і розділи оновлюються з невеликою затримкою й не під час скролу, дані — одразу.
+  const settled = useSettledOrder(
+    sorted,
+    (p) => p.id,
+    (p) =>
+      activitySectionOf(
+        { name: "", isOnline: p.isOnline, lastSeenAt: p.lastSeenAt },
+        nowMs,
+      ),
   );
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase().replace(/^@/, "");
-    if (!needle) return sorted;
-    return sorted.filter(
-      (p) =>
+    if (!needle) return settled;
+    return settled.filter(
+      ({ item: p }) =>
         p.username.toLowerCase().includes(needle) ||
         (p.nickname ?? "").toLowerCase().includes(needle),
     );
-  }, [sorted, query]);
+  }, [settled, query]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -103,7 +121,7 @@ export default function OnlineUsersDrawer({
 
   const statusText = (participant: DrawerUser) => {
     if (participant.isOnline) return t("onlineShort");
-    if (!participant.lastSeenAt) return "";
+    if (!participant.lastSeenAt) return t("lastSeenLongAgo");
     return formatLastSeenRelative(participant.lastSeenAt, nowMs, {
       justNow: () => t("lastSeenJustNow"),
       minutes: (count) => t("lastSeenMinutes", { count }),
@@ -144,7 +162,11 @@ export default function OnlineUsersDrawer({
         </label>
       ) : null}
       <ul className={styles.list}>
-        {filtered.map((participant) => {
+        {filtered.map(({ item: participant, group }, index) => {
+          const sectionCount =
+            index > 0 && filtered[index - 1].group === group
+              ? 0
+              : filtered.filter((row) => row.group === group).length;
           const name = displayName(participant);
           const status = statusText(participant);
           const content = (
@@ -179,7 +201,20 @@ export default function OnlineUsersDrawer({
             </>
           );
           return (
-            <li key={participant.id}>
+            <Fragment key={participant.id}>
+              {sectionCount > 0 ? (
+                <li
+                  className={styles.sectionTitle}
+                  aria-label={
+                    group === "online"
+                      ? t("usersOnlineCount", { count: sectionCount })
+                      : undefined
+                  }
+                >
+                  {t(SECTION_LABEL_KEY[group as ActivitySection], { count: sectionCount })}
+                </li>
+              ) : null}
+            <li>
               {onParticipantClick ? (
                 <button
                   type="button"
@@ -192,6 +227,7 @@ export default function OnlineUsersDrawer({
                 <div className={styles.item}>{content}</div>
               )}
             </li>
+            </Fragment>
           );
         })}
         {filtered.length === 0 ? (
