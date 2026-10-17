@@ -361,6 +361,14 @@
         margin-left: auto;
       }
 
+      /* У загальному чаті в тому ж ряду — кнопка учасників: той самий розмір, що в геймпада. */
+      .headerActions .participantsButton {
+        margin-left: 0;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+      }
+
       .gameMenuWrap {
         position: relative;
         display: flex;

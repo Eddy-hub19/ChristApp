@@ -69,6 +69,8 @@ import {
   optimisticMessageId,
   setDeliveryStatus,
 } from "@/lib/chatOutgoing";
+import { isPairGame } from "@/lib/gameInviteMessage";
+import GlobalGamesMenu from "@/components/GlobalGamesMenu/GlobalGamesMenu";
 import { PendingReactions } from "@/lib/chatReactionsPending";
 import ReadersSheet from "@/components/ChatShared/ReadersSheet";
 import type { MessageReader, ReaderReaction } from "@/lib/chatReaders";
@@ -3486,6 +3488,43 @@ export default function ChatPageDetails() {
     [handleOpenDoodle, handleOpenSnake, handleOpenGuess, handleOpenPuzzle, handleOpenFlock],
   );
 
+  /**
+   * Перехід із загального чату («Гра на двох»): `?game=snake` відкриває цю гру в особистому чаті — тим самим
+   * `handleOpen*`, що й меню ігор DM. Параметр знімаємо одразу, щоб оновлення сторінки не перезапускало гру.
+   */
+  const autoGameHandledRef = useRef(false);
+  useEffect(() => {
+    if (autoGameHandledRef.current) return;
+    if (!directChatTargetUserId) {
+      autoGameHandledRef.current = false;
+      return;
+    }
+    if (!effectiveSocketRoomId || !isSocketConnected) return;
+    const params = new URLSearchParams(window.location.search);
+    const game = params.get("game");
+    if (!isPairGame(game)) return;
+    autoGameHandledRef.current = true;
+    params.delete("game");
+    const rest = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`,
+    );
+    if (game === "doodle") handleOpenDoodle();
+    else if (game === "snake") handleOpenSnake();
+    else if (game === "guess") handleOpenGuess();
+    else handleOpenPuzzle();
+  }, [
+    directChatTargetUserId,
+    effectiveSocketRoomId,
+    isSocketConnected,
+    handleOpenDoodle,
+    handleOpenSnake,
+    handleOpenGuess,
+    handleOpenPuzzle,
+  ]);
+
   const handleSnakeScoreChange = useCallback((score: number) => {
     setMySnakeScore(score);
     const socket = socketRef.current;
@@ -4021,22 +4060,33 @@ export default function ChatPageDetails() {
                 ) : null}
               </div>
               {roomId === GLOBAL_ROOM_ID ? (
-                <button
-                  type="button"
-                  className={styles.participantsButton}
-                  onClick={() => setIsParticipantsDrawerOpen(true)}
-                  aria-label={t("participantsTitle")}
-                  title={t("participantsTitle")}
-                >
-                  <Image
-                    src="/icon-profile.svg"
-                    alt=""
-                    width={18}
-                    height={18}
-                    className={styles.participantsIcon}
-                    aria-hidden
+                <div className={styles.headerActions}>
+                  <GlobalGamesMenu
+                    currentUserId={user?.id}
+                    participants={participants}
+                    wrapClassName={styles.gameMenuWrap}
+                    buttonClassName={styles.gameButton}
+                    menuClassName={styles.gameMenu}
+                    itemClassName={styles.gameMenuItem}
+                    onNotice={setSendNotice}
                   />
-                </button>
+                  <button
+                    type="button"
+                    className={styles.participantsButton}
+                    onClick={() => setIsParticipantsDrawerOpen(true)}
+                    aria-label={t("participantsTitle")}
+                    title={t("participantsTitle")}
+                  >
+                    <Image
+                      src="/icon-profile.svg"
+                      alt=""
+                      width={18}
+                      height={18}
+                      className={styles.participantsIcon}
+                      aria-hidden
+                    />
+                  </button>
+                </div>
               ) : null}
               {directChatTargetUser ? (
                 <div className={styles.headerActions}>

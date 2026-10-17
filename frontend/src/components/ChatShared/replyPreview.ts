@@ -4,6 +4,7 @@ import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { mediaPreviewLabel } from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseFlockInvite } from "@/lib/flockInviteMessage";
+import { parseGameInvite } from "@/lib/gameInviteMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
 
@@ -28,6 +29,7 @@ export function replyPreviewText(
   const text = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(text)) return t("previewSticker");
   if (parseFlockInvite(text)) return t("previewFlockInvite");
+  if (parseGameInvite(text)) return t("previewGameInvite");
   const verse = parseVerseSharePayload(text);
   const plain = verse.payload ? scripturePlainText(verse.payload.text) || text : text;
   const firstLine = plain.split(/\r?\n/).find((line) => line.trim()) ?? "";

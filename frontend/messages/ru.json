@@ -787,6 +787,8 @@
     "openIn": "Открыть в…",
     "download": "Скачать",
     "previewFlockInvite": "🐑 Приглашение в Отару",
+    "previewGameInvite": "🎮 Приглашение в игру",
+    "gameInvite": {"title": "{name} зовёт играть: {game}", "titleOwn": "Ты зовёшь играть: {game}", "play": "Играть", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Угадай персонажа", "puzzle": "Пазлы"}}
     "readersTitle": "Просмотрели",
     "readersReactions": "Реакции",
     "readersEmpty": "Пока никто не просмотрел",
@@ -1129,6 +1131,21 @@
       "cta": "Играть"
     }
   },
+  "globalGames": {
+    "open": "Игры",
+    "flock": "Отара",
+    "flockCallAll": "Позвать всех в чат",
+    "pairHeader": "Игра вдвоём",
+    "pickTitle": "Соперник: {game}",
+    "pickHint": "Выберите, кого позвать. Приглашение уйдёт в личный чат.",
+    "search": "Поиск участника",
+    "noPeople": "Никого не найдено",
+    "online": "онлайн",
+    "back": "Назад",
+    "flockSent": "Приглашение в Отару отправлено в общий чат",
+    "inviteFailed": "Не удалось отправить приглашение",
+    "rateLimited": "Приглашение в общий чат — не чаще раза в минуту. Попробуйте через {seconds, plural, one {# секунду} few {# секунды} many {# секунд} other {# секунды}}.",
+    "sending": "Отправляем…"
   "pwaInstall": {
     "title": "Установить Christ App",
     "subtitle": "Быстрый доступ с главного экрана, как у обычного приложения.",

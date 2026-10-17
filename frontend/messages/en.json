@@ -787,6 +787,8 @@
     "openIn": "Open in…",
     "download": "Download",
     "previewFlockInvite": "🐑 Flock invitation",
+    "previewGameInvite": "🎮 Game invitation",
+    "gameInvite": {"title": "{name} invites you to play: {game}", "titleOwn": "You invited to play: {game}", "play": "Play", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Guess the Character", "puzzle": "Puzzles"}}
     "readersTitle": "Seen by",
     "readersReactions": "Reactions",
     "readersEmpty": "No one has seen this yet",
@@ -1129,6 +1131,21 @@
       "cta": "Play"
     }
   },
+  "globalGames": {
+    "open": "Games",
+    "flock": "Flock",
+    "flockCallAll": "Call everyone to the chat",
+    "pairHeader": "Two-player games",
+    "pickTitle": "Opponent: {game}",
+    "pickHint": "Pick who to invite. The invitation goes to your private chat.",
+    "search": "Search participants",
+    "noPeople": "Nobody found",
+    "online": "online",
+    "back": "Back",
+    "flockSent": "Flock invitation sent to the global chat",
+    "inviteFailed": "Couldn't send the invitation",
+    "rateLimited": "Invitations to the global chat are limited to one per minute. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+    "sending": "Sending…"
   "pwaInstall": {
     "title": "Install Christ App",
     "subtitle": "Quick access from your home screen, like a regular app.",
