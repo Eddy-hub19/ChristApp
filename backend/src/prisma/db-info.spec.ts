@@ -5,6 +5,13 @@ import {
 } from './db-info';
 
 describe('describeDatabaseUrl', () => {
+  // Без аргументу функція читає process.env.DATABASE_URL — тест не має залежати від .env розробника/CI.
+  const originalUrl = process.env.DATABASE_URL;
+  afterEach(() => {
+    if (originalUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalUrl;
+  });
+
   it('reads the Neon region and detects a direct (non-pooler) host', () => {
     expect(
       describeDatabaseUrl(
@@ -34,7 +41,20 @@ describe('describeDatabaseUrl', () => {
       pooled: null,
     });
     expect(describeDatabaseUrl('nonsense')).toBeNull();
+    expect(describeDatabaseUrl('')).toBeNull();
+  });
+
+  it('falls back to DATABASE_URL when called without an argument', () => {
+    delete process.env.DATABASE_URL;
+    expect(describeDatabaseUrl()).toBeNull();
     expect(describeDatabaseUrl(undefined)).toBeNull();
+
+    process.env.DATABASE_URL =
+      'postgresql://u:secret@ep-a-1.us-east-1.aws.neon.tech/db';
+    expect(describeDatabaseUrl()).toMatchObject({
+      vendor: 'neon',
+      region: 'us-east-1',
+    });
   });
 });
 
