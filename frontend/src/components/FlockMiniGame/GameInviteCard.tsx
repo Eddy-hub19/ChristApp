@@ -2,14 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import type { PairGameId } from "@/lib/gameInviteMessage";
+import GameIcon from "@/lib/games/gameIcons";
 import styles from "./InviteCard.module.scss";
-
-const GAME_EMOJI: Record<PairGameId, string> = {
-  snake: "🐍",
-  doodle: "🦘",
-  guess: "🕵️",
-  puzzle: "🧩",
-};
 
 type Props = {
   game: PairGameId;
@@ -19,7 +13,7 @@ type Props = {
   onPlay?: (game: PairGameId) => void;
 };
 
-/** Карточка-запрошення в парну гру в особистому чаті: «🐍 Ед кличе грати: Snake» + «Грати». */
+/** Карточка-запрошення в парну гру в особистому чаті: «Ед кличе грати: Snake» + «Грати». */
 export default function GameInviteCard({ game, senderName, isOwn, onPlay }: Props) {
   const t = useTranslations("chatShared.gameInvite");
   const gameName = t(`games.${game}`);
@@ -27,7 +21,7 @@ export default function GameInviteCard({ game, senderName, isOwn, onPlay }: Prop
     <div className={`${styles.card} ${styles.game}`}>
       <div className={styles.inner}>
         <span className={styles.icon} aria-hidden>
-          {GAME_EMOJI[game]}
+          <GameIcon game={game} size={26} />
         </span>
         <span className={styles.body}>
           <span className={styles.title}>

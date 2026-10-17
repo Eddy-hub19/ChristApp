@@ -20,7 +20,7 @@ import {
   formatChatDateSeparator,
   localDayKey,
 } from "@/lib/chatDateSeparator";
-import { Gamepad2 } from "lucide-react";
+import GameIcon from "@/lib/games/gameIcons";
 import { groupGameActivities, type GameActivity } from "@/lib/games/gameActivity";
 import type { GameId } from "@/lib/games/gameRegistry";
 import type { AppReactionType, Message } from "@/types/message";
@@ -489,7 +489,7 @@ function ChatWindow({
           const hidden = index === gameActivityGroups.lines.length - 1 ? gameActivityGroups.hiddenLines : 0;
           return (
             <div key={line.game} className={`${styles.typingLane} ${styles.gameLane}`} role="status" aria-live="polite">
-              <Gamepad2 className={styles.gameLaneIcon} size={16} strokeWidth={2.1} aria-hidden />
+              <GameIcon game={line.game} className={styles.gameLaneIcon} size={16} />
               <span className={styles.typingLaneText}>{text}</span>
               {hidden > 0 ? (
                 <span className={styles.gameLaneMore}>{t("gameActivity.more", { count: hidden })}</span>
