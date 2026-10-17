@@ -4,6 +4,7 @@ import {
 } from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseFlockInvite } from "@/lib/flockInviteMessage";
+import { parseGameInvite } from "@/lib/gameInviteMessage";
 import { parseVerseSharePayload } from "@/lib/verseShareMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
@@ -32,6 +33,9 @@ export function chatMessagePreview(
   }
   if (parseFlockInvite(text)) {
     return t ? t("previewFlockInvite") : "🐑 Запрошення в Отару";
+  }
+  if (parseGameInvite(text)) {
+    return t ? t("previewGameInvite") : "🎮 Запрошення в гру";
   }
   const verseShare = parseVerseSharePayload(text);
   if (verseShare.payload) {

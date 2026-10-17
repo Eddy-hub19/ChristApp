@@ -38,6 +38,8 @@ import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";
 import { parseFlockInvite } from "@/lib/flockInviteMessage";
 import FlockInviteCard from "@/components/FlockMiniGame/FlockInviteCard";
+import GameInviteCard from "@/components/FlockMiniGame/GameInviteCard";
+import { parseGameInvite, type PairGameId } from "@/lib/gameInviteMessage";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import ChatImage from "@/components/ChatImage/ChatImage";
@@ -59,6 +61,8 @@ type MessageBubbleProps = {
   albumMessages?: Message[];
   avatarSrc?: string;
   onAvatarClick?: (message: Message) => void;
+  /** «Грати» на карточці-запрошенні в парну гру. */
+  onPlayGameInvite?: (game: PairGameId) => void;
   onReply?: (message: Message) => void;
   onDelete?: (message: Message) => void;
   onEdit?: (message: Message) => void;
@@ -323,6 +327,7 @@ function MessageBubble({
   albumMessages,
   avatarSrc,
   onAvatarClick,
+  onPlayGameInvite,
   onReply,
   onDelete,
   onEdit,
@@ -361,6 +366,7 @@ function MessageBubble({
 
   const stickerPayload = parseStickerMessagePayload(message.content);
   const flockInvite = parseFlockInvite(message.content);
+  const gameInvite = parseGameInvite(message.content);
   const isMediaMessage =
     message.type === "IMAGE" ||
     message.type === "FILE" ||
@@ -382,6 +388,7 @@ function MessageBubble({
     (!message.type || message.type === "TEXT") &&
     !stickerPayload &&
     !flockInvite &&
+    !gameInvite &&
     !parseVoiceMessageUrl(message.content);
   const canEditThisMessage = Boolean(isOwnMessage && onEdit && isPlainText);
   const copyText = isPlainText ? stripLegacyReplyPrefix(message.content).trim() : "";
@@ -467,6 +474,17 @@ function MessageBubble({
               senderName={senderName}
               arenaId={flockInvite.arenaId}
               isOwn={isOwnMessage}
+            />
+          );
+        }
+
+        if (gameInvite) {
+          return (
+            <GameInviteCard
+              game={gameInvite.game}
+              senderName={senderName}
+              isOwn={isOwnMessage}
+              onPlay={onPlayGameInvite}
             />
           );
         }

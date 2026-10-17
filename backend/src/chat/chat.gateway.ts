@@ -1,3 +1,7 @@
+import {
+  FlockInviteLimiter,
+  isFlockInviteContent,
+} from './flock-invite-limit';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -257,6 +261,9 @@ export class ChatGateway
 
   // userId → epoch ms until blocked
   private readonly tempBlockedUsers = new Map<string, number>();
+
+  /** Запрошення в «Отару» у загальному чаті: не частіше разу на хвилину від користувача. */
+  private readonly flockInviteLimiter = new FlockInviteLimiter();
 
   private unsubscribePresence: (() => void) | null = null;
 
@@ -2358,6 +2365,22 @@ export class ChatGateway
           );
         }
         return;
+      }
+
+      if (
+        !isVideoNote &&
+        roomId === this.GLOBAL_ROOM &&
+        isFlockInviteContent(normalizedContent)
+      ) {
+        const retryAfterSec = this.flockInviteLimiter.tryAcquire(user.id);
+        if (retryAfterSec > 0) {
+          client.emit('flockInviteRateLimited', {
+            roomId,
+            retryAfterSec,
+            clientMessageId,
+          });
+          return;
+        }
       }
 
       let message;

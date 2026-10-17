@@ -16,11 +16,13 @@ export const PUSH_LABELS = {
   video: '🎥 Відео',
   sticker: 'Стікер',
   flockInvite: '🐑 Запрошення в Отару',
+  gameInvite: '🎮 Запрошення в гру',
 } as const;
 
 const STICKER_META_PREFIX = '[[sticker:';
 const VERSE_SHARE_META_PREFIX = '[[verse-share:';
 const FLOCK_INVITE_RE = /^\[\[flock-invite:\d{1,9}\]\]$/;
+const GAME_INVITE_RE = /^\[\[game-invite:[a-z]{1,16}\]\]$/;
 const META_SUFFIX = ']]';
 
 export const PUSH_BODY_MAX_LEN = 220;
@@ -63,6 +65,7 @@ export function pushMessageText(
   const withoutReply = stripLegacyReplyPrefix(raw).trim();
   if (withoutReply.startsWith(STICKER_META_PREFIX)) return PUSH_LABELS.sticker;
   if (FLOCK_INVITE_RE.test(withoutReply)) return PUSH_LABELS.flockInvite;
+  if (GAME_INVITE_RE.test(withoutReply)) return PUSH_LABELS.gameInvite;
   if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
     const end = withoutReply.indexOf(
       META_SUFFIX,

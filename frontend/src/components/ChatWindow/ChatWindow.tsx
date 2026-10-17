@@ -602,6 +602,7 @@ function ChatWindow({
                 : undefined
             }
             onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
+            onPlayGameInvite={onJoinGame ? (game) => onJoinGame(game, "") : undefined}
             onReply={onReplyMessage}
             onReplyPreviewClick={navigateToReferencedMessage}
             onDelete={onDeleteMessage}
