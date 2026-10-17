@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -12,6 +13,10 @@ import {
 type TabBarOverlayContextValue = {
   chatComposerFocused: boolean;
   setChatComposerFocused: (focused: boolean) => void;
+  /** Відкрито повноекранний режим (гра): навбар і лампочка теми не показуються. */
+  fullscreenActive: boolean;
+  /** Реєструє повноекранний режим; повертає функцію, що його знімає (лічильник — можна вкладати). */
+  acquireFullscreen: () => () => void;
 };
 
 const TabBarOverlayContext = createContext<TabBarOverlayContextValue | null>(
@@ -23,9 +28,24 @@ export function TabBarOverlayProvider({ children }: { children: ReactNode }) {
   const setChatComposerFocused = useCallback((focused: boolean) => {
     setChatComposerFocusedState(focused);
   }, []);
+  const [fullscreenCount, setFullscreenCount] = useState(0);
+  const acquireFullscreen = useCallback(() => {
+    setFullscreenCount((n) => n + 1);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      setFullscreenCount((n) => Math.max(0, n - 1));
+    };
+  }, []);
   const value = useMemo(
-    () => ({ chatComposerFocused, setChatComposerFocused }),
-    [chatComposerFocused, setChatComposerFocused],
+    () => ({
+      chatComposerFocused,
+      setChatComposerFocused,
+      fullscreenActive: fullscreenCount > 0,
+      acquireFullscreen,
+    }),
+    [chatComposerFocused, setChatComposerFocused, fullscreenCount, acquireFullscreen],
   );
   return (
     <TabBarOverlayContext.Provider value={value}>
@@ -47,4 +67,16 @@ export function useTabBarOverlay() {
 /** Для TabBar і розмітки поза обов'язковим провайдером (наприклад, тести). */
 export function useTabBarOverlayOptional(): TabBarOverlayContextValue | null {
   return useContext(TabBarOverlayContext);
+}
+
+/**
+ * Поки `active` — застосунок у повноекранному режимі: навбар і перемикач теми ховаються (не рендеряться).
+ * Викликайте з повноекранної гри/сцени; при розмонтуванні чи `active=false` навбар повертається.
+ */
+export function useFullscreenMode(active: boolean) {
+  const acquire = useContext(TabBarOverlayContext)?.acquireFullscreen;
+  useEffect(() => {
+    if (!active || !acquire) return;
+    return acquire();
+  }, [active, acquire]);
 }

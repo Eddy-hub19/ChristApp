@@ -147,7 +147,7 @@
     "procServerRegionHint": "Задайте RENDER_REGION (oregon, frankfurt…): Render не віддає регіон у змінних",
     "procRegionMismatch": "Регіон сервера й БД різні",
     "procDbRtt": "RTT до БД (SELECT 1)",
-    "procDbRttSub": "p95 {p95} мс · {n} замірів",
+    "procDbRttSub": "p95 {p95} мс · {n, plural, one {# замір} few {# заміри} many {# замірів} other {# заміру}}",
     "procDbRttNone": "Ще не міряли (авто-замір через 15 с після старту)",
     "procDbRttButton": "Заміряти RTT",
     "procPool": "Пул з'єднань",
@@ -243,7 +243,7 @@
     "startToday": "Почніть шлях сьогодні",
     "continueReading": "Продовжити читання",
     "continueWith": "Продовжити · {book} · {chapter}",
-    "remaining": "Залишилось {count} до повного кола",
+    "remaining": "Залишилось {count, plural, one {# розділ} few {# розділи} many {# розділів} other {# розділу}} до повного кола",
     "ariaWithProgress": "Розділи: прочитано {read} з {total}. {subtitle}",
     "ariaStart": "Розділи: відкрити Біблію й почати читання"
   },
@@ -284,7 +284,7 @@
     "iosInstallHint": "На iPhone сповіщення працюють лише в застосунку, доданому на екран «Додому»: у Safari натисніть «Поділитися» → «На екран “Додому”» і відкрийте застосунок звідти.",
     "testButton": "Надіслати тестове сповіщення",
     "testSending": "Надсилаємо…",
-    "testSent": "Надіслано на пристроїв: {count}. Якщо нічого не з’явилося — перевірте режим «Не турбувати» та дозволи.",
+    "testSent": "Надіслано на {count, plural, one {# пристрій} few {# пристрої} many {# пристроїв} other {# пристрою}}. Якщо нічого не з’явилося — перевірте режим «Не турбувати» та дозволи.",
     "testNoSubscription": "На цьому пристрої немає підписки — натисніть «Підключити push».",
     "testRemoved": "Підписка застаріла й була видалена. Підключіть push ще раз.",
     "testFailed": "Не вдалося надіслати (код {status}).",
@@ -386,7 +386,7 @@
     "loadingShort": "Завантаження…",
     "historyStalledHint": "Не вдається завантажити. Потягніть вниз або торкніться, щоб оновити",
     "connecting": "Підключення...",
-    "usersOnlineCount": "{count} користувачів онлайн",
+    "usersOnlineCount": "{count, plural, one {# учасник онлайн} few {# учасники онлайн} many {# учасників онлайн} other {# учасника онлайн}}",
     "shareJesusNotesHint": "Особистий простір для нотаток",
     "onlineShort": "онлайн",
     "offline": "не в мережі",
@@ -493,7 +493,7 @@
     "uploadDismiss": "Прибрати",
     "uploadCancel": "Скасувати завантаження",
     "uploadPreparing": "Готуємо…",
-    "tooManyFiles": "За раз можна надіслати до {count} файлів.",
+    "tooManyFiles": "За раз можна надіслати до {count, plural, one {# файла} few {# файлів} many {# файлів} other {# файла}}.",
     "photoLabel": "фото",
     "fileLabel": "файл",
     "musicLabel": "музика",
@@ -789,6 +789,13 @@
     "previewFlockInvite": "🐑 Запрошення в Отару",
     "previewGameInvite": "🎮 Запрошення в гру",
     "gameInvite": {"title": "{name} кличе грати: {game}", "titleOwn": "Ти кличеш грати: {game}", "play": "Грати", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Вгадай персонажа", "puzzle": "Пазли"}}
+    "readersTitle": "Переглянули",
+    "readersReactions": "Реакції",
+    "readersEmpty": "Поки що ніхто не переглянув",
+    "readersToday": "сьогодні о {time}",
+    "readersYesterday": "вчора о {time}",
+    "readersOther": "{date} о {time}",
+    "readersOpenAria": "Хто переглянув повідомлення"
   },
   "movies": {
     "title": "Фільми",
@@ -1091,7 +1098,12 @@
       "sent": "Надіслано в чат «{chat}»",
       "sendFailed": "Не вдалося надіслати",
       "shareTitle": "Отара",
-      "shareText": "Приєднуйся до мене в Отарі: їж траву, рости й не дай себе з'їсти!"
+      "shareText": "Приєднуйся до мене в Отарі: їж траву, рости й не дай себе з'їсти!",
+      "searchChats": "Пошук чату або імені",
+      "noMatches": "Нічого не знайдено",
+      "sectionGroups": "Групи",
+      "sectionDirect": "Особисті",
+      "rateLimited": "Запрошення в загальний чат — не частіше разу на хвилину. Спробуйте через {seconds, plural, one {# секунду} few {# секунди} many {# секунд} other {# секунди}}."
     },
     "card": {
       "title": "{name} кличе в Отару",
@@ -1134,5 +1146,13 @@
     "inviteFailed": "Не вдалося надіслати запрошення",
     "rateLimited": "Запрошення в загальний чат — не частіше разу на хвилину. Спробуйте через {seconds, plural, one {# секунду} few {# секунди} many {# секунд} other {# секунди}}.",
     "sending": "Надсилаємо…"
+  "pwaInstall": {
+    "title": "Установити Christ App",
+    "subtitle": "Швидкий доступ з головного екрана, як у звичайного застосунку.",
+    "install": "Установити",
+    "notNow": "Не зараз",
+    "close": "Закрити",
+    "iosTitle": "Christ App на головному екрані",
+    "iosHint": "Поділитися → На початковий екран"
   }
 }

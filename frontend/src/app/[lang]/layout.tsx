@@ -1,3 +1,4 @@
+import "@/i18n/uaPluralAlias";
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";

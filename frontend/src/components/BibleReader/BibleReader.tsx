@@ -361,7 +361,7 @@ export default function BibleReader({
     if (!socket?.connected) {
       return;
     }
-    socket.emit("getMyRooms");
+    socket.emit("getMyRooms", { withLastMessageAt: true });
   }, [socket]);
 
   useEffect(() => {

@@ -62,6 +62,7 @@ type ChatWindowProps = {
   >;
   readReceiptAvatarSrc?: string;
   readReceiptLabel?: string;
+  onOpenReaders?: (message: Message) => void;
   onToggleReaction?: (message: Message, reaction: AppReactionType) => void;
   onRetryUnsent?: (message: Message) => void;
   onDismissUnsent?: (message: Message) => void;
@@ -103,6 +104,7 @@ function ChatWindow({
   readReceiptUsersByMessageId,
   readReceiptAvatarSrc,
   readReceiptLabel,
+  onOpenReaders,
   onToggleReaction,
   onRetryUnsent,
   onDismissUnsent,
@@ -616,6 +618,7 @@ function ChatWindow({
             readReceiptUsers={readReceiptUsers}
             readReceiptAvatarSrc={readReceiptAvatarSrc}
             readReceiptLabel={readReceiptLabel}
+            onOpenReaders={onOpenReaders}
             onToggleReaction={onToggleReaction}
             onRetryUnsent={onRetryUnsent}
             onDismissUnsent={onDismissUnsent}

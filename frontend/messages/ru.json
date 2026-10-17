@@ -147,7 +147,7 @@
     "procServerRegionHint": "Задайте RENDER_REGION (oregon, frankfurt…): Render не отдаёт регион в переменных",
     "procRegionMismatch": "Регион сервера и БД различаются",
     "procDbRtt": "RTT до БД (SELECT 1)",
-    "procDbRttSub": "p95 {p95} мс · {n} замеров",
+    "procDbRttSub": "p95 {p95} мс · {n, plural, one {# замер} few {# замера} many {# замеров} other {# замера}}",
     "procDbRttNone": "Ещё не мерили (авто-замер через 15 с после старта)",
     "procDbRttButton": "Замерить RTT",
     "procPool": "Пул соединений",
@@ -243,7 +243,7 @@
     "startToday": "Начни путь сегодня",
     "continueReading": "Продолжить чтение",
     "continueWith": "Продолжить · {book} · {chapter}",
-    "remaining": "Осталось {count} до полного круга",
+    "remaining": "Осталось {count, plural, one {# глава} few {# главы} many {# глав} other {# главы}} до полного круга",
     "ariaWithProgress": "Главы: прочитано {read} из {total}. {subtitle}",
     "ariaStart": "Главы: открыть Библию и начать чтение"
   },
@@ -284,7 +284,7 @@
     "iosInstallHint": "На iPhone уведомления работают только в приложении, добавленном на экран «Домой»: в Safari нажмите «Поделиться» → «На экран “Домой”» и откройте приложение оттуда.",
     "testButton": "Отправить тестовое уведомление",
     "testSending": "Отправляем…",
-    "testSent": "Отправлено на устройств: {count}. Если ничего не появилось — проверьте режим «Не беспокоить» и разрешения.",
+    "testSent": "Отправлено на {count, plural, one {# устройство} few {# устройства} many {# устройств} other {# устройства}}. Если ничего не появилось — проверьте режим «Не беспокоить» и разрешения.",
     "testNoSubscription": "На этом устройстве нет подписки — нажмите «Подключить push».",
     "testRemoved": "Подписка устарела и была удалена. Подключите push ещё раз.",
     "testFailed": "Не удалось отправить (код {status}).",
@@ -386,7 +386,7 @@
     "loadingShort": "Загрузка…",
     "historyStalledHint": "Не удаётся загрузить. Потяните вниз или нажмите, чтобы обновить",
     "connecting": "Подключение...",
-    "usersOnlineCount": "{count} пользователей онлайн",
+    "usersOnlineCount": "{count, plural, one {# участник онлайн} few {# участника онлайн} many {# участников онлайн} other {# участника онлайн}}",
     "shareJesusNotesHint": "Личное место для заметок",
     "onlineShort": "онлайн",
     "offline": "не в сети",
@@ -493,7 +493,7 @@
     "uploadDismiss": "Убрать",
     "uploadCancel": "Отменить загрузку",
     "uploadPreparing": "Готовим…",
-    "tooManyFiles": "За раз можно отправить до {count} файлов.",
+    "tooManyFiles": "За раз можно отправить до {count, plural, one {# файла} few {# файлов} many {# файлов} other {# файла}}.",
     "photoLabel": "фото",
     "fileLabel": "файл",
     "musicLabel": "музыка",
@@ -789,6 +789,13 @@
     "previewFlockInvite": "🐑 Приглашение в Отару",
     "previewGameInvite": "🎮 Приглашение в игру",
     "gameInvite": {"title": "{name} зовёт играть: {game}", "titleOwn": "Ты зовёшь играть: {game}", "play": "Играть", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Угадай персонажа", "puzzle": "Пазлы"}}
+    "readersTitle": "Просмотрели",
+    "readersReactions": "Реакции",
+    "readersEmpty": "Пока никто не просмотрел",
+    "readersToday": "сегодня в {time}",
+    "readersYesterday": "вчера в {time}",
+    "readersOther": "{date} в {time}",
+    "readersOpenAria": "Кто просмотрел сообщение"
   },
   "movies": {
     "title": "Фильмы",
@@ -1091,7 +1098,12 @@
       "sent": "Отправлено в чат «{chat}»",
       "sendFailed": "Не удалось отправить",
       "shareTitle": "Отара",
-      "shareText": "Присоединяйся ко мне в Отаре: ешь траву, расти и не дай себя съесть!"
+      "shareText": "Присоединяйся ко мне в Отаре: ешь траву, расти и не дай себя съесть!",
+      "searchChats": "Поиск чата или имени",
+      "noMatches": "Ничего не найдено",
+      "sectionGroups": "Группы",
+      "sectionDirect": "Личные",
+      "rateLimited": "Приглашение в общий чат — не чаще раза в минуту. Попробуйте через {seconds, plural, one {# секунду} few {# секунды} many {# секунд} other {# секунды}}."
     },
     "card": {
       "title": "{name} зовёт в Отару",
@@ -1134,5 +1146,13 @@
     "inviteFailed": "Не удалось отправить приглашение",
     "rateLimited": "Приглашение в общий чат — не чаще раза в минуту. Попробуйте через {seconds, plural, one {# секунду} few {# секунды} many {# секунд} other {# секунды}}.",
     "sending": "Отправляем…"
+  "pwaInstall": {
+    "title": "Установить Christ App",
+    "subtitle": "Быстрый доступ с главного экрана, как у обычного приложения.",
+    "install": "Установить",
+    "notNow": "Не сейчас",
+    "close": "Закрыть",
+    "iosTitle": "Christ App на главном экране",
+    "iosHint": "Поделиться → На экран «Домой»"
   }
 }

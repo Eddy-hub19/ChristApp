@@ -1,5 +1,7 @@
 "use client";
 
+import "@/i18n/uaPluralAlias";
+
 import { TabBarOverlayProvider } from "@/contexts/TabBarOverlayContext";
 import { createIdbPersister } from "@/lib/queryPersister";
 import {

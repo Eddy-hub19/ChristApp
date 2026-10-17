@@ -48,6 +48,7 @@ import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubb
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
 import BookMessageBubble from "@/components/BookMessageBubble/BookMessageBubble";
+import { repairMojibakeName } from "@/lib/chatMedia";
 import { bookFormatFromName, isBookFileName, toRawCloudinaryUrl } from "@/lib/book/bookFile";
 import { fetchBookFile, shareOrDownloadBook, canShareFiles } from "@/lib/book/shareFile";
 
@@ -72,6 +73,8 @@ type MessageBubbleProps = {
   readReceiptUsers?: Array<{ id: string; avatarSrc?: string; label?: string }>;
   readReceiptAvatarSrc?: string;
   readReceiptLabel?: string;
+  /** Тап по відмітці «прочитано» відкриває список «Переглянули». */
+  onOpenReaders?: (message: Message) => void;
   onToggleReaction?: (message: Message, reaction: AppReactionType) => void;
   /** «Не надіслано»: повторити відправку (той самий clientMessageId — без дубля) / прибрати. */
   onRetryUnsent?: (message: Message) => void;
@@ -339,6 +342,7 @@ function MessageBubble({
   readReceiptUsers = [],
   readReceiptAvatarSrc,
   readReceiptLabel = "Просмотрено",
+  onOpenReaders,
   onToggleReaction,
   onReplyPreviewClick,
   resolveReactionAvatarUrl,
@@ -579,12 +583,12 @@ function MessageBubble({
           const fallbackName = (() => {
             const raw = message.content?.trim();
             if (raw) {
-              return raw;
+              return repairMojibakeName(raw);
             }
             try {
               const pathname = new URL(imgUrl).pathname;
               const segment = pathname.split("/").filter(Boolean).pop();
-              return segment ? decodeURIComponent(segment) : "file";
+              return segment ? repairMojibakeName(decodeURIComponent(segment)) : "file";
             } catch {
               return "file";
             }
@@ -841,7 +845,27 @@ function MessageBubble({
       ) : null}
 
       {isOwnMessage && showReadReceipt ? (
-        <div className={styles.readReceiptRow} aria-label={readReceiptLabel}>
+        <div
+          className={`${styles.readReceiptRow} ${onOpenReaders ? styles.readReceiptButton : ""}`}
+          aria-label={readReceiptLabel}
+          {...(onOpenReaders
+            ? {
+                role: "button",
+                tabIndex: 0,
+                "data-bubble-control": true,
+                onClick: (event: React.MouseEvent) => {
+                  event.stopPropagation();
+                  onOpenReaders(message);
+                },
+                onKeyDown: (event: React.KeyboardEvent) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpenReaders(message);
+                  }
+                },
+              }
+            : {})}
+        >
           {readReceiptUsers.length > 0 ? (
             <>
               <span className={styles.readReceiptAvatarStack}>

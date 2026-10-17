@@ -147,7 +147,7 @@
     "procServerRegionHint": "Set RENDER_REGION (oregon, frankfurt…): Render does not expose its region in env vars",
     "procRegionMismatch": "Server and DB regions differ",
     "procDbRtt": "DB RTT (SELECT 1)",
-    "procDbRttSub": "p95 {p95} ms · {n} samples",
+    "procDbRttSub": "p95 {p95} ms · {n, plural, one {# sample} other {# samples}}",
     "procDbRttNone": "Not measured yet (auto-run 15 s after start)",
     "procDbRttButton": "Measure RTT",
     "procPool": "Connection pool",
@@ -243,7 +243,7 @@
     "startToday": "Start your journey today",
     "continueReading": "Continue reading",
     "continueWith": "Continue · {book} · {chapter}",
-    "remaining": "{count} chapters left for a full circle",
+    "remaining": "{count, plural, one {# chapter} other {# chapters}} left for a full circle",
     "ariaWithProgress": "Chapters: read {read} of {total}. {subtitle}",
     "ariaStart": "Chapters: open the Bible and start reading"
   },
@@ -386,7 +386,7 @@
     "loadingShort": "Loading…",
     "historyStalledHint": "Can't load right now. Pull down or tap to refresh",
     "connecting": "Connecting…",
-    "usersOnlineCount": "{count} users online",
+    "usersOnlineCount": "{count, plural, one {# user online} other {# users online}}",
     "shareJesusNotesHint": "A private space for notes",
     "onlineShort": "online",
     "offline": "offline",
@@ -493,7 +493,7 @@
     "uploadDismiss": "Dismiss",
     "uploadCancel": "Cancel upload",
     "uploadPreparing": "Preparing…",
-    "tooManyFiles": "You can send up to {count} files at once.",
+    "tooManyFiles": "You can send up to {count, plural, one {# file} other {# files}} at once.",
     "photoLabel": "photo",
     "fileLabel": "file",
     "musicLabel": "music",
@@ -789,6 +789,13 @@
     "previewFlockInvite": "🐑 Flock invitation",
     "previewGameInvite": "🎮 Game invitation",
     "gameInvite": {"title": "{name} invites you to play: {game}", "titleOwn": "You invited to play: {game}", "play": "Play", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Guess the Character", "puzzle": "Puzzles"}}
+    "readersTitle": "Seen by",
+    "readersReactions": "Reactions",
+    "readersEmpty": "No one has seen this yet",
+    "readersToday": "today at {time}",
+    "readersYesterday": "yesterday at {time}",
+    "readersOther": "{date} at {time}",
+    "readersOpenAria": "Who has seen this message"
   },
   "movies": {
     "title": "Movies",
@@ -1091,7 +1098,12 @@
       "sent": "Sent to “{chat}”",
       "sendFailed": "Couldn't send",
       "shareTitle": "Flock",
-      "shareText": "Join me in Flock: graze, grow and don't get eaten!"
+      "shareText": "Join me in Flock: graze, grow and don't get eaten!",
+      "searchChats": "Search chats or names",
+      "noMatches": "Nothing found",
+      "sectionGroups": "Groups",
+      "sectionDirect": "Direct",
+      "rateLimited": "Flock invites to the global chat are limited to one per minute. Try again in {seconds, plural, one {# second} other {# seconds}}."
     },
     "card": {
       "title": "{name} invites you to Flock",
@@ -1134,5 +1146,13 @@
     "inviteFailed": "Couldn't send the invitation",
     "rateLimited": "Invitations to the global chat are limited to one per minute. Try again in {seconds, plural, one {# second} other {# seconds}}.",
     "sending": "Sending…"
+  "pwaInstall": {
+    "title": "Install Christ App",
+    "subtitle": "Quick access from your home screen, like a regular app.",
+    "install": "Install",
+    "notNow": "Not now",
+    "close": "Close",
+    "iosTitle": "Christ App on your home screen",
+    "iosHint": "Share → Add to Home Screen"
   }
 }

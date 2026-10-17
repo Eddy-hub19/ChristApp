@@ -72,6 +72,8 @@ import {
 import { isPairGame } from "@/lib/gameInviteMessage";
 import GlobalGamesMenu from "@/components/GlobalGamesMenu/GlobalGamesMenu";
 import { PendingReactions } from "@/lib/chatReactionsPending";
+import ReadersSheet from "@/components/ChatShared/ReadersSheet";
+import type { MessageReader, ReaderReaction } from "@/lib/chatReaders";
 import { useDelayedFlag } from "@/hooks/useDelayedFlag";
 import ChatSkeleton from "@/components/ChatSkeleton/ChatSkeleton";
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery";
@@ -2913,7 +2915,7 @@ export default function ChatPageDetails() {
     if (!user || roomId !== GLOBAL_ROOM_ID) {
       return new Map<
         string,
-        Array<{ id: string; avatarSrc?: string; label?: string }>
+        Array<{ id: string; avatarSrc?: string; label?: string; readAt?: string }>
       >();
     }
 
@@ -2922,7 +2924,7 @@ export default function ChatPageDetails() {
     );
     const result = new Map<
       string,
-      Array<{ id: string; avatarSrc?: string; label?: string }>
+      Array<{ id: string; avatarSrc?: string; label?: string; readAt?: string }>
     >();
 
     for (const messageItem of messages) {
@@ -2939,6 +2941,7 @@ export default function ChatPageDetails() {
           id: participant.id,
           avatarSrc: resolvePublicAvatarUrl(participant.avatarUrl),
           label: participant.nickname ?? participant.username,
+          readAt: roomReadStatesByUserId.get(participant.id),
         }));
 
       if (readers.length > 0) {
@@ -2948,6 +2951,73 @@ export default function ChatPageDetails() {
 
     return result;
   }, [messages, participants, roomId, roomReadStatesByUserId, user]);
+
+  // ===== Список «Переглянули» (шторка під відміткою «прочитано») =====
+  const [readersMessageId, setReadersMessageId] = useState<string | null>(null);
+
+  const handleOpenReaders = useCallback((message: Message) => {
+    setReadersMessageId(message.id);
+  }, []);
+
+  const readersSheetData = useMemo(() => {
+    if (!readersMessageId) return null;
+    const message = messages.find((item) => item.id === readersMessageId);
+    if (!message) return null;
+
+    const personOf = (id: string) => {
+      const person = usersById.get(id) ?? (user?.id === id ? user : undefined);
+      return {
+        name: person ? (person.nickname ?? person.username) : "",
+        avatarSrc: resolvePublicAvatarUrl(person?.avatarUrl),
+      };
+    };
+
+    let readers: MessageReader[] = [];
+    const roomReaders = readReceiptUsersByMessageId.get(message.id);
+    if (roomReaders) {
+      readers = roomReaders.flatMap((reader) =>
+        reader.readAt
+          ? [
+              {
+                id: reader.id,
+                name: reader.label ?? personOf(reader.id).name,
+                avatarSrc: reader.avatarSrc,
+                readAt: reader.readAt,
+              },
+            ]
+          : [],
+      );
+    } else if (
+      readReceiptMessageId === message.id &&
+      directChatTargetUserId &&
+      peerLastReadAt
+    ) {
+      // Особистий чат: один співрозмовник — один час прочитання.
+      readers = [
+        {
+          id: directChatTargetUserId,
+          ...personOf(directChatTargetUserId),
+          readAt: peerLastReadAt,
+        },
+      ];
+    }
+
+    const reactions: ReaderReaction[] = (message.reactions ?? []).map((reaction) => ({
+      userId: reaction.userId,
+      emoji: reaction.type,
+      ...personOf(reaction.userId),
+    }));
+    return { readers, reactions };
+  }, [
+    readersMessageId,
+    messages,
+    usersById,
+    user,
+    readReceiptUsersByMessageId,
+    readReceiptMessageId,
+    directChatTargetUserId,
+    peerLastReadAt,
+  ]);
 
   const handleReplyMessage = (message: Message) => {
     // Ще не підтверджене сервером повідомлення (id тимчасовий) не можна цитувати.
@@ -3908,6 +3978,7 @@ export default function ChatPageDetails() {
         directChatTargetUser?.avatarUrl,
       )}
       readReceiptLabel={t("readReceipt")}
+      onOpenReaders={handleOpenReaders}
       onToggleReaction={handleToggleReaction}
       resolveReactionAvatarUrl={(senderId) =>
         resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)
@@ -4260,6 +4331,16 @@ export default function ChatPageDetails() {
           </div>
         ) : null}
 
+        <ReadersSheet
+          open={readersSheetData !== null}
+          onClose={() => setReadersMessageId(null)}
+          readers={readersSheetData?.readers ?? []}
+          reactions={readersSheetData?.reactions ?? []}
+          onSelectUser={(userId) => {
+            setReadersMessageId(null);
+            if (userId !== user?.id) setPeekProfileUserId(userId);
+          }}
+        />
         {showUserProfileModal && profileModalUser ? (
           <div
             className={styles.avatarPreviewOverlay}

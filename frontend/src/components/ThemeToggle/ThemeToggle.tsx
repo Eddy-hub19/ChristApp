@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
+import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext";
+import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { reapplyUserAppearanceForCurrentTheme } from "@/lib/userAppearance";
 import styles from "./ThemeToggle.module.scss";
 
@@ -21,6 +23,7 @@ export default function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [hasHydratedTheme, setHasHydratedTheme] = useState(false);
   const pathname = usePathname();
+  const fullscreenActive = useTabBarOverlayOptional()?.fullscreenActive ?? false;
 
   useEffect(() => {
     const applied = document.documentElement.getAttribute("data-theme");
@@ -56,7 +59,10 @@ export default function ThemeToggle() {
   /** Кінозала завжди темна — перемикач теми там лише заважає. */
   const isCinemaHall = pathname.startsWith("/cinema/");
 
-  if (isProfilePage || isOfflinePage || isCinemaHall) {
+  /** Повноекранна гра: лампочка налізала на HUD («Топ-10»). */
+  const isFullscreen = fullscreenActive || isFullscreenPath(pathname);
+
+  if (isProfilePage || isOfflinePage || isCinemaHall || isFullscreen) {
     return null;
   }
 

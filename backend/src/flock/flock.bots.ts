@@ -73,6 +73,20 @@ export const BOT_NAMES = [
   'Мілка',
 ];
 
+/**
+ * Ім'я бота, якого ще немає на арені. Вільні базові імена беруться випадково; коли всі зайняті —
+ * випадкове базове з найменшим вільним номером: «Рогатик 2», «Рогатик 3» …
+ */
+export function pickBotName(rng: Rng, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  const free = BOT_NAMES.filter((n) => !used.has(n));
+  if (free.length > 0) return free[Math.floor(rng() * free.length)];
+  const base = BOT_NAMES[Math.floor(rng() * BOT_NAMES.length)];
+  let n = 2;
+  while (used.has(`${base} ${n}`)) n += 1;
+  return `${base} ${n}`;
+}
+
 export function initBot(p: Player, rng: Rng, personality?: Personality) {
   const roll = rng();
   const brain: Brain = {

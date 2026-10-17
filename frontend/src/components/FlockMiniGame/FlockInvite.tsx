@@ -6,10 +6,9 @@ import { Check, Link2, MessageSquare, Share2, UserPlus } from "lucide-react";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { openQuickChat, type QuickChat } from "@/lib/chatQuickSend";
-import { isShareWithJesusRoomTitle } from "@/lib/chatRooms";
+import { createShareTargetsFromRooms, filterShareTargets, type ShareTarget } from "@/lib/chatRooms";
 import { buildFlockInviteMessage } from "@/lib/flockInviteMessage";
 import { buildFlockInviteUrl, canUseWebShare, copyText, shareInvite } from "@/lib/flockInviteShare";
-import type { MyRoomItem } from "@/types/chat/socket.types";
 import styles from "./FlockInvite.module.scss";
 
 type Props = {
@@ -22,18 +21,16 @@ type Props = {
 
 type View = "menu" | "chats";
 
-function roomLabel(r: MyRoomItem) {
-  return r.directPeer?.nickname?.trim() || r.directPeer?.username || r.title;
-}
-
 /** Кнопка «Запросити»: системне «Поділитися» / копіювання посилання / надіслати в чат карткою-запрошенням. */
 export default function FlockInvite({ arenaId, direction = "down", className }: Props) {
   const t = useTranslations("flock.invite");
+  const tChat = useTranslations("chat");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("menu");
   const [toast, setToast] = useState<string | null>(null);
-  const [rooms, setRooms] = useState<MyRoomItem[] | null>(null);
+  const [targets, setTargets] = useState<ShareTarget[] | null>(null);
+  const [search, setSearch] = useState("");
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const chatRef = useRef<QuickChat | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -49,7 +46,8 @@ export default function FlockInvite({ arenaId, direction = "down", className }: 
   const close = useCallback(() => {
     setOpen(false);
     setView("menu");
-    setRooms(null);
+    setTargets(null);
+    setSearch("");
     closeChat();
   }, [closeChat]);
 
@@ -84,27 +82,51 @@ export default function FlockInvite({ arenaId, direction = "down", className }: 
 
   const onOpenChats = async () => {
     setView("chats");
-    setRooms(null);
+    setTargets(null);
+    setSearch("");
     try {
       let token = getAuthToken();
       if (!token) token = await ensureAccessToken();
       closeChat();
       chatRef.current = openQuickChat(token);
-      // службовий чат «Поділись з Ісусом» - не для запрошень
-      setRooms((await chatRef.current.rooms()).filter((r) => !isShareWithJesusRoomTitle(r.title)));
+      const rooms = await chatRef.current.rooms();
+      setTargets(
+        createShareTargetsFromRooms({
+          rooms,
+          currentUserId: userIdFromToken(token),
+          users: rooms.flatMap((r) =>
+            r.directPeer ? [{ ...r.directPeer, nickname: r.directPeer.nickname?.trim() || undefined }] : [],
+          ),
+          labels: {
+            globalChatTitle: tChat("globalChatTitle"),
+            shareWithJesusTitle: tChat("shareWithJesusTitle"),
+            directChatFallback: tChat("chatFallback"),
+          },
+          // службовий чат «Поділись з Ісусом» - не для запрошень
+          includeShareWithJesus: false,
+        }),
+      );
     } catch {
-      setRooms([]);
+      setTargets([]);
     }
   };
 
-  const onPick = async (room: MyRoomItem) => {
+  const onPick = async (target: ShareTarget) => {
     if (!chatRef.current || sendingTo) return;
-    setSendingTo(room.id);
-    const ok = await chatRef.current.send(room.id, buildFlockInviteMessage(currentArena()));
+    setSendingTo(target.roomId);
+    const result = await chatRef.current.send(target.roomId, buildFlockInviteMessage(currentArena()));
     setSendingTo(null);
-    setToast(ok ? t("sent", { chat: roomLabel(room) }) : t("sendFailed"));
-    if (ok) close();
+    if (result.ok) {
+      setToast(t("sent", { chat: target.title }));
+      close();
+    } else if (result.retryAfterSec) {
+      setToast(t("rateLimited", { seconds: result.retryAfterSec }));
+    } else {
+      setToast(t("sendFailed"));
+    }
   };
+
+  const visibleTargets = targets ? filterShareTargets(targets, search) : null;
 
   return (
     <div className={`${styles.wrap} ${className ?? ""}`} ref={wrapRef}>
@@ -132,15 +154,33 @@ export default function FlockInvite({ arenaId, direction = "down", className }: 
           ) : (
             <>
               <p className={styles.menuTitle}>{t("pickChat")}</p>
+              <input
+                type="search"
+                className={styles.search}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("searchChats")}
+                aria-label={t("searchChats")}
+              />
               <div className={styles.chatList}>
-                {rooms === null ? <p className={styles.hint}>{t("loading")}</p> : null}
-                {rooms && rooms.length === 0 ? <p className={styles.hint}>{t("noChats")}</p> : null}
-                {rooms?.map((r) => (
-                  <button key={r.id} type="button" role="menuitem" onClick={() => onPick(r)} disabled={sendingTo !== null}>
-                    <span className={styles.chatName}>{roomLabel(r)}</span>
-                    {sendingTo === r.id ? <span className={styles.hint}>…</span> : null}
-                  </button>
-                ))}
+                {visibleTargets === null ? <p className={styles.hint}>{t("loading")}</p> : null}
+                {visibleTargets && visibleTargets.length === 0 ? (
+                  <p className={styles.hint}>{search.trim() ? t("noMatches") : t("noChats")}</p>
+                ) : null}
+                {visibleTargets?.map((target, i) => {
+                  const showHeader = i > 0 && target.kind !== visibleTargets[i - 1].kind && target.kind !== "global";
+                  const firstOfKind = i === 0 ? target.kind !== "global" : showHeader;
+                  return (
+                    <div key={target.roomId}>
+                      {firstOfKind && target.kind === "group" ? <p className={styles.sectionTitle}>{t("sectionGroups")}</p> : null}
+                      {firstOfKind && target.kind === "direct" ? <p className={styles.sectionTitle}>{t("sectionDirect")}</p> : null}
+                      <button type="button" role="menuitem" onClick={() => onPick(target)} disabled={sendingTo !== null}>
+                        <span className={styles.chatName}>{target.title}</span>
+                        {sendingTo === target.roomId ? <span className={styles.hint}>…</span> : null}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <button type="button" role="menuitem" className={styles.back} onClick={() => setView("menu")}>
                 {t("back")}
@@ -157,4 +197,14 @@ export default function FlockInvite({ arenaId, direction = "down", className }: 
       ) : null}
     </div>
   );
+}
+
+/** `sub` із JWT access-токена: потрібен, щоб відрізнити «свого» співрозмовника в `dm:idA:idB`. */
+function userIdFromToken(token: string): string | undefined {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof payload.sub === "string" ? payload.sub : undefined;
+  } catch {
+    return undefined;
+  }
 }
