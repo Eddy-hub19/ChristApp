@@ -29,6 +29,7 @@ import {
 } from "@/lib/tabPrefetch";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext";
+import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import {
   chatComposerTabLayoutMediaQuery,
   useMediaQuery,
@@ -156,7 +157,9 @@ export default function TabBar() {
     };
   }, [refetchUnread]);
 
-  if (shouldHideTabBar || hideForChatComposer) {
+  const hideForFullscreen = (tabBarOverlay?.fullscreenActive ?? false) || isFullscreenPath(pathname);
+
+  if (shouldHideTabBar || hideForChatComposer || hideForFullscreen) {
     return null;
   }
 
