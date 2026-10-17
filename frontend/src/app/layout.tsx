@@ -45,7 +45,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning data-theme="dark">
       <head>
-        <style dangerouslySetInnerHTML={{ __html: CRITICAL_THEME_CSS }} />
+        {/* suppressHydrationWarning: розширення браузера (напр. з `body[unresolved]{…}`) вставляють свій <style>
+            першим у <head>, і React звіряє з ним наш критичний стиль — без цього прапора dev падає з hydration error. */}
+        <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: CRITICAL_THEME_CSS }} />
         {/* Next 16 генерує лише сучасний `mobile-web-app-capable` для appleWebApp.capable;
             старий vendor-tag лишаємо вручну під iOS-версії, що ще не знають новий. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
