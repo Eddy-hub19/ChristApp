@@ -10,6 +10,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { normalizeUsernameHandle } from './username.util';
 
+const ACTIVITY_CACHE_MS = 60_000;
+
+function latestDate(a?: Date | null, b?: Date | null): Date | undefined {
+  if (a && b) return a.getTime() >= b.getTime() ? a : b;
+  return a ?? b ?? undefined;
+}
+
 const profileSelect = {
   id: true,
   email: true,
@@ -31,20 +38,60 @@ export class UsersService {
 
   // Отримати всіх користувачів
   async getAllUsers() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        email: true,
-        createdAt: true,
-        lastSeenAt: true,
-        isActive: true,
-        avatarUrl: true,
-        bio: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    const [users, activity] = await Promise.all([
+      this.prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          nickname: true,
+          email: true,
+          createdAt: true,
+          lastSeenAt: true,
+          isActive: true,
+          avatarUrl: true,
+          bio: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.getLastActivityByUser(),
+    ]);
+    // `lastSeenAt` пишеться лише при відключенні сокета; у кого його ще немає, відновлюємо
+    // з останнього повідомлення чи входу — щоб список учасників мав чесний порядок.
+    return users.map((user) => ({
+      ...user,
+      lastSeenAt: latestDate(user.lastSeenAt, activity.get(user.id)) ?? null,
+    }));
+  }
+
+  private activityCache: { at: number; map: Map<string, Date> } | null = null;
+
+  /** Остання активність (повідомлення / вхід) по користувачу; кеш на хвилину, бо `/users` викликають часто. */
+  private async getLastActivityByUser(): Promise<Map<string, Date>> {
+    const now = Date.now();
+    if (this.activityCache && now - this.activityCache.at < ACTIVITY_CACHE_MS) {
+      return this.activityCache.map;
+    }
+    const [messages, sessions] = await Promise.all([
+      this.prisma.message.groupBy({
+        by: ['senderId'],
+        _max: { createdAt: true },
+      }),
+      this.prisma.refreshSession.groupBy({
+        by: ['userId'],
+        _max: { createdAt: true },
+      }),
+    ]);
+    const map = new Map<string, Date>();
+    for (const row of messages) {
+      const merged = latestDate(map.get(row.senderId), row._max.createdAt);
+      if (merged) map.set(row.senderId, merged);
+    }
+    for (const row of sessions) {
+      const merged = latestDate(map.get(row.userId), row._max.createdAt);
+      if (merged) map.set(row.userId, merged);
+    }
+    this.activityCache = { at: now, map };
+    return map;
   }
 
   // Отримати одного користувача за id

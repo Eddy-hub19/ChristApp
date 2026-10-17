@@ -5,6 +5,8 @@ import { Check, Crown } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
 import Sheet from "./Sheet";
 import { watchUserName } from "@/lib/queries/watchRoomsQueries";
+import { useSettledOrder } from "@/hooks/useSettledOrder";
+import { orderHallMembers } from "./hallMemberOrder";
 import type { HallMember } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
 
@@ -14,6 +16,8 @@ type ParticipantsSheetProps = {
   members: HallMember[];
   hostId: string;
   presentIds: Set<string>;
+  /** userId → lastSeenAt: порядок «хто в залі → хто нещодавно заходив → давно». */
+  lastSeenById: Map<string, string>;
   currentUserId: string | undefined;
   isHost: boolean;
   onTransfer: (member: HallMember) => void;
@@ -35,6 +39,7 @@ export default function ParticipantsSheet({
   members,
   hostId,
   presentIds,
+  lastSeenById,
   currentUserId,
   isHost,
   onTransfer,
@@ -43,9 +48,12 @@ export default function ParticipantsSheet({
 }: ParticipantsSheetProps) {
   const t = useTranslations("cinema.hall");
   const ready = new Set(readyUserIds ?? []);
-  const joined = members
-    .filter((m) => m.status === "JOINED")
-    .sort((a, b) => Number(presentIds.has(b.id)) - Number(presentIds.has(a.id)));
+  // Порядок за активністю застосовується з затримкою й не під час скролу — список не стрибає під пальцем.
+  const joined = useSettledOrder(
+    orderHallMembers(members, presentIds, lastSeenById),
+    (m) => m.id,
+    (m) => (presentIds.has(m.id) ? "online" : "offline"),
+  ).map((row) => row.item);
 
   return (
     <Sheet

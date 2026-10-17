@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { Crown } from "lucide-react";
 import PersonAvatar from "./PersonAvatar";
+import { orderHallMembers } from "./hallMemberOrder";
 import type { HallMember } from "./useWatchHall";
 import styles from "./CinemaHall.module.scss";
 
@@ -11,6 +12,8 @@ type SeatsRowProps = {
   members: HallMember[];
   hostId: string;
   presentIds: Set<string>;
+  /** userId → lastSeenAt: порядок «хто в залі → хто нещодавно заходив → давно». */
+  lastSeenById: Map<string, string>;
   currentUserId: string | undefined;
   canTransfer: boolean;
   onSeatClick: (member: HallMember) => void;
@@ -21,14 +24,13 @@ export default function SeatsRow({
   members,
   hostId,
   presentIds,
+  lastSeenById,
   currentUserId,
   canTransfer,
   onSeatClick,
 }: SeatsRowProps) {
   const t = useTranslations("cinema.hall");
-  const joined = members
-    .filter((m) => m.status === "JOINED")
-    .sort((a, b) => Number(presentIds.has(b.id)) - Number(presentIds.has(a.id)));
+  const joined = orderHallMembers(members, presentIds, lastSeenById);
 
   return (
     <div className={styles.seats} role="group" aria-label={t("seats")}>

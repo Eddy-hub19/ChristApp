@@ -70,6 +70,7 @@ import {
   setDeliveryStatus,
 } from "@/lib/chatOutgoing";
 import { isPairGame } from "@/lib/gameInviteMessage";
+import { laterIso } from "@/lib/memberActivity";
 import GlobalGamesMenu from "@/components/GlobalGamesMenu/GlobalGamesMenu";
 import { PendingReactions } from "@/lib/chatReactionsPending";
 import ReadersSheet from "@/components/ChatShared/ReadersSheet";
@@ -2625,6 +2626,7 @@ export default function ChatPageDetails() {
       return users.map((item) => ({
         ...item,
         isOnline: onlineUserIds.has(item.id),
+        lastSeenAt: laterIso(item.lastSeenAt, lastSeenByUserId.get(item.id)),
       }));
     }
 
@@ -2641,8 +2643,9 @@ export default function ChatPageDetails() {
     return list.map((item) => ({
       ...item,
       isOnline: onlineUserIds.has(item.id),
+      lastSeenAt: laterIso(item.lastSeenAt, lastSeenByUserId.get(item.id)),
     }));
-  }, [directChatTargetUser, onlineUserIds, roomId, user, users]);
+  }, [directChatTargetUser, lastSeenByUserId, onlineUserIds, roomId, user, users]);
   const headerAvatarSrc = useMemo(() => {
     if (isShareWithJesusView) {
       return "/jesus-say.svg";
