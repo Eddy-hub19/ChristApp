@@ -1,24 +1,9 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 420;
-  background: color-mix(in srgb, var(--background) 55%, transparent);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.28s ease;
-
-  &.open {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
 .sheet {
   position: fixed;
   left: 0;
   right: 0;
   top: 0;
-  z-index: 430;
+  z-index: 250;
   max-height: min(78vh, 520px);
   display: flex;
   flex-direction: column;
@@ -45,22 +30,11 @@
   }
 }
 
-.handle {
-  width: 36px;
-  height: 4px;
-  margin: 10px auto 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--line-soft) 80%, transparent);
-  flex-shrink: 0;
-  order: 1;
-}
-
 .head {
   display: flex;
   align-items: flex-start;
   gap: 14px;
   padding: 4px 4px 14px;
-  position: relative;
 }
 
 .iconWrap {
@@ -82,7 +56,6 @@
 .headText {
   flex: 1;
   min-width: 0;
-  padding-right: 36px;
 }
 
 .title {
@@ -102,62 +75,59 @@
   margin: 0;
 }
 
+// Велика й помітна кнопка закриття: зона дотику 44px+, власна рамка й контрастний колір.
 .close {
-  position: absolute;
-  top: 4px;
-  right: 0;
-  width: 36px;
-  height: 36px;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 28%, transparent);
+  border-radius: 14px;
   cursor: pointer;
-  color: var(--text-muted);
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 10%, var(--surface));
   transition:
     background-color 0.2s ease,
-    color 0.2s ease;
+    transform 0.15s ease;
 
   &:hover {
-    color: var(--foreground);
-    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  }
+
+  &:active {
+    transform: scale(0.94);
   }
 }
 
-.steps {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 4px 8px;
-}
-
-.step {
+.compact {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--foreground);
 }
 
-.stepGlyph {
+.iconSmall {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
-  background: color-mix(in srgb, var(--background) 40%, transparent);
-  color: var(--accent);
+  border-radius: 10px;
 }
 
-.stepText {
+.hint {
   flex: 1;
   min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--foreground);
+
+  span {
+    color: var(--text-muted);
+  }
 }
 
 .actions {
@@ -250,28 +220,6 @@
     line-height: 1.45;
   }
 
-  .close {
-    width: 32px;
-    height: 32px;
-    top: 2px;
-  }
-
-  .steps {
-    gap: 8px;
-    padding: 0 2px 6px;
-  }
-
-  .step {
-    font-size: 12px;
-    gap: 10px;
-  }
-
-  .stepGlyph {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-  }
-
   .actions {
     gap: 8px;
     padding-top: 2px;
@@ -287,13 +235,5 @@
     font-size: 12px;
     min-height: 38px;
     border-radius: 10px;
-  }
-
-  .handle {
-    margin: 6px auto 2px;
-  }
-
-  .backdrop.open {
-    opacity: 0.35;
   }
 }

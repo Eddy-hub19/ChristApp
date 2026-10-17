@@ -1116,5 +1116,14 @@
       "desc": "A shared arena: graze, grow and hide from wolves behind bushes",
       "cta": "Play"
     }
+  },
+  "pwaInstall": {
+    "title": "Install Christ App",
+    "subtitle": "Quick access from your home screen, like a regular app.",
+    "install": "Install",
+    "notNow": "Not now",
+    "close": "Close",
+    "iosTitle": "Christ App on your home screen",
+    "iosHint": "Share → Add to Home Screen"
   }
 }
