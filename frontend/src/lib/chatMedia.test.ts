@@ -4,6 +4,8 @@ import {
   fileIconKind,
   formatBytes,
   playableVoiceUrl,
+  repairMojibakeName,
+  downloadUrl,
   truncateMiddle,
   voiceFileName,
 } from "./chatMedia";
@@ -57,5 +59,29 @@ describe("misc helpers", () => {
       playableVoiceUrl("https://res.cloudinary.com/x/video/upload/v1/christapp/chat-voice/abc.webm"),
     ).toBe("https://res.cloudinary.com/x/video/upload/v1/christapp/chat-voice/abc.m4a");
     expect(playableVoiceUrl("https://example.com/a.webm")).toBe("https://example.com/a.webm");
+  });
+});
+
+describe("repairMojibakeName", () => {
+  const asLatin1 = (v: string) => String.fromCharCode(...new TextEncoder().encode(v));
+  const asCp1252 = (v: string) => new TextDecoder("windows-1252").decode(new TextEncoder().encode(v));
+
+  it.each(["Алей.mp3", "Звіт за квітень.docx", "молитва 🙏 ранок.mp3", "file name (1).pdf"])(
+    "restores %s",
+    (name) => {
+      expect(repairMojibakeName(asLatin1(name))).toBe(name);
+      expect(repairMojibakeName(asCp1252(name))).toBe(name);
+    },
+  );
+  it("keeps valid names", () => {
+    expect(repairMojibakeName("Алей.mp3")).toBe("Алей.mp3");
+    expect(repairMojibakeName("Ñandú.txt")).toBe("Ñandú.txt");
+  });
+  it("downloadUrl uses the repaired UTF-8 name", () => {
+    const url = downloadUrl(
+      "https://res.cloudinary.com/x/raw/upload/v1/a.mp3",
+      asLatin1("Алей мир.mp3"),
+    );
+    expect(url).toContain(`fl_attachment:${encodeURIComponent("Алей мир.mp3")}`);
   });
 });

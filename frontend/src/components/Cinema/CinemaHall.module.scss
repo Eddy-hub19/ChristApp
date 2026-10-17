@@ -2240,6 +2240,14 @@
   flex-shrink: 0;
 }
 
+.readReceiptButton {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 10px;
+}
+
 .readReceiptAvatar {
   margin-left: -4px;
   border: 1.5px solid var(--hall-bg);

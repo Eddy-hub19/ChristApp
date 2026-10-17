@@ -644,3 +644,12 @@ html[data-theme="dark"] .senderCompact {
   padding: 2px 6px;
   opacity: 0.7;
 }
+
+.readReceiptButton {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  // Зона дотику більша за 12px-аватарки.
+  padding: 4px 6px;
+  margin: -2px -6px;
+  border-radius: 10px;
+}
