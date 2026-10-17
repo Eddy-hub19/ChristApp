@@ -79,12 +79,31 @@
   overscroll-behavior: contain;
 }
 
+.search {
+  margin: 2px 4px 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.sectionTitle {
+  margin: 8px 10px 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+
 .chatName {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(300px, 80vw);
 }
 
 .hint {
@@ -111,5 +130,6 @@
   background: var(--foreground);
   color: var(--background);
   font-size: 13px;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: min(300px, 80vw);
 }

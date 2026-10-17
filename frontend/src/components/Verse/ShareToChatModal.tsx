@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
-import type { ShareTarget } from "@/lib/chatRooms";
+import { filterShareTargets, type ShareTarget } from "@/lib/chatRooms";
 import { getInitials } from "@/lib/utils";
 import styles from "./ShareToChatModal.module.scss";
 
@@ -53,11 +53,7 @@ export default function ShareToChatModal({
   }, []);
 
   const filteredTargets = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
-    if (!normalized) return targets;
-    return targets.filter((target) =>
-      target.title.toLowerCase().includes(normalized),
-    );
+    return filterShareTargets(targets, search);
   }, [search, targets]);
 
   const handlePick = (target: ShareTarget) => {

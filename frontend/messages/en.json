@@ -1089,7 +1089,12 @@
       "sent": "Sent to “{chat}”",
       "sendFailed": "Couldn't send",
       "shareTitle": "Flock",
-      "shareText": "Join me in Flock: graze, grow and don't get eaten!"
+      "shareText": "Join me in Flock: graze, grow and don't get eaten!",
+      "searchChats": "Search chats or names",
+      "noMatches": "Nothing found",
+      "sectionGroups": "Groups",
+      "sectionDirect": "Direct",
+      "rateLimited": "Flock invites to the global chat are limited to one per minute. Try again in {seconds, plural, one {# second} other {# seconds}}."
     },
     "card": {
       "title": "{name} invites you to Flock",

@@ -1,3 +1,7 @@
+import {
+  FlockInviteLimiter,
+  isFlockInviteContent,
+} from './flock-invite-limit';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -257,6 +261,9 @@ export class ChatGateway
 
   // userId → epoch ms until blocked
   private readonly tempBlockedUsers = new Map<string, number>();
+
+  /** Запрошення в «Отару» у загальному чаті: не частіше разу на хвилину від користувача. */
+  private readonly flockInviteLimiter = new FlockInviteLimiter();
 
   private unsubscribePresence: (() => void) | null = null;
 
@@ -2255,14 +2262,19 @@ export class ChatGateway
 
   // ================= МОЇ КІМНАТИ =================
   @SubscribeMessage('getMyRooms')
-  async handleGetMyRooms(@ConnectedSocket() client: SocketWithUser) {
+  async handleGetMyRooms(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() body?: { withLastMessageAt?: boolean },
+  ) {
     const user = await this.resolveSocketUser(client);
     if (!user) {
       client.emit('error', 'Не авторизован');
       return;
     }
 
-    await this.emitMyRooms(client, user.id);
+    await this.emitMyRooms(client, user.id, {
+      withLastMessageAt: body?.withLastMessageAt === true,
+    });
   }
 
   // ================= НАДСИЛАННЯ ПОВІДОМЛЕННЯ =================
@@ -2358,6 +2370,22 @@ export class ChatGateway
           );
         }
         return;
+      }
+
+      if (
+        !isVideoNote &&
+        roomId === this.GLOBAL_ROOM &&
+        isFlockInviteContent(normalizedContent)
+      ) {
+        const retryAfterSec = this.flockInviteLimiter.tryAcquire(user.id);
+        if (retryAfterSec > 0) {
+          client.emit('flockInviteRateLimited', {
+            roomId,
+            retryAfterSec,
+            clientMessageId,
+          });
+          return;
+        }
       }
 
       let message;
@@ -2748,12 +2776,20 @@ export class ChatGateway
       : undefined;
   }
 
-  private async emitMyRooms(client: SocketWithUser, userId: string) {
-    const rooms = await this.getMyRoomsForUser(userId);
+  private async emitMyRooms(
+    client: SocketWithUser,
+    userId: string,
+    opts?: { withLastMessageAt?: boolean },
+  ) {
+    const rooms = await this.getMyRoomsForUser(userId, opts);
     client.emit('myRooms', { rooms });
   }
 
-  private async getMyRoomsForUser(userId: string) {
+  /** `withLastMessageAt` — для списків «Надіслати в чат» (сортування за активністю); звичайний виклик лишається без зайвих підзапитів. */
+  private async getMyRoomsForUser(
+    userId: string,
+    opts?: { withLastMessageAt?: boolean },
+  ) {
     try {
       await this.ensureShareWithJesusRoomForUser(userId);
 
@@ -2774,6 +2810,15 @@ export class ChatGateway
           id: true,
           title: true,
           createdAt: true,
+          ...(opts?.withLastMessageAt
+            ? {
+                messages: {
+                  orderBy: { createdAt: 'desc' as const },
+                  take: 1,
+                  select: { createdAt: true },
+                },
+              }
+            : {}),
           members: {
             where: {
               userId: {
@@ -2808,6 +2853,14 @@ export class ChatGateway
             id: room.id,
             title: room.title,
             createdAt: room.createdAt,
+            ...('messages' in room
+              ? {
+                  lastMessageAt:
+                    (
+                      room.messages as Array<{ createdAt: Date }>
+                    )[0]?.createdAt.toISOString() ?? null,
+                }
+              : {}),
             ...(directPeer
               ? {
                   directPeer: {
