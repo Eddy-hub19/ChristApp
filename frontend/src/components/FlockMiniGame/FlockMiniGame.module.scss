@@ -3,7 +3,9 @@
   inset: 0;
   /* вище за TabBar (150): арена займає весь екран */
   z-index: 200;
-  background: var(--background);
+  /* Повністю непрозорий: `--background` може бути напівпрозорим (шпалери), і тоді навбар/сторінка просвічують. */
+  background-color: Canvas;
+  background-image: linear-gradient(var(--background), var(--background));
   color: var(--foreground);
   overflow: hidden;
   overscroll-behavior: none;
@@ -182,6 +184,18 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/*
+ * Низький екран (телефон у ландшафті): стовпчик кнопок над мінікартою впирається в «Топ-10».
+ * Кладемо кнопки в ряд ліворуч від мінікарти (96px + проміжок), а «Топ-10» лишається вгорі справа.
+ */
+@media (max-height: 520px) and (orientation: landscape) {
+  .actions {
+    flex-direction: row;
+    right: calc(max(12px, env(safe-area-inset-right, 0px)) + 96px + 12px);
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .actionBtn {

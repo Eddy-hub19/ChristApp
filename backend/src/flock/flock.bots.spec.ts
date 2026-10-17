@@ -1,5 +1,5 @@
 import { FLOCK_CONFIG as C } from './flock.config';
-import { initBot, thinkBot } from './flock.bots';
+import { BOT_NAMES, initBot, pickBotName, thinkBot } from './flock.bots';
 import { FlockWorld, type Player } from './flock.engine';
 
 function world() {
@@ -189,5 +189,27 @@ describe('ШІ ботів', () => {
         ).toBe(true);
       }
     }
+  });
+});
+
+describe('pickBotName', () => {
+  const rng = () => 0.5;
+
+  it('never repeats a name while free base names remain', () => {
+    const taken: string[] = [];
+    for (let i = 0; i < BOT_NAMES.length; i += 1) {
+      const name = pickBotName(Math.random, taken);
+      expect(taken).not.toContain(name);
+      taken.push(name);
+    }
+    expect(new Set(taken).size).toBe(BOT_NAMES.length);
+  });
+
+  it('adds a number once all base names are taken', () => {
+    const base = pickBotName(rng, BOT_NAMES);
+    expect(base).toMatch(/ 2$/);
+    expect(BOT_NAMES).toContain(base.replace(/ 2$/, ''));
+    const third = pickBotName(rng, [...BOT_NAMES, base]);
+    expect(third).toBe(base.replace(/ 2$/, ' 3'));
   });
 });

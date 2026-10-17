@@ -7,7 +7,7 @@ import {
   type Player,
   type Rng,
 } from './flock.engine';
-import { BOT_NAMES, initBot, thinkBot } from './flock.bots';
+import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { AdaptiveRate } from './flock.adaptive';
 import {
   BONUS_CODE,
@@ -134,7 +134,10 @@ class Arena {
   }
 
   private addBot() {
-    const name = BOT_NAMES[Math.floor(this.rng() * BOT_NAMES.length)];
+    const name = pickBotName(
+      this.rng,
+      [...this.world.players.values()].map((p) => p.name),
+    );
     const p = this.world.addPlayer({
       name,
       skin: Math.floor(this.rng() * 12),
