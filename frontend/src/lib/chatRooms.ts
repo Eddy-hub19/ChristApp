@@ -15,12 +15,18 @@ export type RoomSocketItem = {
   id: string;
   title: string;
   createdAt?: string;
+  /** Є лише у відповіді на `getMyRooms` з `withLastMessageAt` (списки «Надіслати в чат»). */
+  lastMessageAt?: string | null;
 };
+
+export type ShareTargetKind = "jesus" | "global" | "group" | "direct";
 
 export type ShareTarget = {
   id: string;
   roomId: string;
   title: string;
+  kind: ShareTargetKind;
+  lastMessageAt?: string | null;
   avatarInitials?: string;
   avatarImage?: string;
   avatarClass?: string;
@@ -88,6 +94,8 @@ export function createShareTargetsFromRooms(input: {
   }>;
   onlineUserIds?: Set<string>;
   labels?: ChatShareTargetLabels;
+  /** «Поділися з Ісусом» — службовий чат; у запрошеннях в ігри його не показуємо. За замовчуванням є. */
+  includeShareWithJesus?: boolean;
 }): ShareTarget[] {
   const {
     rooms,
@@ -95,6 +103,7 @@ export function createShareTargetsFromRooms(input: {
     users,
     onlineUserIds = new Set(),
     labels,
+    includeShareWithJesus = true,
   } = input;
   const globalTitle = labels?.globalChatTitle ?? GLOBAL_CHAT_TITLE;
   const shareTitle = labels?.shareWithJesusTitle ?? SHARE_WITH_JESUS_CHAT_TITLE;
@@ -108,18 +117,36 @@ export function createShareTargetsFromRooms(input: {
         id: GLOBAL_ROOM_ID,
         roomId: GLOBAL_ROOM_ID,
         title: globalTitle,
+        kind: "global",
         avatarImage: GLOBAL_CHAT_AVATAR_SRC,
       });
       continue;
     }
 
     if (isShareWithJesusRoomTitle(room.title)) {
+      if (!includeShareWithJesus) continue;
       targets.push({
+        kind: "jesus",
         id: SHARE_WITH_JESUS_CHAT_ID,
         roomId: room.id,
         title: shareTitle,
         avatarImage: "/jesus-say.svg",
         avatarClass: "jesusAvatar",
+      });
+      continue;
+    }
+
+    if (!room.title.startsWith("dm:")) {
+      // Груповий чат: за назвою кімнати, учасником якої є користувач.
+      const title = room.title.trim();
+      if (!title) continue;
+      targets.push({
+        id: room.id,
+        roomId: room.id,
+        title,
+        kind: "group",
+        lastMessageAt: room.lastMessageAt,
+        avatarInitials: getInitials(title),
       });
       continue;
     }
@@ -136,6 +163,8 @@ export function createShareTargetsFromRooms(input: {
       id: targetUserId,
       roomId: room.id,
       title,
+      kind: "direct",
+      lastMessageAt: room.lastMessageAt,
       avatarInitials: getInitials(title),
       avatarImage: resolvePublicAvatarUrl(matchedUser?.avatarUrl),
       isOnline: onlineUserIds.has(targetUserId),
@@ -149,15 +178,35 @@ export function createShareTargetsFromRooms(input: {
       id: GLOBAL_ROOM_ID,
       roomId: GLOBAL_ROOM_ID,
       title: globalTitle,
+      kind: "global",
       avatarImage: GLOBAL_CHAT_AVATAR_SRC,
     });
   }
 
-  return targets.sort((a, b) => {
-    if (a.id === SHARE_WITH_JESUS_CHAT_ID) return -1;
-    if (b.id === SHARE_WITH_JESUS_CHAT_ID) return 1;
-    if (a.id === GLOBAL_ROOM_ID) return -1;
-    if (b.id === GLOBAL_ROOM_ID) return 1;
+  return sortShareTargets(targets);
+}
+
+const KIND_ORDER: Record<ShareTargetKind, number> = {
+  jesus: 0,
+  global: 1,
+  group: 2,
+  direct: 3,
+};
+
+/** Єдиний порядок у всіх списках «Надіслати в чат»: (Ісус) → Загальний → групи → особисті; усередині — за останнім повідомленням. */
+export function sortShareTargets(targets: ShareTarget[]): ShareTarget[] {
+  const time = (t: ShareTarget) => (t.lastMessageAt ? Date.parse(t.lastMessageAt) || 0 : 0);
+  return [...targets].sort((a, b) => {
+    if (a.kind !== b.kind) return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+    const byTime = time(b) - time(a);
+    if (byTime !== 0) return byTime;
     return a.title.localeCompare(b.title, "ru", { sensitivity: "base" });
   });
+}
+
+/** Пошук за назвою чату / ім'ям. */
+export function filterShareTargets(targets: ShareTarget[], query: string): ShareTarget[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return targets;
+  return targets.filter((t) => t.title.toLowerCase().includes(q));
 }
