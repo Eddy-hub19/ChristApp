@@ -10,6 +10,8 @@ import MessageActionMenu from "@/components/ChatShared/MessageActionMenu";
 import ReactionPills from "@/components/ChatShared/ReactionPills";
 import ReplyBanner from "@/components/ChatShared/ReplyBanner";
 import ReplyQuote from "@/components/ChatShared/ReplyQuote";
+import ReadersSheet from "@/components/ChatShared/ReadersSheet";
+import { useRouter } from "@/i18n/navigation";
 import { HEART_REACTION } from "@/components/ChatShared/chatReactions";
 import { replyPreviewText } from "@/components/ChatShared/replyPreview";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
@@ -121,6 +123,37 @@ export default function WatchChat({
     },
     [usersById],
   );
+
+  // ===== Список «Переглянули» =====
+  const router = useRouter();
+  const [readersMessageId, setReadersMessageId] = useState<string | null>(null);
+  const readersSheetData = useMemo(() => {
+    const message = readersMessageId ? messages.find((m) => m.id === readersMessageId) : undefined;
+    if (!message) return null;
+    const readers = members
+      .filter(
+        (member) =>
+          member.id !== message.user.id &&
+          member.status === "JOINED" &&
+          member.lastReadAt >= message.createdAt,
+      )
+      .map((member) => ({
+        id: member.id,
+        name: watchUserName(member),
+        avatarSrc: resolvePublicAvatarUrl(member.avatarUrl),
+        readAt: member.lastReadAt,
+      }));
+    const reactionRows = message.reactions.map((reaction) => {
+      const person = resolveReactionUser(reaction.userId);
+      return {
+        userId: reaction.userId,
+        name: person.label,
+        avatarSrc: person.avatarSrc,
+        emoji: reaction.type,
+      };
+    });
+    return { readers, reactions: reactionRows };
+  }, [readersMessageId, messages, members, resolveReactionUser]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     const el = listRef.current;
@@ -371,6 +404,7 @@ export default function WatchChat({
               }}
               onQuoteClick={(id) => void jumpToMessage(id)}
               visibleReaders={visibleReaders}
+              onOpenReaders={() => setReadersMessageId(m.id)}
               extraReadersCount={extraReadersCount}
               t={t}
             />
@@ -404,6 +438,18 @@ export default function WatchChat({
           </button>
         ))}
       </div>
+
+      <ReadersSheet
+        open={readersSheetData !== null}
+        onClose={() => setReadersMessageId(null)}
+        readers={readersSheetData?.readers ?? []}
+        reactions={readersSheetData?.reactions ?? []}
+        tone="hall"
+        onSelectUser={(userId) => {
+          setReadersMessageId(null);
+          if (userId !== currentUserId) router.push(`/chat/${userId}`);
+        }}
+      />
 
       {notice ? (
         <p className={styles.chatNotice} role="status">
@@ -484,6 +530,7 @@ type WatchChatMessageProps = {
   onDelete: () => void;
   onQuoteClick: (messageId: string) => void;
   visibleReaders: HallMember[];
+  onOpenReaders: () => void;
   extraReadersCount: number;
   t: ReturnType<typeof useTranslations>;
 };
@@ -502,6 +549,7 @@ function WatchChatMessage({
   onDelete,
   onQuoteClick,
   visibleReaders,
+  onOpenReaders,
   extraReadersCount,
   t,
 }: WatchChatMessageProps) {
@@ -569,7 +617,20 @@ function WatchChatMessage({
 
             {visibleReaders.length > 0 ? (
               <div
-                className={styles.readReceiptRow}
+                className={`${styles.readReceiptRow} ${styles.readReceiptButton}`}
+                role="button"
+                tabIndex={0}
+                aria-label={tShared("readersOpenAria")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenReaders();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onOpenReaders();
+                  }
+                }}
                 title={t("seenBy", {
                   names: visibleReaders.map((r) => watchUserName(r)).join(", "),
                 })}

@@ -5,6 +5,7 @@ import {
   isMimeAllowed,
   normalizeMime,
   sanitizeFileName,
+  repairMojibakeName,
 } from './upload-policy';
 import { mediaPreviewLabel } from './media-preview';
 import { voiceMessageContent } from './voice-message';
@@ -40,6 +41,27 @@ describe('upload-policy', () => {
     const long = sanitizeFileName(`${'a'.repeat(300)}.pdf`);
     expect(long.length).toBeLessThanOrEqual(120);
     expect(long.endsWith('.pdf')).toBe(true);
+  });
+});
+
+describe('repairMojibakeName', () => {
+  const asLatin1 = (v: string) => Buffer.from(v, 'utf8').toString('latin1');
+  const asCp1252 = (v: string) =>
+    new TextDecoder('windows-1252').decode(Buffer.from(v, 'utf8'));
+
+  it.each(['Алей.mp3', 'Звіт за квітень.docx', 'молитва 🙏 ранок.mp3', 'file name (1).pdf'])(
+    'restores %s from latin1 and cp1252 mojibake',
+    (name) => {
+      expect(repairMojibakeName(asLatin1(name))).toBe(name);
+      expect(repairMojibakeName(asCp1252(name))).toBe(name);
+    },
+  );
+
+  it('leaves correct and non-restorable names untouched', () => {
+    expect(repairMojibakeName('Алей.mp3')).toBe('Алей.mp3');
+    expect(repairMojibakeName('report final.pdf')).toBe('report final.pdf');
+    expect(repairMojibakeName('Ñandú.txt')).toBe('Ñandú.txt');
+    expect(repairMojibakeName('café.txt')).toBe('café.txt');
   });
 });
 
