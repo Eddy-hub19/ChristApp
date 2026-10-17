@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Gamepad2, Megaphone, Search } from "lucide-react";
+import { Gamepad2, Search } from "lucide-react";
+import { MegaphoneIcon } from "@/components/icons/game";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import Sheet from "@/components/Cinema/Sheet";
 import { useRouter } from "@/i18n/navigation";
@@ -226,7 +227,7 @@ export default function GlobalGamesMenu({
             <span>{t("flock")}</span>
           </button>
           <button type="button" className={`${itemClassName} ${styles.sub}`} role="menuitem" onClick={callEveryone}>
-            <Megaphone size={18} strokeWidth={2.1} className={iconClassName} aria-hidden />
+            <MegaphoneIcon size={18} className={iconClassName} />
             <span>{t("flockCallAll")}</span>
           </button>
           <p className={styles.groupTitle}>{t("pairHeader")}</p>
