@@ -29,7 +29,8 @@
   position: absolute;
   top: max(12px, env(safe-area-inset-top, 0px));
   left: max(12px, env(safe-area-inset-left, 0px));
-  z-index: 3;
+  /* Вище за картки лобі/результату (.cardWrap, z-index 4), щоб хрестик було видно й можна було натиснути. */
+  z-index: 6;
   width: 40px;
   height: 40px;
   border-radius: 12px;
@@ -257,7 +258,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  /* Зверху лишаємо місце під хрестик (12px + 40px + 12px) з урахуванням safe-area — картка його не перекриває. */
+  padding: calc(max(12px, env(safe-area-inset-top, 0px)) + 52px) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--background) 62%, transparent);
   backdrop-filter: blur(5px);
   overflow-y: auto;
