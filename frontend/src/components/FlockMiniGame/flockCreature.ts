@@ -28,6 +28,162 @@ function drawEyes(c: CanvasRenderingContext2D, x: number, y: number, r: number, 
   }
 }
 
+function star(c: CanvasRenderingContext2D, x: number, y: number, r: number, points = 5, inner = 0.45) {
+  c.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i * Math.PI) / points - Math.PI / 2;
+    const rr = i % 2 === 0 ? r : r * inner;
+    if (i === 0) c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath();
+}
+
+/** Прикраси платних скінів: малюються поверх базового вигляду, в тих самих координатах. */
+function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: number) {
+  const fwdX = Math.cos(ang);
+  const fwdY = Math.sin(ang);
+  switch (skin.deco) {
+    case "wreath": {
+      // вінок із квітів по краю голови
+      const colors = ["#f48fb1", "#fff176", "#ffffff", "#ce93d8", "#ffab91"];
+      const n = 10;
+      for (let i = 0; i < n; i++) {
+        // дуга над мордочкою: від -1.25 до +1.25 рад відносно напряму погляду
+        const a = ang + (i / (n - 1) - 0.5) * 3.1;
+        const px = Math.cos(a) * r * 0.8;
+        const py = Math.sin(a) * r * 0.8;
+        c.fillStyle = "#4caf50";
+        circle(c, px - Math.cos(a) * r * 0.04, py - Math.sin(a) * r * 0.04, r * 0.12);
+        c.fill();
+        c.fillStyle = colors[i % colors.length];
+        for (let k = 0; k < 5; k++) {
+          const pa = (k / 5) * TAU;
+          circle(c, px + Math.cos(pa) * r * 0.08, py + Math.sin(pa) * r * 0.08, r * 0.06);
+          c.fill();
+        }
+        c.fillStyle = "#ffca28";
+        circle(c, px, py, r * 0.045);
+        c.fill();
+      }
+      break;
+    }
+    case "bell": {
+      // червоний нашийник і золотий дзвіночок
+      c.strokeStyle = "#d32f2f";
+      c.lineWidth = Math.max(2, r * 0.1);
+      c.lineCap = "round";
+      c.beginPath();
+      c.arc(0, 0, r * 0.78, ang - 0.95, ang + 0.95);
+      c.stroke();
+      const bx = fwdX * r * 0.78;
+      const by = fwdY * r * 0.78;
+      c.fillStyle = "#ffca28";
+      circle(c, bx, by, r * 0.15);
+      c.fill();
+      c.strokeStyle = "rgba(0,0,0,0.3)";
+      c.lineWidth = Math.max(1, r * 0.03);
+      c.stroke();
+      c.fillStyle = "#fff8c4";
+      circle(c, bx - r * 0.04, by - r * 0.04, r * 0.045);
+      c.fill();
+      c.fillStyle = "#6d4c00";
+      circle(c, bx + fwdX * r * 0.02, by + fwdY * r * 0.02 + r * 0.05, r * 0.03);
+      c.fill();
+      break;
+    }
+    case "cloud": {
+      // додаткові пухнасті "хмаринки" й рум'янець
+      c.fillStyle = "#ffffff";
+      c.globalAlpha = 0.9;
+      for (const [dx, dy, rr] of [
+        [-0.55, -0.55, 0.3],
+        [0.1, -0.85, 0.26],
+        [-0.9, 0.1, 0.27],
+        [-0.5, 0.65, 0.28],
+      ] as const) {
+        circle(c, dx * r, dy * r, rr * r);
+        c.fill();
+      }
+      c.globalAlpha = 0.55;
+      c.fillStyle = skin.accent;
+      for (const side of [-1, 1]) {
+        circle(c, fwdX * r * 0.4 - Math.sin(ang) * side * r * 0.3, fwdY * r * 0.4 + Math.cos(ang) * side * r * 0.3, r * 0.1);
+        c.fill();
+      }
+      c.globalAlpha = 1;
+      break;
+    }
+    case "gold": {
+      // блиски "золотого руна"
+      c.fillStyle = "#ffffff";
+      for (const [dx, dy, rr] of [
+        [-0.45, -0.5, 0.17],
+        [0.35, -0.7, 0.12],
+        [-0.8, 0.25, 0.1],
+      ] as const) {
+        star(c, dx * r, dy * r, rr * r, 4, 0.3);
+        c.globalAlpha = 0.95;
+        c.fill();
+      }
+      c.globalAlpha = 1;
+      c.strokeStyle = "rgba(255,255,255,0.55)";
+      c.lineWidth = Math.max(1, r * 0.05);
+      circle(c, 0, 0, r * 0.84);
+      c.stroke();
+      break;
+    }
+    case "wolfwool": {
+      // вовняна "шкура" на спині, морда й вуха вовка визирають спереду
+      c.fillStyle = skin.wool ?? "#f6f1e7";
+      const n = 9;
+      for (let i = 0; i < n; i++) {
+        const a = ang + Math.PI * 0.72 + (i / (n - 1)) * (Math.PI * 2 - Math.PI * 1.44);
+        circle(c, Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7, r * 0.32);
+        c.fill();
+      }
+      circle(c, -fwdX * r * 0.45, -fwdY * r * 0.45, r * 0.5);
+      c.fill();
+      // клички
+      c.fillStyle = "#ffffff";
+      for (const side of [-1, 1]) {
+        const ox = fwdX * r * 0.72 - Math.sin(ang) * side * r * 0.1;
+        const oy = fwdY * r * 0.72 + Math.cos(ang) * side * r * 0.1;
+        c.beginPath();
+        c.moveTo(ox - Math.sin(ang) * side * r * 0.035, oy + Math.cos(ang) * side * r * 0.035);
+        c.lineTo(ox + fwdX * r * 0.1, oy + fwdY * r * 0.1);
+        c.lineTo(ox + Math.sin(ang) * side * r * 0.035, oy - Math.cos(ang) * side * r * 0.035);
+        c.closePath();
+        c.fill();
+      }
+      break;
+    }
+    case "stars": {
+      c.fillStyle = skin.accent;
+      for (const [dx, dy, rr] of [
+        [-0.4, -0.45, 0.22],
+        [0.15, -0.8, 0.15],
+        [-0.8, 0.1, 0.18],
+        [-0.35, 0.6, 0.16],
+        [0.3, 0.7, 0.11],
+      ] as const) {
+        star(c, dx * r, dy * r, rr * r);
+        c.fill();
+      }
+      // півмісяць на лобі
+      c.fillStyle = "#fff3b0";
+      c.beginPath();
+      c.arc(fwdX * r * 0.05 - Math.sin(ang) * r * 0.5, fwdY * r * 0.05 + Math.cos(ang) * r * 0.5, r * 0.11, 0, TAU);
+      c.fill();
+      c.fillStyle = skin.fur;
+      c.beginPath();
+      c.arc(fwdX * r * 0.05 - Math.sin(ang) * r * 0.5 + r * 0.05, fwdY * r * 0.05 + Math.cos(ang) * r * 0.5 - r * 0.02, r * 0.1, 0, TAU);
+      c.fill();
+      break;
+    }
+  }
+}
+
 export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number, y: number, r: number, ang: number, phase: number, wobble: number) {
   c.save();
   c.translate(x, y);
@@ -72,6 +228,7 @@ export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number,
     c.strokeStyle = dark;
     circle(c, 0, 0, r);
     c.stroke();
+    if (skin.deco === "wolfwool") drawDeco(c, skin, r, ang);
     if (skin.kind === "dog") {
       c.fillStyle = skin.face;
       c.beginPath();
@@ -144,6 +301,7 @@ export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number,
       c.globalAlpha = 1;
     }
   }
+  if (skin.deco && skin.deco !== "wolfwool") drawDeco(c, skin, r, ang);
   c.restore();
 }
 

@@ -1,4 +1,5 @@
 import {
+  Body,
   BadRequestException,
   Controller,
   Delete,
@@ -21,6 +22,7 @@ import { CpuBenchmarkService } from './cpu-benchmark.service';
 import { DbLatencyService } from './db-latency.service';
 import { describeDatabaseUrl, describeServerRegion } from 'src/prisma/db-info';
 import { ChatGateway } from 'src/chat/chat.gateway';
+import { FlockRubiesService } from 'src/flock/flock.rubies.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -31,6 +33,7 @@ export class AdminController {
     private readonly chatGateway: ChatGateway,
     private readonly cpuBenchmark: CpuBenchmarkService,
     private readonly dbLatency: DbLatencyService,
+    private readonly flockRubies: FlockRubiesService,
   ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
@@ -114,6 +117,29 @@ export class AdminController {
         avatarUrl: true,
       },
     });
+  }
+
+  /** Рубіни, куплені скіни, статистика й історія транзакцій учасника. */
+  @Get('members/:id/flock')
+  memberFlock(@Param('id') id: string) {
+    return this.flockRubies.adminOverview(id);
+  }
+
+  /** Нарахувати (amount > 0) або списати (amount < 0) рубіни; причина обов'язкова. */
+  @Post('members/:id/rubies')
+  async adjustRubies(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { amount?: unknown; reason?: unknown },
+  ) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    return this.flockRubies.adminAdjust(
+      actor.id,
+      id,
+      typeof body?.amount === 'number' ? body.amount : NaN,
+      typeof body?.reason === 'string' ? body.reason : '',
+    );
   }
 
   @Delete('members/:id')

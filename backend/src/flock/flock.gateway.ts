@@ -12,6 +12,7 @@ import type { Namespace, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FLOCK_CONFIG, NUM_SKINS } from './flock.config';
 import { FlockManager } from './flock.manager';
+import { FlockRubiesService } from './flock.rubies.service';
 import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
 
@@ -37,10 +38,30 @@ export class FlockGateway
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly rubies: FlockRubiesService,
   ) {
     this.manager = new FlockManager(
       createSender((key) => this.ns?.sockets.get(key)),
+      Math.random,
+      Date.now,
+      {
+        onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
+        onDeath: (userId, run) =>
+          void this.rubies
+            .recordRun(userId, run)
+            .catch((e) => this.log.error(`recordRun: ${String(e)}`)),
+      },
     );
+  }
+
+  /** Нагорода за 1-ше місце: сервер пише в БД і лише потім повідомляє клієнта (подія `r`). */
+  private async rewardTop1(userId: string, connKey: string | null) {
+    try {
+      const res = await this.rubies.awardTop1(userId);
+      if (res && connKey) this.ns?.sockets.get(connKey)?.emit('r', res);
+    } catch (e) {
+      this.log.error(`awardTop1: ${String(e)}`);
+    }
   }
 
   afterInit(ns: Namespace) {
@@ -81,7 +102,7 @@ export class FlockGateway
   }
 
   @SubscribeMessage('j')
-  join(
+  async join(
     @ConnectedSocket() client: FlockSocket,
     @MessageBody()
     body: {
@@ -102,11 +123,20 @@ export class FlockGateway
       body.arena > 0
         ? body.arena
         : undefined;
+    const userId = client.data.userId!;
+    const wanted = Math.max(0, Math.min(NUM_SKINS - 1, skin));
+    // Скін перевіряє сервер: платний без покупки на арену не пускаємо (не підміняємо мовчки).
+    // Перевіряємо завжди, навіть із resume: токен міг не підійти, і тоді створюється нова овечка з цим скіном.
+    if (!(await this.rubies.canUseSkin(userId, wanted))) {
+      client.emit('e', { code: 'skin_locked' });
+      return;
+    }
+    if (!client.connected) return;
     const res = this.manager.join(
       client.id,
-      client.data.userId!,
+      userId,
       client.data.name ?? 'Овечка',
-      Math.max(0, Math.min(NUM_SKINS - 1, skin)),
+      wanted,
       { resume, arena, resumeOnly: body?.resumeOnly === true },
     );
     if (!res.ok) {

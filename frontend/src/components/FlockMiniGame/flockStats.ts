@@ -6,35 +6,31 @@ export interface FlockStats {
 }
 
 const EMPTY: FlockStats = { bestMass: 0, eaten: 0, topMs: 0, games: 0 };
-const key = (userId: string) => `christapp:flock:stats:${userId}`;
+const legacyKey = (userId: string) => `christapp:flock:stats:${userId}`;
 
-export function loadFlockStats(userId: string): FlockStats {
+/** Стара статистика з localStorage (до переїзду в БД): читаємо лише для разового переносу на сервер. */
+export function loadLegacyFlockStats(userId: string): FlockStats | null {
   try {
-    const raw = localStorage.getItem(key(userId));
-    if (!raw) return { ...EMPTY };
+    const raw = localStorage.getItem(legacyKey(userId));
+    if (!raw) return null;
     const p = JSON.parse(raw) as Partial<FlockStats>;
     const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
-    return { bestMass: n(p.bestMass), eaten: n(p.eaten), topMs: n(p.topMs), games: n(p.games) };
+    const stats = { bestMass: n(p.bestMass), eaten: n(p.eaten), topMs: n(p.topMs), games: n(p.games) };
+    return stats.games > 0 || stats.bestMass > 0 ? stats : null;
   } catch {
-    return { ...EMPTY };
+    return null;
   }
 }
 
-export function recordFlockRun(userId: string, run: { maxMass: number; kills: number; topMs: number }): FlockStats {
-  const prev = loadFlockStats(userId);
-  const next: FlockStats = {
-    bestMass: Math.max(prev.bestMass, Math.round(run.maxMass)),
-    eaten: prev.eaten + Math.max(0, run.kills),
-    topMs: prev.topMs + Math.max(0, Math.round(run.topMs)),
-    games: prev.games + 1,
-  };
+export function clearLegacyFlockStats(userId: string) {
   try {
-    localStorage.setItem(key(userId), JSON.stringify(next));
+    localStorage.removeItem(legacyKey(userId));
   } catch {
-    /* приватний режим / квота: статистика просто не збережеться */
+    /* ignore */
   }
-  return next;
 }
+
+export const EMPTY_FLOCK_STATS = EMPTY;
 
 const CONTROLS_KEY = "christapp:flock:controls";
 export type ControlMode = "follow" | "joystick";

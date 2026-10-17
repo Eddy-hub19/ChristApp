@@ -92,6 +92,34 @@
     "openChat": "Open chat"
   },
   "admin": {
+    "rubies": {
+      "title": "Rubies",
+      "loading": "Loading…",
+      "balance": "Balance:",
+      "skins": "Owned skins:",
+      "noSkins": "none",
+      "amountLabel": "Ruby amount",
+      "amountPlaceholder": "± amount",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Reason (required)",
+      "apply": "Apply",
+      "applying": "Saving…",
+      "history": "Transaction history",
+      "noHistory": "No transactions yet",
+      "by": "admin {id}",
+      "reasons": {
+        "ARENA_TOP1": "Arena first place",
+        "SKIN_PURCHASE": "Skin purchase",
+        "ADMIN_ADJUST": "Admin adjustment"
+      },
+      "errors": {
+        "reason_required": "Please give a reason",
+        "invalid_amount": "Enter a non-zero whole number",
+        "insufficient_balance": "Can't deduct more than the current balance",
+        "user_not_found": "User not found",
+        "generic": "The operation failed"
+      }
+    },
     "title": "Admin",
     "subtitle": "Members (newest first).",
     "backToChat": "← Chat",
@@ -177,6 +205,10 @@
     "procBenchHint": "Share of the budget (~{vcpu} vCPU ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from RENDER_CPU_BUDGET_MS on the server. The result is kept until the server restarts."
   },
   "profile": {
+    "iconCredits": {
+      "title": "Icon credits",
+      "note": "some game icons come from game-icons.net, licensed under Creative Commons Attribution 3.0."
+    },
     "title": "Profile",
     "memberSince": "With us since {date}",
     "avatarLikesReceived": "❤ Avatar likes received: {count}",
@@ -1061,7 +1093,8 @@
       "error": "Could not connect to the arena",
       "expired": "Your session has ended, starting over",
       "resuming": "Getting you back into the game…",
-      "taken": "The game is open in another window"
+      "taken": "The game is open in another window",
+      "skinLocked": "This skin hasn't been bought yet"
     },
     "bonuses": {
       "speed": "Speed boost",
@@ -1084,7 +1117,35 @@
       "8": "Gray wolf",
       "9": "Black wolf",
       "10": "Sheepdog",
-      "11": "Ginger sheep"
+      "11": "Ginger sheep",
+      "12": "Flower wreath sheep",
+      "13": "Bell ram",
+      "14": "Cloud lamb",
+      "15": "Golden sheep",
+      "16": "Wolf in sheep's clothing",
+      "17": "Starry night sheep"
+    },
+    "rubies": {
+      "name": "Rubies",
+      "count": "{count, plural, one {# ruby} other {# rubies}}",
+      "balance": "Balance: {count, plural, one {# ruby} other {# rubies}}",
+      "locked": "Locked",
+      "price": "Price: {price}",
+      "buy": "Buy for {price}",
+      "missing": "Missing: {count, plural, one {# ruby} other {# rubies}}",
+      "confirmTitle": "Confirm purchase?",
+      "confirmText": "Buy “{name}” for {price, plural, one {# ruby} other {# rubies}}?",
+      "confirm": "Yes, buy",
+      "cancel": "Cancel",
+      "buying": "Buying…",
+      "owned": "Owned",
+      "preview": "Preview",
+      "reward": "You're first! +{count, plural, one {# ruby} other {# rubies}}",
+      "errors": {
+        "not_enough": "Not enough rubies",
+        "already_owned": "You already own this skin",
+        "generic": "Purchase failed, please try again"
+      }
     },
     "resuming": "Returning…",
     "reconnecting": "Connection lost · reconnecting… {seconds}s",

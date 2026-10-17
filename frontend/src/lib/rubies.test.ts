@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { IntlMessageFormat } from "intl-messageformat";
+import en from "../../messages/en.json";
+import ru from "../../messages/ru.json";
+import ua from "../../messages/ua.json";
+import { FREE_SKINS, isPaidSkin, PAID_SKIN_IDS, TOTAL_SKINS } from "./rubies";
+import { SKINS } from "@/components/FlockMiniGame/flockSkins";
+
+const fmt = (msg: string, locale: string, values: Record<string, unknown>) =>
+  String(new IntlMessageFormat(msg, locale).format(values as never));
+
+describe("рубіни: множина (ICU plural)", () => {
+  const cases: [string, string, typeof ua, Record<number, string>][] = [
+    ["ua", "uk", ua, { 1: "1 рубін", 2: "2 рубіни", 5: "5 рубінів", 11: "11 рубінів", 21: "21 рубін", 22: "22 рубіни", 0: "0 рубінів" }],
+    ["ru", "ru", ru, { 1: "1 рубин", 2: "2 рубина", 5: "5 рубинов", 11: "11 рубинов", 21: "21 рубин", 24: "24 рубина", 0: "0 рубинов" }],
+    ["en", "en", en, { 1: "1 ruby", 2: "2 rubies", 5: "5 rubies", 0: "0 rubies" }],
+  ];
+  for (const [name, locale, msgs, expected] of cases) {
+    it(`${name}: rubies.count`, () => {
+      for (const [n, text] of Object.entries(expected)) {
+        expect(fmt(msgs.flock.rubies.count, locale, { count: Number(n) })).toBe(text);
+      }
+    });
+  }
+
+  it("повідомлення про нагороду й нестачу використовують ту саму множину", () => {
+    expect(fmt(ua.flock.rubies.reward, "uk", { count: 10 })).toBe("Ти перший! +10 рубінів");
+    expect(fmt(ru.flock.rubies.reward, "ru", { count: 10 })).toBe("Ты первый! +10 рубинов");
+    expect(fmt(en.flock.rubies.reward, "en", { count: 10 })).toBe("You're first! +10 rubies");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 3 })).toBe("Не вистачає: 3 рубіни");
+    expect(fmt(ru.flock.rubies.missing, "ru", { count: 3 })).toBe("Не хватает: 3 рубина");
+    expect(fmt(en.flock.rubies.missing, "en", { count: 1 })).toBe("Missing: 1 ruby");
+    expect(fmt(ua.flock.rubies.confirmText, "uk", { name: "Золота овечка", price: 20 })).toBe("Купити «Золота овечка» за 20 рубінів?");
+  });
+});
+
+describe("скіни: платні 12..17", () => {
+  it("клієнтські константи збігаються з набором скінів", () => {
+    expect(SKINS).toHaveLength(TOTAL_SKINS);
+    expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17]);
+    expect(isPaidSkin(FREE_SKINS - 1)).toBe(false);
+    expect(isPaidSkin(FREE_SKINS)).toBe(true);
+    expect(isPaidSkin(TOTAL_SKINS)).toBe(false);
+  });
+
+  it("у кожного платного скіна є назва в усіх трьох мовах", () => {
+    for (const id of PAID_SKIN_IDS) {
+      for (const m of [ua, ru, en]) {
+        expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
+      }
+    }
+  });
+});

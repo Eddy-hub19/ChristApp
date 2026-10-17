@@ -33,6 +33,7 @@
     "pdfjs-dist": "^6.3.289",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-icons": "^5.7.0",
     "sass": "^1.97.3",
     "socket.io-client": "^4.8.3",
     "streamifier": "^0.1.1"
@@ -45,6 +46,7 @@
     "@types/vimeo__player": "^2.18.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "intl-messageformat": "^11.2.1",
     "typescript": "^5",
     "vitest": "^4.1.11"
   }

@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { FLOCK_CONFIG, BONUS_KINDS } from './flock.config';
+import { FLOCK_CONFIG, BONUS_KINDS, FREE_SKINS } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
   FlockWorld,
@@ -49,6 +49,18 @@ interface Session {
   deadSent: boolean;
   /** Співвідношення сторін екрана клієнта: форма області видимості (площа від нього не залежить). */
   aspect: number;
+  /** Нагороду за 1-ше місце в цьому житті вже видано (скидається при народженні). */
+  rewardedThisLife: boolean;
+}
+
+export interface FlockHooks {
+  /** Гравець посів 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
+  onTop1?: (userId: string, connKey: string | null) => void;
+  /** Овечка гравця загинула: підсумки життя (для статистики). */
+  onDeath?: (
+    userId: string,
+    run: { maxMass: number; kills: number; topMs: number },
+  ) => void;
 }
 
 class Arena {
@@ -84,6 +96,7 @@ class Arena {
     private readonly rng: Rng,
     private readonly send: SendFn,
     private readonly now: () => number = Date.now,
+    private readonly hooks: FlockHooks = {},
   ) {
     this.world = new FlockWorld(rng);
   }
@@ -140,7 +153,7 @@ class Arena {
     );
     const p = this.world.addPlayer({
       name,
-      skin: Math.floor(this.rng() * 12),
+      skin: Math.floor(this.rng() * FREE_SKINS),
       bot: true,
     });
     initBot(p, this.rng);
@@ -210,6 +223,7 @@ class Arena {
     let boardBuf: Uint8Array | null = null;
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
+      this.checkTop1(ranked[0]);
       boardBuf = encodeBoard({
         top: ranked
           .slice(0, 10)
@@ -242,6 +256,11 @@ class Arena {
           topMs: Math.round(p.topMs),
           killer: w.players.get(p.killerPid)?.name ?? null,
         });
+        this.hooks.onDeath?.(s.userId, {
+          maxMass: p.maxMass,
+          kills: p.kills,
+          topMs: p.topMs,
+        });
       }
       if (!p.alive) continue;
       const buf = encodeState(this.buildState(s, p));
@@ -254,6 +273,18 @@ class Arena {
     }
     this.phase.send += sentMs;
     this.phase.encode += performance.now() - t0 - sentMs;
+  }
+
+  /** 1-ше місце + маса від порога + ще не нагороджений у цьому житті -> хук (рубіни нараховує лише сервер). */
+  private checkTop1(first: Player | undefined) {
+    if (!first || first.total < C.rubies.top1MassThreshold) return;
+    for (const s of this.sessions.values()) {
+      if (s.pid !== first.id) continue;
+      if (s.rewardedThisLife || !s.connKey || !first.alive) return;
+      s.rewardedThisLife = true;
+      this.hooks.onTop1?.(s.userId, s.connKey);
+      return;
+    }
   }
 
   /** Прапорці ефектів гравців і списки кущів / кинутої маси / бонусів - одноразово на тік. */
@@ -457,6 +488,7 @@ export class FlockManager {
     private readonly send: SendFn,
     private readonly rng: Rng = Math.random,
     private readonly now: () => number = Date.now,
+    private readonly hooks: FlockHooks = {},
   ) {
     this.sweeper = setInterval(() => this.sweep(), 1000);
     this.sweeper.unref?.();
@@ -476,6 +508,7 @@ export class FlockManager {
       if (p && !p.alive) {
         sameConn.arena.world.respawn(p);
         sameConn.deadSent = false;
+        sameConn.rewardedThisLife = false;
         sameConn.knownChunks.clear();
         sameConn.knownPlayers.clear();
         sameConn.lastInputAt = this.now();
@@ -513,6 +546,7 @@ export class FlockManager {
       inputCount: 0,
       deadSent: false,
       aspect: 1,
+      rewardedThisLife: false,
     };
     arena.sessions.set(userId, session);
     this.byConn.set(connKey, session);
@@ -540,7 +574,13 @@ export class FlockManager {
     const any = [...this.arenas.values()].find(has);
     if (any) return any;
     if (this.arenas.size >= C.maxArenas) return null;
-    const arena = new Arena(this.nextArenaId++, this.rng, this.send, this.now);
+    const arena = new Arena(
+      this.nextArenaId++,
+      this.rng,
+      this.send,
+      this.now,
+      this.hooks,
+    );
     this.arenas.set(arena.id, arena);
     return arena;
   }

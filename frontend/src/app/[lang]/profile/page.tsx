@@ -1,5 +1,6 @@
 "use client";
 
+import IconCredits from "@/components/IconCredits/IconCredits";
 import styles from "@/app/[lang]/profile/profile.module.scss";
 import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
@@ -1033,6 +1034,8 @@ export default function ProfilePage() {
           <PushNotificationCenter />
         </div>
       ) : null}
+
+      <IconCredits className={styles.iconCredits} />
 
       {/* Непомітний рядок версії білда — щоб на телефоні бачити, яка збірка відкрита в PWA. */}
       <p className={styles.buildInfo}>

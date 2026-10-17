@@ -3,20 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useTranslations } from "next-intl";
-import { X } from "lucide-react";
+import { Lock, X } from "lucide-react";
+import RubyIcon from "@/components/RubyIcon/RubyIcon";
+import { isPaidSkin } from "@/lib/rubies";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
-import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus } from "./flockClient";
+import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
+import { buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, selectFlockSkin, type FlockMe } from "./flockApi";
 import FlockInvite from "./FlockInvite";
 import { loadFlockSession } from "./flockSession";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
 import { SKINS, skinOf } from "./flockSkins";
 import {
+  clearLegacyFlockStats,
+  EMPTY_FLOCK_STATS,
   loadControlMode,
-  loadFlockStats,
-  recordFlockRun,
+  loadLegacyFlockStats,
   saveControlMode,
   type ControlMode,
   type FlockStats,
@@ -113,7 +117,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [status, setStatus] = useState<FlockStatus>("connecting");
   const [skin, setSkin] = useState(0);
   const [control, setControl] = useState<ControlMode>("follow");
-  const [stats, setStats] = useState<FlockStats>({ bestMass: 0, eaten: 0, topMs: 0, games: 0 });
+  const [stats, setStats] = useState<FlockStats>(EMPTY_FLOCK_STATS);
+  const [me, setMe] = useState<FlockMe | null>(null);
+  const [previewSkin, setPreviewSkin] = useState<number | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
   const [isTouch, setIsTouch] = useState(false);
@@ -126,9 +136,37 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const mode = loadControlMode();
     setControl(mode);
     controlRef.current = mode;
-    setStats(loadFlockStats(userId));
     setIsTouch(window.matchMedia?.("(pointer: coarse)").matches ?? false);
   }, [userId]);
+
+  /** Баланс, куплені скіни й статистика - з сервера; стара статистика з localStorage переноситься один раз. */
+  const refreshMe = useCallback(async () => {
+    try {
+      let data = await fetchFlockMe();
+      if (!data.statsImported) {
+        const legacy = loadLegacyFlockStats(userId);
+        if (legacy) {
+          const res = await importFlockStats(legacy);
+          clearLegacyFlockStats(userId);
+          data = { ...data, stats: res.stats, statsImported: true };
+        } else {
+          // нічого переносити: позначимо, щоб не питати щоразу
+          await importFlockStats(EMPTY_FLOCK_STATS);
+          clearLegacyFlockStats(userId);
+        }
+      }
+      setMe(data);
+      setStats(data.stats);
+      // обраний скін мусить бути доступним (безкоштовний або куплений)
+      setSkin((cur) => (isPaidSkin(cur) && !data.ownedSkins.includes(cur) ? 0 : cur));
+    } catch {
+      /* офлайн: лобі працює з безкоштовними скінами */
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (open) void refreshMe();
+  }, [open, refreshMe]);
 
   // тема: стежимо за data-theme на <html>
   useEffect(() => {
@@ -168,9 +206,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         autoResume: true,
         onNotice: setNotice,
         onStatus: (s) => setStatus(s),
+        onReward: (r) => {
+          setReward({ ...r, id: Date.now() });
+          setMe((m) => (m ? { ...m, rubies: r.balance } : m));
+        },
         onDeath: (info) => {
           setDeath(info);
-          setStats(recordFlockRun(userId, { maxMass: info.maxMass, kills: info.kills, topMs: info.topMs }));
+          // статистику пише сервер; через мить тягнемо оновлену
+          setTimeout(() => void refreshMe(), 800);
         },
       });
       clientRef.current = client;
@@ -180,7 +223,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       client?.dispose();
       clientRef.current = null;
     };
-  }, [open, userId, attempt, arenaId]);
+  }, [open, userId, attempt, arenaId, refreshMe]);
 
   const play = useCallback(() => {
     try {
@@ -190,8 +233,47 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     }
     maxTotalRef.current = 0;
     setDeath(null);
+    setReward(null);
+    if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
     clientRef.current?.join(skin);
   }, [skin]);
+
+  // «+10»: підпис і анімація зникають самі
+  useEffect(() => {
+    if (!reward) return;
+    const id = setTimeout(() => setReward(null), 3500);
+    return () => clearTimeout(id);
+  }, [reward]);
+
+  const openSkin = (i: number) => {
+    setBuyError(null);
+    setConfirming(false);
+    if (isPaidSkin(i) && !me?.ownedSkins.includes(i)) {
+      setPreviewSkin(i);
+      return;
+    }
+    setPreviewSkin(null);
+    setSkin(i);
+  };
+
+  const buy = async (i: number) => {
+    setBuying(true);
+    setBuyError(null);
+    try {
+      const res = await buyFlockSkin(i);
+      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b) } : m));
+      setSkin(i);
+      setPreviewSkin(null);
+      setConfirming(false);
+    } catch (e) {
+      const code = e instanceof FlockApiError ? e.code : null;
+      setBuyError(code === "not_enough" || code === "already_owned" ? code : "generic");
+      if (code === "already_owned" || code === "not_enough") void refreshMe();
+      setConfirming(false);
+    } finally {
+      setBuying(false);
+    }
+  };
 
   const changeControl = (mode: ControlMode) => {
     setControl(mode);
@@ -443,6 +525,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <span>{t("reconnecting", { seconds: reconnectLeft })}</span>
             </div>
           ) : null}
+          {reward ? (
+            <div key={reward.id} className={styles.rewardPop} role="status">
+              <span className={styles.rewardAmount}>
+                <RubyIcon size={36} />+{reward.amount}
+              </span>
+              <span className={styles.rewardText}>{t("rubies.reward", { count: reward.amount })}</span>
+            </div>
+          ) : null}
           <div className={styles.massBadge} aria-live="off">
             <span className={styles.massLabel}>{t("hud.mass")}</span>
             <span className={styles.massValue}>{Math.round(hud.total)}</span>
@@ -540,26 +630,87 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {showLobby ? (
         <div className={styles.cardWrap}>
           <div className={styles.card}>
-            <h2>{t("title")}</h2>
+            <div className={styles.cardHead}>
+              <h2>{t("title")}</h2>
+              <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+                <RubyIcon size={18} />
+                <span>{me?.rubies ?? 0}</span>
+              </div>
+            </div>
             <p className={styles.sub}>{t("tagline")}</p>
 
             <h3 className={styles.h3}>{t("chooseSkin")}</h3>
             <div className={styles.skins} role="radiogroup" aria-label={t("chooseSkin")}>
-              {SKINS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  role="radio"
-                  aria-checked={skin === i}
-                  aria-label={t(`skins.${i}`)}
-                  title={t(`skins.${i}`)}
-                  className={`${styles.skin} ${skin === i ? styles.skinActive : ""}`}
-                  onClick={() => setSkin(i)}
-                >
-                  <SkinPreview skinId={i} />
-                </button>
-              ))}
+              {SKINS.map((_, i) => {
+                const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    role="radio"
+                    aria-checked={skin === i}
+                    aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${t("rubies.price", { price: me?.config.skinPrice ?? 20 })}` : t(`skins.${i}`)}
+                    title={t(`skins.${i}`)}
+                    className={`${styles.skin} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+                    onClick={() => openSkin(i)}
+                  >
+                    <SkinPreview skinId={i} />
+                    {locked ? (
+                      <>
+                        <span className={styles.lockBadge}>
+                          <Lock size={12} aria-hidden />
+                        </span>
+                        <span className={styles.priceTag}>
+                          <RubyIcon size={11} />
+                          {me?.config.skinPrice ?? 20}
+                        </span>
+                      </>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
+            {previewSkin !== null ? (
+              <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
+                <SkinPreview skinId={previewSkin} size={84} />
+                <div className={styles.buyInfo}>
+                  <strong>{t(`skins.${previewSkin}`)}</strong>
+                  {(() => {
+                    const price = me?.config.skinPrice ?? 20;
+                    const missing = Math.max(0, price - (me?.rubies ?? 0));
+                    if (confirming) {
+                      return (
+                        <>
+                          <span>{t("rubies.confirmText", { name: t(`skins.${previewSkin}`), price })}</span>
+                          <div className={styles.buyButtons}>
+                            <button type="button" className={styles.primary} disabled={buying} onClick={() => void buy(previewSkin)}>
+                              {buying ? t("rubies.buying") : t("rubies.confirm")}
+                            </button>
+                            <button type="button" className={styles.secondary} disabled={buying} onClick={() => setConfirming(false)}>
+                              {t("rubies.cancel")}
+                            </button>
+                          </div>
+                        </>
+                      );
+                    }
+                    return (
+                      <>
+                        <div className={styles.buyButtons}>
+                          <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => setConfirming(true)}>
+                            {t("rubies.buy", { price })} <RubyIcon size={14} />
+                          </button>
+                          <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
+                            {t("rubies.cancel")}
+                          </button>
+                        </div>
+                        {missing > 0 && me ? <span className={styles.missing}>{t("rubies.missing", { count: missing })}</span> : null}
+                      </>
+                    );
+                  })()}
+                  {buyError ? <span className={styles.error}>{t(`rubies.errors.${buyError}`)}</span> : null}
+                </div>
+              </div>
+            ) : null}
 
             <h3 className={styles.h3}>{t("controls.title")}</h3>
             <div className={styles.segment} role="radiogroup" aria-label={t("controls.title")}>
@@ -586,6 +737,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             </dl>
 
+            {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
             {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
             {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}

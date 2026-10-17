@@ -131,6 +131,20 @@ export const FLOCK_CONFIG = {
   /** Допустиме співвідношення сторін екрана клієнта (ширина/висота); площа огляду від нього не залежить. */
   aspectMin: 0.4,
   aspectMax: 2.5,
+
+  // --- рубіни (внутрішньоігрова валюта, лише від сервера) ---
+  rubies: {
+    /** Нагорода за 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
+    top1Reward: 10,
+    top1MassThreshold: 3000,
+    /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
+    dailyLimit: 100,
+    dailyTimeZone: 'Europe/Kyiv',
+    /** Вартість кожного платного скіна. */
+    skinPrice: 20,
+    /** Скіни з номерами < freeSkins безкоштовні, решта - платні. */
+    freeSkins: 12,
+  },
 } as const;
 
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;
@@ -138,4 +152,7 @@ export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
 ) as BonusKind[];
 
-export const NUM_SKINS = 12;
+/** Безкоштовні 0..11 + шість платних 12..17. */
+export const NUM_SKINS = 18;
+export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
+export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
