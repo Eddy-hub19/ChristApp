@@ -357,3 +357,90 @@
     cursor: default;
   }
 }
+
+.rubies {
+  margin-top: 8px;
+}
+.rubiesToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #e0112b 30%, transparent);
+  background: color-mix(in srgb, #e0112b 8%, transparent);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.rubiesBody {
+  margin-top: 8px;
+}
+.rubiesBalance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rubiesForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+
+  input {
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
+  input[type="number"] {
+    width: 110px;
+  }
+  input[type="text"] {
+    flex: 1 1 200px;
+  }
+  button {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 0;
+    background: #e0112b;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+}
+.rubiesH {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+.rubiesLog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+
+  li {
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+  }
+  time {
+    opacity: 0.6;
+    font-size: 12px;
+  }
+}
+.plus {
+  color: #2e9e5b;
+  font-weight: 700;
+}
+.minus {
+  color: #e5484d;
+  font-weight: 700;
+}

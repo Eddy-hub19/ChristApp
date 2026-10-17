@@ -217,3 +217,46 @@ export function adminCpuBenchmarkQueryOptions(enabled: boolean) {
     gcTime: 60_000,
   };
 }
+
+export type AdminRubyTransaction = {
+  id: string;
+  delta: number;
+  balanceAfter: number;
+  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ADMIN_ADJUST";
+  note: string | null;
+  skinId: number | null;
+  actorId: string | null;
+  createdAt: string;
+};
+
+export type AdminMemberFlock = {
+  rubies: number;
+  ownedSkins: number[];
+  stats: { bestMass: number; eaten: number; topMs: number; games: number };
+  transactions: AdminRubyTransaction[];
+};
+
+export const adminMemberFlockQueryKey = (memberId: string) => ["admin", "flock", memberId] as const;
+
+async function adminJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+  if (!token) throw new AdminHttpError(401, "no token");
+  const res = await apiFetch(`${getHttpApiBase()}/admin${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init?.headers },
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { code?: string };
+    throw new AdminHttpError(res.status, body.code ?? "");
+  }
+  return (await res.json()) as T;
+}
+
+export const fetchAdminMemberFlock = (memberId: string) => adminJson<AdminMemberFlock>(`/members/${memberId}/flock`);
+
+/** amount > 0 нараховує, amount < 0 списує; причина обов'язкова (сервер перевіряє теж). */
+export const adjustAdminMemberRubies = (memberId: string, amount: number, reason: string) =>
+  adminJson<{ rubies: number }>(`/members/${memberId}/rubies`, {
+    method: "POST",
+    body: JSON.stringify({ amount, reason }),
+  });

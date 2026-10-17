@@ -41,6 +41,9 @@ model User {
   watchMemberships    WatchRoomMember[] @relation("WatchRoomMemberUser")
   watchMessages       WatchMessage[]
   watchMessageReactions WatchMessageReaction[]
+  flockProfile        FlockProfile?
+  rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
+  flockSkinPurchases  FlockSkinPurchase[]
 }
 
 /// Лайк аватара: кто (liker) поставил кому (target).
@@ -299,4 +302,54 @@ model WatchMessageReaction {
 
   @@unique([userId, messageId, type])
   @@index([messageId, createdAt])
+}
+
+/// Профіль гри «Отара»: баланс рубінів (кеш суми журналу) і статистика. Створюється при першому зверненні.
+model FlockProfile {
+  userId          String    @id
+  /// Баланс змінюється лише разом із записом у RubyTransaction (одна транзакція).
+  rubies          Int       @default(0)
+  bestMass        Int       @default(0)
+  eaten           Int       @default(0)
+  topMs           BigInt    @default(0)
+  games           Int       @default(0)
+  /// Коли статистику з localStorage перенесли на сервер (один раз).
+  statsImportedAt DateTime?
+  selectedSkin    Int       @default(0)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum RubyReason {
+  ARENA_TOP1
+  SKIN_PURCHASE
+  ADMIN_ADJUST
+}
+
+/// Журнал рубінів: тільки додавання рядків.
+model RubyTransaction {
+  id           String     @id @default(uuid())
+  userId       String
+  delta        Int
+  balanceAfter Int
+  reason       RubyReason
+  /// Причина від адміна.
+  note         String?
+  skinId       Int?
+  /// Хто ініціював (адмін), якщо не сама гра.
+  actorId      String?
+  createdAt    DateTime   @default(now())
+  user         User       @relation("RubyTxUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, reason, createdAt])
+}
+
+model FlockSkinPurchase {
+  userId    String
+  skinId    Int
+  price     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, skinId])
 }

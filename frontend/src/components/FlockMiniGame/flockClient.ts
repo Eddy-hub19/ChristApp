@@ -26,7 +26,13 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | null;
+export type FlockNotice = "expired" | "skinLocked" | null;
+
+/** Нагорода від сервера: «Ти перший! +10 рубінів». */
+export interface RewardInfo {
+  amount: number;
+  balance: number;
+}
 
 export interface DeathInfo {
   survivedMs: number;
@@ -49,6 +55,7 @@ export interface FlockClientOptions {
   onStatus: (status: FlockStatus) => void;
   onDeath: (info: DeathInfo) => void;
   onNotice?: (notice: FlockNotice) => void;
+  onReward?: (reward: RewardInfo) => void;
 }
 
 type Sock = ReturnType<typeof createSocket>;
@@ -201,8 +208,16 @@ export class FlockClient {
         this.opts.onDeath(info);
       });
     });
+    socket.on("r", (r: RewardInfo) => {
+      if (typeof r?.amount === "number" && typeof r?.balance === "number") this.opts.onReward?.(r);
+    });
     socket.on("e", (e: { code?: string }) => {
-      if (e?.code === "full") {
+      if (e?.code === "skin_locked") {
+        // скін не куплено: сервер на арену не пустив, повертаємось у лобі
+        this.wantPlay = false;
+        this.opts.onNotice?.("skinLocked");
+        this.setStatus("ready");
+      } else if (e?.code === "full") {
         this.wantPlay = false;
         this.setStatus("full");
       } else if (e?.code === "afk") {

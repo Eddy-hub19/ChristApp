@@ -13,6 +13,7 @@ import {
   deleteAdminMember,
   type AdminMember,
 } from "@/lib/queries/adminQueries";
+import AdminMemberRubies from "./AdminMemberRubies";
 import AdminProcesses from "./AdminProcesses";
 import styles from "./admin.module.scss";
 
@@ -193,6 +194,7 @@ export default function AdminPage() {
                   <br />
                   <strong>{t("labelLastSeen")}</strong> {lastSeenLabel}
                 </p>
+                <AdminMemberRubies memberId={m.id} />
                 <div className={styles.actions}>
                   <button
                     type="button"
