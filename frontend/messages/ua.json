@@ -788,7 +788,7 @@
     "download": "Завантажити",
     "previewFlockInvite": "🐑 Запрошення в Отару",
     "previewGameInvite": "🎮 Запрошення в гру",
-    "gameInvite": {"title": "{name} кличе грати: {game}", "titleOwn": "Ти кличеш грати: {game}", "play": "Грати", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Вгадай персонажа", "puzzle": "Пазли"}}
+    "gameInvite": {"title": "{name} кличе грати: {game}", "titleOwn": "Ти кличеш грати: {game}", "play": "Грати", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Вгадай персонажа", "puzzle": "Пазли"}},
     "readersTitle": "Переглянули",
     "readersReactions": "Реакції",
     "readersEmpty": "Поки що ніхто не переглянув",
@@ -1146,6 +1146,7 @@
     "inviteFailed": "Не вдалося надіслати запрошення",
     "rateLimited": "Запрошення в загальний чат — не частіше разу на хвилину. Спробуйте через {seconds, plural, one {# секунду} few {# секунди} many {# секунд} other {# секунди}}.",
     "sending": "Надсилаємо…"
+  },
   "pwaInstall": {
     "title": "Установити Christ App",
     "subtitle": "Швидкий доступ з головного екрана, як у звичайного застосунку.",

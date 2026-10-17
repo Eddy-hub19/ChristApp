@@ -444,7 +444,7 @@ function MessageBubble({
     }
   };
 
-  const bubbleClassName = `${bubble} ${sharedStyles.gestureSurface} ${isHighlighted ? styles.highlightedBubble : ""}`;
+  const bubbleClassName = `${bubble} ${flockInvite || gameInvite ? styles.inviteBubble : ""} ${sharedStyles.gestureSurface} ${isHighlighted ? styles.highlightedBubble : ""}`;
   const interactiveBubbleProps = {
     ref: gestures.setElement,
     ...gestures.handlers,

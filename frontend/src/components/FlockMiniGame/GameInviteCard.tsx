@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { PairGameId } from "@/lib/gameInviteMessage";
-import styles from "./GameInviteCard.module.scss";
+import styles from "./InviteCard.module.scss";
 
 const GAME_EMOJI: Record<PairGameId, string> = {
   snake: "🐍",
@@ -24,20 +24,22 @@ export default function GameInviteCard({ game, senderName, isOwn, onPlay }: Prop
   const t = useTranslations("chatShared.gameInvite");
   const gameName = t(`games.${game}`);
   return (
-    <div className={styles.card}>
-      <span className={styles.emoji} aria-hidden>
-        {GAME_EMOJI[game]}
-      </span>
-      <span className={styles.body}>
-        <span className={styles.title}>
-          {isOwn ? t("titleOwn", { game: gameName }) : t("title", { name: senderName, game: gameName })}
+    <div className={`${styles.card} ${styles.game}`}>
+      <div className={styles.inner}>
+        <span className={styles.icon} aria-hidden>
+          {GAME_EMOJI[game]}
         </span>
-      </span>
-      {onPlay ? (
-        <button type="button" className={styles.play} onClick={() => onPlay(game)} data-bubble-control>
-          {t("play")}
-        </button>
-      ) : null}
+        <span className={styles.body}>
+          <span className={styles.title}>
+            {isOwn ? t("titleOwn", { game: gameName }) : t("title", { name: senderName, game: gameName })}
+          </span>
+        </span>
+        {onPlay ? (
+          <button type="button" className={styles.play} onClick={() => onPlay(game)} data-bubble-control>
+            {t("play")}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
