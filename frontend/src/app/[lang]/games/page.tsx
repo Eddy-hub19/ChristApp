@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
+import GameIcon from "@/lib/games/gameIcons";
 import styles from "./games.module.scss";
 
 export default function GamesPage() {
@@ -35,7 +36,9 @@ export default function GamesPage() {
             ))}
           </span>
           <span className={styles.cardBody}>
-            <span className={styles.cardTitle}>{t("flock.title")}</span>
+            <span className={styles.cardTitle}>
+              <GameIcon game="flock" size={20} className={styles.cardIcon} /> {t("flock.title")}
+            </span>
             <span className={styles.cardDesc}>{t("flock.desc")}</span>
           </span>
           <span className={styles.cta}>{t("flock.cta")}</span>

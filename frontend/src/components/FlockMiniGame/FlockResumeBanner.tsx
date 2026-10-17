@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import GameIcon from "@/lib/games/gameIcons";
 import { waitingSession } from "./flockSession";
 import styles from "./FlockResumeBanner.module.scss";
 
@@ -28,7 +29,7 @@ export default function FlockResumeBanner() {
   return (
     <div className={styles.banner} role="status">
       <span className={styles.text}>
-        <span aria-hidden>🐑</span> {t("text", { seconds: left })}
+        <GameIcon game="flock" className={styles.icon} /> {t("text", { seconds: left })}
       </span>
       <Link href="/games/flock" className={styles.btn} prefetch={false}>
         {t("button")}

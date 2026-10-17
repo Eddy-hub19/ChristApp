@@ -42,10 +42,11 @@
 
 .icon {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
-  font-size: 26px;
-  line-height: 1;
-  text-align: center;
+  color: var(--invite-border);
 }
 
 .body {
