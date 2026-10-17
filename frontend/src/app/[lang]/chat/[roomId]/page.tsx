@@ -4068,6 +4068,7 @@ export default function ChatPageDetails() {
                     buttonClassName={styles.gameButton}
                     menuClassName={styles.gameMenu}
                     itemClassName={styles.gameMenuItem}
+                    iconClassName={styles.gameMenuIcon}
                     onNotice={setSendNotice}
                   />
                   <button
@@ -4117,7 +4118,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={() => handleOpenDoodle()}
                         >
-                          Doodle
+                          <span className={styles.gameMenuIcon} aria-hidden>🟢</span>
+                          <span>Doodle</span>
                         </button>
                         <button
                           type="button"
@@ -4125,7 +4127,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={() => handleOpenSnake()}
                         >
-                          Snake
+                          <span className={styles.gameMenuIcon} aria-hidden>🐍</span>
+                          <span>Snake</span>
                         </button>
                         <button
                           type="button"
@@ -4133,7 +4136,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={handleOpenFilword}
                         >
-                          Филворд
+                          <span className={styles.gameMenuIcon} aria-hidden>🔤</span>
+                          <span>Филворд</span>
                         </button>
                         <button
                           type="button"
@@ -4141,7 +4145,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={handleOpenGuess}
                         >
-                          {tGuess("title")}
+                          <span className={styles.gameMenuIcon} aria-hidden>🔍</span>
+                          <span>{tGuess("title")}</span>
                         </button>
                         <button
                           type="button"
@@ -4149,7 +4154,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={handleOpenPuzzle}
                         >
-                          {tPuzzle("title")}
+                          <span className={styles.gameMenuIcon} aria-hidden>🧩</span>
+                          <span>{tPuzzle("title")}</span>
                         </button>
                         <button
                           type="button"
@@ -4157,7 +4163,8 @@ export default function ChatPageDetails() {
                           role="menuitem"
                           onClick={handleOpenFlock}
                         >
-                          {tFlock("title")}
+                          <span className={styles.gameMenuIcon} aria-hidden>🐑</span>
+                          <span>{tFlock("title")}</span>
                         </button>
                       </div>
                     ) : null}

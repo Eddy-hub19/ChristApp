@@ -33,7 +33,15 @@ type Props = {
   wrapClassName: string;
   menuClassName: string;
   itemClassName: string;
+  iconClassName: string;
   onNotice: (text: string) => void;
+};
+
+const GAME_ICONS: Record<PairGameId, string> = {
+  snake: "🐍",
+  doodle: "🟢",
+  guess: "🔍",
+  puzzle: "🧩",
 };
 
 const peerName = (p: GamePeer) => p.nickname?.trim() || p.username;
@@ -50,6 +58,7 @@ export default function GlobalGamesMenu({
   wrapClassName,
   menuClassName,
   itemClassName,
+  iconClassName,
   onNotice,
 }: Props) {
   const t = useTranslations("globalGames");
@@ -183,15 +192,18 @@ export default function GlobalGamesMenu({
       {menuOpen ? (
         <div className={menuClassName} role="menu" onClick={(event) => event.stopPropagation()}>
           <button type="button" className={itemClassName} role="menuitem" onClick={openFlock}>
-            {t("flock")}
+            <span className={iconClassName} aria-hidden>🐑</span>
+            <span>{t("flock")}</span>
           </button>
           <button type="button" className={`${itemClassName} ${styles.sub}`} role="menuitem" onClick={callEveryone}>
-            🐑 {t("flockCallAll")}
+            <span className={iconClassName} aria-hidden>🐑</span>
+            <span>{t("flockCallAll")}</span>
           </button>
           <p className={styles.groupTitle}>{t("pairHeader")}</p>
           {PAIR_GAMES.map((game) => (
             <button key={game} type="button" className={itemClassName} role="menuitem" onClick={() => startPick(game)}>
-              {tInvite(`games.${game}`)}
+              <span className={iconClassName} aria-hidden>{GAME_ICONS[game]}</span>
+              <span>{tInvite(`games.${game}`)}</span>
             </button>
           ))}
         </div>
