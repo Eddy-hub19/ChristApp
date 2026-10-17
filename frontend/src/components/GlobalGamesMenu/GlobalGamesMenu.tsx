@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Gamepad2, Search } from "lucide-react";
+import { Gamepad2, Megaphone, Search } from "lucide-react";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import Sheet from "@/components/Cinema/Sheet";
 import { useRouter } from "@/i18n/navigation";
@@ -11,6 +11,7 @@ import { ensureAccessToken } from "@/lib/authSession";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { GLOBAL_ROOM_ID } from "@/lib/chatRooms";
 import { buildFlockInviteMessage } from "@/lib/flockInviteMessage";
+import GameIcon from "@/lib/games/gameIcons";
 import { PAIR_GAMES, buildGameInviteMessage, type PairGameId } from "@/lib/gameInviteMessage";
 import { openQuickInvite, type QuickInviteClient } from "@/lib/quickInvite";
 import { getInitials } from "@/lib/utils";
@@ -35,13 +36,6 @@ type Props = {
   itemClassName: string;
   iconClassName: string;
   onNotice: (text: string) => void;
-};
-
-const GAME_ICONS: Record<PairGameId, string> = {
-  snake: "🐍",
-  doodle: "🟢",
-  guess: "🔍",
-  puzzle: "🧩",
 };
 
 const peerName = (p: GamePeer) => p.nickname?.trim() || p.username;
@@ -192,17 +186,17 @@ export default function GlobalGamesMenu({
       {menuOpen ? (
         <div className={menuClassName} role="menu" onClick={(event) => event.stopPropagation()}>
           <button type="button" className={itemClassName} role="menuitem" onClick={openFlock}>
-            <span className={iconClassName} aria-hidden>🐑</span>
+            <GameIcon game="flock" className={iconClassName} />
             <span>{t("flock")}</span>
           </button>
           <button type="button" className={`${itemClassName} ${styles.sub}`} role="menuitem" onClick={callEveryone}>
-            <span className={iconClassName} aria-hidden>🐑</span>
+            <Megaphone size={18} strokeWidth={2.1} className={iconClassName} aria-hidden />
             <span>{t("flockCallAll")}</span>
           </button>
           <p className={styles.groupTitle}>{t("pairHeader")}</p>
           {PAIR_GAMES.map((game) => (
             <button key={game} type="button" className={itemClassName} role="menuitem" onClick={() => startPick(game)}>
-              <span className={iconClassName} aria-hidden>{GAME_ICONS[game]}</span>
+              <GameIcon game={game} className={iconClassName} />
               <span>{tInvite(`games.${game}`)}</span>
             </button>
           ))}
