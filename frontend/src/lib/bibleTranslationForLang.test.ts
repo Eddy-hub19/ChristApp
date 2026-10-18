@@ -17,8 +17,12 @@ describe("pickTranslationShortName", () => {
     t("NRT", "russian"),
   ];
   it("за замовчуванням — з дозволеного списку, а не перший у відповіді API", () => {
+    const full = [...list, t("SYNOD", "russian"), t("KJV", "English")];
+    expect(pickTranslationShortName(full, "ru")).toBe("SYNOD");
+    expect(pickTranslationShortName(full, "en")).toBe("KJV");
+    expect(pickTranslationShortName(full, "ua")).toBe("UBIO");
+    // Якщо API не віддав дефолт — перший дозволений для мови.
     expect(pickTranslationShortName(list, "ru")).toBe("NRT");
-    expect(pickTranslationShortName(list, "ua")).toBe("UBIO");
     expect(pickTranslationShortName(list, "en")).toBe("NKJV");
   });
   it("порожній список API — код із конфігу", () => {
@@ -27,15 +31,16 @@ describe("pickTranslationShortName", () => {
 });
 
 describe("allowed translations", () => {
-  it("прибирає JNT та іспанські, лишає по ≤3 на мову", () => {
+  it("прибирає JNT та іспанські", () => {
     const filtered = filterAllowedTranslations([t("JNT", "r"), t("RV1960", "s"), t("NASB", "e"), t("NRT", "r")]);
     expect(filtered.map((x) => x.short_name)).toEqual(["NRT", "NASB"]);
     expect(filtered.map((x) => x.short_name)).not.toContain("JNT");
-    for (const codes of Object.values(ALLOWED_BIBLE_TRANSLATIONS)) expect(codes.length).toBeLessThanOrEqual(3);
+    expect(ALLOWED_BIBLE_TRANSLATIONS.ru[0]).toBe("SYNOD");
+    expect(ALLOWED_BIBLE_TRANSLATIONS.en[0]).toBe("KJV");
   });
   it("збережений переклад, якого немає в списку, замінюється на дефолт мови", () => {
-    expect(resolveTranslationForLang("JNT", "ru")).toBe("NRT");
-    expect(resolveTranslationForLang("RV1960", "en")).toBe("NKJV");
+    expect(resolveTranslationForLang("JNT", "ru")).toBe("SYNOD");
+    expect(resolveTranslationForLang("RV1960", "en")).toBe("KJV");
     expect(resolveTranslationForLang("RBS2", "ru")).toBe("RBS2");
     expect(resolveTranslationForLang(null, "ua")).toBe("UBIO");
   });

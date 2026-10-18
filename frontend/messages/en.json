@@ -1223,6 +1223,7 @@
   },
   "bibleSection": {
       "tabSearch": "Search",
+    "backToChat": "Back to chat",
       "searchPlaceholder": "Search: “John 3:16” or words",
       "searchLabel": "Search the Bible",
       "clearSearch": "Clear",

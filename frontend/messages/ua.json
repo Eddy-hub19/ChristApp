@@ -1223,6 +1223,7 @@
   },
   "bibleSection": {
       "tabSearch": "Пошук",
+    "backToChat": "Назад до чату",
       "searchPlaceholder": "Пошук: «Ін 3:16» або слова",
       "searchLabel": "Пошук по Біблії",
       "clearSearch": "Очистити",
