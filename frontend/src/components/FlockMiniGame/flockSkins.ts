@@ -1,11 +1,21 @@
 export type SkinKind = "sheep" | "lamb" | "ram" | "wolf" | "dog";
 
 /** Прикраса поверх базового вигляду (платні скіни). */
-export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "stars";
+export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "stars" | "angel" | "rainbow" | "frost" | "sun" | "david" | "polar";
+
+/** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
+export interface SkinAnim {
+  /** Кількість кадрів (2-6). */
+  frames: number;
+  /** Кадрів за секунду. */
+  fps: number;
+}
 
 export interface Skin {
   kind: SkinKind;
   deco?: SkinDeco;
+  /** Анімація (лише преміум). */
+  anim?: SkinAnim;
   /** Колір вовни для "вовка в овечій шкурі". */
   wool?: string;
   /** Основний колір шерсті/хутра. */
@@ -18,7 +28,7 @@ export interface Skin {
   accent: string;
 }
 
-/** Порядок = номер скіна на сервері (NUM_SKINS = 12). Назви - у перекладах flock.skins.<id>. */
+/** Порядок = номер скіна на сервері (NUM_SKINS = 24: 0-11 безкоштовні, 12-17 платні, 18-23 преміум). Назви - у перекладах flock.skins.<id>. */
 export const SKINS: Skin[] = [
   { kind: "sheep", fur: "#f6f1e7", light: "#ffffff", face: "#3b3532", accent: "#f2a7b3" },
   { kind: "sheep", fur: "#f7c6d3", light: "#ffe4ec", face: "#4a3440", accent: "#f08aa4" },
@@ -39,10 +49,31 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "gold", fur: "#f2c344", light: "#fff0a8", face: "#5a3d12", accent: "#ffd86b" },
   { kind: "wolf", deco: "wolfwool", wool: "#f6f1e7", fur: "#6f7580", light: "#9aa0ab", face: "#cfd3d9", accent: "#f3d65c" },
   { kind: "sheep", deco: "stars", fur: "#27305e", light: "#4a57a0", face: "#c9cdf2", accent: "#ffd86b" },
+  // --- преміум (18..23), по 60 рубінів, з легкою анімацією ---
+  { kind: "lamb", deco: "angel", anim: { frames: 4, fps: 6 }, fur: "#fffaf0", light: "#ffffff", face: "#e8b9a0", accent: "#ffb3c0" },
+  { kind: "sheep", deco: "rainbow", anim: { frames: 6, fps: 4 }, fur: "#fbf6f0", light: "#ffffff", face: "#3e3a45", accent: "#f2a7b3" },
+  { kind: "sheep", deco: "frost", anim: { frames: 4, fps: 3 }, fur: "#cfe6fb", light: "#f3faff", face: "#3d5a78", accent: "#ffb6c5" },
+  { kind: "ram", deco: "sun", anim: { frames: 4, fps: 5 }, fur: "#f7e3a6", light: "#fff6d2", face: "#5a3d12", accent: "#e0a41f" },
+  { kind: "lamb", deco: "david", anim: { frames: 2, fps: 3 }, fur: "#fff1d6", light: "#ffffff", face: "#d9a58a", accent: "#ffa3a8" },
+  { kind: "wolf", deco: "polar", anim: { frames: 3, fps: 3 }, fur: "#e3ebf4", light: "#ffffff", face: "#c3d5e8", accent: "#5cd6ff" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
 
 export function skinOf(id: number): Skin {
   return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];
+}
+
+/** Менший за цей екранний радіус (px) персонаж малюється без анімації: різницю не видно, а кеш і CPU економляться. */
+export const ANIM_MIN_PX = 14;
+
+/**
+ * Номер кадру анімації у момент `time` (секунди). Без анімації - 0: у скіна її нема, увімкнено «зменшити рух»
+ * або персонаж замалий. Кадри циклічні, тож цикл безшовний.
+ */
+export function animFrame(skin: Skin, time: number, opts: { reduceMotion?: boolean; rPx?: number } = {}): number {
+  const a = skin.anim;
+  if (!a || opts.reduceMotion) return 0;
+  if (opts.rPx !== undefined && opts.rPx < ANIM_MIN_PX) return 0;
+  return Math.floor(Math.max(0, time) * a.fps) % a.frames;
 }

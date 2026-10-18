@@ -5,7 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { isPaidSkin } from "@/lib/rubies";
+import { isPaidSkin, isPremiumSkin, PREMIUM_FROM, PREMIUM_SKIN_IDS } from "@/lib/rubies";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
@@ -15,7 +15,9 @@ import FlockInvite from "./FlockInvite";
 import { loadFlockSession } from "./flockSession";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
-import { SKINS, skinOf } from "./flockSkins";
+import { animFrame, SKINS, skinOf } from "./flockSkins";
+import { prefersReducedMotion } from "./flockSprites";
+import { subscribePreviewTick } from "./flockPreviewTicker";
 import {
   clearLegacyFlockStats,
   EMPTY_FLOCK_STATS,
@@ -80,6 +82,7 @@ function formatDuration(ms: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Прев'ю скіна; преміум анімується (кадри 8/с від одного спільного таймера), при «зменшити рух» - статичний кадр. */
 function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -89,8 +92,23 @@ function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = cv.height = size * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, size, size);
-    drawCreature(ctx, skinOf(skinId), size / 2, size / 2 + 1, size * 0.36, 0.5, 0, 0);
+    const skin = skinOf(skinId);
+    // Шари анімації виходять за радіус тіла - преміум малюємо трохи меншим, щоб не обрізались краєм полотна.
+    const radius = skin.anim ? size * 0.27 : size * 0.36;
+    const draw = (frame: number) => {
+      ctx.clearRect(0, 0, size, size);
+      drawCreature(ctx, skin, size / 2, size / 2 + 1, radius, 0.5, 0, 0, frame);
+    };
+    draw(0);
+    if (!skin.anim || prefersReducedMotion()) return;
+    let last = 0;
+    return subscribePreviewTick(() => {
+      const f = animFrame(skin, performance.now() / 1000);
+      if (f !== last) {
+        last = f;
+        draw(f);
+      }
+    });
   }, [skinId, size]);
   return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden />;
 }
@@ -280,6 +298,37 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     controlRef.current = mode;
     saveControlMode(mode);
   };
+
+  const priceOf = (i: number) => (isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20));
+
+  const skinButton = (i: number) => {
+    const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
+    return (
+      <button
+        key={i}
+        type="button"
+        role="radio"
+        aria-checked={skin === i}
+        aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
+        title={t(`skins.${i}`)}
+        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+        onClick={() => openSkin(i)}
+      >
+        <SkinPreview skinId={i} />
+        {locked ? (
+          <>
+            <span className={styles.lockBadge}>
+              <Lock size={12} aria-hidden />
+            </span>
+            <span className={styles.priceTag}>
+              <RubyIcon size={11} />
+              {priceOf(i)}
+            </span>
+          </>
+        ) : null}
+      </button>
+    );
+};
 
   // --- цикл відмальовки: жодних React-рендерів на кадр ---
   // reconnecting: звʼязок обірвався, але екран гри лишається (овечка чекає на сервері)
@@ -641,34 +690,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
             <h3 className={styles.h3}>{t("chooseSkin")}</h3>
             <div className={styles.skins} role="radiogroup" aria-label={t("chooseSkin")}>
-              {SKINS.map((_, i) => {
-                const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    role="radio"
-                    aria-checked={skin === i}
-                    aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${t("rubies.price", { price: me?.config.skinPrice ?? 20 })}` : t(`skins.${i}`)}
-                    title={t(`skins.${i}`)}
-                    className={`${styles.skin} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
-                    onClick={() => openSkin(i)}
-                  >
-                    <SkinPreview skinId={i} />
-                    {locked ? (
-                      <>
-                        <span className={styles.lockBadge}>
-                          <Lock size={12} aria-hidden />
-                        </span>
-                        <span className={styles.priceTag}>
-                          <RubyIcon size={11} />
-                          {me?.config.skinPrice ?? 20}
-                        </span>
-                      </>
-                    ) : null}
-                  </button>
-                );
-              })}
+              {SKINS.slice(0, PREMIUM_FROM).map((_, i) => skinButton(i))}
+            </div>
+            <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
+            <div className={styles.skins} role="radiogroup" aria-label={t("premium")}>
+              {PREMIUM_SKIN_IDS.map((i) => skinButton(i))}
             </div>
             {previewSkin !== null ? (
               <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
@@ -676,7 +702,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <div className={styles.buyInfo}>
                   <strong>{t(`skins.${previewSkin}`)}</strong>
                   {(() => {
-                    const price = me?.config.skinPrice ?? 20;
+                    const price = priceOf(previewSkin);
                     const missing = Math.max(0, price - (me?.rubies ?? 0));
                     if (confirming) {
                       return (

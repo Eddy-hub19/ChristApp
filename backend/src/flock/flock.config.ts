@@ -140,10 +140,14 @@ export const FLOCK_CONFIG = {
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
     dailyLimit: 100,
     dailyTimeZone: 'Europe/Kyiv',
-    /** Вартість кожного платного скіна. */
+    /** Вартість звичайного платного скіна. */
     skinPrice: 20,
+    /** Вартість преміум-скіна (з анімацією) - окремо від звичайних платних. */
+    premiumSkinPrice: 60,
     /** Скіни з номерами < freeSkins безкоштовні, решта - платні. */
     freeSkins: 12,
+    /** Скіни з номерами >= premiumFrom - преміум (дорожчі, з анімацією). */
+    premiumFrom: 18,
   },
 } as const;
 
@@ -152,7 +156,14 @@ export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
 ) as BonusKind[];
 
-/** Безкоштовні 0..11 + шість платних 12..17. */
-export const NUM_SKINS = 18;
+/** Безкоштовні 0..11, шість платних 12..17 і шість преміум 18..23 (номер скіна по мережі - u8). */
+export const NUM_SKINS = 24;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
+export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
+export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < NUM_SKINS;
+/** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice). */
+export const skinPriceOf = (id: number) =>
+  isPremiumSkin(id)
+    ? FLOCK_CONFIG.rubies.premiumSkinPrice
+    : FLOCK_CONFIG.rubies.skinPrice;

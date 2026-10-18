@@ -3,7 +3,7 @@ import { IntlMessageFormat } from "intl-messageformat";
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
 import ua from "../../messages/ua.json";
-import { FREE_SKINS, isPaidSkin, PAID_SKIN_IDS, TOTAL_SKINS } from "./rubies";
+import { FREE_SKINS, isPaidSkin, isPremiumSkin, PAID_SKIN_IDS, PREMIUM_FROM, PREMIUM_SKIN_IDS, TOTAL_SKINS } from "./rubies";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
 
 const fmt = (msg: string, locale: string, values: Record<string, unknown>) =>
@@ -34,7 +34,7 @@ describe("рубіни: множина (ICU plural)", () => {
   });
 });
 
-describe("скіни: платні 12..17", () => {
+describe("скіни: платні 12..17 і преміум 18..23", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
     expect(SKINS).toHaveLength(TOTAL_SKINS);
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17]);
@@ -49,5 +49,29 @@ describe("скіни: платні 12..17", () => {
         expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
       }
     }
+  });
+
+  it("преміум 18..23: окремий діапазон, у кожного є назва в трьох мовах і анімація", () => {
+    expect(PREMIUM_FROM).toBe(18);
+    expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23]);
+    expect(isPremiumSkin(17)).toBe(false);
+    expect(isPremiumSkin(18)).toBe(true);
+    expect(isPremiumSkin(TOTAL_SKINS)).toBe(false);
+    for (const id of PREMIUM_SKIN_IDS) {
+      expect(isPaidSkin(id)).toBe(true);
+      expect(SKINS[id].anim?.frames).toBeGreaterThanOrEqual(2);
+      expect(SKINS[id].anim?.frames).toBeLessThanOrEqual(6);
+      for (const m of [ua, ru, en]) {
+        expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
+      }
+    }
+    for (const m of [ua, ru, en]) expect(m.flock.premium).toBeTruthy();
+  });
+
+  it("«Купити за 60» і «Не вистачає: N»: підписи беруть ціну з параметрів", () => {
+    expect(fmt(ua.flock.rubies.buy, "uk", { price: 60 })).toBe("Купити за 60");
+    expect(fmt(en.flock.rubies.buy, "en", { price: 60 })).toContain("60");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 60 })).toBe("Не вистачає: 60 рубінів");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 1 })).toBe("Не вистачає: 1 рубін");
   });
 });

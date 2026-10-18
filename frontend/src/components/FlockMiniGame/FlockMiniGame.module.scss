@@ -640,3 +640,15 @@
     }
   }
 }
+
+/* --- преміум-ряд скінів --- */
+.premiumTitle {
+  color: color-mix(in srgb, #d9a21b 85%, var(--foreground));
+}
+.skinPremium {
+  border-color: color-mix(in srgb, #d9a21b 45%, transparent);
+  background: color-mix(in srgb, #d9a21b 10%, transparent);
+}
+.skinPremium.skinActive {
+  border-color: var(--accent);
+}

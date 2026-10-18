@@ -158,6 +158,115 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
       }
       break;
     }
+    case "angel": {
+      // німб: золоте кільце над мордочкою (світіння - в анімованому шарі)
+      const hx = fwdX * r * 0.5;
+      const hy = fwdY * r * 0.5;
+      c.strokeStyle = "#ffd54a";
+      c.lineWidth = Math.max(2, r * 0.07);
+      circle(c, hx, hy, r * 0.46);
+      c.stroke();
+      c.strokeStyle = "rgba(255,255,255,0.7)";
+      c.lineWidth = Math.max(1, r * 0.025);
+      circle(c, hx, hy, r * 0.46);
+      c.stroke();
+      break;
+    }
+    case "frost": {
+      // іній: крижаний обідок, білі крапки й кілька кристалів
+      c.strokeStyle = "rgba(190,230,255,0.75)";
+      c.lineWidth = Math.max(1.5, r * 0.06);
+      circle(c, 0, 0, r * 0.86);
+      c.stroke();
+      c.fillStyle = "rgba(255,255,255,0.9)";
+      for (const [dx, dy, rr] of [
+        [-0.5, -0.55, 0.05],
+        [0.05, -0.8, 0.04],
+        [-0.85, 0.05, 0.05],
+        [-0.45, 0.62, 0.04],
+        [0.25, 0.72, 0.05],
+        [-0.15, -0.3, 0.035],
+      ] as const) {
+        circle(c, dx * r, dy * r, rr * r);
+        c.fill();
+      }
+      c.fillStyle = "#ffffff";
+      for (const [dx, dy, rr] of [
+        [-0.35, -0.6, 0.14],
+        [-0.75, 0.35, 0.11],
+      ] as const) {
+        star(c, dx * r, dy * r, rr * r, 4, 0.28);
+        c.fill();
+      }
+      break;
+    }
+    case "sun": {
+      // золоті закручені роги: світлий відблиск уздовж дуг
+      c.strokeStyle = "#ffe9a0";
+      c.lineWidth = Math.max(1, r * 0.05);
+      c.lineCap = "round";
+      for (const side of [-1, 1]) {
+        const a = ang + side * 1.55;
+        c.beginPath();
+        c.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.31, a - 1.6, a + 3.9);
+        c.stroke();
+      }
+      break;
+    }
+    case "david": {
+      // туніка на спині, пасок і шнурок
+      c.fillStyle = "#c9a26b";
+      c.beginPath();
+      c.arc(0, 0, r * 0.8, ang + Math.PI * 0.52, ang + Math.PI * 1.48);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = "#7a5530";
+      c.lineWidth = Math.max(1.5, r * 0.07);
+      c.lineCap = "round";
+      const px = -Math.sin(ang);
+      const py = Math.cos(ang);
+      c.beginPath();
+      c.moveTo(-fwdX * r * 0.12 + px * r * 0.74, -fwdY * r * 0.12 + py * r * 0.74);
+      c.lineTo(-fwdX * r * 0.12 - px * r * 0.74, -fwdY * r * 0.12 - py * r * 0.74);
+      c.stroke();
+      c.fillStyle = "#e6c88f";
+      for (const k of [-0.4, 0, 0.4]) {
+        circle(c, -fwdX * r * 0.5 + px * k * r, -fwdY * r * 0.5 + py * k * r, r * 0.05);
+        c.fill();
+      }
+      break;
+    }
+    case "polar": {
+      // блакитний контур і внутрішні вушка, щоб білий вовк не зливався з фоном
+      c.strokeStyle = "rgba(110,180,235,0.7)";
+      c.lineWidth = Math.max(1.5, r * 0.06);
+      circle(c, 0, 0, r * 0.95);
+      c.stroke();
+      c.fillStyle = "#9fc4e6";
+      for (const side of [-1, 1]) {
+        const a = ang + side * 1.05;
+        const ex = Math.cos(a) * r * 0.72;
+        const ey = Math.sin(a) * r * 0.72;
+        c.beginPath();
+        c.moveTo(ex + Math.cos(a + side * 0.9) * r * 0.16, ey + Math.sin(a + side * 0.9) * r * 0.16);
+        c.lineTo(ex + Math.cos(a - side * 0.9) * r * 0.16, ey + Math.sin(a - side * 0.9) * r * 0.16);
+        c.lineTo(Math.cos(a) * r * 1.0, Math.sin(a) * r * 1.0);
+        c.closePath();
+        c.fill();
+      }
+      // морозні цятки на білому хутрі
+      c.fillStyle = "rgba(150,205,240,0.55)";
+      for (const [dx, dy, rr] of [
+        [-0.5, -0.4, 0.07],
+        [-0.3, 0.5, 0.06],
+        [-0.75, 0.05, 0.05],
+        [0.0, -0.7, 0.05],
+      ] as const) {
+        circle(c, dx * r, dy * r, rr * r);
+        c.fill();
+      }
+      break;
+    }
     case "stars": {
       c.fillStyle = skin.accent;
       for (const [dx, dy, rr] of [
@@ -184,7 +293,204 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
   }
 }
 
-export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number, y: number, r: number, ang: number, phase: number, wobble: number) {
+/** Шари анімації преміум-скінів: бітова маска (позаду тіла / поверх нього). */
+export const LAYER_BEHIND = 1;
+export const LAYER_FRONT = 2;
+
+const ANIM_LAYERS: Partial<Record<NonNullable<Skin["deco"]>, number>> = {
+  angel: LAYER_BEHIND | LAYER_FRONT,
+  rainbow: LAYER_FRONT,
+  frost: LAYER_FRONT,
+  sun: LAYER_BEHIND,
+  david: LAYER_FRONT,
+  polar: LAYER_FRONT,
+};
+
+/** Які шари має скін (0 - без анімації). */
+export function animLayers(skin: Skin): number {
+  return skin.anim && skin.deco ? (ANIM_LAYERS[skin.deco] ?? 0) : 0;
+}
+
+/**
+ * Половина стороны спрайта слоя в радиусах тела: ровно по содержимому слоя, без прозрачных полей -
+ * заливка больших полупрозрачных спрайтов - главная цена анимации на слабых телефонах.
+ */
+export function layerExtent(skin: Skin, layer: number): number {
+  switch (skin.deco) {
+    case "angel":
+      return layer === LAYER_BEHIND ? 1.68 : 1.06;
+    case "rainbow":
+      return 0.93;
+    case "frost":
+      return 1.3;
+    case "sun":
+      return 1.5;
+    case "david":
+      return 1.42;
+    case "polar":
+      return 0.56;
+    default:
+      return 1.5;
+  }
+}
+
+const RAINBOW = ["#ff6b6b", "#ffa94d", "#ffe066", "#69db7c", "#4dabf7", "#b197fc"];
+
+/**
+ * Один кадр анімованого шару в ЛОКАЛЬНИХ координатах (мордочка дивиться в +x, центр у нуль): шар кешується
+ * у спрайт без урахування кута й повертається при малюванні. Радіальні градієнти допустимі - шар
+ * малюється один раз, а не на кадр.
+ */
+export function drawAnimLayer(c: CanvasRenderingContext2D, skin: Skin, r: number, frame: number, layer: number) {
+  const n = skin.anim?.frames ?? 1;
+  const k = ((frame % n) + n) % n;
+  c.save();
+  switch (skin.deco) {
+    case "angel": {
+      if (layer === LAYER_BEHIND) {
+        // крильця махають: розмах і кут змінюються між кадрами
+        const spread = [0.8, 1, 1.12, 1][k % 4];
+        for (const side of [-1, 1]) {
+          const sx = -r * 0.15;
+          const sy = side * r * 0.82;
+          for (let f = 0; f < 3; f++) {
+            const phi = side * (Math.PI / 2 + 0.3 + f * 0.32) - side * 0.3 * (spread - 1);
+            const len = r * (0.78 - f * 0.14) * spread;
+            c.fillStyle = "#ffffff";
+            c.strokeStyle = "rgba(160,170,190,0.65)";
+            c.lineWidth = Math.max(1, r * 0.03);
+            c.beginPath();
+            c.ellipse(sx + Math.cos(phi) * len * 0.5, sy + Math.sin(phi) * len * 0.5, len * 0.5, r * 0.17, phi, 0, TAU);
+            c.fill();
+            c.stroke();
+          }
+        }
+      } else {
+        // світіння німба пульсує
+        const a = [0.25, 0.5, 0.75, 0.5][k % 4];
+        c.strokeStyle = `rgba(255,243,160,${a})`;
+        c.lineWidth = Math.max(2, r * 0.13);
+        circle(c, r * 0.5, 0, r * 0.46);
+        c.stroke();
+      }
+      break;
+    }
+    case "rainbow": {
+      // кольорові "клаптики" на спині й боках: палітра зсувається на кадр - шерсть переливається
+      const cnt = 7;
+      c.globalAlpha = 0.78;
+      for (let i = 0; i < cnt; i++) {
+        const a = Math.PI * 0.62 + (i / (cnt - 1)) * Math.PI * 0.76;
+        c.fillStyle = RAINBOW[(i + k) % RAINBOW.length];
+        circle(c, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.27);
+        c.fill();
+      }
+      break;
+    }
+    case "frost": {
+      // рідкісні сніжинки по колу (3 штуки через 120°; крок на кадр = 120°/кадрів - цикл безшовний)
+      c.strokeStyle = "rgba(255,255,255,0.95)";
+      c.lineCap = "round";
+      c.lineWidth = Math.max(1, r * 0.035);
+      for (let i = 0; i < 3; i++) {
+        const a = (i * TAU) / 3 + (k * TAU) / 3 / n;
+        const fx = Math.cos(a) * r * 1.12;
+        const fy = Math.sin(a) * r * 1.12;
+        const fr = r * 0.14;
+        for (let arm = 0; arm < 3; arm++) {
+          const aa = (arm * Math.PI) / 3 + a;
+          c.beginPath();
+          c.moveTo(fx - Math.cos(aa) * fr, fy - Math.sin(aa) * fr);
+          c.lineTo(fx + Math.cos(aa) * fr, fy + Math.sin(aa) * fr);
+          c.stroke();
+        }
+      }
+      break;
+    }
+    case "sun": {
+      // м'яке сяйво й 12 променів, що повільно обертаються (крок на кадр = (360°/12)/кадрів)
+      const g = c.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 1.5);
+      g.addColorStop(0, "rgba(255,226,120,0.5)");
+      g.addColorStop(1, "rgba(255,226,120,0)");
+      c.fillStyle = g;
+      circle(c, 0, 0, r * 1.5);
+      c.fill();
+      const rays = 12;
+      const rot = (k * (TAU / rays)) / n;
+      c.fillStyle = "rgba(255,210,74,0.55)";
+      for (let i = 0; i < rays; i++) {
+        const a = rot + (i * TAU) / rays;
+        const w = (TAU / rays) * 0.2;
+        c.beginPath();
+        c.moveTo(Math.cos(a - w) * r * 0.98, Math.sin(a - w) * r * 0.98);
+        c.lineTo(Math.cos(a) * r * 1.42, Math.sin(a) * r * 1.42);
+        c.lineTo(Math.cos(a + w) * r * 0.98, Math.sin(a + w) * r * 0.98);
+        c.closePath();
+        c.fill();
+      }
+      break;
+    }
+    case "david": {
+      // праща гойдається між двома положеннями
+      const px = k % 2 === 0 ? 0.38 : -0.16;
+      const py = k % 2 === 0 ? 1.2 : 1.28;
+      c.strokeStyle = "#7a5530";
+      c.lineWidth = Math.max(1.5, r * 0.06);
+      c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(r * 0.05, r * 0.78);
+      c.lineTo(r * px, r * py);
+      c.stroke();
+      c.fillStyle = "#a9794a";
+      c.beginPath();
+      c.ellipse(r * px, r * py, r * 0.17, r * 0.11, 0.6, 0, TAU);
+      c.fill();
+      c.fillStyle = "#9aa0a6";
+      circle(c, r * px, r * py, r * 0.08);
+      c.fill();
+      break;
+    }
+    case "polar": {
+      // блакитне світіння очей пульсує
+      const a = [0.35, 0.8, 0.55][k % 3];
+      for (const side of [-1, 1]) {
+        const ex = r * 0.22;
+        const ey = side * r * 0.2;
+        const g = c.createRadialGradient(ex, ey, 0, ex, ey, r * 0.3);
+        g.addColorStop(0, `rgba(120,225,255,${a})`);
+        g.addColorStop(1, "rgba(120,225,255,0)");
+        c.fillStyle = g;
+        circle(c, ex, ey, r * 0.3);
+        c.fill();
+      }
+      break;
+    }
+  }
+  c.restore();
+}
+
+/** Малює шар анімації повернутим за напрямком погляду. */
+function drawLayerRotated(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: number, frame: number, layer: number) {
+  c.save();
+  c.rotate(ang);
+  drawAnimLayer(c, skin, r, frame, layer);
+  c.restore();
+}
+
+export function drawCreature(
+  c: CanvasRenderingContext2D,
+  skin: Skin,
+  x: number,
+  y: number,
+  r: number,
+  ang: number,
+  phase: number,
+  wobble: number,
+  /** Кадр анімації преміум-скіна. */
+  frame = 0,
+  /** false - без анімованих шарів (їх малюють окремими спрайтами). */
+  layers = true,
+) {
   c.save();
   c.translate(x, y);
   // покачування: легкий нахил і "дихання"
@@ -195,6 +501,8 @@ export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number,
   const fwdX = Math.cos(ang);
   const fwdY = Math.sin(ang);
   const dark = "rgba(0,0,0,0.16)";
+  const layerMask = layers ? animLayers(skin) : 0;
+  if (layerMask & LAYER_BEHIND) drawLayerRotated(c, skin, r, ang, frame, LAYER_BEHIND);
 
   if (skin.kind === "wolf" || skin.kind === "dog") {
     // вуха
@@ -265,13 +573,15 @@ export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number,
     c.fill();
     c.globalAlpha = 1;
     if (skin.kind === "ram") {
+      // «Сонячний баран»: товстіші, більше закручені золоті роги
+      const sunny = skin.deco === "sun";
       c.strokeStyle = skin.accent;
-      c.lineWidth = Math.max(2, r * 0.13);
+      c.lineWidth = Math.max(2, r * (sunny ? 0.17 : 0.13));
       c.lineCap = "round";
       for (const side of [-1, 1]) {
         const a = ang + side * 1.55;
         c.beginPath();
-        c.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.27, a - 1.6, a + 3.4);
+        c.arc(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * (sunny ? 0.31 : 0.27), a - 1.6, a + (sunny ? 3.9 : 3.4));
         c.stroke();
       }
     }
@@ -302,6 +612,7 @@ export function drawCreature(c: CanvasRenderingContext2D, skin: Skin, x: number,
     }
   }
   if (skin.deco && skin.deco !== "wolfwool") drawDeco(c, skin, r, ang);
+  if (layerMask & LAYER_FRONT) drawLayerRotated(c, skin, r, ang, frame, LAYER_FRONT);
   c.restore();
 }
 
