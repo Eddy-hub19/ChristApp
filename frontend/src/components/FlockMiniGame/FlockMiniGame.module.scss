@@ -162,6 +162,22 @@
     font-size: 18px;
     line-height: 1;
   }
+  /* Рядки з підписом («Розгін», «Заморозка»): коротша смужка, щоб не заїжджати під «Топ-10» на вузьких екранах. */
+  .effectLabeled .effectBar {
+    width: 40px;
+  }
+  .effectLabel {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .effectTime {
+    min-width: 1ch;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
   .effectBar {
     width: 64px;
     height: 6px;

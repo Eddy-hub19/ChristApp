@@ -1103,7 +1103,8 @@
       "ghost": "Ghost",
       "double": "Double mass",
       "freeze": "Freeze",
-      "golden": "Golden fleece"
+      "golden": "Golden fleece",
+      "boost": "Boost"
     },
     "skins": {
       "0": "White sheep",

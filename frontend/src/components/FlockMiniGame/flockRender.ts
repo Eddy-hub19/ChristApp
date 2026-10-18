@@ -34,6 +34,7 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   double: { color: "#7be08a", icon: "✖2" },
   freeze: { color: "#9fe8ff", icon: "❄" },
   golden: { color: "#ffc93c", icon: "🌟" },
+  boost: { color: "#ff9f43", icon: "🚀" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
 export const BONUS_COLOR: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.color]));
@@ -233,12 +234,22 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
   }
   drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr);
   if ((c.fx & FX_FROZEN) !== 0) {
-    ctx.fillStyle = "rgba(170,230,255,0.5)";
+    // лід: холодна заливка, світла кромка й зовнішнє «сяйво» - видно здалеку
+    ctx.fillStyle = "rgba(150,222,255,0.58)";
     circle(ctx, c.x, c.y, r);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth = r * 0.06;
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = r * 0.07;
     ctx.stroke();
+    ctx.strokeStyle = "rgba(120,205,255,0.55)";
+    ctx.lineWidth = Math.max(2 / scale, r * 0.09);
+    circle(ctx, c.x, c.y, r * 1.14);
+    ctx.stroke();
+    // власна заморожена клітина: секунди до кінця заморозки просто на овечці
+    if (own) {
+      const left = m.effects.find((e) => e.kind === "freeze")?.remainingMs ?? 0;
+      if (left > 0) drawDigits(ctx, Math.ceil(left / 1000), c.x, c.y, Math.max(r * 0.7, 18 / scale), scale, o.dpr, o.theme);
+    }
   }
   if ((c.fx & FX_SHIELD) !== 0) {
     const pulse = 1 + Math.sin(o.time * 6) * 0.03;

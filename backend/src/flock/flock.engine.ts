@@ -37,6 +37,8 @@ export interface Player {
   power: number;
   effects: Partial<Record<BonusKind, number>>;
   frozenUntil: number;
+  /** Коли спливає розгін на старті (мс світового часу). */
+  boostUntil: number;
   wantSplit: boolean;
   wantThrow: boolean;
   lastSplitAt: number;
@@ -171,6 +173,7 @@ export class FlockWorld {
       power: 0,
       effects: {},
       frozenUntil: 0,
+      boostUntil: 0,
       wantSplit: false,
       wantThrow: false,
       lastSplitAt: -1e9,
@@ -200,6 +203,7 @@ export class FlockWorld {
     p.alive = true;
     p.effects = {};
     p.frozenUntil = 0;
+    p.boostUntil = this.now + C.spawnBoost.durationMs;
     p.spawnedAt = this.now;
     p.paused = false;
     p.maxMass = C.startMass;
@@ -302,6 +306,7 @@ export class FlockWorld {
         if (until > p.pausedAt) p.effects[k] = until + delta;
       }
       if (p.frozenUntil > p.pausedAt) p.frozenUntil += delta;
+      if (p.boostUntil > p.pausedAt) p.boostUntil += delta;
       for (const c of p.cells) {
         c.mergeAt += delta;
         if (c.thornImmuneUntil > p.pausedAt) c.thornImmuneUntil += delta;
@@ -475,9 +480,21 @@ export class FlockWorld {
     void nowMs;
   }
 
+  /** Скільки мс лишилось розгону на старті (0 - не діє: бот, час вийшов або маса вже за порогом). */
+  spawnBoostLeftMs(p: Player): number {
+    if (p.bot || p.total >= C.spawnBoost.massLimit) return 0;
+    return Math.max(0, Math.min(C.spawnBoost.durationMs, p.boostUntil - this.now));
+  }
+
+  /** Множник швидкості від розгіну: 1 + speedBonus * (залишок / тривалість), тобто плавно спадає до 1. */
+  spawnBoostFactor(p: Player): number {
+    const left = this.spawnBoostLeftMs(p);
+    return 1 + (C.spawnBoost.speedBonus * left) / C.spawnBoost.durationMs;
+  }
+
   private speedFor(p: Player, c: Cell) {
     if (this.now < p.frozenUntil) return 0;
-    let s = speedOf(c.mass);
+    let s = speedOf(c.mass) * this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) s *= C.speedMultiplier;
     return Math.min(s, C.maxSpeedHard);
   }

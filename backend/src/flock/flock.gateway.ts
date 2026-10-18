@@ -159,8 +159,13 @@ export class FlockGateway
         exp: FLOCK_CONFIG.speedMassExp,
         min: FLOCK_CONFIG.minSpeed,
         boost: FLOCK_CONFIG.speedMultiplier,
+        /** Розгін на старті: +частка швидкості, що спадає до 0 за durations.boost. */
+        spawnBoost: FLOCK_CONFIG.spawnBoost.speedBonus,
       },
-      durations: FLOCK_CONFIG.bonusDurations,
+      durations: {
+        ...FLOCK_CONFIG.bonusDurations,
+        boost: FLOCK_CONFIG.spawnBoost.durationMs,
+      },
       magnetRadius: FLOCK_CONFIG.magnetRadius,
       view: {
         base: FLOCK_CONFIG.viewBase,
