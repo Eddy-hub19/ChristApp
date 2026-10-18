@@ -208,6 +208,10 @@ export const FLOCK_CONFIG = {
     freeSkins: 12,
     /** Скіни з номерами >= premiumFrom - преміум (дорожчі, з анімацією). */
     premiumFrom: 18,
+    /** Вартість «особливого» скіна (ряд 24-31, без анімації) - окремо від звичайних і преміум. */
+    specialSkinPrice: 40,
+    /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
+    specialFrom: 24,
   },
 } as const;
 
@@ -216,18 +220,21 @@ export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
 ) as BonusKind[];
 
-/** Безкоштовні 0..11, шість платних 12..17 і шість преміум 18..23 (номер скіна по мережі - u8). */
-export const NUM_SKINS = 24;
+/** Безкоштовні 0..11, шість платних 12..17, шість преміум 18..23 і вісім особливих 24..31 (номер скіна по мережі - u8). */
+export const NUM_SKINS = 32;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
-export const isPremiumSkin = (id: number) =>
-  id >= PREMIUM_FROM && id < NUM_SKINS;
-/** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice). */
+export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
+export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < SPECIAL_FROM;
+export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < NUM_SKINS;
+/** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
-  isPremiumSkin(id)
-    ? FLOCK_CONFIG.rubies.premiumSkinPrice
-    : FLOCK_CONFIG.rubies.skinPrice;
+  isSpecialSkin(id)
+    ? FLOCK_CONFIG.rubies.specialSkinPrice
+    : isPremiumSkin(id)
+      ? FLOCK_CONFIG.rubies.premiumSkinPrice
+      : FLOCK_CONFIG.rubies.skinPrice;
 
 /**
  * Скрытые скіни (тимчасово): не показуються в лобі й магазині, купити їх не можна (сервер відхиляє `skin_hidden`).

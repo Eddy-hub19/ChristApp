@@ -1,4 +1,5 @@
 import type { Skin } from "./flockSkins";
+import { drawSpecialBehind, drawSpecialFront } from "./flockSpecialDeco";
 
 const TAU = Math.PI * 2;
 
@@ -556,16 +557,20 @@ export function drawCreature(
     // вівця / ягня / баран: кучерява шерсть
     const bumps = skin.kind === "lamb" ? 9 : 11;
     const br = r * (skin.kind === "lamb" ? 0.3 : 0.27);
+    drawSpecialBehind(c, skin, r, ang);
     c.fillStyle = dark;
     circle(c, r * 0.05, r * 0.07, r * 0.98);
     c.fill();
     c.fillStyle = skin.fur;
-    for (let i = 0; i < bumps; i++) {
-      const a = (i / bumps) * TAU + 0.2;
-      circle(c, Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74, br);
-      c.fill();
+    // робот - гладкий металевий корпус без кучерявої шерсті
+    if (skin.deco !== "robot") {
+      for (let i = 0; i < bumps; i++) {
+        const a = (i / bumps) * TAU + 0.2;
+        circle(c, Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74, br);
+        c.fill();
+      }
     }
-    circle(c, 0, 0, r * 0.82);
+    circle(c, 0, 0, r * (skin.deco === "robot" ? 0.95 : 0.82));
     c.fill();
     c.fillStyle = skin.light;
     c.globalAlpha = 0.65;
@@ -611,7 +616,10 @@ export function drawCreature(
       c.globalAlpha = 1;
     }
   }
-  if (skin.deco && skin.deco !== "wolfwool") drawDeco(c, skin, r, ang);
+  if (skin.deco && skin.deco !== "wolfwool") {
+    drawDeco(c, skin, r, ang);
+    drawSpecialFront(c, skin, r, ang);
+  }
   if (layerMask & LAYER_FRONT) drawLayerRotated(c, skin, r, ang, frame, LAYER_FRONT);
   c.restore();
 }

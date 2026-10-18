@@ -1087,6 +1087,7 @@
     "connecting": "Connecting…",
     "chooseSkin": "Pick your look",
     "premium": "Premium",
+    "special": "Special",
     "controls": {
       "title": "Controls",
       "follow": "Follow finger",
@@ -1156,7 +1157,15 @@
       "20": "Frosty Sheep",
       "21": "Sunny Ram",
       "22": "Shepherd David",
-      "23": "Polar Wolf"
+      "23": "Polar Wolf",
+      "24": "Crystal Sheep",
+      "25": "Cactus Sheep",
+      "26": "Mushroom Sheep",
+      "27": "Lava Sheep",
+      "28": "Galaxy Sheep",
+      "29": "Storm Sheep",
+      "30": "Robot Sheep",
+      "31": "Sushi Sheep"
     },
     "rubies": {
       "name": "Rubies",

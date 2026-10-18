@@ -12,6 +12,7 @@ import {
   NUM_SKINS,
   HIDDEN_SKINS,
   PREMIUM_FROM,
+  SPECIAL_FROM,
   isHiddenSkin,
   isPaidSkin,
   skinPriceOf,
@@ -121,8 +122,10 @@ export class FlockRubiesService {
       config: {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
+        specialSkinPrice: R.specialSkinPrice,
         freeSkins: FREE_SKINS,
         premiumFrom: PREMIUM_FROM,
+        specialFrom: SPECIAL_FROM,
         hiddenSkins: [...HIDDEN_SKINS],
         totalSkins: NUM_SKINS,
         top1Reward: R.top1Reward,

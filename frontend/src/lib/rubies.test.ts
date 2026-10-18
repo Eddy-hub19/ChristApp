@@ -3,7 +3,7 @@ import { IntlMessageFormat } from "intl-messageformat";
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
 import ua from "../../messages/ua.json";
-import { FREE_SKINS, isPaidSkin, isPremiumSkin, PAID_SKIN_IDS, PREMIUM_FROM, PREMIUM_SKIN_IDS, TOTAL_SKINS } from "./rubies";
+import { FREE_SKINS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_FROM, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "./rubies";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
 
 const fmt = (msg: string, locale: string, values: Record<string, unknown>) =>
@@ -34,7 +34,7 @@ describe("рубіни: множина (ICU plural)", () => {
   });
 });
 
-describe("скіни: платні 12..17 і преміум 18..23", () => {
+describe("скіни: платні 12..17, преміум 18..23 і особливі 24..31", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
     expect(SKINS).toHaveLength(TOTAL_SKINS);
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17]);
@@ -56,7 +56,7 @@ describe("скіни: платні 12..17 і преміум 18..23", () => {
     expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23]);
     expect(isPremiumSkin(17)).toBe(false);
     expect(isPremiumSkin(18)).toBe(true);
-    expect(isPremiumSkin(TOTAL_SKINS)).toBe(false);
+    expect(isPremiumSkin(SPECIAL_FROM)).toBe(false);
     for (const id of PREMIUM_SKIN_IDS) {
       expect(isPaidSkin(id)).toBe(true);
       expect(SKINS[id].anim?.frames).toBeGreaterThanOrEqual(2);
@@ -66,6 +66,34 @@ describe("скіни: платні 12..17 і преміум 18..23", () => {
       }
     }
     for (const m of [ua, ru, en]) expect(m.flock.premium).toBeTruthy();
+  });
+
+  it("особливі 24..31: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
+    expect(SPECIAL_FROM).toBe(24);
+    expect(TOTAL_SKINS).toBe(32);
+    expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
+    expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31]);
+    expect(isSpecialSkin(23)).toBe(false);
+    expect(isSpecialSkin(24)).toBe(true);
+    expect(isSpecialSkin(TOTAL_SKINS)).toBe(false);
+    const decos = new Set<string | undefined>();
+    for (const id of SPECIAL_SKIN_IDS) {
+      expect(isPaidSkin(id)).toBe(true);
+      expect(isPremiumSkin(id)).toBe(false);
+      expect(SKINS[id].anim).toBeUndefined();
+      decos.add(SKINS[id].deco);
+      for (const m of [ua, ru, en]) {
+        expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
+      }
+    }
+    expect(decos.size).toBe(8);
+    for (const m of [ua, ru, en]) expect(m.flock.special).toBeTruthy();
+  });
+
+  it("«Купити за 40»: ціна особливого береться з параметрів", () => {
+    expect(fmt(ua.flock.rubies.buy, "uk", { price: 40 })).toBe("Купити за 40");
+    expect(fmt(en.flock.rubies.buy, "en", { price: 40 })).toContain("40");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 40 })).toBe("Не вистачає: 40 рубінів");
   });
 
   it("«Купити за 60» і «Не вистачає: N»: підписи беруть ціну з параметрів", () => {

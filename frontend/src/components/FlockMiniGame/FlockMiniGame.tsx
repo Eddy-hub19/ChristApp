@@ -5,7 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { isPaidSkin, isPremiumSkin, PREMIUM_FROM, PREMIUM_SKIN_IDS } from "@/lib/rubies";
+import { isPaidSkin, isPremiumSkin, isSpecialSkin, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -19,6 +19,7 @@ import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } f
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
 import { animFrame, SKINS, skinOf } from "./flockSkins";
+import { isSpecialDeco } from "./flockSpecialDeco";
 import { prefersReducedMotion } from "./flockSprites";
 import { subscribePreviewTick } from "./flockPreviewTicker";
 import {
@@ -97,7 +98,8 @@ function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const skin = skinOf(skinId);
     // Шари анімації виходять за радіус тіла - преміум малюємо трохи меншим, щоб не обрізались краєм полотна.
-    const radius = skin.anim ? size * 0.27 : size * 0.36;
+    // Особливі виступають за тіло (кристали, капелюшок, антена) - теж трохи менші.
+    const radius = skin.anim ? size * 0.27 : isSpecialDeco(skin.deco) ? size * 0.3 : size * 0.36;
     const draw = (frame: number) => {
       ctx.clearRect(0, 0, size, size);
       drawCreature(ctx, skin, size / 2, size / 2 + 1, radius, 0.5, 0, 0, frame);
@@ -336,7 +338,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const ownedSkins = me?.ownedSkins ?? null;
   const premiumIds = visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins);
 
-  const priceOf = (i: number) => (isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20));
+  const priceOf = (i: number) =>
+    isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 40) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20);
 
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
@@ -348,7 +351,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         aria-checked={skin === i}
         aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
         title={t(`skins.${i}`)}
-        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={() => openSkin(i)}
       >
         <SkinPreview skinId={i} />
@@ -750,6 +753,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 </div>
               </>
             ) : null}
+            <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
+            <div className={styles.skins} role="radiogroup" aria-label={t("special")}>
+              {SPECIAL_SKIN_IDS.map((i) => skinButton(i))}
+            </div>
             {previewSkin !== null ? (
               <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
                 <SkinPreview skinId={previewSkin} size={84} />
