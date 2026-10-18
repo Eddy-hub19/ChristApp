@@ -1,3 +1,4 @@
+import { BOT_NAMES } from './flock.bot-names';
 import { FLOCK_CONFIG } from './flock.config';
 import {
   radiusOf,
@@ -7,6 +8,9 @@ import {
 } from './flock.engine';
 
 const C = FLOCK_CONFIG;
+
+// Список імен лежить в окремому файлі даних; реекспорт лишає старий імпорт із './flock.bots'.
+export { BOT_NAMES };
 
 export type Personality = 'cautious' | 'aggressive' | 'balanced';
 
@@ -46,36 +50,9 @@ const PROFILES: Record<Personality, Profile> = {
   },
 };
 
-export const BOT_NAMES = [
-  'Овечка Долі',
-  'Ягня Сем',
-  'Баранчик Бо',
-  'Пухнастик',
-  'Кучерявка',
-  'Хмаринка',
-  'Вовчок Сірко',
-  'Лапка',
-  'Білявка',
-  'Ягнятко Мі',
-  'Рогатик',
-  'Мʼякуш',
-  'Пастушка Зоря',
-  'Хутринка',
-  'Барашек Тім',
-  'Сніжинка',
-  'Сіра Тінь',
-  'Бубка',
-  'Пушок',
-  'Кучерик',
-  'Лунка',
-  'Грізний Хвіст',
-  'Вовна',
-  'Мілка',
-];
-
 /**
  * Ім'я бота, якого ще немає на арені. Вільні базові імена беруться випадково; коли всі зайняті —
- * випадкове базове з найменшим вільним номером: «Рогатик 2», «Рогатик 3» …
+ * випадкове базове з найменшим вільним номером: «Пушистик 2», «Пушистик 3» …
  */
 export function pickBotName(rng: Rng, taken: Iterable<string>): string {
   const used = new Set(taken);
