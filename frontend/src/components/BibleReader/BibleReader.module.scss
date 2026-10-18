@@ -513,10 +513,11 @@
     }
 
     /*
-     * 900–1439px: текст займає всю ширину читалки (main ширшим за 800px стає лише від 1440),
-     * тож стрілки ставимо по краях і лишаємо їм місце збоку від тексту — щоб не перекривали його.
+     * ≥900px: стрілки всередині читалки, по краях, а тексту лишаємо поля збоку.
+     * Поза читалкою їх не можна ставити: `main` має overflow-x: hidden і обрізає все, що виходить за
+     * його межі (від 1440px main вузький — 800px — і стрілки поруч із колонкою зникали).
      */
-    @media (min-width: 900px) and (max-width: 1439px) {
+    @media (min-width: 900px) {
         .floatingNavLeft {
             left: 12px;
             transform: translateY(-50%);
@@ -536,7 +537,8 @@
             transform: translate(var(--nav-shift), -50%);
         }
 
-        .versesSection {
+        /* section.versesSection — вище за специфічністю, ніж базове правило нижче за файлом. */
+        section.versesSection {
             padding-left: 72px;
             padding-right: 72px;
         }
