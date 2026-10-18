@@ -5,6 +5,9 @@ import { FLOCK_CONFIG } from './flock.config';
  * запізнюється, арена тимчасово знижує частоту (10 -> 8 -> 6 Гц), а коли стало спокійно - повертає.
  * Клієнт про це знає з часу сервера в пакеті (інтерполяція за часом, а не за номером тіка).
  */
+/** Один відлік запізнення не важить більше за upMs × це число. */
+const OUTLIER_FACTOR = 3;
+
 export class AdaptiveRate {
   private level = 0;
   private ema = 0;
@@ -26,7 +29,10 @@ export class AdaptiveRate {
 
   /** Викликається на кожному тіку із запізненням таймера (мс) і поточним часом (мс). Повертає частоту. */
   update(lateMs: number, nowMs: number): number {
-    this.ema = this.ema * 0.85 + lateMs * 0.15;
+    // Одиночний провал (CFS-квота заморожує процес до ~250 мс, GC, чат) обрізаємо: він сам не повинен знижувати
+    // частоту. Знижуємо лише за стабільного запізнення - кілька провалів поспіль або постійні 30+ мс.
+    const sample = Math.min(lateMs, this.upMs * OUTLIER_FACTOR);
+    this.ema = this.ema * 0.85 + sample * 0.15;
     const sinceChange = nowMs - this.changedAt;
     if (
       this.ema > this.upMs &&

@@ -10,6 +10,14 @@ import {
 import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { AdaptiveRate } from './flock.adaptive';
 import {
+  BotGovernor,
+  ProcessLoadSampler,
+  botCapForHumans,
+  type GovernorDecision,
+  type LoadSample,
+} from './flock.bot-governor';
+import { resolveCpuBudgetMs } from 'src/admin/cpu-benchmark.service';
+import {
   BONUS_CODE,
   FX_FROZEN,
   FX_GHOST,
@@ -51,6 +59,8 @@ interface Session {
   aspect: number;
   /** Нагороду за 1-ше місце в цьому житті вже видано (скидається при народженні). */
   rewardedThisLife: boolean;
+  /** Старий клієнт (до v2) не знає про кущі з `welcome` - йому кущі йдуть у кожному пакеті стану. */
+  thornsInState: boolean;
 }
 
 export interface FlockHooks {
@@ -84,12 +94,27 @@ class Arena {
   /** Спільне для всіх глядачів у цьому тіку: рахуємо один раз, а не по разу на кожного гравця. */
   private shared: {
     fx: Map<number, number>;
-    thorns: StateInput['thorns'];
     blobs: StateInput['blobs'];
     bonuses: StateInput['bonuses'];
-  } = { fx: new Map(), thorns: [], blobs: [], bonuses: [] };
+  } = { fx: new Map(), blobs: [], bonuses: [] };
+  /** Буфери buildState: Set-и очищаємо й переиспользуем, а не создаём на каждого игрока каждый тик. */
+  private readonly tmpWant = new Set<number>();
+  private readonly tmpFresh = new Set<number>();
+  private readonly tmpHave = new Set<number>();
+  private readonly tmpSeen = new Set<number>();
+  /** Кущі не рухаються й не зникають: список будується один раз і йде клієнтам у `welcome`. */
+  readonly thornList: StateInput['thorns'];
   /** Поточна частота (знижується запобіжником, коли CPU не встигає). */
   readonly rate = new AdaptiveRate();
+  /** Боти за навантаженням: регулятор, боти «на виході», журнал рішень для адмінки. */
+  readonly governor = new BotGovernor();
+  /** Боти, що йдуть: тікають до краю й зникають, коли їх ніхто не бачить (pid -> світовий час початку). */
+  readonly retiring = new Map<number, number>();
+  readonly decisions: GovernorDecision[] = [];
+  lastSample: LoadSample | null = null;
+  private lastLoadEval = -Infinity;
+  private lateSnap = { sum: 0, n: 0 };
+  private sampler: ProcessLoadSampler | null = null;
 
   constructor(
     readonly id: number,
@@ -97,8 +122,16 @@ class Arena {
     private readonly send: SendFn,
     private readonly now: () => number = Date.now,
     private readonly hooks: FlockHooks = {},
+    /** Лаг loop і CPU процесу (у тестах підміняється). За замовчуванням міряє сама арена. */
+    private readonly loadProbe?: () => Pick<LoadSample, 'loopP99Ms' | 'cpuPct'>,
   ) {
     this.world = new FlockWorld(rng);
+    this.thornList = this.world.thorns.map((t) => ({
+      id: t.id,
+      x: t.x,
+      y: t.y,
+      mass: t.mass,
+    }));
   }
 
   get humans() {
@@ -107,6 +140,10 @@ class Arena {
 
   start() {
     if (this.timer) return;
+    // первая оценка нагрузки - через evalMs после старта, а не сразу (холодный старт не повод убирать ботов)
+    this.lastLoadEval = this.now();
+    if (!this.loadProbe)
+      this.sampler = new ProcessLoadSampler(resolveCpuBudgetMs());
     this.nextAt = Date.now() + 1000 / this.rate.hz;
     this.expectedAt = this.nextAt;
     this.schedule();
@@ -115,6 +152,8 @@ class Arena {
   stop() {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    this.sampler?.dispose();
+    this.sampler = null;
   }
 
   private schedule() {
@@ -139,11 +178,22 @@ class Arena {
     this.timer.unref?.();
   }
 
+  /** Штатна кількість ботів: за людьми, з жорстким лімітом за числом людей (4-5 -> 2, 6 -> 0). */
   targetBots() {
-    return Math.max(
+    const base = Math.max(
       C.botMin,
       Math.min(C.botTarget, C.botTotalTarget - this.humans),
     );
+    return Math.min(base, botCapForHumans(this.humans));
+  }
+
+  /** Скільки ботів має грати зараз: штатна кількість, обмежена навантаженням. */
+  wantBots() {
+    return this.governor.limit(this.targetBots());
+  }
+
+  get activeBots() {
+    return this.bots.size - this.retiring.size;
   }
 
   private addBot() {
@@ -160,31 +210,151 @@ class Arena {
     this.bots.add(p.id);
   }
 
+  private removeBot(id: number) {
+    this.world.removePlayer(id);
+    this.bots.delete(id);
+    this.retiring.delete(id);
+    this.botRespawn.delete(id);
+  }
+
+  /** Центри й прямокутники огляду живих людей (так само, як у buildState). */
+  private humanViews() {
+    const w = this.world;
+    const out: { x: number; y: number; hx: number; hy: number }[] = [];
+    for (const s of this.sessions.values()) {
+      const p = w.players.get(s.pid);
+      if (!p || !p.alive) continue;
+      const cen = w.centroid(p);
+      const R = w.viewRadius(p);
+      const sa = Math.sqrt(s.aspect);
+      out.push({ x: cen.x, y: cen.y, hx: R * sa * 1.15, hy: (R / sa) * 1.15 });
+    }
+    return out;
+  }
+
+  private nearestHumanDist(
+    x: number,
+    y: number,
+    views: { x: number; y: number }[],
+  ) {
+    let d = Infinity;
+    for (const v of views) d = Math.min(d, Math.hypot(v.x - x, v.y - y));
+    return d;
+  }
+
+  /**
+   * Підганяє ботів під потрібну кількість. Зайвих НЕ видаляємо на очах: вони «йдуть» - тікають до найдальшого
+   * від людей кута й зникають, коли їх ніхто не бачить (див. retireStep). Спочатку йдуть найменші, а серед
+   * рівних - найдальші від людей. Якщо потрібно більше, спершу скасовуємо «відхід», потім додаємо нових.
+   */
   syncBots() {
-    const want = this.targetBots();
-    while (this.bots.size < want) this.addBot();
-    if (this.bots.size > want) {
-      // прибираємо найменших, щоб не рвати великих
-      const sorted = [...this.bots]
-        .map((id) => this.world.players.get(id)!)
-        .sort((a, b) => a.total - b.total);
-      for (const p of sorted) {
-        if (this.bots.size <= want) break;
-        this.world.removePlayer(p.id);
-        this.bots.delete(p.id);
-        this.botRespawn.delete(p.id);
+    const want = this.wantBots();
+    let active = this.activeBots;
+    if (active < want) {
+      for (const id of [...this.retiring.keys()]) {
+        if (active >= want) break;
+        this.retiring.delete(id);
+        active++;
+      }
+      while (active < want) {
+        this.addBot();
+        active++;
+      }
+    } else if (active > want) {
+      const views = this.humanViews();
+      const w = this.world;
+      const cands = [...this.bots]
+        .filter((id) => !this.retiring.has(id))
+        .map((id) => w.players.get(id)!)
+        .filter(Boolean)
+        .map((p) => {
+          const c = w.centroid(p);
+          return { p, dist: this.nearestHumanDist(c.x, c.y, views) };
+        })
+        .sort((a, b) => a.p.total - b.p.total || b.dist - a.dist);
+      for (const { p } of cands) {
+        if (active <= want) break;
+        this.retiring.set(p.id, w.now);
+        active--;
       }
     }
+  }
+
+  /** Бот, що йде: тікає до найдальшого від людей кута; прибираємо, коли його не видно жодній людині. */
+  private retireStep(id: number, p: Player) {
+    const w = this.world;
+    if (!p.alive) return this.removeBot(id);
+    const me = w.centroid(p);
+    const views = this.humanViews();
+    const r = 4.2 * Math.sqrt(p.total) + 80;
+    const hidden = views.every(
+      (v) =>
+        Math.abs(me.x - v.x) > v.hx * C.botLoad.retireHideFactor + r ||
+        Math.abs(me.y - v.y) > v.hy * C.botLoad.retireHideFactor + r,
+    );
+    const since = w.now - (this.retiring.get(id) ?? w.now);
+    if (hidden || since > C.botLoad.retireMaxMs) return this.removeBot(id);
+    if ((w.tickNo + id) % C.botThinkEvery !== 0) return;
+    let best = { x: C.worldSize / 2, y: C.worldSize / 2, d: -1 };
+    for (const [cx, cy] of [
+      [0, 0],
+      [C.worldSize, 0],
+      [0, C.worldSize],
+      [C.worldSize, C.worldSize],
+    ]) {
+      const d = this.nearestHumanDist(cx, cy, views);
+      if (d > best.d) best = { x: cx, y: cy, d };
+    }
+    p.angle = Math.atan2(best.y - me.y, best.x - me.x);
+    p.power = 1;
+  }
+
+  /**
+   * Раз на botLoad.evalMs: оцінка навантаження (запізнення тіків арени, лаг event loop, CPU процесу) і рішення
+   * регулятора. Публічний для тестів з підміненим `loadProbe` і годинником.
+   */
+  evaluateLoad(nowMs = this.now()) {
+    const l = this.lateness;
+    const dn = l.n - this.lateSnap.n;
+    const lateMs = dn > 0 ? (l.sum - this.lateSnap.sum) / dn : 0;
+    this.lateSnap = { sum: l.sum, n: l.n };
+    const proc = this.loadProbe
+      ? this.loadProbe()
+      : (this.sampler?.sample() ?? { loopP99Ms: 0, cpuPct: 0 });
+    const sample: LoadSample = { lateMs, ...proc };
+    this.lastSample = sample;
+    const before = this.governor.loadCap;
+    const d = this.governor.evaluate(
+      sample,
+      this.targetBots(),
+      this.activeBots,
+      nowMs,
+    );
+    if (d.action !== 'hold' || before !== d.loadCap) {
+      this.decisions.push(d);
+      if (this.decisions.length > 20) this.decisions.shift();
+    }
+    this.syncBots();
+    return d;
   }
 
   step() {
     const t0 = process.hrtime.bigint();
     const w = this.world;
     const tA = performance.now();
-    this.syncBots();
+    if (this.now() - this.lastLoadEval >= C.botLoad.evalMs) {
+      this.lastLoadEval = this.now();
+      this.evaluateLoad();
+    } else {
+      this.syncBots();
+    }
     for (const id of this.bots) {
       const p = w.players.get(id);
       if (!p) continue;
+      if (this.retiring.has(id)) {
+        this.retireStep(id, p);
+        continue;
+      }
       if (!p.alive) {
         const at = this.botRespawn.get(id) ?? w.now + C.botRespawnMs;
         this.botRespawn.set(id, at);
@@ -303,19 +473,17 @@ class Arena {
       if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
       sh.fx.set(o.id, fx);
     }
-    sh.thorns = w.thorns.map((t) => ({
-      id: t.id,
-      x: t.x,
-      y: t.y,
-      mass: t.mass,
-    }));
-    sh.blobs = w.blobs.map((b) => ({ id: b.id, x: b.x, y: b.y }));
-    sh.bonuses = w.bonuses.map((b) => ({
-      id: b.id,
-      kind: BONUS_CODE.indexOf(b.kind),
-      x: b.x,
-      y: b.y,
-    }));
+    // списки переиспользуем (без новых массивов на каждый тик)
+    sh.blobs.length = 0;
+    for (const b of w.blobs) sh.blobs.push({ id: b.id, x: b.x, y: b.y });
+    sh.bonuses.length = 0;
+    for (const b of w.bonuses)
+      sh.bonuses.push({
+        id: b.id,
+        kind: BONUS_CODE.indexOf(b.kind),
+        x: b.x,
+        y: b.y,
+      });
   }
 
   private buildState(s: Session, p: Player): StateInput {
@@ -340,7 +508,8 @@ class Arena {
       CHUNKS_PER_SIDE - 1,
       Math.floor((cen.y + hy + pad) / cs),
     );
-    const want = new Set<number>();
+    const want = this.tmpWant;
+    want.clear();
     for (let cy = y0; cy <= y1; cy++)
       for (let cx = x0; cx <= x1; cx++) want.add(cy * CHUNKS_PER_SIDE + cx);
 
@@ -353,7 +522,9 @@ class Arena {
       s.knownChunks.add(idx);
       chunks.push({ idx, foods: [...w.foodChunks[idx].values()] });
     }
-    const fresh = new Set(chunks.map((c) => c.idx));
+    const fresh = this.tmpFresh;
+    fresh.clear();
+    for (const c of chunks) fresh.add(c.idx);
     const foodEvents: StateInput['foodEvents'] = [];
     for (const e of w.foodEvents) {
       if (!s.knownChunks.has(e.chunk) && !s.knownChunks.has(e.oldChunk))
@@ -370,7 +541,8 @@ class Arena {
     }
 
     const cells: StateInput['cells'] = [];
-    const seenPids = new Set<number>();
+    const seenPids = this.tmpSeen;
+    seenPids.clear();
     w.queryCells(cen.x, cen.y, Math.max(hx, hy), (c) => {
       const o = w.players.get(c.pid);
       if (!o || !o.alive) return;
@@ -380,7 +552,9 @@ class Arena {
       seenPids.add(c.pid);
     });
     // власні клітини завжди
-    const have = new Set(cells.map((x) => x.id));
+    const have = this.tmpHave;
+    have.clear();
+    for (const c of cells) have.add(c.id);
     for (const c of p.cells) {
       if (!have.has(c.id)) {
         cells.push({
@@ -448,7 +622,9 @@ class Arena {
       foodEvents,
       players,
       cells,
-      thorns: this.shared.thorns.filter((t) => inView(t.x, t.y)),
+      thorns: s.thornsInState
+        ? this.thornList.filter((t) => inView(t.x, t.y))
+        : [],
       blobs: this.shared.blobs.filter((b) => inView(b.x, b.y)),
       bonuses: this.shared.bonuses.filter((b) => inView(b.x, b.y)),
       paused: pausedInView,
@@ -461,6 +637,8 @@ export interface JoinOptions {
   resume?: string;
   /** Лише відновлення: якщо сесії вже нема - не створювати нову овечку, а повернути `expired` (клієнт покаже лобі). */
   resumeOnly?: boolean;
+  /** Клієнт старої версії: кущі в кожному пакеті стану (нові отримують їх один раз у `welcome`). */
+  legacyThorns?: boolean;
   /** Арена з посилання-запрошення. Немає такої (закрита) - заходимо в доступну без жодних повідомлень. */
   arena?: number;
 }
@@ -473,6 +651,8 @@ export interface JoinResult {
   humans?: number;
   /** Токен для відновлення сесії після вильоту. */
   token?: string;
+  /** Кущі арени (один раз при вході; далі не змінюються). */
+  thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
   resumed?: boolean;
   /** Клієнт прислав токен, але сесія вже завершилась: звичайний вхід. */
@@ -501,6 +681,10 @@ export class FlockManager {
     private readonly rng: Rng = Math.random,
     private readonly now: () => number = Date.now,
     private readonly hooks: FlockHooks = {},
+    private readonly opts: {
+      /** Лаг loop и CPU процесса вместо реального замера (тесты). */
+      loadProbe?: () => Pick<LoadSample, 'loopP99Ms' | 'cpuPct'>;
+    } = {},
   ) {
     this.sweeper = setInterval(() => this.sweep(), 1000);
     this.sweeper.unref?.();
@@ -559,6 +743,7 @@ export class FlockManager {
       deadSent: false,
       aspect: 1,
       rewardedThisLife: false,
+      thornsInState: opts.legacyThorns === true,
     };
     arena.sessions.set(userId, session);
     this.byConn.set(connKey, session);
@@ -575,6 +760,7 @@ export class FlockManager {
       arenaId: s.arena.id,
       humans: s.arena.humans,
       token: s.token,
+      thorns: s.arena.thornList,
     };
   }
 
@@ -592,6 +778,7 @@ export class FlockManager {
       this.send,
       this.now,
       this.hooks,
+      this.opts.loadProbe,
     );
     this.arenas.set(arena.id, arena);
     return arena;
@@ -706,6 +893,13 @@ export class FlockManager {
       id: a.id,
       humans: a.humans,
       bots: a.bots.size,
+      botsActive: a.activeBots,
+      botsRetiring: a.retiring.size,
+      /** Штатна кількість ботів за людьми й лімітами / ліміт за навантаженням (null - без обмеження). */
+      botsTarget: a.targetBots(),
+      botsLoadCap: a.governor.loadCap,
+      load: a.lastSample,
+      decisions: a.decisions.map((d) => ({ ...d })),
       ticks: a.ticks,
       hz: a.rate.hz,
       cpuMsPerTick: a.ticks ? a.cpuMs / a.ticks : 0,

@@ -1,5 +1,5 @@
 import { FLOCK_CONFIG as C } from './flock.config';
-import { FlockWorld, radiusOf, speedOf } from './flock.engine';
+import { CHUNKS_PER_SIDE, FlockWorld, radiusOf, speedOf } from './flock.engine';
 
 function seeded(seed = 7) {
   let s = seed;
@@ -377,7 +377,8 @@ describe('FlockWorld: бонуси', () => {
     const f = { id: 5000, x: 1200, y: 1000, kind: 0 };
     w.foodById.set(f.id, f);
     w.foodChunks[
-      Math.floor(1000 / C.chunkSize) * 10 + Math.floor(1200 / C.chunkSize)
+      Math.floor(1000 / C.chunkSize) * CHUNKS_PER_SIDE +
+        Math.floor(1200 / C.chunkSize)
     ].set(f.id, f);
     w.tick(1 / C.tickHz);
     expect(f.x).toBeLessThan(1200);

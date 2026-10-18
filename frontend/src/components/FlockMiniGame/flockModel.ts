@@ -25,6 +25,10 @@ export interface FlockCfg {
   resumeFailed: boolean;
   /** Радіус огляду від маси: base + perSqrtMass*sqrt(маса), не більше max (дзеркало серверної формули). */
   view: { base: number; perSqrtMass: number; max: number };
+  /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
+  thorns?: { id: number; x: number; y: number; mass: number }[];
+  /** Піврозмір спрайта їжі (світові одиниці). Без поля - 8.5 (старий сервер). */
+  foodRadius?: number;
 }
 
 export interface RCell {
@@ -138,6 +142,7 @@ export class FlockModel {
 
   constructor(cfg: FlockCfg) {
     this.cfg = cfg;
+    this.thorns = cfg.thorns ?? [];
   }
 
   chunkOf(x: number, y: number) {
@@ -286,7 +291,8 @@ export class FlockModel {
     const nowLocal = Date.now();
     for (const p of s.paused) this.pausedUntil.set(p.pid, nowLocal + p.remainingMs);
 
-    this.thorns = s.thorns;
+    // кущі сервер шле один раз у welcome; зі стану беремо лише для старого сервера (без cfg.thorns)
+    if (!this.cfg.thorns) this.thorns = s.thorns;
     this.bonuses = s.bonuses.map((b) => ({ id: b.id, kind: BONUS_CODE[b.kind] ?? "golden", x: b.x, y: b.y }));
   }
 
