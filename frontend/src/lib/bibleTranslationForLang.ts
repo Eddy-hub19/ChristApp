@@ -54,9 +54,10 @@ export function pickTranslationShortName(
         fallbackForLang(lang)
       );
     }
+    // NRT — полный перевод; первым «русским» в списке API бывает JNT (только Новый Завет).
     return (
-      findLang("русск", "russian", "росій") ??
       translations.find((t) => t.short_name === "NRT")?.short_name ??
+      findLang("русск", "russian", "росій") ??
       translations[0]?.short_name ??
       "NRT"
     );

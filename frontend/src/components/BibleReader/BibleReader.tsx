@@ -13,18 +13,19 @@ import Verse from "@/components/Verse/Verse";
 import ShareToChatModal from "@/components/Verse/ShareToChatModal";
 import styles from "./BibleReader.module.scss";
 import Image from "next/image";
+import { Link } from "@/i18n/navigation";
+import BibleNavPanel from "@/components/BibleNavPanel/BibleNavPanel";
+import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useAutoHideOnScroll } from "@/hooks/useAutoHideOnScroll";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   bibleBooksQueryKey,
   bibleChapterTextQueryKey,
-  bibleChaptersQueryKey,
-  bibleStaticQueryOptions,
+    bibleStaticQueryOptions,
   bibleTranslationsQueryKey,
   fetchBibleBooksForQuery,
   fetchBibleChapterTextForQuery,
-  fetchBibleChaptersForQuery,
   fetchBibleTranslationsForQuery,
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries";
@@ -59,11 +60,10 @@ type VerseType = {
 
 type BookType = {
   id: string;
+  bookid?: number;
   name: string;
   chapters: number;
 };
-
-type ModalStep = "testament" | "books" | "chapters";
 
 const SHOW_VERSE_ACTIONS = true;
 const SESSION_HIGHLIGHTS_KEY = "bible-reader-highlights";
@@ -111,14 +111,20 @@ type BibleReaderProps = {
   initialBookId?: string;
   initialChapterId?: number;
   initialVerseId?: number;
+  /** Кінець діапазону віршів («1 Кор 13:4-7») — підсвічується разом із початком. */
+  initialVerseTo?: number;
 };
 
 export default function BibleReader({
   initialBookId,
   initialChapterId,
   initialVerseId,
+  initialVerseTo,
 }: BibleReaderProps = {}) {
   const tChat = useTranslations("chat");
+  const t = useTranslations("bibleSection");
+  /** Під час читання нижній навбар не заважає; лампочку теми лишаємо (вона не налізає на верхню панель). */
+  useFullscreenMode(true, { keepThemeToggle: true });
   const lang = useLocale();
   const { user, users } = useAuth();
   const { socket } = usePresenceSocket();
@@ -134,17 +140,13 @@ export default function BibleReader({
   const [highlights, setHighlights] = useState<Set<string>>(new Set());
   const [isHighlightsHydrated, setIsHighlightsHydrated] = useState(false);
 
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [activeActionsVerseKey, setActiveActionsVerseKey] = useState<
     string | null
   >(null);
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([]);
   const [highlightStorageEpoch, setHighlightStorageEpoch] = useState(0);
-  const [modalStep, setModalStep] = useState<ModalStep>("testament");
-  const [selectedTestament, setSelectedTestament] = useState<"old" | "new">(
-    "old",
-  );
 
   const touchStartX = useRef(0);
   const versesSectionRef = useRef<HTMLDivElement | null>(null);
@@ -156,7 +158,6 @@ export default function BibleReader({
   const loadChapter = useCallback((book: BookType, chapter: number) => {
     setCurrentBook(book);
     setCurrentChapter(chapter);
-    window.scrollTo({ top: 0, behavior: "smooth" });
 
     localStorage.setItem(
       BIBLE_LAST_READ_STORAGE_KEY,
@@ -229,7 +230,10 @@ export default function BibleReader({
     readerLayoutTranslationRef.current = translation;
 
     if (initialBookId) {
-      const targetBook = list.find((b) => b.id === initialBookId);
+      // Ззовні буває і код книги (JHN), і її номер (43).
+      const targetBook = list.find(
+        (b) => b.id === initialBookId || String(b.bookid) === initialBookId,
+      );
       if (targetBook) {
         setCurrentBook(targetBook);
         setCurrentChapter(initialChapterId ?? 1);
@@ -249,67 +253,15 @@ export default function BibleReader({
     setCurrentBook((prev) => prev ?? resolved.book);
   }, [queryClient, translation, books]);
 
-  // ===== ФІЛЬТР ЗАПОВІТУ =====
-  const oldTestamentBooks = books.filter((b) => {
-    // ID перших 39 книг – Старий Завіт (GEN…MAL)
-    const oldIds = [
-      "GEN",
-      "EXO",
-      "LEV",
-      "NUM",
-      "DEU",
-      "JOS",
-      "JDG",
-      "RUT",
-      "1SA",
-      "2SA",
-      "1KI",
-      "2KI",
-      "1CH",
-      "2CH",
-      "EZR",
-      "NEH",
-      "EST",
-      "JOB",
-      "PSA",
-      "PRO",
-      "ECC",
-      "SNG",
-      "ISA",
-      "JER",
-      "LAM",
-      "EZK",
-      "DAN",
-      "HOS",
-      "JOL",
-      "AMO",
-      "OBA",
-      "JON",
-      "MIC",
-      "NAM",
-      "HAB",
-      "ZEP",
-      "HAG",
-      "ZEC",
-      "MAL",
-    ];
-    return oldIds.includes(b.id);
-  });
-
-  const newTestamentBooks = books.filter((b) => !oldTestamentBooks.includes(b));
-  const testamentBooks =
-    selectedTestament === "old" ? oldTestamentBooks : newTestamentBooks;
-
   // ===== НАВІГАЦІЯ =====
   const isFirstChapter = currentBook
-    ? currentChapter === 1 && oldTestamentBooks.indexOf(currentBook) === 0
+    ? currentChapter === 1 && books[0]?.id === currentBook.id
     : false;
   const isLastChapter = currentBook
     ? currentChapter === currentBook.chapters
     : false;
   const isLastBook = currentBook
-    ? newTestamentBooks.indexOf(currentBook) !== -1 &&
-      currentBook.id === newTestamentBooks[newTestamentBooks.length - 1].id
+    ? books[books.length - 1]?.id === currentBook.id
     : false;
 
   const goNext = useCallback(() => {
@@ -457,13 +409,6 @@ export default function BibleReader({
     if (diff < -70) goNext();
   };
 
-  const { data: chapters = [] } = useQuery({
-    queryKey: bibleChaptersQueryKey(translation, currentBook?.id ?? ""),
-    queryFn: () => fetchBibleChaptersForQuery(translation, currentBook!.id),
-    enabled: isMounted && Boolean(currentBook),
-    ...bibleStaticQueryOptions,
-  });
-
   const versesQueryKey = bibleChapterTextQueryKey(
     translation,
     currentBook?.id ?? "",
@@ -568,6 +513,27 @@ export default function BibleReader({
 
   const hasVersesData = verses !== undefined;
 
+  /** Адреса відображає поточну главу (без нового запису в історії) — її можна надіслати або оновити сторінку. */
+  useEffect(() => {
+    if (!currentBook || typeof window === "undefined") return;
+    const { pathname, search } = window.location;
+    if (!/\/bible\/[^/]+$/.test(pathname)) return;
+    const params = new URLSearchParams(search);
+    const samePlace =
+      decodeURIComponent(pathname.split("/").pop() ?? "") === currentBook.id &&
+      params.get("chapter") === String(currentChapter);
+    if (samePlace) return;
+    const nextPath = pathname.replace(
+      /[^/]+$/,
+      encodeURIComponent(currentBook.id),
+    );
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${nextPath}?chapter=${currentChapter}`,
+    );
+  }, [currentBook, currentChapter]);
+
   useEffect(() => {
     if (!currentBook || (versesIsLoading && !hasVersesData)) return;
     const el = versesSectionRef.current;
@@ -588,11 +554,38 @@ export default function BibleReader({
     const el = document.getElementById(`verse-${initialVerseId}`);
     if (!el) return;
     didScrollToInitialVerseRef.current = true;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    const last =
+      initialVerseTo && initialVerseTo > initialVerseId
+        ? initialVerseTo
+        : initialVerseId;
+    const flashed: HTMLElement[] = [];
+    for (let n = initialVerseId; n <= last; n++) {
+      const node = document.getElementById(`verse-${n}`);
+      if (node) flashed.push(node);
+    }
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const frame = requestAnimationFrame(() => {
+      el.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+      });
+      // Коротка підсвітка знайденого вірша (діапазону).
+      for (const node of flashed) node.setAttribute("data-verse-flash", "1");
     });
+    const timer = window.setTimeout(() => {
+      for (const node of flashed) node.removeAttribute("data-verse-flash");
+    }, 2800);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
   }, [
     initialVerseId,
+    initialVerseTo,
     initialBookId,
     initialChapterId,
     currentBook,
@@ -601,14 +594,18 @@ export default function BibleReader({
     hasVersesData,
   ]);
 
-  /** Стрілки глав ховаються, поки гортаємо вниз, і повертаються після паузи / скролу вгору / в кінці глави. */
-  const floatingNavScrolledAway = useAutoHideOnScroll(versesSectionRef, [
-    currentBook?.id,
-    currentChapter,
-    versesIsLoading,
-    hasVersesData,
-    memomizedVerses.length,
-  ]);
+  /** Верхня панель і стрілки глав ховаються, поки гортаємо вниз; повертаються за ~1 с паузи, при скролі вгору та в кінці глави. */
+  const floatingNavScrolledAway = useAutoHideOnScroll(
+    versesSectionRef,
+    [
+      currentBook?.id,
+      currentChapter,
+      versesIsLoading,
+      hasVersesData,
+      memomizedVerses.length,
+    ],
+    { idleMs: 1000 },
+  );
 
   /** Скелетон лише без книги або при першому завантаженні тексту глави без кешу (isMounted не потрібен — layout уже підставив книгу). */
   const showReaderSkeleton =
@@ -667,212 +664,183 @@ export default function BibleReader({
     );
   }
 
+  const bookTitle = `${currentBook.name} ${currentChapter}`;
+
+  const pickFromNav = (book: BookType, chapter: number) => {
+    loadChapter(book, chapter);
+    setIsNavOpen(false);
+  };
+
+  const navPanel = (
+    <BibleNavPanel
+      books={books}
+      currentBookId={currentBook.id}
+      currentChapter={currentChapter}
+      onPick={pickFromNav}
+    />
+  );
+
   return (
     <section
       className={styles.bibleReader}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* HEADER */}
-      <div className={styles.headerBar}>
-        <h2
-          className={styles.clickable}
-          onClick={() => setIsSelectorOpen(true)}
-        >
-          {currentBook.name} {currentChapter}
-        </h2>
+      {/* Бічна панель навігації — лише на широкому екрані */}
+      <aside className={styles.sidebar}>{navPanel}</aside>
 
-        <select
-          value={translation}
-          onChange={(e) => setTranslation(e.target.value)}
-        >
-          {translations.map((t) => (
-            <option key={t.short_name} value={t.short_name}>
-              {t.short_name} ({t.language})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* MODAL */}
-      {isSelectorOpen && (
+      <div className={styles.column}>
+        {/* TOP BAR: ховається при прокрутці вниз */}
         <div
-          className={styles.modalBackdrop}
-          onClick={() => setIsSelectorOpen(false)}
+          className={`${styles.topBar} ${floatingNavScrolledAway ? styles.topBarHidden : ""}`}
+          inert={floatingNavScrolledAway}
         >
-          <div
-            className={styles.modalSheet}
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
+          <Link
+            href={`/bible?book=${currentBook.id}`}
+            className={styles.glassButton}
+            aria-label={t("backToBooks")}
           >
-            <div className={styles.modalHeader}>
-              <button
-                className={styles.backButton}
-                onClick={() => {
-                  if (modalStep === "books") setModalStep("testament");
-                  else if (modalStep === "chapters") setModalStep("books");
-                }}
-                disabled={modalStep === "testament"}
-              >
-                ← Назад
-              </button>
-              <button
-                className={styles.closeModalButton}
-                onClick={() => setIsSelectorOpen(false)}
-              >
-                ✕
-              </button>
+            <span aria-hidden className={styles.backArrow}>‹</span>
+            <span className={styles.backText}>{t("books")}</span>
+          </Link>
+
+          <button
+            type="button"
+            className={styles.titleButton}
+            onClick={() => setIsNavOpen(true)}
+            aria-haspopup="dialog"
+          >
+            {bookTitle}
+          </button>
+
+          <select
+            className={styles.translationSelect}
+            aria-label={t("translation")}
+            value={translation}
+            onChange={(e) => setTranslation(e.target.value)}
+          >
+            {translations.map((tr) => (
+              <option key={tr.short_name} value={tr.short_name}>
+                {tr.short_name} ({tr.language})
+              </option>
+            ))}
+          </select>
+
+          <Link
+            href="/bible?search=1"
+            className={`${styles.glassButton} ${styles.iconOnly}`}
+            aria-label={t("openSearch")}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* НАВІГАЦІЯ ПО ЗАВІТАХ (лист на телефоні) */}
+        {isNavOpen && (
+          <div
+            className={styles.modalBackdrop}
+            onClick={() => setIsNavOpen(false)}
+          >
+            <div
+              className={styles.modalSheet}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("navTitle")}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.modalHeader}>
+                <span className={styles.modalTitle}>{t("navTitle")}</span>
+                <button
+                  type="button"
+                  className={styles.closeModalButton}
+                  aria-label={t("back")}
+                  onClick={() => setIsNavOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className={styles.modalBody}>{navPanel}</div>
             </div>
+          </div>
+        )}
 
-            {modalStep === "testament" && (
-              <div className={styles.modalBody}>
-                <h3>Выбери завет</h3>
-                <div className={styles.testamentGrid}>
-                  <button
-                    className={`${styles.testamentButton} ${selectedTestament === "old" ? styles.active : ""}`}
-                    onClick={() => {
-                      setSelectedTestament("old");
-                      setModalStep("books");
-                    }}
-                  >
-                    Ветхий Завет
-                  </button>
-
-                  <button
-                    className={`${styles.testamentButton} ${selectedTestament === "new" ? styles.active : ""}`}
-                    onClick={() => {
-                      setSelectedTestament("new");
-                      setModalStep("books");
-                    }}
-                  >
-                    Новый Завет
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {modalStep === "books" && (
-              <div className={styles.modalBody}>
-                <h3>
-                  {selectedTestament === "old" ? "Ветхий Завет" : "Новый Завет"}
-                </h3>
-                <div className={styles.booksList}>
-                  {testamentBooks.map((b) => (
-                    <button
-                      className={`${styles.bookButton} ${currentBook.id === b.id ? styles.active : ""}`}
-                      key={b.id}
-                      onClick={() => {
-                        setCurrentBook(b);
-                        setModalStep("chapters");
-                      }}
-                    >
-                      {b.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {modalStep === "chapters" && (
-              <div className={styles.modalBody}>
-                <h3>{currentBook.name}</h3>
-                <div className={styles.chaptersList}>
-                  {chapters.map((c) => (
-                    <button
-                      type="button"
-                      className={`${styles.chapterButton} ${currentChapter === c ? styles.active : ""}`}
-                      key={c}
-                      onClick={() => {
-                        loadChapter(currentBook, c);
-                        setIsSelectorOpen(false);
-                        setModalStep("testament");
-                      }}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* FLOATING NAV: скляні стрілки глав; ховаються разом із верхньою панеллю */}
+        <div
+          className={`${styles.floatingNavRow} ${floatingNavScrolledAway ? styles.floatingNavRowHidden : ""}`}
+          inert={floatingNavScrolledAway}
+        >
+          <div className={styles.floatingNavLeft}>
+            <button
+              type="button"
+              aria-label={t("prevChapter")}
+              onClick={goPrev}
+              className={styles.navButton}
+              disabled={isFirstChapter}
+            >
+              <Image src="/icon-arrow-left.svg" alt="" width={24} height={24} />
+            </button>
+          </div>
+          <div className={styles.floatingNavRight}>
+            <button
+              type="button"
+              aria-label={t("nextChapter")}
+              onClick={goNext}
+              className={styles.navButton}
+              disabled={isLastBook && isLastChapter}
+            >
+              <Image src="/icon-arrow-right.svg" alt="" width={24} height={24} />
+            </button>
           </div>
         </div>
-      )}
 
-      {/* FLOATING NAV: нижче 900px — fixed внизу; під час прокрутки глави з'їжджають вниз */}
-      <div
-        className={`${styles.floatingNavRow} ${floatingNavScrolledAway ? styles.floatingNavRowHidden : ""}`}
-        inert={floatingNavScrolledAway}
-      >
-        <div className={styles.floatingNavLeft}>
-          <button
-            aria-label="previous chapter"
-            onClick={goPrev}
-            className={styles.navButton}
-            disabled={isFirstChapter}
-          >
-            <Image
-              src="/icon-arrow-left.svg"
-              alt="Previous Chapter"
-              width={24}
-              height={24}
+        {/* VERSES */}
+        <section ref={versesSectionRef} className={styles.versesSection}>
+          <div className={styles.text}>
+            <h3 className={styles.chapterHeading}>
+              <span className={styles.chapterHeadingBook}>{currentBook.name}</span>
+              <span className={styles.chapterHeadingSep} aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+              <span className={styles.chapterHeadingChapter}>
+                {t("chapterHeading", { n: currentChapter })}
+              </span>
+            </h3>
+            {memomizedVerses.map((v: any) => (
+              <Verse
+                key={v.pk}
+                verse={v.verse}
+                text={v.text}
+                selected={v.selected}
+                onVerseClick={handleVerseClick}
+                bookName={currentBook.name}
+                chapter={currentChapter}
+                translation={translation}
+                id={`verse-${v.verse}`}
+                showInlineActions={SHOW_VERSE_ACTIONS}
+                activeActionsVerseKey={activeActionsVerseKey}
+                onOpenActions={setActiveActionsVerseKey}
+                onShareClick={handleOpenShare}
+                highlightStorageEpoch={highlightStorageEpoch}
+                onApplyHighlightColorToSelection={applyHighlightColorToSelection}
+              />
+            ))}
+            <div
+              ref={chapterReadSentinelRef}
+              className={styles.chapterReadSentinel}
+              aria-hidden
             />
-          </button>
-        </div>
-        <div className={styles.floatingNavRight}>
-          <button
-            aria-label="next chapter"
-            onClick={goNext}
-            className={styles.navButton}
-            disabled={isLastBook && isLastChapter}
-          >
-            <Image
-              src="/icon-arrow-right.svg"
-              alt="Next Chapter"
-              width={24}
-              height={24}
-            />
-          </button>
-        </div>
+            {!(isLastBook && isLastChapter) && (
+              <button type="button" className={styles.nextChapterButton} onClick={goNext}>
+                {t("nextChapterButton")} →
+              </button>
+            )}
+          </div>
+        </section>
       </div>
-
-      {/* VERSES */}
-      <section ref={versesSectionRef} className={styles.versesSection}>
-        <h3 className={styles.chapterHeading}>
-          <span className={styles.chapterHeadingBook}>{currentBook!.name}</span>
-          <span className={styles.chapterHeadingSep} aria-hidden>
-            {" "}
-            ·{" "}
-          </span>
-          <span className={styles.chapterHeadingChapter}>
-            Глава {currentChapter}
-          </span>
-        </h3>
-        {memomizedVerses.map((v: any) => (
-          <Verse
-            key={v.pk}
-            verse={v.verse}
-            text={v.text}
-            selected={v.selected}
-            onVerseClick={handleVerseClick}
-            bookName={currentBook!.name}
-            chapter={currentChapter}
-            translation={translation}
-            id={`verse-${v.verse}`}
-            showInlineActions={SHOW_VERSE_ACTIONS}
-            activeActionsVerseKey={activeActionsVerseKey}
-            onOpenActions={setActiveActionsVerseKey}
-            onShareClick={handleOpenShare}
-            highlightStorageEpoch={highlightStorageEpoch}
-            onApplyHighlightColorToSelection={applyHighlightColorToSelection}
-          />
-        ))}
-        <div
-          ref={chapterReadSentinelRef}
-          className={styles.chapterReadSentinel}
-          aria-hidden
-        />
-      </section>
       <ShareToChatModal
         open={isShareModalOpen}
         targets={shareTargets}
