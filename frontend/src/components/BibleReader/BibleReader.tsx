@@ -37,6 +37,8 @@ import {
   saveTranslation,
 } from "@/lib/bibleTranslations";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { Link } from "@/i18n/navigation";
 import BibleSearchTab from "@/components/BibleSearch/BibleSearchTab";
 import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -154,8 +156,9 @@ export default function BibleReader({
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([]);
   const [highlightStorageEpoch, setHighlightStorageEpoch] = useState(0);
   const [modalStep, setModalStep] = useState<ModalStep>("testament");
-  /** Під час читання нижній навбар прихований; у вікні вибору книги/пошуку він знову видимий. Лампочку теми лишаємо. */
-  useFullscreenMode(!isSelectorOpen, { keepThemeToggle: true });
+  /** На телефоні під час читання нижній навбар прихований (у вікні вибору книги/пошуку він знову видимий). На ПК навбар лишається. Лампочку теми лишаємо. */
+  const isMobileLayout = useMediaQuery("(max-width: 767px)");
+  useFullscreenMode(isMobileLayout && !isSelectorOpen, { keepThemeToggle: true });
   const [selectedTestament, setSelectedTestament] = useState<"old" | "new">(
     "old",
   );
@@ -759,6 +762,23 @@ export default function BibleReader({
       >
       <div className={styles.headerCollapseInner}>
           <div className={styles.headerBar}>
+            {/* Лише телефон: навбар прихований, тож виходимо в чат цією кнопкою. */}
+            <Link
+              href="/chat"
+              className={styles.backToChat}
+              aria-label={tSearch("backToChat")}
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+                <path
+                  d="m15 5-7 7 7 7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Link>
             <h2
               className={styles.clickable}
               onClick={() => setIsSelectorOpen(true)}

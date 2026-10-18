@@ -67,6 +67,41 @@
             }
         }
 
+        /* Вузький екран: переклад — компактно, щоб назві книги лишилось місце поруч із двома кнопками. */
+        @media (max-width: 520px) {
+            gap: 8px;
+
+            select {
+                flex: 0 0 64px;
+                padding: 8px 6px;
+            }
+        }
+
+        /* Кнопка «назад у чат» — лише на телефоні (там навбар прихований). */
+        .backToChat {
+            flex: 0 0 auto;
+            width: 40px;
+            height: 40px;
+            align-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--login-card-border);
+            border-radius: 64px;
+            color: var(--foreground);
+            text-decoration: none;
+            touch-action: manipulation;
+
+            &:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+
+            @media (min-width: 768px) {
+                display: none;
+            }
+        }
+
         /* Кнопка пошуку: коло тієї ж висоти й стилю, що й поля поруч. */
         .searchButton {
             flex: 0 0 auto;
@@ -255,8 +290,13 @@
             position: fixed;
             left: 0;
             right: 0;
-            /* Навбар у читалці прихований — лише safe area та невеликий зазор. */
-            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            /* 768–899px: навбар (island) видимий — 80px висоти + 12px від низу + safe area + зазор. */
+            bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+
+            /* Телефон: навбар у читалці прихований — лише safe area та невеликий зазор. */
+            @media (max-width: 767px) {
+                bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            }
             padding-left: max(12px, env(safe-area-inset-left, 0px));
             padding-right: max(12px, env(safe-area-inset-right, 0px));
             justify-content: space-between;
