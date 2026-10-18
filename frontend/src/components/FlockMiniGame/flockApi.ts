@@ -11,7 +11,7 @@ export interface FlockMe {
   whatsNewSeen?: number;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; freeSkins: number; premiumFrom?: number; totalSkins: number; top1Reward: number; top1MassThreshold: number };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */

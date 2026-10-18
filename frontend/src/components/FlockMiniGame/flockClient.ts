@@ -64,6 +64,8 @@ type Sock = ReturnType<typeof createSocket>;
 const HEARTBEAT_MS = 2000;
 /** Повідомлення "Сесія завершилась" показуємо лише для свіжих токенів (не через дні). */
 const STALE_NOTICE_MS = 10 * 60_000;
+/** Версія протоколу: 2+ - кущі приходять один раз у welcome (а не в кожному пакеті стану). */
+export const PROTOCOL_VERSION = 2;
 
 /** Тонкий шар над сокетом: підключення, бінарні пакети -> модель, ввід, відновлення сесії. Без React. */
 export class FlockClient {
@@ -130,7 +132,7 @@ export class FlockClient {
         // розрив посеред гри: той самий токен, нову овечку не створюємо
         const have = this.stored ?? saved;
         if (have) this.emitResume(have);
-        else socket.emit("j", { skin: this.skin, ...(this.arenaId ? { arena: this.arenaId } : {}) }); // ще не встигли отримати welcome
+        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, ...(this.arenaId ? { arena: this.arenaId } : {}) }); // ще не встигли отримати welcome
       } else if (this.opts.autoResume !== false && saved && isResumable(saved)) {
         this.skin = saved.skin;
         this.wantPlay = true;
@@ -256,7 +258,7 @@ export class FlockClient {
     }
     this.stored = saved;
     this.setStatus("resuming");
-    this.socket?.emit("j", { skin: saved.skin, resume: saved.token, resumeOnly: true });
+    this.socket?.emit("j", { v: PROTOCOL_VERSION, skin: saved.skin, resume: saved.token, resumeOnly: true });
   }
 
   private persist(connected: boolean) {
@@ -284,7 +286,7 @@ export class FlockClient {
     this.opts.onNotice?.(null);
     if (this.model) this.model.resetCamera();
     if (this.socket?.connected) {
-      this.socket.emit("j", { skin, ...(this.arenaId ? { arena: this.arenaId } : {}) });
+      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, ...(this.arenaId ? { arena: this.arenaId } : {}) });
     }
   }
 

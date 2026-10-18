@@ -33,9 +33,9 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "skins",
         text: {
-          ua: "Нові скіни за рубіни: 6 звичайних по 20 і 6 преміум з анімацією по 60",
-          ru: "Новые скины за рубины: 6 обычных по 20 и 6 премиум с анимацией по 60",
-          en: "New skins for rubies: 6 regular for 20 and 6 animated premium for 60",
+          ua: "Нові скіни за рубіни: 6 звичайних по 20",
+          ru: "Новые скины за рубины: 6 обычных по 20",
+          en: "New skins for rubies: 6 regular for 20",
         },
       },
       {

@@ -1,6 +1,6 @@
 import { FLOCK_CONFIG as C } from './flock.config';
 import { BOT_NAMES, initBot, pickBotName, thinkBot } from './flock.bots';
-import { FlockWorld, type Player } from './flock.engine';
+import { CHUNKS_PER_SIDE, FlockWorld, type Player } from './flock.engine';
 
 function world() {
   let s = 3;
@@ -99,7 +99,8 @@ describe('ШІ ботів', () => {
     const f = { id: 1, x: 1800, y: 1500, kind: 0 };
     w.foodById.set(1, f);
     w.foodChunks[
-      Math.floor(1500 / C.chunkSize) * 10 + Math.floor(1800 / C.chunkSize)
+      Math.floor(1500 / C.chunkSize) * CHUNKS_PER_SIDE +
+        Math.floor(1800 / C.chunkSize)
     ].set(1, f);
     prime(w);
     think(w, b, rng);
@@ -112,7 +113,8 @@ describe('ШІ ботів', () => {
     const f = { id: 1, x: 1500, y: 1250, kind: 0 };
     w.foodById.set(1, f);
     w.foodChunks[
-      Math.floor(1250 / C.chunkSize) * 10 + Math.floor(1500 / C.chunkSize)
+      Math.floor(1250 / C.chunkSize) * CHUNKS_PER_SIDE +
+        Math.floor(1500 / C.chunkSize)
     ].set(1, f);
     prime(w);
     think(w, b, rng);

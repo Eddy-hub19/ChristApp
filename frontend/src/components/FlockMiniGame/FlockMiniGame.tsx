@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { isPaidSkin, isPremiumSkin, isSpecialSkin, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
@@ -331,6 +332,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     controlRef.current = mode;
     saveControlMode(mode);
   };
+
+  // скрытые скины (сервер: config.hiddenSkins) не показываем, пока профиль не загружен - тоже; купленные остаются
+  const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : PREMIUM_SKIN_IDS;
+  const ownedSkins = me?.ownedSkins ?? null;
+  const premiumIds = visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins);
 
   const priceOf = (i: number) =>
     isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 40) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20);
@@ -737,12 +743,16 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
             <h3 className={styles.h3}>{t("chooseSkin")}</h3>
             <div className={styles.skins} role="radiogroup" aria-label={t("chooseSkin")}>
-              {SKINS.slice(0, PREMIUM_FROM).map((_, i) => skinButton(i))}
+              {visibleSkinIds(Array.from({ length: PREMIUM_FROM }, (_, i) => i), hiddenSkins, ownedSkins).map((i) => skinButton(i))}
             </div>
-            <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
-            <div className={styles.skins} role="radiogroup" aria-label={t("premium")}>
-              {PREMIUM_SKIN_IDS.map((i) => skinButton(i))}
-            </div>
+            {premiumIds.length > 0 ? (
+              <>
+                <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
+                <div className={styles.skins} role="radiogroup" aria-label={t("premium")}>
+                  {premiumIds.map((i) => skinButton(i))}
+                </div>
+              </>
+            ) : null}
             <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
             <div className={styles.skins} role="radiogroup" aria-label={t("special")}>
               {SPECIAL_SKIN_IDS.map((i) => skinButton(i))}

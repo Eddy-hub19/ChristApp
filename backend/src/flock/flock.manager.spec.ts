@@ -57,19 +57,23 @@ describe('FlockManager', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('боти зменшуються, коли приходять люди (але не нижче мінімуму)', () => {
+  it('боти зменшуються, коли приходять люди: 4-5 людей -> не більше 2, 6 -> 0 (штатно, без навантаження)', () => {
     ctx.mgr.join('c0', 'u0', 'P0', 0);
-    expect(ctx.mgr.stats()[0].bots).toBe(C.botTarget);
-    for (let i = 1; i < C.maxHumansPerArena; i++) {
-      ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
-    }
-    const s = ctx.mgr.stats()[0];
-    expect(s.humans).toBe(C.maxHumansPerArena);
-    expect(s.bots).toBe(
-      Math.max(C.botMin, Math.min(C.botTarget, C.botTotalTarget - s.humans)),
+    expect(ctx.mgr.stats()[0].botsTarget).toBe(C.botTarget);
+    const targetAt = (n: number) => {
+      for (let i = ctx.mgr.stats()[0].humans; i < n; i++)
+        ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
+      return ctx.mgr.stats()[0];
+    };
+    expect(targetAt(3).botsTarget).toBe(
+      Math.max(C.botMin, Math.min(C.botTarget, C.botTotalTarget - 3)),
     );
-    expect(s.bots).toBeLessThan(C.botTarget);
-    expect(s.bots).toBeGreaterThanOrEqual(C.botMin);
+    expect(targetAt(4).botsTarget).toBeLessThanOrEqual(2);
+    expect(targetAt(5).botsTarget).toBeLessThanOrEqual(2);
+    const six = targetAt(6);
+    expect(six.humans).toBe(6);
+    expect(six.botsTarget).toBe(0);
+    expect(six.botsActive).toBe(0);
   });
 
   it('арена одна й має ліміт людей: сьомий - відмова full, без входу', () => {

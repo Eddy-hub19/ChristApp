@@ -11,6 +11,7 @@ import {
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
+import type { AdminFlockArena, AdminFlockDecision } from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -49,6 +50,60 @@ function Sparkline({ values }: { values: number[] }) {
         vectorEffect="non-scaling-stroke"
       />
     </svg>
+  );
+}
+
+const flockLevelDot: Record<AdminFlockDecision["level"], HealthLevel> = { low: "ok", normal: "ok", high: "bad" };
+
+/** Арены «Отари»: сколько людей и ботов, нагрузка арены и решения регулятора (кого убрали/вернули и почему). */
+function FlockSection({ arenas }: { arenas: AdminFlockArena[] }) {
+  const t = useTranslations("admin");
+  const ms = (v: number) => t("procFlockMs", { value: v.toFixed(1) });
+  return (
+    <section className={styles.procSection}>
+      <h2 className={styles.procHeading}>{t("procSecFlock")}</h2>
+      {arenas.length === 0 ? <p className={styles.metaSmall}>{t("procFlockNone")}</p> : null}
+      {arenas.map((a) => (
+        <div key={a.id}>
+          <h3 className={styles.procSubheading}>{t("procFlockArena", { id: a.id })}</h3>
+          <div className={styles.statGrid}>
+            <Stat label={t("procFlockPlayers")} value={String(a.humans)} />
+            <Stat
+              label={t("procFlockBots")}
+              value={t("procFlockBotsValue", { active: a.botsActive, target: a.botsTarget })}
+              sub={a.botsRetiring > 0 ? t("procFlockLeaving", { count: a.botsRetiring }) : undefined}
+            />
+            <Stat
+              label={t("procFlockCap")}
+              value={a.botsLoadCap === null ? t("procFlockNoCap") : String(a.botsLoadCap)}
+              level={a.botsLoadCap === null ? "ok" : "warn"}
+            />
+            <Stat label={t("procFlockHz")} value={`${a.hz}`} level={a.hz >= 10 ? "ok" : "warn"} />
+            {a.load ? (
+              <>
+                <Stat label={t("procFlockLate")} value={ms(a.load.lateMs)} />
+                <Stat label={t("procFlockLoop")} value={ms(a.load.loopP99Ms)} />
+                <Stat label={t("procFlockCpu")} value={`${a.load.cpuPct.toFixed(1)}%`} />
+              </>
+            ) : null}
+          </div>
+          <h3 className={styles.procSubheading}>{t("procFlockDecisions")}</h3>
+          {a.decisions.length === 0 ? (
+            <p className={styles.metaSmall}>{t("procFlockNoDecisions")}</p>
+          ) : (
+            <ul className={styles.metaSmall}>
+              {[...a.decisions].reverse().map((d) => (
+                <li key={d.at}>
+                  <Dot level={flockLevelDot[d.level]} />{" "}
+                  {new Date(d.at).toLocaleTimeString()} · {t(`procFlockLevel_${d.level}`)} · {t(`procFlockAct_${d.action}`)}
+                  {d.reasons.length > 0 ? ` (${d.reasons.map((r) => t(`procFlockReason_${r}`)).join(", ")})` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -356,6 +411,8 @@ export default function AdminProcesses({ active }: { active: boolean }) {
           />
         </div>
       </section>
+
+      <FlockSection arenas={data.flock?.arenas ?? []} />
 
       <CpuBenchmark active={active} />
 

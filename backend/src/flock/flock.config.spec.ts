@@ -4,6 +4,7 @@ import {
   NUM_SKINS,
   PREMIUM_FROM,
   SPECIAL_FROM,
+  isHiddenSkin,
   isSpecialSkin,
   isPaidSkin,
   isPremiumSkin,
@@ -36,6 +37,7 @@ describe('скіни: ціни й діапазони', () => {
       expect(isPaidSkin(id)).toBe(true);
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(true);
+      expect(isHiddenSkin(id)).toBe(false); // особливі видимі й купуються
       expect(skinPriceOf(id)).toBe(C.rubies.specialSkinPrice);
     }
     expect(C.rubies.specialSkinPrice).toBe(40);

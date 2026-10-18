@@ -22,6 +22,7 @@ import { CpuBenchmarkService } from './cpu-benchmark.service';
 import { DbLatencyService } from './db-latency.service';
 import { describeDatabaseUrl, describeServerRegion } from 'src/prisma/db-info';
 import { ChatGateway } from 'src/chat/chat.gateway';
+import { FlockGateway } from 'src/flock/flock.gateway';
 import { FlockRubiesService } from 'src/flock/flock.rubies.service';
 
 @Controller('admin')
@@ -34,6 +35,7 @@ export class AdminController {
     private readonly cpuBenchmark: CpuBenchmarkService,
     private readonly dbLatency: DbLatencyService,
     private readonly flockRubies: FlockRubiesService,
+    private readonly flockGateway: FlockGateway,
   ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
@@ -79,6 +81,8 @@ export class AdminController {
         latency: this.dbLatency.latest(),
       },
       realtime: this.chatGateway.getRealtimeStats(),
+      /** Арени «Отари»: люди, боти, нагрузка и последние решения регулятора ботов. */
+      flock: { arenas: this.flockGateway.getAdminStats() },
       users: { total: usersTotal, active: usersActive },
     };
   }

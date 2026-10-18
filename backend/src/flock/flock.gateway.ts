@@ -9,6 +9,7 @@ import {
   WebSocketGateway,
 } from '@nestjs/websockets';
 import type { Namespace, Socket } from 'socket.io';
+import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FLOCK_CONFIG, NUM_SKINS } from './flock.config';
 import { FlockManager } from './flock.manager';
@@ -88,9 +89,16 @@ export class FlockGateway
           typeof raw === 'string' ? raw.replace(/^Bearer\s+/i, '').trim() : '';
         if (!token) return next(new Error('unauthorized'));
         const payload = this.jwt.verify(token);
-        const user = await this.prisma.user.findUnique({
-          where: { id: payload.sub },
-        });
+        // той самий кеш, що в JwtStrategy: перепідключення (мережа блимнула) не б'є в БД
+        const cached = authUserCache.get(payload.sub) as
+          | { id: string; username: string; nickname: string | null }
+          | undefined;
+        const user =
+          cached ??
+          (await this.prisma.user.findUnique({
+            where: { id: payload.sub },
+            select: { id: true, username: true, nickname: true },
+          }));
         if (!user) return next(new Error('unauthorized'));
         socket.data.userId = user.id;
         socket.data.name = user.nickname ?? user.username;
@@ -110,6 +118,8 @@ export class FlockGateway
       resume?: unknown;
       arena?: unknown;
       resumeOnly?: unknown;
+      /** Версія протоколу клієнта: 2+ читає кущі з `welcome`, без поля - старий клієнт. */
+      v?: unknown;
     },
   ) {
     const skin = typeof body?.skin === 'number' ? Math.floor(body.skin) : 0;
@@ -137,7 +147,12 @@ export class FlockGateway
       userId,
       client.data.name ?? 'Овечка',
       wanted,
-      { resume, arena, resumeOnly: body?.resumeOnly === true },
+      {
+        resume,
+        arena,
+        resumeOnly: body?.resumeOnly === true,
+        legacyThorns: !(typeof body?.v === 'number' && body.v >= 2),
+      },
     );
     if (!res.ok) {
       client.emit('e', { code: res.error, resumeFailed: !!res.resumeFailed });
@@ -151,6 +166,10 @@ export class FlockGateway
       resumeFailed: !!res.resumeFailed,
       pauseMs: FLOCK_CONFIG.resumePauseMs,
       world: FLOCK_CONFIG.worldSize,
+      /** Кущі арени: один раз тут, у пакетах стану їх більше нема (для клієнтів v2+). */
+      thorns: res.thorns,
+      /** Піврозмір спрайта їжі (світові одиниці). */
+      foodRadius: FLOCK_CONFIG.foodRadius,
       chunk: FLOCK_CONFIG.chunkSize,
       tickHz: FLOCK_CONFIG.tickHz,
       radiusK: FLOCK_CONFIG.radiusK,
@@ -203,6 +222,22 @@ export class FlockGateway
   /** Чи є зараз живі гравці (для статусу "грає в Отару"). */
   getStats() {
     return this.manager.stats();
+  }
+
+  /** Арени для адмінки «Процеси»: без важких полів (розбивка тіка, байти), лише те, що показуємо. */
+  getAdminStats() {
+    return this.manager.stats().map((a) => ({
+      id: a.id,
+      humans: a.humans,
+      bots: a.bots,
+      botsActive: a.botsActive,
+      botsRetiring: a.botsRetiring,
+      botsTarget: a.botsTarget,
+      botsLoadCap: a.botsLoadCap,
+      hz: a.hz,
+      load: a.load,
+      decisions: a.decisions.slice(-10),
+    }));
   }
 
   onModuleDestroy() {
