@@ -23,7 +23,8 @@ export default function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [hasHydratedTheme, setHasHydratedTheme] = useState(false);
   const pathname = usePathname();
-  const fullscreenActive = useTabBarOverlayOptional()?.fullscreenActive ?? false;
+  const fullscreenActive =
+    useTabBarOverlayOptional()?.themeToggleHiddenByFullscreen ?? false;
 
   useEffect(() => {
     const applied = document.documentElement.getAttribute("data-theme");

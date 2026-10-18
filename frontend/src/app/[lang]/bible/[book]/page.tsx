@@ -13,7 +13,7 @@ export default async function BookPage({ params, searchParams }: Props) {
   const verseId = sp.verse ? parseInt(sp.verse) : undefined;
 
   return (
-    <main className={`${styles.main} container`}>
+    <main className={`${styles.main} ${styles.readerHost} container`}>
       <BibleReader
         initialBookId={book}
         initialChapterId={chapterId}

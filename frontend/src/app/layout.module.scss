@@ -28,6 +28,13 @@
 }
 
 
+/* Читалка Біблії без навбара: не резервуємо під нього місце знизу. */
+.mainReaderFullscreen {
+  @media (min-width: 768px) {
+    padding-bottom: 0;
+  }
+}
+
 /* Коли відкрито введення в чаті, нижній таб прихований — не резервуємо під нього місце. */
 .mainComposerFocused {
   height: calc(100svh - 0px);
