@@ -1,24 +1,24 @@
+import styles from "./page.module.scss";
 import BibleReader from "@/components/BibleReader/BibleReader";
 
 type Props = {
   params: Promise<{ book: string }>;
-  searchParams?: Promise<{ chapter?: string; verse?: string; verseTo?: string }>;
+  searchParams?: Promise<{ chapter?: string; verse?: string }>;
 };
 
 export default async function BookPage({ params, searchParams }: Props) {
   const { book } = await params;
   const sp = searchParams ? await searchParams : {};
-  const num = (v?: string) => {
-    const n = v ? parseInt(v, 10) : NaN;
-    return Number.isFinite(n) && n > 0 ? n : undefined;
-  };
+  const chapterId = sp.chapter ? parseInt(sp.chapter) : undefined;
+  const verseId = sp.verse ? parseInt(sp.verse) : undefined;
 
   return (
-    <BibleReader
-      initialBookId={book}
-      initialChapterId={num(sp.chapter)}
-      initialVerseId={num(sp.verse)}
-      initialVerseTo={num(sp.verseTo)}
-    />
+    <main className={`${styles.main} container`}>
+      <BibleReader
+        initialBookId={book}
+        initialChapterId={chapterId}
+        initialVerseId={verseId}
+      />
+    </main>
   );
 }
