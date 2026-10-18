@@ -1,10 +1,9 @@
-import { Suspense } from "react";
-import BibleHome from "@/components/BibleHome/BibleHome";
+import BibleReader from "@/components/BibleReader/BibleReader";
 
 export default function BiblePage() {
   return (
-    <Suspense fallback={null}>
-      <BibleHome />
-    </Suspense>
+    <div>
+      <BibleReader />
+    </div>
   );
 }

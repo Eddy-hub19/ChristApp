@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Link } from "@/i18n/navigation";
 import { BIBLE_BOOKS, bookDisplayName, parseBibleReference } from "@/lib/bibleBooks";
 import {
   BIBLE_SEARCH_MIN_LENGTH,
@@ -11,10 +10,11 @@ import {
   isSearchable,
   parseSearchQuery,
 } from "@/lib/bibleSearchCore";
-import { bibleReaderHref, fetchBibleSearch } from "@/lib/bibleSearchApi";
+import { fetchBibleSearch } from "@/lib/bibleSearchApi";
 import type { BibleSearchScope } from "@/lib/bibleSearchTypes";
-import type { BibleBookItem } from "@/hooks/useBibleTranslation";
 import styles from "./BibleSearchPanel.module.scss";
+
+export type BibleBookItem = { id: string; name: string; chapters: number };
 
 type Props = {
   query: string;
@@ -28,6 +28,8 @@ type Props = {
   onClearHistory: () => void;
   /** Користувач відкрив результат/посилання — запит варто запам'ятати. */
   onCommit: (q: string) => void;
+  /** Відкрити главу в читалці (і підсвітити вірш/діапазон). */
+  onOpen: (bookId: string, chapter: number, verse?: number, verseTo?: number) => void;
 };
 
 const EXAMPLES = {
@@ -47,6 +49,7 @@ export default function BibleSearchPanel({
   onRemoveHistory,
   onClearHistory,
   onCommit,
+  onOpen,
 }: Props) {
   const t = useTranslations("bibleSection");
   const [scopeState, setScopeState] = useState<{ key: string; value: BibleSearchScope }>({
@@ -180,19 +183,22 @@ export default function BibleSearchPanel({
     }`;
     return (
       <div className={styles.panel}>
-        <Link
+        <button
+          type="button"
           className={styles.refCard}
-          href={bibleReaderHref(
-            refWithChapter.bookId,
-            refWithChapter.chapter ?? 1,
-            refWithChapter.verseFrom,
-            refWithChapter.verseTo,
-          )}
-          onClick={() => onCommit(trimmed)}
+          onClick={() => {
+            onCommit(trimmed);
+            onOpen(
+              refWithChapter.bookId,
+              refWithChapter.chapter ?? 1,
+              refWithChapter.verseFrom,
+              refWithChapter.verseTo,
+            );
+          }}
         >
           <span className={styles.refLabel}>{t("openReference", { ref: label })}</span>
           <span aria-hidden className={styles.refArrow}>→</span>
-        </Link>
+        </button>
       </div>
     );
   }
@@ -202,16 +208,19 @@ export default function BibleSearchPanel({
   return (
     <div className={styles.panel}>
       {reference && (
-        <Link
+        <button
+          type="button"
           className={styles.refCard}
-          href={`/bible?book=${reference.bookId}`}
-          onClick={() => onCommit(trimmed)}
+          onClick={() => {
+            onCommit(trimmed);
+            onOpen(reference.bookId, 1);
+          }}
         >
           <span className={styles.refLabel}>
             {t("openBook", { book: nameOf(reference.bookId) })}
           </span>
           <span aria-hidden className={styles.refArrow}>→</span>
-        </Link>
+        </button>
       )}
 
       {tooShort ? (
@@ -282,10 +291,13 @@ export default function BibleSearchPanel({
                           <span className={styles.groupCount}>{facets[hit.bookId]}</span>
                         </h3>
                       )}
-                      <Link
+                      <button
+                        type="button"
                         className={styles.hit}
-                        href={bibleReaderHref(hit.bookId, hit.chapter, hit.verse)}
-                        onClick={() => onCommit(trimmed)}
+                        onClick={() => {
+                          onCommit(trimmed);
+                          onOpen(hit.bookId, hit.chapter, hit.verse);
+                        }}
                       >
                         <span className={styles.hitRef}>
                           {nameOf(hit.bookId)} {hit.chapter}:{hit.verse}
@@ -295,7 +307,7 @@ export default function BibleSearchPanel({
                             seg.hit ? <mark key={j}>{seg.text}</mark> : <span key={j}>{seg.text}</span>,
                           )}
                         </span>
-                      </Link>
+                      </button>
                     </li>
                   );
                 })}

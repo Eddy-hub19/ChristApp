@@ -25,16 +25,3 @@ export async function fetchBibleSearch(params: {
   });
   return res.data;
 }
-
-/** Адреса читалки для посилання/результату пошуку. */
-export function bibleReaderHref(
-  bookId: string,
-  chapter: number,
-  verse?: number,
-  verseTo?: number,
-): string {
-  const sp = new URLSearchParams({ chapter: String(chapter) });
-  if (verse) sp.set("verse", String(verse));
-  if (verse && verseTo && verseTo > verse) sp.set("verseTo", String(verseTo));
-  return `/bible/${encodeURIComponent(bookId)}?${sp.toString()}`;
-}
