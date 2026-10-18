@@ -27,6 +27,8 @@ function player(w: FlockWorld, x: number, y: number, mass: number, name = 'p') {
   c.mass = mass;
   c.mergeAt = 0;
   p.power = 0;
+  // існуючі сценарії перевіряють «чисту» фізику: розгін на старті вимкнено (його тестує окремий блок нижче)
+  p.boostUntil = 0;
   return p;
 }
 
@@ -328,7 +330,7 @@ describe('FlockWorld: бонуси', () => {
     );
   });
 
-  it('заморозка зупиняє найближчих суперників на 2 с', () => {
+  it('заморозка зупиняє найближчих суперників на 4 с', () => {
     const w = emptyWorld();
     const me = player(w, 1000, 1000, 50);
     const near = player(w, 1300, 1000, 50);
@@ -343,7 +345,16 @@ describe('FlockWorld: бонуси', () => {
     expect(near.cells[0].x).toBeCloseTo(x0, 0);
     expect(far.cells[0].x).not.toBeCloseTo(2900, 0);
     expect(me.frozenUntil).toBe(0);
-    w.now += 2100;
+    // тривалість заморозки - 4 с (значення з конфіга)
+    expect(C.bonusDurations.freeze).toBe(4000);
+    const left = near.frozenUntil - w.now;
+    expect(left).toBeGreaterThan(3500);
+    expect(left).toBeLessThanOrEqual(4000);
+    // за 100 мс до кінця ще стоїть, одразу після - їде
+    w.now = near.frozenUntil - 200;
+    step(w, 1);
+    expect(near.cells[0].x).toBeCloseTo(x0, 0);
+    w.now = near.frozenUntil + 50;
     step(w, 3);
     expect(near.cells[0].x).toBeGreaterThan(x0 + 1);
   });
@@ -416,5 +427,102 @@ describe('FlockWorld: ліміти і стан', () => {
     player(w, 2500, 2500, 50);
     step(w, C.tickHz);
     expect(a.topMs).toBeGreaterThan(900);
+  });
+});
+
+describe('FlockWorld: розгін на старті', () => {
+  const human = (w: FlockWorld, x: number, y: number) => {
+    const p = w.addPlayer({ name: 'h', skin: 0 });
+    p.effects = {};
+    const c = p.cells[0];
+    c.x = x;
+    c.y = y;
+    c.mergeAt = 0;
+    p.power = 0;
+    return p;
+  };
+
+  it('на самому початку +40%, потім лінійно спадає до звичайної за 20 с', () => {
+    const w = emptyWorld();
+    const p = human(w, 1000, 1000);
+    expect(C.spawnBoost.speedBonus).toBe(0.4);
+    expect(C.spawnBoost.durationMs).toBe(20_000);
+    expect(w.spawnBoostFactor(p)).toBeCloseTo(1.4, 5);
+    w.now += 5000;
+    expect(w.spawnBoostFactor(p)).toBeCloseTo(1.3, 5);
+    w.now += 5000;
+    expect(w.spawnBoostFactor(p)).toBeCloseTo(1.2, 5);
+    w.now += 10_000;
+    expect(w.spawnBoostFactor(p)).toBe(1);
+    w.now += 60_000;
+    expect(w.spawnBoostFactor(p)).toBe(1);
+    expect(w.spawnBoostLeftMs(p)).toBe(0);
+  });
+
+  it('не діє, коли загальна маса досягла порога', () => {
+    const w = emptyWorld();
+    const p = human(w, 1000, 1000);
+    p.total = C.spawnBoost.massLimit - 1;
+    expect(w.spawnBoostFactor(p)).toBeGreaterThan(1.39);
+    p.total = C.spawnBoost.massLimit;
+    expect(w.spawnBoostFactor(p)).toBe(1);
+    expect(w.spawnBoostLeftMs(p)).toBe(0);
+  });
+
+  it('боти розгону не отримують', () => {
+    const w = emptyWorld();
+    const bot = w.addPlayer({ name: 'b', skin: 0, bot: true });
+    expect(w.spawnBoostFactor(bot)).toBe(1);
+  });
+
+  it('реально швидше: людина проїжджає за секунду ~на 40% більше за бота тієї ж маси', () => {
+    const w = emptyWorld();
+    const h = human(w, 500, 500);
+    const bot = w.addPlayer({ name: 'b', skin: 0, bot: true });
+    bot.effects = {};
+    bot.cells[0].x = 500;
+    bot.cells[0].y = 2500;
+    bot.cells[0].mergeAt = 0;
+    w.setInput(h.id, 0, 1);
+    w.setInput(bot.id, 0, 1);
+    step(w, C.tickHz); // 1 с
+    const ratio = (h.cells[0].x - 500) / (bot.cells[0].x - 500);
+    expect(ratio).toBeGreaterThan(1.3);
+    expect(ratio).toBeLessThan(1.45);
+  });
+
+  it('однаково для будь-якого способу керування: швидкість = база × множник × сила вводу', () => {
+    // палець/миша/джойстик на сервері - лише різна сила (power 0..1); множник розгону від неї не залежить
+    const run = (power: number) => {
+      const w = emptyWorld();
+      const h = human(w, 500, 500);
+      w.setInput(h.id, 0, power);
+      step(w, 5);
+      return h.cells[0].x - 500;
+    };
+    const full = run(1);
+    expect(full).toBeGreaterThan(0);
+    expect(run(0.5) / full).toBeCloseTo(0.5, 1);
+    expect(run(0)).toBe(0);
+  });
+
+  it('після відродження розгін дається знову', () => {
+    const w = emptyWorld();
+    const p = human(w, 1000, 1000);
+    w.now += 25_000;
+    expect(w.spawnBoostFactor(p)).toBe(1);
+    w.respawn(p);
+    expect(w.spawnBoostFactor(p)).toBeCloseTo(1.4, 5);
+  });
+
+  it('пауза (розрив зв’язку) не з’їдає розгін', () => {
+    const w = emptyWorld();
+    const p = human(w, 1000, 1000);
+    w.now += 5000;
+    const before = w.spawnBoostLeftMs(p);
+    w.pausePlayer(p.id);
+    w.now += 30_000;
+    w.resumePlayer(p.id, 0);
+    expect(w.spawnBoostLeftMs(p)).toBeCloseTo(before, -1);
   });
 });

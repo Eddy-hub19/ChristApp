@@ -424,6 +424,18 @@ class Arena {
           remainingMs: until - w.now,
         });
     }
+    // заморожений бачить таймер до кінця заморозки; людина - залишок розгону на старті
+    if (w.now < p.frozenUntil)
+      effects.push({
+        kind: BONUS_CODE.indexOf('freeze'),
+        remainingMs: p.frozenUntil - w.now,
+      });
+    const boostLeft = w.spawnBoostLeftMs(p);
+    if (boostLeft > 0)
+      effects.push({
+        kind: BONUS_CODE.indexOf('boost'),
+        remainingMs: boostLeft,
+      });
     return {
       // час сервера (мс): за ним клієнт інтерполює, тож зміна частоти (запобіжник) для нього прозора
       tick: Math.round(w.now),

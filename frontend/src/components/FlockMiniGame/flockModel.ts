@@ -14,7 +14,8 @@ export interface FlockCfg {
   chunk: number;
   tickHz: number;
   radiusK: number;
-  speed: { base: number; exp: number; min: number; boost: number };
+  /** spawnBoost - частка розгону на старті (0.4 = +40%), що спадає до 0 за durations.boost. */
+  speed: { base: number; exp: number; min: number; boost: number; spawnBoost?: number };
   durations: Record<string, number>;
   magnetRadius: number;
   /** Скільки сервер тримає овечку в паузі після розриву. */
@@ -150,10 +151,18 @@ export class FlockModel {
     return this.cfg.radiusK * Math.sqrt(mass);
   }
 
-  speedOf(mass: number, boosted: boolean) {
+  speedOf(mass: number, boosted: boolean, startFactor = 1) {
     const s = this.cfg.speed;
-    const v = Math.max(s.min, s.base * Math.pow(mass, s.exp));
+    const v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor;
     return boosted ? v * s.boost : v;
+  }
+
+  /** Множник розгіну на старті: 1 + бонус × (залишок / тривалість); 1, якщо сервер не надіслав ефект «boost». */
+  startBoostFactor(): number {
+    const e = this.effects.find((x) => x.kind === "boost");
+    const bonus = this.cfg.speed.spawnBoost ?? 0;
+    if (!e || bonus <= 0) return 1;
+    return 1 + (bonus * Math.min(e.remainingMs, e.totalMs)) / Math.max(1, e.totalMs);
   }
 
   /** Скільки мс лишилось у гравця на паузі (0, якщо не на паузі). */
@@ -309,6 +318,7 @@ export class FlockModel {
     const kMass = 1 - Math.exp(-dt * 9);
     const kOther = 1 - Math.exp(-dt * 16);
     const boosted = this.hasEffect("speed");
+    const startFactor = this.startBoostFactor();
     const frozen = this.cells.size > 0 && this.ownCells().every((c) => (c.fx & FX_FROZEN) !== 0);
     const dx = Math.cos(input.angle);
     const dy = Math.sin(input.angle);
@@ -317,7 +327,7 @@ export class FlockModel {
       c.mass += (c.tmass - c.mass) * kMass;
       if (c.pid === this.cfg.pid) {
         if (!frozen) {
-          const v = this.speedOf(c.mass, boosted) * input.power;
+          const v = this.speedOf(c.mass, boosted, startFactor) * input.power;
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
         }

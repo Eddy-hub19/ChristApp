@@ -72,6 +72,38 @@ describe("FlockModel", () => {
     expect(b.speedOf(30, true)).toBeCloseTo(b.speedOf(30, false) * 1.5, 5);
   });
 
+  it("розгін на старті: ефект boost від сервера прискорює передбачення, множник спадає до 1", () => {
+    const withBoost = { ...cfg, speed: { ...cfg.speed, spawnBoost: 0.4 }, durations: { ...cfg.durations, boost: 20000 } };
+    const dist = (remainingMs: number | null) => {
+      const m = new FlockModel(withBoost);
+      m.applyState(base({ tick: 1000, effects: remainingMs === null ? [] : [{ kind: 7, remainingMs }] }), 1000);
+      const x0 = m.cells.get(1)!.x;
+      m.step(0.05, { angle: 0, power: 1 }, 1050);
+      return { dx: m.cells.get(1)!.x - x0, factor: m.startBoostFactor() };
+    };
+    const none = dist(null);
+    const full = dist(20000);
+    const half = dist(10000);
+    expect(none.factor).toBe(1);
+    expect(full.factor).toBeCloseTo(1.4, 5);
+    expect(half.factor).toBeCloseTo(1.2, 5);
+    expect(full.dx / none.dx).toBeCloseTo(1.4, 1);
+    expect(half.dx / none.dx).toBeCloseTo(1.2, 1);
+    // сервер не надіслав spawnBoost (старий сервер) - множник 1
+    const old = new FlockModel(cfg);
+    old.applyState(base({ effects: [{ kind: 7, remainingMs: 20000 }] }), 1000);
+    expect(old.startBoostFactor()).toBe(1);
+  });
+
+  it("заморожена клітина стоїть, ефект freeze (таймер) приходить із залишком мс", () => {
+    const m = new FlockModel({ ...cfg, durations: { ...cfg.durations, freeze: 4000 } });
+    m.applyState(base({ tick: 1000, cells: [{ id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 4 }], effects: [{ kind: 5, remainingMs: 3200 }] }), 1000);
+    expect(m.effects).toEqual([{ kind: "freeze", remainingMs: 3200, totalMs: 4000 }]);
+    const x0 = m.cells.get(1)!.x;
+    m.step(0.05, { angle: 0, power: 1 }, 1050);
+    expect(m.cells.get(1)!.x).toBeCloseTo(x0, 0);
+  });
+
   it("з'їдена клітина зникає з анімацією до більшого сусіда", () => {
     const m = new FlockModel(cfg);
     m.applyState(base({ cells: [{ id: 1, pid: 1, x: 500, y: 500, mass: 30, fx: 0 }, { id: 2, pid: 9, x: 520, y: 500, mass: 20, fx: 0 }] }));

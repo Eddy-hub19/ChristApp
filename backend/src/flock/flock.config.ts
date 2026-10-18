@@ -113,10 +113,23 @@ export const FLOCK_CONFIG = {
     shield: 6000,
     ghost: 6000,
     double: 9000,
-    freeze: 2000,
+    freeze: 4000,
     golden: 0,
   },
   speedMultiplier: 1.5,
+
+  /**
+   * Розгін на старті: після входу на арену чи відродження людина швидша, щоб встигнути набрати масу й
+   * піти від небезпеки. Бонус до швидкості лінійно спадає від speedBonus до 0 за durationMs і
+   * не діє, коли загальна маса досягла massLimit. Ботам розгін не дається.
+   */
+  spawnBoost: {
+    /** +40% до швидкості на самому початку. */
+    speedBonus: 0.4,
+    durationMs: 20_000,
+    /** Від цієї загальної маси розгін вимикається. */
+    massLimit: 120,
+  },
   magnetRadius: 340,
   magnetPull: 260,
   freezeRadius: 650,

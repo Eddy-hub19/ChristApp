@@ -605,11 +605,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {hud.effects.length > 0 ? (
             <ul className={styles.effects}>
               {hud.effects.map((e) => (
-                <li key={e.kind} title={t(`bonuses.${e.kind}`)}>
+                <li key={e.kind} title={t(`bonuses.${e.kind}`)} className={e.kind === "boost" || e.kind === "freeze" ? styles.effectLabeled : undefined}>
                   <span className={styles.effectIcon}>{BONUS_ICON[e.kind]}</span>
+                  {e.kind === "boost" || e.kind === "freeze" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
                   </span>
+                  {e.kind === "freeze" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
                 </li>
               ))}
             </ul>
