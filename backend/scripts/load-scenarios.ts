@@ -36,6 +36,10 @@ type Socket = {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const jwt = require('jsonwebtoken') as typeof import('jsonwebtoken');
 import { encodeInputPacked } from '../src/flock/protocol';
+import {
+  benchFlockBrowser,
+  type BrowserBenchResult,
+} from './flock-browser-bench';
 
 const DB_URL = process.env.LOAD_DATABASE_URL ?? '';
 const PORT = Number(process.env.LOAD_PORT ?? 3101);
@@ -49,6 +53,12 @@ const THROTTLE_BIN =
 const LOG_FILE = process.env.LOAD_LOG ?? '/tmp/load-server.log';
 const [scenarioArg = 'all', secondsArg] = process.argv.slice(2);
 const DB_RTT_MS = Number(process.env.LOAD_DB_RTT_MS ?? 0);
+/** Сценарії flock<N>b: N-1 скриптових клієнтів + справжній Chrome (iPhone 13, CPU x LOAD_BROWSER_THROTTLE) як N-й гравець. */
+const FRONT_URL = process.env.LOAD_FRONT ?? 'http://127.0.0.1:3102';
+const BROWSER_THROTTLE = Number(process.env.LOAD_BROWSER_THROTTLE ?? 4);
+/** Скін скриптових гравців (12-23 видаються їм у БД): для замірів вкладу преміум-скінів. */
+const BOT_SKIN = Number(process.env.LOAD_SKIN ?? 1);
+let browserTask: Promise<BrowserBenchResult> | null = null;
 const SECONDS = Number(secondsArg ?? 40);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -258,6 +268,7 @@ const every = (ms: number, fn: () => void) => {
   timers.push(setInterval(fn, ms));
 };
 function cleanup() {
+  flockNet.players = 0;
   for (const t of timers.splice(0)) clearInterval(t);
   for (const s of sockets.splice(0)) s.disconnect();
 }
@@ -297,7 +308,28 @@ function activity(s: Socket, roomId: string, game: string, mode?: string) {
   every(15_000, send);
 }
 
-async function flockClient(u: User): Promise<Socket> {
+/** Що бачить клієнт "Отари": повідомлення/с, байти/с і інтервали між пакетами стану (затримка тіків з боку гравця). */
+const flockNet = {
+  msgs: 0,
+  bytes: 0,
+  states: 0,
+  gaps: [] as number[],
+  lastAt: new Map<Socket, number>(),
+  on: false,
+  players: 0,
+};
+const sizeOf = (x: unknown): number =>
+  x instanceof ArrayBuffer
+    ? x.byteLength
+    : ArrayBuffer.isView(x)
+      ? x.byteLength
+      : typeof x === 'string'
+        ? x.length
+        : x && typeof x === 'object'
+          ? JSON.stringify(x).length
+          : 8;
+
+async function flockClient(u: User, skin = BOT_SKIN): Promise<Socket> {
   const s = io(`${BASE}/flock`, {
     auth: { token: u.token },
     transports: ['websocket'],
@@ -309,7 +341,24 @@ async function flockClient(u: User): Promise<Socket> {
     s.once('connect_error', rej);
   });
   s.on('w', () => undefined);
-  s.emit('j', { skin: 1 });
+  flockNet.players++;
+  (
+    s as unknown as { onAny(f: (ev: string, ...a: unknown[]) => void): void }
+  ).onAny((ev, ...args) => {
+    if (!flockNet.on) return;
+    flockNet.msgs++;
+    flockNet.bytes += args.reduce<number>((n, a) => n + sizeOf(a), 0);
+    if (ev === 's') {
+      flockNet.states++;
+      const now = Date.now();
+      const prev = flockNet.lastAt.get(s);
+      if (prev) flockNet.gaps.push(now - prev);
+      flockNet.lastAt.set(s, now);
+    }
+  });
+  // як "Ще раз" у грі: після смерті гравець за пару секунд заходить знову
+  s.on('d', () => setTimeout(() => s.emit('j', { skin }), 2000));
+  s.emit('j', { skin });
   let angle = Math.random() * 6;
   every(100, () => {
     if (Math.random() < 0.6) angle += (Math.random() - 0.5) * 1.2;
@@ -331,6 +380,58 @@ const scenarios: Record<string, (c: Ctx) => Promise<void>> = {
       await flockClient(u);
     }
   },
+  async flock1({ seed }) {
+    const s = await chatClient(seed.users[0]);
+    activity(s, seed.dm[0], 'flock');
+    await flockClient(seed.users[0]);
+  },
+  async flock3({ seed }) {
+    for (const [i, u] of seed.users.slice(0, 3).entries()) {
+      const s = await chatClient(u);
+      activity(s, seed.dm[Math.floor(i / 2)], 'flock');
+      await flockClient(u);
+    }
+  },
+  async flock5({ seed }) {
+    for (const [i, u] of seed.users.slice(0, 5).entries()) {
+      const s = await chatClient(u);
+      activity(s, seed.dm[Math.floor(i / 2)], 'flock');
+      await flockClient(u);
+    }
+  },
+  ...Object.fromEntries(
+    [1, 3, 5, 6].map((n) => [
+      `flock${n}b`,
+      async ({ seed }: { seed: Seed }) => {
+        const db = new Client({
+          connectionString: DB_URL.replace(/\?schema=.*$/, ''),
+        });
+        await db.connect();
+        for (const u of seed.users.slice(0, n))
+          for (let skin = 12; skin < 24; skin++)
+            await db.query(
+              'INSERT INTO "FlockSkinPurchase"("userId","skinId","price") VALUES ($1,$2,0) ON CONFLICT DO NOTHING',
+              [u.id, skin],
+            );
+        await db.end();
+        for (const [i, u] of seed.users.slice(0, n - 1).entries()) {
+          const s = await chatClient(u);
+          activity(s, seed.dm[Math.floor(i / 2)], 'flock');
+          await flockClient(u);
+        }
+        const me = seed.users[n - 1];
+        browserTask = benchFlockBrowser({
+          frontendUrl: FRONT_URL,
+          token: me.token,
+          userId: me.id,
+          cpuThrottle: BROWSER_THROTTLE,
+          skin: BOT_SKIN,
+          screenshot: process.env.LOAD_SHOT,
+          seconds: 30,
+        });
+      },
+    ]),
+  ),
   async flock6({ seed }) {
     for (const [i, u] of seed.users.slice(0, 6).entries()) {
       const s = await chatClient(u);
@@ -464,6 +565,17 @@ async function probe(seed: Seed) {
   sockets.push(w);
   await new Promise<void>((res) => w.once('connect', () => res()));
   w.emit('watch:join', { roomId: seed.watchRoom });
+  {
+    const db = new Client({
+      connectionString: DB_URL.replace(/\?schema=.*$/, ''),
+    });
+    await db.connect();
+    await db.query(
+      'INSERT INTO "FlockSkinPurchase"("userId","skinId","price") VALUES ($1,12,0) ON CONFLICT DO NOTHING',
+      [seed.users[4].id],
+    );
+    await db.end();
+  }
   const fl = await flockClient(seed.users[4]);
   await sleep(2000);
   const N = 10;
@@ -516,6 +628,22 @@ async function probe(seed: Seed) {
   await run('flock input "i"', () =>
     fl.emit('i', encodeInputPacked(1, 1, 0, 1.8)),
   );
+  await run('flock join "j" (free skin)', () => fl.emit('j', { skin: 1 }));
+  await run('flock join "j" (paid skin)', () => fl.emit('j', { skin: 12 }));
+  const put = (path: string, body: object) =>
+    void fetch(`${BASE}${path}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${seed.users[4].token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  await run('HTTP GET /flock/me', () => void http(seed.users[4], '/flock/me'));
+  await run('HTTP PUT /flock/whats-new', () =>
+    put('/flock/whats-new', { version: 1 }),
+  );
+  await run('HTTP PUT /flock/skin', () => put('/flock/skin', { skin: 12 }));
   await run('watch:time', () => w.emit('watch:time', { t0: Date.now() }));
   await run('watch:viewState', () =>
     w.emit('watch:viewState', { roomId: seed.watchRoom, active: true }),
@@ -556,8 +684,17 @@ async function runScenario(name: string, seed: Seed) {
   await scenarios[name]({ seed });
   await sleep(4000); // підключення, join, перші heartbeat - не рахуємо
   const markStart = queryLines().length;
+  flockNet.msgs = flockNet.bytes = flockNet.states = 0;
+  flockNet.gaps = [];
+  flockNet.lastAt.clear();
+  flockNet.on = true;
   const t0 = Date.now();
   await sleep(SECONDS * 1000);
+  flockNet.on = false;
+  const browser = browserTask
+    ? await browserTask.catch((e) => ({ error: String(e) }))
+    : undefined;
+  browserTask = null;
   const markEnd = queryLines().length;
   const t1 = Date.now();
   const { total, byLabel } = countSince(markStart, markEnd);
@@ -567,8 +704,32 @@ async function runScenario(name: string, seed: Seed) {
   const hist = info.history.filter((h) => h.t >= t0 && h.t <= t1 + 5000);
   const avg = (xs: number[]) =>
     xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+  const gaps = [...flockNet.gaps].sort((a, b) => a - b);
+  const q = (p: number) =>
+    gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * p))] ?? 0;
+  const players = Math.max(1, flockNet.players);
   const res = {
     scenario: name,
+    browser,
+    flockClient: flockNet.msgs
+      ? {
+          msgsPerSecPerPlayer:
+            Math.round((flockNet.msgs / SECONDS / players) * 10) / 10,
+          kbPerSecPerPlayer:
+            Math.round((flockNet.bytes / SECONDS / players / 1024) * 100) / 100,
+          stateGapMs: {
+            p50: q(0.5),
+            p95: q(0.95),
+            p99: q(0.99),
+            max: gaps[gaps.length - 1] ?? 0,
+          },
+          gapOver250Pct: gaps.length
+            ? Math.round(
+                (gaps.filter((g) => g > 250).length / gaps.length) * 1000,
+              ) / 10
+            : 0,
+        }
+      : undefined,
     seconds: SECONDS,
     queries: total,
     qps: Math.round((total / SECONDS) * 100) / 100,

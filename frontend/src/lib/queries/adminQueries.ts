@@ -105,6 +105,31 @@ export type AdminDbQueries = {
   top: { label: string; count: number; perSec: number; avgMs: number }[];
 };
 
+/** Арена «Отари» для вкладки «Процеси»: люди, боты, нагрузка и последние решения регулятора ботов. */
+export type AdminFlockDecision = {
+  /** Unix ms. */
+  at: number;
+  level: "low" | "normal" | "high";
+  action: "remove" | "add" | "hold";
+  loadCap: number | null;
+  reasons: ("late" | "loop" | "cpu")[];
+  sample: { lateMs: number; loopP99Ms: number; cpuPct: number };
+};
+export type AdminFlockArena = {
+  id: number;
+  humans: number;
+  bots: number;
+  botsActive: number;
+  botsRetiring: number;
+  /** Штатное число ботов (по людям и жёстким лимитам). */
+  botsTarget: number;
+  /** Лимит по нагрузке (null - без ограничения). */
+  botsLoadCap: number | null;
+  hz: number;
+  load: { lateMs: number; loopP99Ms: number; cpuPct: number } | null;
+  decisions: AdminFlockDecision[];
+};
+
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
 export type AdminServerStatus = {
   generatedAt: string;
@@ -141,6 +166,8 @@ export type AdminServerStatus = {
     latency?: AdminDbLatency | null;
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
+  /** Нет в старых версиях бекенда. */
+  flock?: { arenas: AdminFlockArena[] };
   users: { total: number; active: number };
 };
 

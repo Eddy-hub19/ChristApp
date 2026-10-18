@@ -32,6 +32,12 @@ CFG.tickHz = HZ;
 CFG.botTarget = BOTS;
 CFG.botMin = Math.min(CFG.botMin, BOTS);
 CFG.botTotalTarget = HUMANS + BOTS;
+// Скрипт замеряет заданное число ботов; реальные лимиты по людям (4-5 -> 2, 6 -> 0) включаются через FLOCK_REAL_CAPS=1.
+if (!process.env.FLOCK_REAL_CAPS)
+  (FLOCK_CONFIG as unknown as { botCapByHumans: unknown }).botCapByHumans = [];
+// FLOCK_NOBOOST=1: без розгіну на старті (вклад розгону в навантаження)
+if (process.env.FLOCK_NOBOOST)
+  (FLOCK_CONFIG.spawnBoost as unknown as Record<string, number>).speedBonus = 0;
 
 const BUDGET_CPU = 0.1; // Render free: ~0.1 vCPU
 const pct = (a: number, b: number) => ((a / b) * 100).toFixed(1);
@@ -93,6 +99,16 @@ function simMode() {
   const times: number[] = [];
   for (let i = 0; i < LAST; i++) {
     for (const h of humans) {
+      // FLOCK_EFFECTS=1: у всіх людей постійно всі ефекти бонусів (вклад ефектів у тік і пакети)
+      if (process.env.FLOCK_EFFECTS && h.alive)
+        for (const k of [
+          'speed',
+          'magnet',
+          'shield',
+          'ghost',
+          'double',
+        ] as const)
+          h.effects[k] = w.now + 1e9;
       if (!h.alive)
         mgr.join(`c${humans.indexOf(h)}`, `u${humans.indexOf(h)}`, 'x', 0);
       else thinkBot(w, h, rng);
@@ -161,6 +177,14 @@ async function netServer() {
     ],
     { stdio: 'inherit', env: process.env },
   );
+  // FLOCK_QUOTA_MS=<мс на 100 мс>: емуляція CFS-квоти процесу сервера (як на Render; див. cfs-throttle.c, FLOCK_THROTTLE_BIN).
+  const throttler = process.env.FLOCK_QUOTA_MS
+    ? spawn(
+        process.env.FLOCK_THROTTLE_BIN ?? `${__dirname}/cfs-throttle`,
+        [String(process.pid), process.env.FLOCK_QUOTA_MS],
+        { stdio: 'ignore' },
+      )
+    : null;
   await new Promise((r) => setTimeout(r, 15000)); // клієнти підключаються, JIT/GC прогріваються
   const insp = process.env.FLOCK_PROF
     ? new (await import('inspector')).Session()
@@ -229,6 +253,7 @@ async function netServer() {
     (bytes - bytes0) / wall,
     process.memoryUsage().rss / 1048576,
   );
+  throttler?.kill();
   child.kill();
   mgr.dispose();
   io.close();

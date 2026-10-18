@@ -22,6 +22,10 @@ export const THEMES: Record<"light" | "dark", Theme> = {
 };
 
 const TAU = Math.PI * 2;
+/** Масштаб камери, нижче якого малюємо спрощено (далекі об'єкти): без погойдування їжі й повороту кущів. */
+const FAR_SCALE = 0.4;
+/** Мінімальний розмір їжі на екрані (CSS px): на дальній камері вона лишається помітною. */
+const FOOD_MIN_PX = 7;
 const VISIBLE: RCell[] = [];
 const byMass = (a: RCell, b: RCell) => a.mass - b.mass;
 /** Клітини легші за цю масу ховаються під кущем (кущ малюється поверх них). */
@@ -53,9 +57,15 @@ function sprite(key: string, size: number, draw: (c: CanvasRenderingContext2D, s
   return cv;
 }
 
+/** Спрайт їжі малюється в системі координат 40×40 (як раніше) і масштабується під FOOD_PX: чітко й на великому екрані. */
+const FOOD_DESIGN = 40;
+const FOOD_PX = 64;
+const foodCache: (HTMLCanvasElement | undefined)[] = [];
 function foodSprite(kind: number, dark: boolean) {
-  return sprite(`food${kind}${dark ? "d" : "l"}`, 40, (c, s) => {
+  const i = kind * 2 + (dark ? 1 : 0);
+  return (foodCache[i] ??= sprite(`food2-${i}`, FOOD_PX, (c, s) => {
     c.translate(s / 2, s / 2);
+    c.scale(s / FOOD_DESIGN, s / FOOD_DESIGN);
     c.lineCap = "round";
     if (kind === 0) {
       // пучок трави
@@ -97,7 +107,7 @@ function foodSprite(kind: number, dark: boolean) {
         }
       }
     }
-  });
+  }));
 }
 
 export interface DrawOpts {
@@ -139,14 +149,15 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   ctx.lineWidth = 6 / scale;
   ctx.strokeRect(0, 0, world, world);
 
-  // їжа
-  const fsz = 17;
-  const pad = 30;
+  // їжа: розмір із сервера (піврозмір x2); на віддаленій камері - не менше FOOD_MIN_PX на екрані й без погойдування
+  const far = scale < FAR_SCALE;
+  const fsz = Math.max(2 * (m.cfg.foodRadius ?? 8.5), FOOD_MIN_PX / scale);
+  const pad = fsz * 1.8;
+  const sprites = [foodSprite(0, theme.dark), foodSprite(1, theme.dark), foodSprite(2, theme.dark)];
   for (const f of m.foods.values()) {
     if (f.x < x0 - pad || f.x > x1 + pad || f.y < y0 - pad || f.y > y1 + pad) continue;
-    const sway = 1 + Math.sin(o.time * 2 + f.id) * 0.06;
-    const s = fsz * sway;
-    ctx.drawImage(foodSprite(f.kind, theme.dark), f.x - s / 2, f.y - s / 2, s, s);
+    const s = far ? fsz : fsz * (1 + Math.sin(o.time * 2 + f.id) * 0.06);
+    ctx.drawImage(sprites[f.kind] ?? sprites[0], f.x - s / 2, f.y - s / 2, s, s);
   }
   // кинута маса
   ctx.fillStyle = theme.dark ? "#d8f09a" : "#8ab83a";
@@ -176,6 +187,10 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     const tr = m.radiusOf(t.mass);
     if (t.x < x0 - tr || t.x > x1 + tr || t.y < y0 - tr || t.y > y1 + tr) continue;
     const sz = (tr / THORN_SPRITE_FILL) * 1.0;
+    if (far) {
+      ctx.drawImage(thornSprite(), t.x - sz, t.y - sz, sz * 2, sz * 2);
+      continue;
+    }
     ctx.save();
     ctx.translate(t.x, t.y);
     ctx.rotate(Math.sin(o.time * 0.8 + t.x) * 0.04);

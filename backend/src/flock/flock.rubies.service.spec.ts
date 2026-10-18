@@ -3,6 +3,7 @@ import { PrismaClient, RubyReason } from '@prisma/client';
 import { Pool } from 'pg';
 import {
   FLOCK_CONFIG as C,
+  HIDDEN_SKINS,
   FREE_SKINS,
   NUM_SKINS,
   PREMIUM_FROM,
@@ -36,6 +37,16 @@ d('FlockRubiesService (БД)', () => {
   };
   const giveRubies = (actor: string, user: string, amount: number) =>
     svc.adminAdjust(actor, user, amount, 'test');
+
+  // Скриті скіни (HIDDEN_SKINS) купити не можна: тести цін преміуму відкривають їх на час тесту.
+  const hidden = HIDDEN_SKINS as number[];
+  const hiddenSaved = [...hidden];
+  const openSkins = () => {
+    hidden.length = 0;
+  };
+  afterEach(() => {
+    hidden.splice(0, hidden.length, ...hiddenSaved);
+  });
 
   beforeAll(() => {
     pool = new Pool({ connectionString: url });
@@ -184,6 +195,7 @@ d('FlockRubiesService (БД)', () => {
   });
 
   it('преміум-скін: ціна 60 окремо від 20, списання й запис у журналі з правильною ціною', async () => {
+    openSkins();
     const u = await makeUser();
     expect(C.rubies.premiumSkinPrice).toBe(60);
     await giveRubies('admin', u.id, 100);
@@ -218,6 +230,7 @@ d('FlockRubiesService (БД)', () => {
   });
 
   it('преміум-скін: нестача балансу (59 з 60) - not_enough з missing 1, нічого не змінюється', async () => {
+    openSkins();
     const u = await makeUser();
     await giveRubies('admin', u.id, 59);
     await expect(svc.buySkin(u.id, NUM_SKINS - 1)).rejects.toMatchObject({
@@ -239,6 +252,7 @@ d('FlockRubiesService (БД)', () => {
   });
 
   it('перевірка скіна при вході: преміум без покупки недоступний, куплений - доступний, чужий і неіснуючий - ні', async () => {
+    openSkins();
     const u = await makeUser();
     for (let id = PREMIUM_FROM; id < NUM_SKINS; id++) {
       expect(await svc.canUseSkin(u.id, id)).toBe(false);
@@ -327,6 +341,38 @@ d('FlockRubiesService (БД)', () => {
       topMs: 1500,
       games: 2,
     });
+  });
+
+  it('скриті скіни: купити не можна навіть із балансом, баланс і покупки не змінюються', async () => {
+    expect(HIDDEN_SKINS.length).toBeGreaterThan(0);
+    const u = await makeUser();
+    await giveRubies('admin', u.id, 1000);
+    for (const id of HIDDEN_SKINS) {
+      await expect(svc.buySkin(u.id, id)).rejects.toMatchObject({
+        response: { code: 'skin_hidden' },
+      });
+    }
+    const me = await svc.getMe(u.id);
+    expect(me.rubies).toBe(1000);
+    expect(me.ownedSkins).toEqual([]);
+    expect(me.config.hiddenSkins).toEqual([...HIDDEN_SKINS]);
+    // звичайні платні скіни купуються, як раніше
+    await expect(svc.buySkin(u.id, FREE_SKINS)).resolves.toMatchObject({
+      skinId: FREE_SKINS,
+    });
+  });
+
+  it('скіни, куплені до приховування, лишаються у гравця й доступні для гри', async () => {
+    const u = await makeUser();
+    const id = HIDDEN_SKINS[0];
+    await prisma.flockSkinPurchase.create({
+      data: { userId: u.id, skinId: id, price: 60 },
+    });
+    expect(await svc.canUseSkin(u.id, id)).toBe(true);
+    expect((await svc.getMe(u.id)).ownedSkins).toContain(id);
+    // а чужій людині без покупки той самий скін недоступний
+    const other = await makeUser();
+    expect(await svc.canUseSkin(other.id, id)).toBe(false);
   });
 
   it('whatsNewSeen: тільки вперед, за замовчуванням 0, сміття відхиляється', async () => {

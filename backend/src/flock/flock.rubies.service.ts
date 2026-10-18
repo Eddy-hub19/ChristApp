@@ -10,7 +10,9 @@ import {
   FLOCK_CONFIG,
   FREE_SKINS,
   NUM_SKINS,
+  HIDDEN_SKINS,
   PREMIUM_FROM,
+  isHiddenSkin,
   isPaidSkin,
   skinPriceOf,
 } from './flock.config';
@@ -20,6 +22,7 @@ const R = FLOCK_CONFIG.rubies;
 
 export type FlockErrorCode =
   | 'invalid_version'
+  | 'skin_hidden'
   | 'invalid_skin'
   | 'skin_free'
   | 'already_owned'
@@ -29,8 +32,11 @@ export type FlockErrorCode =
   | 'insufficient_balance'
   | 'user_not_found';
 
-const fail = (Ex: typeof BadRequestException, code: FlockErrorCode, extra = {}) =>
-  new Ex({ code, ...extra });
+const fail = (
+  Ex: typeof BadRequestException,
+  code: FlockErrorCode,
+  extra = {},
+) => new Ex({ code, ...extra });
 
 export interface FlockStatsDto {
   bestMass: number;
@@ -117,6 +123,7 @@ export class FlockRubiesService {
         premiumSkinPrice: R.premiumSkinPrice,
         freeSkins: FREE_SKINS,
         premiumFrom: PREMIUM_FROM,
+        hiddenSkins: [...HIDDEN_SKINS],
         totalSkins: NUM_SKINS,
         top1Reward: R.top1Reward,
         top1MassThreshold: R.top1MassThreshold,
@@ -145,7 +152,10 @@ export class FlockRubiesService {
    * Нагорода за 1-ше місце. Повертає null, якщо добовий ліміт вичерпано (сума обрізається до залишку).
    * Добу рахуємо за часом Києва.
    */
-  async awardTop1(userId: string, now = new Date()): Promise<AwardResult | null> {
+  async awardTop1(
+    userId: string,
+    now = new Date(),
+  ): Promise<AwardResult | null> {
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
       const since = dayStartInZone(now, R.dailyTimeZone);
@@ -173,6 +183,8 @@ export class FlockRubiesService {
     if (!Number.isInteger(skinId) || skinId < 0 || skinId >= NUM_SKINS)
       throw fail(BadRequestException, 'invalid_skin');
     if (!isPaidSkin(skinId)) throw fail(BadRequestException, 'skin_free');
+    // скриті скіни купити не можна (вже куплені лишаються доступними, див. canUseSkin)
+    if (isHiddenSkin(skinId)) throw fail(BadRequestException, 'skin_hidden');
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
       const owned = await tx.flockSkinPurchase.findUnique({
@@ -197,7 +209,12 @@ export class FlockRubiesService {
   }
 
   /** Адмін: нарахувати або списати (delta ≠ 0), причина обов'язкова, баланс не йде нижче нуля. */
-  async adminAdjust(actorId: string, userId: string, delta: number, note: string) {
+  async adminAdjust(
+    actorId: string,
+    userId: string,
+    delta: number,
+    note: string,
+  ) {
     const reason = typeof note === 'string' ? note.trim() : '';
     if (!reason) throw fail(BadRequestException, 'reason_required');
     if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1_000_000)
@@ -239,19 +256,17 @@ export class FlockRubiesService {
     run: { maxMass: number; kills: number; topMs: number },
   ) {
     const mass = Math.max(0, Math.round(run.maxMass));
-    await this.prisma.$transaction(async (tx) => {
-      await this.lockProfile(tx, userId);
-      const p = await tx.flockProfile.findUniqueOrThrow({ where: { userId } });
-      await tx.flockProfile.update({
-        where: { userId },
-        data: {
-          bestMass: Math.max(p.bestMass, mass),
-          eaten: p.eaten + Math.max(0, run.kills),
-          topMs: p.topMs + BigInt(Math.max(0, Math.round(run.topMs))),
-          games: p.games + 1,
-        },
-      });
-    });
+    const kills = Math.max(0, run.kills);
+    const topMs = BigInt(Math.max(0, Math.round(run.topMs)));
+    // Один атомарний запит замість транзакції з блокуванням (було ~6 звернень до БД на кожну смерть): рубіни не чіпаємо.
+    await this.prisma.$executeRaw`
+      INSERT INTO "FlockProfile" ("userId", "bestMass", "eaten", "topMs", "games")
+      VALUES (${userId}, ${mass}, ${kills}, ${topMs}, 1)
+      ON CONFLICT ("userId") DO UPDATE SET
+        "bestMass" = GREATEST("FlockProfile"."bestMass", EXCLUDED."bestMass"),
+        "eaten" = "FlockProfile"."eaten" + EXCLUDED."eaten",
+        "topMs" = "FlockProfile"."topMs" + EXCLUDED."topMs",
+        "games" = "FlockProfile"."games" + 1`;
   }
 
   /** Разовий перенос статистики з localStorage: повторні виклики ігноруються, значення обмежені. */

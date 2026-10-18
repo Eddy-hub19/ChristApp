@@ -34,8 +34,34 @@ export const FLOCK_CONFIG = {
   /** Ботів = clamp(botTotalTarget - люди, botMin, botTarget). */
   botTotalTarget: 9,
   botMin: 3,
+  /**
+   * Жорсткі ліміти ботів за кількістю живих людей (поверх botTarget/botMin): [людей від, максимум ботів].
+   * 4-5 людей -> не більше 2 ботів, 6 -> 0 (навіть коли навантаження в нормі).
+   */
+  botCapByHumans: [
+    [6, 0],
+    [4, 2],
+  ] as readonly (readonly [number, number])[],
+  /**
+   * Боти за навантаженням: арена раз на evalMs оцінює (запізнення тіків, лаг event loop, CPU процесу);
+   * при високому - прибирає ботів по одному, при довго низькому - повертає по одному.
+   */
+  botLoad: {
+    evalMs: 2500,
+    /** Високе навантаження: будь-який із показників вище порога. */
+    high: { lateMs: 18, loopP99Ms: 60, cpuPct: 70 },
+    /** Низьке навантаження: усі показники нижче порогів (гістерезис). */
+    low: { lateMs: 6, loopP99Ms: 25, cpuPct: 40 },
+    /** Скільки оцінок поспіль «низько», щоб повернути одного бота (6 x 2.5 с = 15 с). */
+    returnAfterLow: 6,
+    /** Бот, що йде, тікає до краю; якщо за цей час його все ще видно - прибираємо в будь-якому разі. */
+    retireMaxMs: 25_000,
+    /** Бот, що йде, вважається «невидимим» поза цією кратністю радіуса огляду найближчої людини. */
+    retireHideFactor: 1.35,
+  },
 
-  worldSize: 3200,
+  /** 3200 -> 4000 (+25% по кожній стороні). Позиції в пакетах - u16 з кроком 1/16, тож стеля 4095. */
+  worldSize: 4000,
   chunkSize: 320,
   /** Як часто шлемо таблицю лідерів і мінікарту (с). */
   boardEverySec: 1.5,
@@ -46,8 +72,22 @@ export const FLOCK_CONFIG = {
 
   // --- решта лімітів світу ---
   maxCellsPerPlayer: 16,
-  maxFood: 520,
-  maxThorns: 14,
+  /** Площа +56%, а їжа крупніша: щільність трохи нижча за колишню (520 на 3200² -> 700 на 4000²). */
+  maxFood: 700,
+  /** Кущі: випадкова кількість і розкладка при кожному створенні арени. */
+  thorns: {
+    min: 10,
+    max: 18,
+    /** Мінімальна відстань між центрами кущів. */
+    minGap: 380,
+    /** Мінімальна відстань від краю світу до центру куща. */
+    edgeMargin: 260,
+    /** Ніяких кущів у центрі світу: це запасна точка появи гравця. */
+    centerClear: 340,
+    /** Маса куща (радіус = radiusK * sqrt(маса)) випадкова в цих межах - розмір трохи різний. */
+    massMin: 58,
+    massMax: 86,
+  },
   maxBlobs: 200,
   maxBonuses: 6,
   /** Гравець без вводу довше за це відключається від арени. */
@@ -71,6 +111,10 @@ export const FLOCK_CONFIG = {
   minThrowMass: 30,
   throwMass: 8,
   foodMass: 1.2,
+  /** Піврозмір спрайта їжі (світові одиниці). Було 8.5, тепер x1.5; бонуси - x1.2 (на клієнті). */
+  foodRadius: 12.75,
+  /** Їжа підбирається, коли центр їжі ближче за радіус клітини + foodRadius * foodTouch (візуальний дотик). */
+  foodTouch: 0.55,
   /** Радіус = radiusK * sqrt(маса). */
   radiusK: 4.2,
   /** Масу вище порога повільно "з'їдає" розпад (частка за секунду). */
@@ -95,6 +139,7 @@ export const FLOCK_CONFIG = {
   maxSpeedHard: 560,
 
   // --- кущі ---
+  /** Базова маса куща: від неї рахується поріг, коли великі клітини рве кущ (самі кущі мають масу massMin..massMax). */
   thornMass: 70,
   /** Кущ рве клітину, якщо її маса більша за thornMass * цей коефіцієнт. */
   thornPopRatio: 1.3,
@@ -107,6 +152,8 @@ export const FLOCK_CONFIG = {
 
   // --- бонуси ---
   bonusSpawnEveryMs: 7000,
+  /** Бонус підбирається, коли центр бонуса ближче за радіус клітини + bonusReach (було 14, бонуси на екрані x1.2 -> 17). */
+  bonusReach: 17,
   bonusDurations: {
     speed: 7000,
     magnet: 8000,
@@ -174,9 +221,18 @@ export const NUM_SKINS = 24;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
-export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < NUM_SKINS;
+export const isPremiumSkin = (id: number) =>
+  id >= PREMIUM_FROM && id < NUM_SKINS;
 /** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice). */
 export const skinPriceOf = (id: number) =>
   isPremiumSkin(id)
     ? FLOCK_CONFIG.rubies.premiumSkinPrice
     : FLOCK_CONFIG.rubies.skinPrice;
+
+/**
+ * Скрытые скіни (тимчасово): не показуються в лобі й магазині, купити їх не можна (сервер відхиляє `skin_hidden`).
+ * Уже куплені лишаються в гравця й доступні для гри. Щоб відкрити скіни - достатньо спорожнити цей масив.
+ * Зараз сховано шість преміум-скінів з анімацією (18-23).
+ */
+export const HIDDEN_SKINS: readonly number[] = [18, 19, 20, 21, 22, 23];
+export const isHiddenSkin = (id: number) => HIDDEN_SKINS.includes(id);

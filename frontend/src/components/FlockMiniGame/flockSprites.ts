@@ -189,8 +189,8 @@ export function bonusFullSprite(kind: string, color: string, icon: string, dark:
   bonusCache.set(key, cv);
   return cv;
 }
-/** Сторона спрайта бонуса у світових одиницях. */
-export const BONUS_WORLD_SIZE = 100;
+/** Сторона спрайта бонуса у світових одиницях (було 100, тепер x1.2: диск і свічення ростуть разом зі спрайтом). */
+export const BONUS_WORLD_SIZE = 120;
 
 // ---------- кущі ----------
 let thornCv: HTMLCanvasElement | null = null;

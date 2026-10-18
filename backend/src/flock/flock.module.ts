@@ -9,6 +9,6 @@ import { FlockRubiesService } from './flock.rubies.service';
   imports: [AuthModule, PrismaModule],
   controllers: [FlockController],
   providers: [FlockGateway, FlockRubiesService],
-  exports: [FlockRubiesService],
+  exports: [FlockRubiesService, FlockGateway],
 })
 export class FlockModule {}

@@ -12,6 +12,42 @@ const CHUNKS = Math.ceil(C.worldSize / C.chunkSize);
 
 export type Rng = () => number;
 
+/** Додаткова відстань підбору їжі понад радіус клітини (візуальний дотик до спрайта). */
+export const FOOD_REACH = C.foodRadius * C.foodTouch;
+/** Буфер для stepFood: без виділення масиву на кожну клітину щотіку. */
+const EAT: Food[] = [];
+
+export type ThornSpec = { x: number; y: number; mass: number };
+
+/**
+ * Випадкова розкладка кущів для нової арени: випадкова кількість, мінімальна відстань між кущами й від країв,
+ * без центру світу (запасна точка появи), маса (отже й розмір) трохи різна. Чиста функція від rng - тестується окремо.
+ */
+export function generateThorns(
+  rng: Rng,
+  cfg: typeof C.thorns = C.thorns,
+  world: number = C.worldSize,
+): ThornSpec[] {
+  const count = cfg.min + Math.floor(rng() * (cfg.max - cfg.min + 1));
+  const out: ThornSpec[] = [];
+  const mid = world / 2;
+  for (let n = 0; n < count; n++) {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const x = cfg.edgeMargin + rng() * (world - 2 * cfg.edgeMargin);
+      const y = cfg.edgeMargin + rng() * (world - 2 * cfg.edgeMargin);
+      if (Math.hypot(x - mid, y - mid) < cfg.centerClear) continue;
+      if (out.some((t) => Math.hypot(t.x - x, t.y - y) < cfg.minGap)) continue;
+      out.push({
+        x,
+        y,
+        mass: cfg.massMin + rng() * (cfg.massMax - cfg.massMin),
+      });
+      break;
+    }
+  }
+  return out;
+}
+
 export interface Cell {
   id: number;
   pid: number;
@@ -139,7 +175,8 @@ export class FlockWorld {
   private bonusTimer = 0;
 
   constructor(private readonly rng: Rng = Math.random) {
-    for (let i = 0; i < C.maxThorns; i++) this.spawnThorn();
+    for (const t of generateThorns(rng))
+      this.thorns.push({ id: this.nextThornId++, ...t });
     for (let i = 0; i < C.maxFood; i++) this.spawnFood();
   }
 
@@ -351,19 +388,6 @@ export class FlockWorld {
     this.foodEvents.push({ op: FOOD_DEL, food, chunk, oldChunk: chunk });
   }
 
-  private spawnThorn() {
-    const id = this.nextId(this.nextThornId, (i) =>
-      this.thorns.some((t) => t.id === i),
-    );
-    this.nextThornId = id + 1;
-    this.thorns.push({
-      id,
-      x: this.rand(200, C.worldSize - 200),
-      y: this.rand(200, C.worldSize - 200),
-      mass: C.thornMass,
-    });
-  }
-
   private spawnBonus() {
     if (this.bonuses.length >= C.maxBonuses) return;
     const id = this.nextId(this.nextBonusId, (i) =>
@@ -483,7 +507,10 @@ export class FlockWorld {
   /** Скільки мс лишилось розгону на старті (0 - не діє: бот, час вийшов або маса вже за порогом). */
   spawnBoostLeftMs(p: Player): number {
     if (p.bot || p.total >= C.spawnBoost.massLimit) return 0;
-    return Math.max(0, Math.min(C.spawnBoost.durationMs, p.boostUntil - this.now));
+    return Math.max(
+      0,
+      Math.min(C.spawnBoost.durationMs, p.boostUntil - this.now),
+    );
   }
 
   /** Множник швидкості від розгіну: 1 + speedBonus * (залишок / тривалість), тобто плавно спадає до 1. */
@@ -706,12 +733,13 @@ export class FlockWorld {
       if (!p.alive || p.paused || this.isGhost(p)) continue;
       const gain = C.foodMass * (this.hasEffect(p, 'double') ? 2 : 1);
       for (const c of p.cells) {
-        const r = radiusOf(c.mass);
-        const eat: Food[] = [];
-        this.foodNear(c.x, c.y, r, (f) => {
-          if (Math.hypot(f.x - c.x, f.y - c.y) < r) eat.push(f);
+        // підбір за візуальним дотиком: край клітини торкається спрайта їжі (foodReach), а не лише центр усередині
+        const reach = radiusOf(c.mass) + FOOD_REACH;
+        EAT.length = 0;
+        this.foodNear(c.x, c.y, reach, (f) => {
+          if (Math.hypot(f.x - c.x, f.y - c.y) < reach) EAT.push(f);
         });
-        for (const f of eat) {
+        for (const f of EAT) {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
           c.mass += gain;
@@ -723,7 +751,10 @@ export class FlockWorld {
   private stepThorns() {
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || this.isGhost(p)) continue;
-      for (const c of [...p.cells]) {
+      // popCell додає шматки в кінець p.cells: ітеруємо по початковій довжині без копії масиву
+      const n = p.cells.length;
+      for (let i = 0; i < n; i++) {
+        const c = p.cells[i];
         if (
           c.mass <= C.thornMass * C.thornPopRatio ||
           this.now < c.thornImmuneUntil
@@ -763,11 +794,11 @@ export class FlockWorld {
       const b = this.bonuses[i];
       let taker: Player | null = null;
       let takerCell: Cell | null = null;
-      this.cellGrid.query(b.x, b.y, 60, (c) => {
+      this.cellGrid.query(b.x, b.y, 66, (c) => {
         if (taker) return;
         const pl = this.players.get(c.pid);
         if (!pl || pl.paused) return; // у паузі бонуси не підбираються
-        if (Math.hypot(c.x - b.x, c.y - b.y) < radiusOf(c.mass) + 14) {
+        if (Math.hypot(c.x - b.x, c.y - b.y) < radiusOf(c.mass) + C.bonusReach) {
           taker = pl;
           takerCell = c;
         }
