@@ -49,7 +49,7 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "gold", fur: "#f2c344", light: "#fff0a8", face: "#5a3d12", accent: "#ffd86b" },
   { kind: "wolf", deco: "wolfwool", wool: "#f6f1e7", fur: "#6f7580", light: "#9aa0ab", face: "#cfd3d9", accent: "#f3d65c" },
   { kind: "sheep", deco: "stars", fur: "#27305e", light: "#4a57a0", face: "#c9cdf2", accent: "#ffd86b" },
-  // --- преміум (18..23), по 40 рубінів, з легкою анімацією ---
+  // --- преміум (18..23), по 60 рубінів, з легкою анімацією ---
   { kind: "lamb", deco: "angel", anim: { frames: 4, fps: 6 }, fur: "#fffaf0", light: "#ffffff", face: "#e8b9a0", accent: "#ffb3c0" },
   { kind: "sheep", deco: "rainbow", anim: { frames: 6, fps: 4 }, fur: "#fbf6f0", light: "#ffffff", face: "#3e3a45", accent: "#f2a7b3" },
   { kind: "sheep", deco: "frost", anim: { frames: 4, fps: 3 }, fur: "#cfe6fb", light: "#f3faff", face: "#3d5a78", accent: "#ffb6c5" },

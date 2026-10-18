@@ -10,7 +10,7 @@ import {
 import { decodeState, encodeState } from './protocol';
 
 describe('скіни: ціни й діапазони', () => {
-  it('0..11 безкоштовні, 12..17 платні по 20, 18..23 преміум по 40', () => {
+  it('0..11 безкоштовні, 12..17 платні по 20, 18..23 преміум по 60', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(NUM_SKINS).toBe(24);
@@ -29,7 +29,7 @@ describe('скіни: ціни й діапазони', () => {
       expect(skinPriceOf(id)).toBe(C.rubies.premiumSkinPrice);
     }
     expect(C.rubies.skinPrice).toBe(20);
-    expect(C.rubies.premiumSkinPrice).toBe(40);
+    expect(C.rubies.premiumSkinPrice).toBe(60);
     expect(isPaidSkin(NUM_SKINS)).toBe(false);
   });
 

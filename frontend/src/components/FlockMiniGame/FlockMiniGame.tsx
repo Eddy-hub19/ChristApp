@@ -299,7 +299,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     saveControlMode(mode);
   };
 
-  const priceOf = (i: number) => (isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 40) : (me?.config.skinPrice ?? 20));
+  const priceOf = (i: number) => (isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20));
 
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);

@@ -68,8 +68,10 @@ describe("скіни: платні 12..17 і преміум 18..23", () => {
     for (const m of [ua, ru, en]) expect(m.flock.premium).toBeTruthy();
   });
 
-  it("«Купити за 40»: підпис кнопки з ціною", () => {
-    expect(fmt(ua.flock.rubies.buy, "uk", { price: 40 })).toContain("40");
-    expect(fmt(en.flock.rubies.buy, "en", { price: 40 })).toContain("40");
+  it("«Купити за 60» і «Не вистачає: N»: підписи беруть ціну з параметрів", () => {
+    expect(fmt(ua.flock.rubies.buy, "uk", { price: 60 })).toBe("Купити за 60");
+    expect(fmt(en.flock.rubies.buy, "en", { price: 60 })).toContain("60");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 60 })).toBe("Не вистачає: 60 рубінів");
+    expect(fmt(ua.flock.rubies.missing, "uk", { count: 1 })).toBe("Не вистачає: 1 рубін");
   });
 });
