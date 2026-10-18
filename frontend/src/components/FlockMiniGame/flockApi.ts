@@ -9,7 +9,7 @@ export interface FlockMe {
   selectedSkin: number;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; freeSkins: number; totalSkins: number; top1Reward: number; top1MassThreshold: number };
+  config: { skinPrice: number; premiumSkinPrice?: number; freeSkins: number; premiumFrom?: number; totalSkins: number; top1Reward: number; top1MassThreshold: number };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */

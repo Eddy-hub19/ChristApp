@@ -1,5 +1,5 @@
-import { circle, drawCreature } from "./flockCreature";
-import { skinOf } from "./flockSkins";
+import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
+import { animFrame, skinOf } from "./flockSkins";
 import type { Theme } from "./flockRender";
 
 /**
@@ -40,6 +40,8 @@ class Lru<V> {
 
 // ---------- персонажі ----------
 const BUCKET = 1.12;
+/** Менший за цей екранний радіус (px) персонаж без анімованих шарів. */
+const LAYER_MIN_PX = 8;
 const ANGLES = 24;
 interface CreatureSprite {
   cv: HTMLCanvasElement;
@@ -48,7 +50,48 @@ interface CreatureSprite {
 }
 const creatures = new Lru<CreatureSprite>(500);
 
-/** Малює персонажа спрайтом (тіло, мордочка, вуха); дрібні/дуже великі - напряму. */
+const layerSprites = new Lru<CreatureSprite>(300);
+
+/** «Зменшити рух»: читаємо один раз ліниво (на клієнті) і слухаємо зміни - анімації скінів тоді вимкнені. */
+let reduceMotion: boolean | null = null;
+export function prefersReducedMotion(): boolean {
+  if (reduceMotion === null) {
+    reduceMotion = false;
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      reduceMotion = mq.matches;
+      mq.addEventListener?.("change", (e) => {
+        reduceMotion = e.matches;
+      });
+    }
+  }
+  return reduceMotion;
+}
+
+/** Спрайт кадру анімованого шару (без кута: повертається при малюванні). Шар виходить за радіус - спрайт більший. */
+function layerSprite(skinId: number, b: number, rb: number, frame: number, layer: number): CreatureSprite {
+  const key = `${skinId}:${b}:${frame}:${layer}`;
+  let spr = layerSprites.get(key);
+  if (!spr) {
+    const skin = skinOf(skinId);
+    const size = Math.ceil(rb * 2 * layerExtent(skin, layer)) + 2;
+    const cv = makeCanvas(size, size);
+    const c = cv.getContext("2d");
+    if (c) {
+      c.translate(size / 2, size / 2);
+      drawAnimLayer(c, skin, rb, frame, layer);
+    }
+    spr = { cv, rb };
+    layerSprites.set(key, spr);
+  }
+  return spr;
+}
+
+/**
+ * Малює персонажа спрайтом (тіло, мордочка, вуха); дрібні/дуже великі - напряму.
+ * Преміум-скіни: тіло - той самий кеш, а анімація - окремі спрайти-шари на 2-6 кадрів (позаду й поверх тіла);
+ * `time` (секунди) визначає кадр. Дрібних і при «зменшити рух» малюємо без анімації (кадр 0).
+ */
 export function drawCreatureCached(
   ctx: CanvasRenderingContext2D,
   skinId: number,
@@ -60,10 +103,13 @@ export function drawCreatureCached(
   wobble: number,
   scale: number,
   dpr: number,
+  time = 0,
 ) {
   const rPx = r * scale * dpr;
+  const skin = skinOf(skinId);
+  const frame = animFrame(skin, time, { reduceMotion: prefersReducedMotion(), rPx });
   if (rPx > 220 || rPx < 2.5) {
-    drawCreature(ctx, skinOf(skinId), x, y, r, ang, phase, wobble);
+    drawCreature(ctx, skin, x, y, r, ang, phase, wobble, frame, rPx >= 2.5);
     return;
   }
   const b = Math.round(Math.log(rPx) / Math.log(BUCKET));
@@ -77,7 +123,7 @@ export function drawCreatureCached(
     const c = cv.getContext("2d");
     if (c) {
       c.translate(size / 2, size / 2);
-      drawCreature(c, skinOf(skinId), 0, 0, rb, (ab * TAU) / ANGLES, 0, 0);
+      drawCreature(c, skin, 0, 0, rb, (ab * TAU) / ANGLES, 0, 0, 0, false);
     }
     spr = { cv, rb };
     creatures.set(key, spr);
@@ -90,7 +136,20 @@ export function drawCreatureCached(
   ctx.rotate(Math.sin(phase) * 0.07 * wobble);
   const sq = 1 + Math.sin(phase * 2) * 0.035 * wobble;
   ctx.scale(sq, 2 - sq);
+  // Дрібним (< 8 px) шари анімації не потрібні - їх не видно, а заливка коштує.
+  const mask = rPx >= LAYER_MIN_PX ? animLayers(skin) : 0;
+  if (mask & LAYER_BEHIND) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_BEHIND);
   ctx.drawImage(spr.cv, -w / 2, -w / 2, w, w);
+  if (mask & LAYER_FRONT) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_FRONT);
+  ctx.restore();
+}
+
+function drawLayer(ctx: CanvasRenderingContext2D, skinId: number, b: number, rb: number, f: number, ang: number, frame: number, layer: number) {
+  const ls = layerSprite(skinId, b, rb, frame, layer);
+  const lw = ls.cv.width * f;
+  ctx.save();
+  ctx.rotate(ang);
+  ctx.drawImage(ls.cv, -lw / 2, -lw / 2, lw, lw);
   ctx.restore();
 }
 
@@ -339,6 +398,7 @@ export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUn
 
 export function clearSpriteCaches() {
   creatures.clear();
+  layerSprites.clear();
   texts.clear();
   digitAtlas.clear();
   bonusCache.clear();

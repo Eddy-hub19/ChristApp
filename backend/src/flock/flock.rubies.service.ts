@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { Prisma, RubyReason } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FLOCK_CONFIG, FREE_SKINS, NUM_SKINS, isPaidSkin } from './flock.config';
+import {
+  FLOCK_CONFIG,
+  FREE_SKINS,
+  NUM_SKINS,
+  PREMIUM_FROM,
+  isPaidSkin,
+  skinPriceOf,
+} from './flock.config';
 import { dayStartInZone } from './flock.time';
 
 const R = FLOCK_CONFIG.rubies;
@@ -105,7 +112,9 @@ export class FlockRubiesService {
       stats: toStats(profile),
       config: {
         skinPrice: R.skinPrice,
+        premiumSkinPrice: R.premiumSkinPrice,
         freeSkins: FREE_SKINS,
+        premiumFrom: PREMIUM_FROM,
         totalSkins: NUM_SKINS,
         top1Reward: R.top1Reward,
         top1MassThreshold: R.top1MassThreshold,
@@ -151,15 +160,16 @@ export class FlockRubiesService {
         where: { userId_skinId: { userId, skinId } },
       });
       if (owned) throw fail(ConflictException, 'already_owned');
-      if (balance < R.skinPrice)
+      const price = skinPriceOf(skinId);
+      if (balance < price)
         throw fail(BadRequestException, 'not_enough', {
-          missing: R.skinPrice - balance,
+          missing: price - balance,
         });
       await tx.flockSkinPurchase.create({
-        data: { userId, skinId, price: R.skinPrice },
+        data: { userId, skinId, price },
       });
       const next = await this.apply(tx, userId, balance, {
-        delta: -R.skinPrice,
+        delta: -price,
         reason: RubyReason.SKIN_PURCHASE,
         skinId,
       });

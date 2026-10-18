@@ -231,7 +231,7 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
       ctx.stroke();
     }
   }
-  drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr);
+  drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr, o.time);
   if ((c.fx & FX_FROZEN) !== 0) {
     ctx.fillStyle = "rgba(170,230,255,0.5)";
     circle(ctx, c.x, c.y, r);

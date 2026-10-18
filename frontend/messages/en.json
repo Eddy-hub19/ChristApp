@@ -1061,6 +1061,7 @@
     "retry": "Try again",
     "connecting": "Connecting…",
     "chooseSkin": "Pick your look",
+    "premium": "Premium",
     "controls": {
       "title": "Controls",
       "follow": "Follow finger",
@@ -1123,7 +1124,13 @@
       "14": "Cloud lamb",
       "15": "Golden sheep",
       "16": "Wolf in sheep's clothing",
-      "17": "Starry night sheep"
+      "17": "Starry night sheep",
+      "18": "Little Angel Lamb",
+      "19": "Rainbow Sheep",
+      "20": "Frosty Sheep",
+      "21": "Sunny Ram",
+      "22": "Shepherd David",
+      "23": "Polar Wolf"
     },
     "rubies": {
       "name": "Rubies",
