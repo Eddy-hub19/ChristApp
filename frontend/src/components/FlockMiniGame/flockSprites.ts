@@ -1,5 +1,6 @@
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
 import { animFrame, skinOf } from "./flockSkins";
+import { specialExtent } from "./flockSpecialDeco";
 import type { Theme } from "./flockRender";
 
 /**
@@ -118,7 +119,7 @@ export function drawCreatureCached(
   let spr = creatures.get(key);
   if (!spr) {
     const rb = Math.pow(BUCKET, b);
-    const size = Math.ceil(rb * 2.6) + 2;
+    const size = Math.ceil(rb * 2 * specialExtent(skin)) + 2;
     const cv = makeCanvas(size, size);
     const c = cv.getContext("2d");
     if (c) {

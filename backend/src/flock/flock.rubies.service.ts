@@ -11,6 +11,7 @@ import {
   FREE_SKINS,
   NUM_SKINS,
   PREMIUM_FROM,
+  SPECIAL_FROM,
   isPaidSkin,
   skinPriceOf,
 } from './flock.config';
@@ -115,8 +116,10 @@ export class FlockRubiesService {
       config: {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
+        specialSkinPrice: R.specialSkinPrice,
         freeSkins: FREE_SKINS,
         premiumFrom: PREMIUM_FROM,
+        specialFrom: SPECIAL_FROM,
         totalSkins: NUM_SKINS,
         top1Reward: R.top1Reward,
         top1MassThreshold: R.top1MassThreshold,

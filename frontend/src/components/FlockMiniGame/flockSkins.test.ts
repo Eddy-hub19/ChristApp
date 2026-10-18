@@ -3,7 +3,7 @@ import { ANIM_MIN_PX, animFrame, SKINS, skinOf } from "./flockSkins";
 import { animLayers, LAYER_BEHIND, LAYER_FRONT } from "./flockCreature";
 
 describe("анімація преміум-скінів", () => {
-  const premium = SKINS.slice(18);
+  const premium = SKINS.slice(18, 24);
 
   it("шість преміум-скінів: розмаїття (вівці, баран, вовк) і 2-6 кадрів на скін", () => {
     expect(premium).toHaveLength(6);
@@ -19,8 +19,8 @@ describe("анімація преміум-скінів", () => {
     }
   });
 
-  it("безкоштовні й звичайні платні скіни не анімовані", () => {
-    for (const s of SKINS.slice(0, 18)) {
+  it("безкоштовні, звичайні платні й особливі скіни не анімовані", () => {
+    for (const s of [...SKINS.slice(0, 18), ...SKINS.slice(24)]) {
       expect(s.anim).toBeUndefined();
       expect(animLayers(s)).toBe(0);
     }

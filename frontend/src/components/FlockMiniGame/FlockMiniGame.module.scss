@@ -668,3 +668,15 @@
 .skinPremium.skinActive {
   border-color: var(--accent);
 }
+
+/* --- ряд «особливих» скінів --- */
+.specialTitle {
+  color: color-mix(in srgb, #7a5cd6 80%, var(--foreground));
+}
+.skinSpecial {
+  border-color: color-mix(in srgb, #7a5cd6 40%, transparent);
+  background: color-mix(in srgb, #7a5cd6 9%, transparent);
+}
+.skinSpecial.skinActive {
+  border-color: var(--accent);
+}
