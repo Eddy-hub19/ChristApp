@@ -316,6 +316,8 @@ model FlockProfile {
   /// Коли статистику з localStorage перенесли на сервер (один раз).
   statsImportedAt DateTime?
   selectedSkin    Int       @default(0)
+  /// Остання переглянута версія плашки «Що нового» (щоб не показувати повторно на іншому пристрої).
+  whatsNewSeen    Int       @default(0)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

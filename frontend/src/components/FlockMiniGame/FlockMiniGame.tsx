@@ -10,9 +10,11 @@ import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
-import { buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, selectFlockSkin, type FlockMe } from "./flockApi";
+import { buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockSkin, type FlockMe } from "./flockApi";
 import FlockInvite from "./FlockInvite";
-import { loadFlockSession } from "./flockSession";
+import { isResumable, loadFlockSession } from "./flockSession";
+import FlockWhatsNew from "./FlockWhatsNew";
+import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
 import { animFrame, SKINS, skinOf } from "./flockSkins";
@@ -148,6 +150,35 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<FlockNotice>(null);
   const [reconnectLeft, setReconnectLeft] = useState(0);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const announcedRef = useRef(false);
+  const resumableAtOpenRef = useRef(false);
+
+  // «Що нового» / «Ласкаво просимо»: решаем один раз за открытие, когда пришёл профиль с сервера.
+  useEffect(() => {
+    if (!open) {
+      announcedRef.current = false;
+      setAnnouncement(null);
+      return;
+    }
+    resumableAtOpenRef.current = isResumable(loadFlockSession());
+  }, [open]);
+  useEffect(() => {
+    if (!open || !me || announcedRef.current) return;
+    const a = decideAnnouncement({
+      serverSeen: me.whatsNewSeen ?? 0,
+      localSeen: loadLocalSeen(userId),
+      games: me.stats.games,
+      status,
+      resumable: resumableAtOpenRef.current,
+    });
+    if (!a) return;
+    announcedRef.current = true;
+    setAnnouncement(a);
+    // «один раз»: помечаем как просмотренное сразу при показе (локально и на сервере)
+    saveLocalSeen(userId, a.version);
+    void markWhatsNewSeen(a.version).catch(() => undefined);
+  }, [open, me, status, userId]);
 
   useEffect(() => {
     setSkin(loadSkin());
@@ -676,6 +707,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </div>
           </div>
         </div>
+      ) : null}
+
+      {announcement && showLobby ? (
+        <FlockWhatsNew
+          announcement={announcement}
+          canPlay={status === "ready"}
+          onClose={(withPlay) => {
+            setAnnouncement(null);
+            if (withPlay) play();
+          }}
+        />
       ) : null}
 
       {showLobby ? (

@@ -41,6 +41,11 @@ export class FlockController {
     return { ok: true };
   }
 
+  @Put('whats-new')
+  whatsNew(@Req() req: Request, @Body() body: { version?: unknown }) {
+    return this.rubies.markWhatsNewSeen(this.uid(req), body?.version);
+  }
+
   @Post('stats/import')
   importStats(@Req() req: Request, @Body() body: Record<string, unknown>) {
     return this.rubies.importStats(this.uid(req), body ?? {});

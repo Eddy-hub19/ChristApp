@@ -8,4 +8,10 @@ export {
   FlockIcon,
   MegaphoneIcon,
   RubyIcon,
+  SnowflakeIcon,
+  BoltIcon,
+  NameTagIcon,
+  LeafIcon,
+  ShieldIcon,
+  TrophyIcon,
 } from "./icons";

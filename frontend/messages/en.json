@@ -1184,6 +1184,13 @@
       "sub": "A shared arena of sheep and wolves",
       "play": "Play"
     },
+    "whatsNew": {
+      "title": "What's new in Flock",
+      "welcomeTitle": "Welcome to Flock",
+      "version": "Version {version}",
+      "play": "Play",
+      "ok": "Got it"
+    },
     "resume": {
       "text": "Your sheep is waiting for you · {seconds}s",
       "button": "Return"
