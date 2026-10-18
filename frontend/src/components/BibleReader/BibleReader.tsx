@@ -29,6 +29,14 @@ import {
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries";
 import { pickTranslationShortName } from "@/lib/bibleTranslationForLang";
+import {
+  defaultTranslationForLang,
+  filterAllowedTranslations,
+  readSavedTranslation,
+  resolveTranslationForLang,
+  saveTranslation,
+} from "@/lib/bibleTranslations";
+import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import BibleSearchTab from "@/components/BibleSearch/BibleSearchTab";
 import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,7 +136,9 @@ export default function BibleReader({
   /** Після layout: вмикаємо запити на клієнті без зайвого кадру зі скелетом за наявності кешу. */
   const [isMounted, setIsMounted] = useState(false);
 
-  const [translation, setTranslation] = useState("NRT");
+  const [translation, setTranslation] = useState(() =>
+    defaultTranslationForLang(lang),
+  );
 
   const [currentBook, setCurrentBook] = useState<BookType | null>(null);
   const [currentChapter, setCurrentChapter] = useState(1);
@@ -144,6 +154,8 @@ export default function BibleReader({
   const [shareTargets, setShareTargets] = useState<ShareTarget[]>([]);
   const [highlightStorageEpoch, setHighlightStorageEpoch] = useState(0);
   const [modalStep, setModalStep] = useState<ModalStep>("testament");
+  /** Під час читання нижній навбар прихований; у вікні вибору книги/пошуку він знову видимий. Лампочку теми лишаємо. */
+  useFullscreenMode(!isSelectorOpen, { keepThemeToggle: true });
   const [selectedTestament, setSelectedTestament] = useState<"old" | "new">(
     "old",
   );
@@ -203,9 +215,14 @@ export default function BibleReader({
     if (!translations.length) {
       return;
     }
-    setTranslation(
-      pickTranslationShortName(translations as BibleTranslationItem[], lang),
-    );
+    const list = translations as BibleTranslationItem[];
+    // Збережений вибір діє, лише якщо переклад досі дозволений і є в API; інакше — дефолт мови.
+    const candidate = resolveTranslationForLang(readSavedTranslation(lang), lang);
+    const next = list.some((t) => t.short_name === candidate)
+      ? candidate
+      : pickTranslationShortName(list, lang);
+    setTranslation(next);
+    saveTranslation(lang, next);
   }, [lang, translations]);
 
   const { data: books = [] } = useQuery({
@@ -660,13 +677,17 @@ export default function BibleReader({
   }, [pendingVerse, currentBook, currentChapter, versesIsLoading, hasVersesData]);
 
   /** Стрілки глав ховаються, поки гортаємо вниз, і повертаються після паузи / скролу вгору / в кінці глави. */
-  const floatingNavScrolledAway = useAutoHideOnScroll(versesSectionRef, [
-    currentBook?.id,
-    currentChapter,
-    versesIsLoading,
-    hasVersesData,
-    memomizedVerses.length,
-  ]);
+  const floatingNavScrolledAway = useAutoHideOnScroll(
+    versesSectionRef,
+    [
+      currentBook?.id,
+      currentChapter,
+      versesIsLoading,
+      hasVersesData,
+      memomizedVerses.length,
+    ],
+    { idleMs: 1000 },
+  );
 
   /** Скелетон лише без книги або при першому завантаженні тексту глави без кешу (isMounted не потрібен — layout уже підставив книгу). */
   const showReaderSkeleton =
@@ -732,24 +753,49 @@ export default function BibleReader({
       onTouchEnd={handleTouchEnd}
     >
       {/* HEADER */}
-      <div className={styles.headerBar}>
-        <h2
-          className={styles.clickable}
-          onClick={() => setIsSelectorOpen(true)}
-        >
-          {currentBook.name} {currentChapter}
-        </h2>
+      <div
+        className={`${styles.headerCollapse} ${floatingNavScrolledAway ? styles.headerCollapseHidden : ""}`}
+        inert={floatingNavScrolledAway}
+      >
+      <div className={styles.headerCollapseInner}>
+          <div className={styles.headerBar}>
+            <h2
+              className={styles.clickable}
+              onClick={() => setIsSelectorOpen(true)}
+            >
+              {currentBook.name} {currentChapter}
+            </h2>
 
-        <select
-          value={translation}
-          onChange={(e) => setTranslation(e.target.value)}
-        >
-          {translations.map((t) => (
-            <option key={t.short_name} value={t.short_name}>
-              {t.short_name} ({t.language})
-            </option>
-          ))}
-        </select>
+            <select
+              value={translation}
+              onChange={(e) => {
+                setTranslation(e.target.value);
+                saveTranslation(lang, e.target.value);
+              }}
+            >
+              {filterAllowedTranslations(translations).map((t) => (
+                <option key={t.short_name} value={t.short_name}>
+                  {t.short_name} ({t.language})
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              className={styles.searchButton}
+              aria-label={tSearch("searchLabel")}
+              onClick={() => {
+                setModalStep("search");
+                setIsSelectorOpen(true);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+                <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+      </div>
       </div>
 
       {/* MODAL */}

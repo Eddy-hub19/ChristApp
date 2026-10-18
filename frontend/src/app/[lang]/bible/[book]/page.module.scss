@@ -4,6 +4,14 @@ $book-accent: #c4a265;
   padding: 24px;
 }
 
+/* Читалка займає всю висоту `main` (див. BibleReader), а не росте за вмістом. */
+.readerHost {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .modal {
   position: fixed;
   top: 0;

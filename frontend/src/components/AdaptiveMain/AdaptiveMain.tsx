@@ -22,10 +22,14 @@ export default function AdaptiveMain({
   const relaxMainForKeyboard = composerFocused && narrowForChatComposer;
   const isActiveChatRoom = pathname.startsWith("/chat/");
   const isOfflineRoute = pathname === "/offline";
+  /** Читалка Біблії ховає навбар — резерв під нього внизу не потрібен. */
+  const readerFullscreen =
+    (overlay?.fullscreenActive ?? false) &&
+    (pathname === "/bible" || pathname.startsWith("/bible/"));
 
   return (
     <main
-      className={`${styles.main} ${isOfflineRoute ? styles.mainOffline : ""} ${relaxMainForKeyboard ? styles.mainComposerFocused : ""} ${isActiveChatRoom && !relaxMainForKeyboard ? styles.mainChatRoom : ""}`}
+      className={`${styles.main} ${isOfflineRoute ? styles.mainOffline : ""} ${relaxMainForKeyboard ? styles.mainComposerFocused : ""} ${readerFullscreen ? styles.mainReaderFullscreen : ""} ${isActiveChatRoom && !relaxMainForKeyboard ? styles.mainChatRoom : ""}`}
     >
       {children}
     </main>
