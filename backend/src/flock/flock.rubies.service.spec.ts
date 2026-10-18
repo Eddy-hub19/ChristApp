@@ -328,4 +328,16 @@ d('FlockRubiesService (БД)', () => {
       games: 2,
     });
   });
+
+  it('whatsNewSeen: тільки вперед, за замовчуванням 0, сміття відхиляється', async () => {
+    const u = await makeUser();
+    expect((await svc.getMe(u.id)).whatsNewSeen).toBe(0);
+    await svc.markWhatsNewSeen(u.id, 3);
+    await svc.markWhatsNewSeen(u.id, 2);
+    expect((await svc.getMe(u.id)).whatsNewSeen).toBe(3);
+    await expect(svc.markWhatsNewSeen(u.id, -1)).rejects.toBeDefined();
+    await expect(svc.markWhatsNewSeen(u.id, 'x')).rejects.toBeDefined();
+    await svc.markWhatsNewSeen(u.id, 10 ** 9);
+    expect((await svc.getMe(u.id)).whatsNewSeen).toBe(1000);
+  });
 });

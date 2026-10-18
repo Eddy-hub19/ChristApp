@@ -175,3 +175,76 @@ export function RubyIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/* Іконки для плашки «Що нового» / «Ласкаво просимо» в «Отарі». */
+
+export function SnowflakeIcon(props: ColorIconProps) {
+  const g = useGradient("#bfeaff", "#5bb8f0");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <circle cx="12" cy="12" r="10" fill={g.fill} {...stroke} />
+      <path d="M12 5v14M5.9 8.5l12.2 7M18.1 8.5l-12.2 7" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M10 5.8l2 1.6 2-1.6M10 18.2l2-1.6 2 1.6" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </ColorIconSvg>
+  );
+}
+
+export function BoltIcon(props: ColorIconProps) {
+  const g = useGradient("#ffe27a", "#ffab1a");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M13.6 2L4.5 13.4h6L9.4 22l10.1-12.2h-6.3z" fill={g.fill} {...stroke} />
+      <path d="M12.6 5.4L8 11.2" stroke="#fff" strokeOpacity=".75" strokeWidth="1.2" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+export function NameTagIcon(props: ColorIconProps) {
+  const g = useGradient("#9be3a0", "#4fb862");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <rect x="2.5" y="5" width="19" height="14" rx="3.5" fill={g.fill} {...stroke} />
+      <circle cx="8.3" cy="10.6" r="2.1" fill="#fff" {...stroke} strokeWidth="0.9" />
+      <path d="M4.9 16c.5-1.8 1.9-2.7 3.4-2.7s2.9.9 3.4 2.7z" fill="#fff" />
+      <path d="M14 10h5M14 13.4h3.4" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+export function LeafIcon(props: ColorIconProps) {
+  const g = useGradient("#a5e58a", "#4aa84a");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M20.5 3.5C11 3 4.5 8 4.5 14.5c0 1.6.4 3 1.2 4.2C7 19.5 8.8 20 10.5 20c6.5 0 10.5-6.5 10-16.5z" fill={g.fill} {...stroke} />
+      <path d="M4.5 20.5C8 15 12 11.5 16.5 9" stroke="#fff" strokeOpacity=".8" strokeWidth="1.4" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+export function ShieldIcon(props: ColorIconProps) {
+  const g = useGradient("#ff8aa0", "#e23c5e");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M12 2.5l8 3v6c0 5-3.3 8.6-8 10-4.7-1.4-8-5-8-10v-6z" fill={g.fill} {...stroke} />
+      <path d="M12 6v12.4M7.2 9.2L12 11l4.8-1.8" stroke="#fff" strokeOpacity=".8" strokeWidth="1.3" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+export function TrophyIcon(props: ColorIconProps) {
+  const g = useGradient("#ffe27a", "#f0a21c");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M7 4h10v5.5a5 5 0 01-10 0z" fill={g.fill} {...stroke} />
+      <path d="M7 6H3.8c0 3 1.3 4.6 3.6 4.9M17 6h3.2c0 3-1.3 4.6-3.6 4.9" fill="none" {...stroke} />
+      <path d="M12 14.5V18M8.5 20.5h7M9.5 18h5v2.5h-5z" fill={GOLD_DEEP} {...stroke} />
+      <path d="M9.4 6.2v3" stroke="#fff" strokeOpacity=".8" strokeWidth="1.3" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}

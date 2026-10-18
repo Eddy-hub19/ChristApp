@@ -19,6 +19,7 @@ import { dayStartInZone } from './flock.time';
 const R = FLOCK_CONFIG.rubies;
 
 export type FlockErrorCode =
+  | 'invalid_version'
   | 'invalid_skin'
   | 'skin_free'
   | 'already_owned'
@@ -108,6 +109,7 @@ export class FlockRubiesService {
       rubies: profile?.rubies ?? 0,
       ownedSkins: skins,
       selectedSkin: profile?.selectedSkin ?? 0,
+      whatsNewSeen: profile?.whatsNewSeen ?? 0,
       statsImported: !!profile?.statsImportedAt,
       stats: toStats(profile),
       config: {
@@ -120,6 +122,23 @@ export class FlockRubiesService {
         top1MassThreshold: R.top1MassThreshold,
       },
     };
+  }
+
+  /** Запам'ятовує переглянуту версію «Що нового»: лише вперед (максимум), значення обмежене. */
+  async markWhatsNewSeen(userId: string, version: unknown) {
+    const v =
+      typeof version === 'number' && Number.isFinite(version) && version > 0
+        ? Math.min(1000, Math.floor(version))
+        : 0;
+    if (v === 0) throw fail(BadRequestException, 'invalid_version');
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      await tx.flockProfile.updateMany({
+        where: { userId, whatsNewSeen: { lt: v } },
+        data: { whatsNewSeen: v },
+      });
+    });
+    return { whatsNewSeen: v };
   }
 
   /**

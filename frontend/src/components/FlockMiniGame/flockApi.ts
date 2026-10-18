@@ -7,6 +7,8 @@ export interface FlockMe {
   rubies: number;
   ownedSkins: number[];
   selectedSkin: number;
+  /** Последняя просмотренная версия плашки «Що нового». */
+  whatsNewSeen?: number;
   statsImported: boolean;
   stats: FlockStats;
   config: { skinPrice: number; premiumSkinPrice?: number; freeSkins: number; premiumFrom?: number; totalSkins: number; top1Reward: number; top1MassThreshold: number };
@@ -42,3 +44,5 @@ export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: n
 export const selectFlockSkin = (skin: number) => call<{ ok: true }>("/skin", { method: "PUT", body: JSON.stringify({ skin }) });
 export const importFlockStats = (stats: FlockStats) =>
   call<{ imported: boolean; stats: FlockStats }>("/stats/import", { method: "POST", body: JSON.stringify(stats) });
+export const markWhatsNewSeen = (version: number) =>
+  call<{ whatsNewSeen: number }>("/whats-new", { method: "PUT", body: JSON.stringify({ version }) });
