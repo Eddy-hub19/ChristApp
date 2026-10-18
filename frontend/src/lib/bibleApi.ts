@@ -1,4 +1,5 @@
 import axios from "axios";
+import { canonicalBooks } from "@/lib/bibleBooks";
 
 /** Шлях до нашого Next.js proxy (обходить CORS і дає однакову поведінку SSR/клієнт). */
 function buildProxyUrl(path: string): string {
@@ -59,7 +60,10 @@ export async function fetchBooks(translation: string) {
     return [];
   }
 
-  return data;
+  // Рівно 66 канонічних книг: без девтероканонічних (Synodal/KJV) і зайвих глав.
+  return canonicalBooks(
+    data as Array<{ id: string; chapters: number; name: string; bookid?: number }>,
+  );
 }
 
 // ===== ОТРИМАТИ ГЛАВИ =====

@@ -1,6 +1,6 @@
 import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
-import { BIBLE_BOOKS } from "@/lib/bibleBooks";
+import { BIBLE_BOOKS, canonicalChapterCount } from "@/lib/bibleBooks";
 import {
   BIBLE_SEARCH_MIN_LENGTH,
   matchesQuery,
@@ -52,6 +52,8 @@ async function loadHits(translation: string, q: string): Promise<BibleSearchHit[
   for (const row of res.data as Array<Record<string, unknown>>) {
     const bookId = BOOK_ID_BY_NUM.get(Number(row.book));
     if (!bookId || typeof row.text !== "string") continue;
+    // Додаткові глави (Пс 151, Дан 13–14, Есф 11–16) у списку книг приховані — у пошуку їх теж немає.
+    if (Number(row.chapter) > (canonicalChapterCount(bookId) ?? 0)) continue;
     const text = stripVerseHtml(row.text);
     if (!matchesQuery(text, parsed)) continue;
     hits.push({
