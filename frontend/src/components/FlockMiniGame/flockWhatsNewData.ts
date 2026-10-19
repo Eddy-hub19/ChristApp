@@ -25,9 +25,9 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "ruby",
         text: {
-          ua: "Рубіни: займи 1-е місце з масою 3000 і отримай 10 рубінів",
-          ru: "Рубины: займи 1-е место с массой 3000 и получи 10 рубинов",
-          en: "Rubies: finish 1st with a mass of 3000 and earn 10 rubies",
+          ua: "Рубіни: займи 1-е місце з масою 1500 і отримай 10 рубінів",
+          ru: "Рубины: займи 1-е место с массой 1500 и получи 10 рубинов",
+          en: "Rubies: finish 1st with a mass of 1500 and earn 10 rubies",
         },
       },
       {

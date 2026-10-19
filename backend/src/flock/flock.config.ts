@@ -232,7 +232,7 @@ export const FLOCK_CONFIG = {
   rubies: {
     /** Нагорода за 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
     top1Reward: 10,
-    top1MassThreshold: 3000,
+    top1MassThreshold: 1500,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
     dailyLimit: 100,
     dailyTimeZone: 'Europe/Kyiv',
