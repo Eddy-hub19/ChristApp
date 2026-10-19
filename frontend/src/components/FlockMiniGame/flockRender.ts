@@ -41,10 +41,72 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   double: { color: "#7be08a", icon: "✖2" },
   freeze: { color: "#9fe8ff", icon: "❄" },
   golden: { color: "#ffc93c", icon: "🌟" },
+  scissors: { color: "#ff5c8a", icon: "✂️" },
   boost: { color: "#ff9f43", icon: "🚀" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
 export const BONUS_COLOR: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.color]));
+
+/** Тривалість анімації хвилі «Ножиць» (мс) і кількість клаптиків шерсті. */
+const SCISSORS_WAVE_MS = 900;
+const SCISSORS_TUFTS = 10;
+const SCISSORS_PX = 128;
+let scissorsRingCv: HTMLCanvasElement | null = null;
+/** Кільце хвилі (м'яке світіння по краю): малюється один раз, масштабується під радіус. */
+function scissorsRingSprite() {
+  return (scissorsRingCv ??= sprite("scissors-ring", 256, (c, s) => {
+    const g = c.createRadialGradient(s / 2, s / 2, s * 0.3, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(255,92,138,0)");
+    g.addColorStop(0.8, "rgba(255,92,138,0.28)");
+    g.addColorStop(0.95, "rgba(255,255,255,0.9)");
+    g.addColorStop(1, "rgba(255,92,138,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+  }));
+}
+/** Ножиці (два кадри: розкриті / стулені): два леза навколо шарніра й два кільця-ручки. */
+function scissorsSprite(open: boolean) {
+  return sprite(`scissors-${open ? "o" : "c"}`, SCISSORS_PX, (c, s) => {
+    c.translate(s / 2, s / 2);
+    c.scale(s / 40, s / 40);
+    c.lineJoin = "round";
+    c.lineCap = "round";
+    const spread = open ? 0.42 : 0.06;
+    for (const side of [-1, 1]) {
+      c.save();
+      c.rotate(side * spread);
+      // лезо
+      c.fillStyle = "#dfe6ee";
+      c.strokeStyle = "#2d2438";
+      c.lineWidth = 1.6;
+      c.beginPath();
+      c.moveTo(-side * 0.5, 2);
+      c.lineTo(side * 3.2, -17);
+      c.lineTo(side * 0.6, -17);
+      c.closePath();
+      c.fill();
+      c.stroke();
+      // ручка
+      c.fillStyle = "#ff5c8a";
+      c.beginPath();
+      c.arc(-side * 4.5, 12, 4.6, 0, TAU);
+      c.fill();
+      c.stroke();
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(-side * 4.5, 12, 1.9, 0, TAU);
+      c.fill();
+      c.restore();
+    }
+    c.fillStyle = "#ffd24a";
+    c.strokeStyle = "#2d2438";
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.arc(0, 0, 1.9, 0, TAU);
+    c.fill();
+    c.stroke();
+  });
+}
 
 // ---------- кеш спрайтів (їжа, іконки бонусів) ----------
 const spriteCache = new Map<string, HTMLCanvasElement>();
@@ -92,6 +154,23 @@ function foodSprite(kind: number, dark: boolean) {
       c.fillStyle = "#ffd94a";
       c.beginPath();
       c.arc(0, 0, 5.5, 0, TAU);
+      c.fill();
+    } else if (kind === 3) {
+      // жмут шерсті (клаптик після «Ножиць»): пухнасті хмаринки
+      c.fillStyle = dark ? "#f4f1ea" : "#ffffff";
+      c.strokeStyle = dark ? "#b9b2a4" : "#c9c3b4";
+      c.lineWidth = 2;
+      for (const [dx, dy, r] of [[-6, 2, 8], [6, 2, 8], [0, -5, 8.5], [0, 7, 7]]) {
+        c.beginPath();
+        c.arc(dx, dy, r, 0, TAU);
+        c.fill();
+        c.stroke();
+      }
+      c.beginPath();
+      c.arc(-6, 2, 7, 0, TAU);
+      c.arc(6, 2, 7, 0, TAU);
+      c.arc(0, -5, 7.5, 0, TAU);
+      c.arc(0, 7, 6, 0, TAU);
       c.fill();
     } else {
       // колосок
@@ -157,11 +236,13 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   const far = scale < FAR_SCALE;
   const fsz = Math.max(2 * (m.cfg.foodRadius ?? 8.5), FOOD_MIN_PX / scale);
   const pad = fsz * 1.8;
-  const sprites = [foodSprite(0, theme.dark), foodSprite(1, theme.dark), foodSprite(2, theme.dark)];
+  const sprites = [foodSprite(0, theme.dark), foodSprite(1, theme.dark), foodSprite(2, theme.dark), foodSprite(3, theme.dark)];
   for (const f of m.foods.values()) {
     if (f.x < x0 - pad || f.x > x1 + pad || f.y < y0 - pad || f.y > y1 + pad) continue;
     const s = far ? fsz : fsz * (1 + Math.sin(o.time * 2 + f.id) * 0.06);
-    ctx.drawImage(sprites[f.kind] ?? sprites[0], f.x - s / 2, f.y - s / 2, s, s);
+    // шерсть трохи більша за траву: це зрізана маса, її видно
+    const sz = f.kind === 3 ? s * 1.5 : s;
+    ctx.drawImage(sprites[f.kind] ?? sprites[0], f.x - sz / 2, f.y - sz / 2, sz, sz);
   }
   // кинута маса
   ctx.fillStyle = theme.dark ? "#d8f09a" : "#8ab83a";
@@ -176,6 +257,36 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     const pulse = 1 + Math.sin(o.time * 4 + b.id) * 0.12;
     const sz = BONUS_WORLD_SIZE * pulse;
     ctx.drawImage(bonusFullSprite(b.kind, BONUS_COLOR[b.kind] ?? "#fff", BONUS_ICON[b.kind] ?? "?", theme.dark), b.x - sz / 2, b.y - sz / 2, sz, sz);
+  }
+
+  // хвилі «Ножиць»: кільце, що розходиться, ножиці, що клацають, і клаптики шерсті, що розлітаються
+  for (let i = m.scissorsWaves.length - 1; i >= 0; i--) {
+    const w = m.scissorsWaves[i];
+    const k = (m.localNow - w.t0) / SCISSORS_WAVE_MS;
+    if (k >= 1) {
+      m.scissorsWaves.splice(i, 1);
+      continue;
+    }
+    if (k < 0 || w.x < x0 - w.r || w.x > x1 + w.r || w.y < y0 - w.r || w.y > y1 + w.r) continue;
+    const ease = 1 - (1 - k) * (1 - k);
+    const rr = w.r * ease;
+    ctx.globalAlpha = (1 - k) * 0.9;
+    ctx.drawImage(scissorsRingSprite(), w.x - rr, w.y - rr, rr * 2, rr * 2);
+    // клацання: 3 рази відкрито-закрито за перші ~70% анімації
+    const open = k < 0.7 && Math.floor(k * 6) % 2 === 0;
+    const ss = Math.min(w.r * 0.7, 150) * (0.8 + 0.4 * Math.min(1, k * 4));
+    ctx.globalAlpha = Math.min(1, (1 - k) * 2);
+    ctx.drawImage(scissorsSprite(open), w.x - ss / 2, w.y - ss / 2, ss, ss);
+    // клаптики: фіксовані кути, летять до краю хвилі й гаснуть
+    const tuft = foodSprite(3, theme.dark);
+    const ts = Math.max(18, w.r * 0.12);
+    ctx.globalAlpha = 1 - k;
+    for (let j = 0; j < SCISSORS_TUFTS; j++) {
+      const a = (j / SCISSORS_TUFTS) * TAU + j * 0.7;
+      const d = w.r * (0.25 + 0.75 * ease) * (0.7 + 0.3 * ((j * 37) % 10) / 10);
+      ctx.drawImage(tuft, w.x + Math.cos(a) * d - ts / 2, w.y + Math.sin(a) * d - ts / 2 - k * 20, ts, ts);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // зірки «Зорепаду»: на землі спершу тінь-мітка, потім зірка падає зверху (кешовані спрайти, без обчислень форми)

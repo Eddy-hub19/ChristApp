@@ -77,6 +77,13 @@ export interface RFood {
   y: number;
   kind: number;
 }
+/** Хвиля «Ножиць» для анімації: t0 - локальний час появи (performance.now). */
+export interface RScissorsWave {
+  x: number;
+  y: number;
+  r: number;
+  t0: number;
+}
 export interface RBlob {
   id: number;
   x: number;
@@ -127,6 +134,8 @@ export class FlockModel {
   /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
   readonly stars = new Map<number, RStar>();
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
+  /** Активні хвилі «Ножиць» (анімація ~SCISSORS_WAVE_MS, потім прибираються при малюванні). */
+  readonly scissorsWaves: RScissorsWave[] = [];
   effects: ActiveEffect[] = [];
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
   readonly pausedUntil = new Map<number, number>();
@@ -330,6 +339,19 @@ export class FlockModel {
       else if (e[0] === 2) this.stars.delete(e[1]);
     }
     return started;
+  }
+
+  /**
+   * Подія «Ножиць» ({x, y, r, t: хто підібрав, v: кого підстригло}): додає хвилю для анімації.
+   * Повертає, чи ми той, хто підібрав, чи нас підстригли, і скільки гравців зачепило.
+   */
+  applyScissors(msg: unknown, recvMs: number = this.localNow): { taker: boolean; victim: boolean; count: number } | null {
+    const e = msg as { x?: number; y?: number; r?: number; t?: number; v?: number[] } | null;
+    if (!e || typeof e.x !== "number" || typeof e.y !== "number" || typeof e.r !== "number") return null;
+    if (this.scissorsWaves.length >= 8) this.scissorsWaves.shift();
+    this.scissorsWaves.push({ x: e.x, y: e.y, r: e.r, t0: recvMs });
+    const victims = Array.isArray(e.v) ? e.v : [];
+    return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length };
   }
 
   applyBoard(pkt: ArrayBuffer | Uint8Array) {

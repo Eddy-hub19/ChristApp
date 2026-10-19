@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -104,6 +104,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Більше їжі на карті",
           ru: "Больше еды на карте",
           en: "More food on the map",
+        },
+      },
+    ],
+  },
+  {
+    version: 4,
+    date: "2026-10-20",
+    items: [
+      {
+        icon: "scissors",
+        text: {
+          ua: "Ножиці: стрижуть навколо тебе всіх, у кого більше 500 маси, наполовину",
+          ru: "Ножницы: стригут вокруг тебя всех, у кого больше 500 массы, наполовину",
+          en: "Scissors: shear everyone around you with more than 500 mass in half",
         },
       },
     ],

@@ -58,6 +58,8 @@ export interface FlockClientOptions {
   onReward?: (reward: RewardInfo) => void;
   /** Стартувала подія «Зорепад»: показати напис. */
   onZorepad?: () => void;
+  /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
+  onScissors?: (r: { taker: boolean; victim: boolean; count: number }) => void;
 }
 
 type Sock = ReturnType<typeof createSocket>;
@@ -217,6 +219,13 @@ export class FlockClient {
       this.later(() => {
         if (!this.model) return;
         if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
+      });
+    });
+    socket.on("sc", (msg: unknown) => {
+      this.later(() => {
+        if (!this.model) return;
+        const r = this.model.applyScissors(msg, performance.now());
+        if (r && (r.taker || r.victim)) this.opts.onScissors?.(r);
       });
     });
     socket.on("r", (r: RewardInfo) => {
