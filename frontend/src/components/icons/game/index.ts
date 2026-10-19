@@ -11,6 +11,7 @@ export {
   SnowflakeIcon,
   BoltIcon,
   NameTagIcon,
+  ScissorsIcon,
   LeafIcon,
   ShieldIcon,
   TrophyIcon,

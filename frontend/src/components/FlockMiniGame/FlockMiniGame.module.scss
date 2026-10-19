@@ -722,3 +722,25 @@
 .skinSpecial.skinActive {
   border-color: var(--accent);
 }
+
+.scissorsBanner {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  z-index: 6;
+  width: max-content;
+  max-width: 92vw;
+  text-align: center;
+  pointer-events: none;
+  font-size: 30px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 14px rgba(255, 60, 120, 0.95), 0 0 3px rgba(0, 0, 0, 0.7);
+  animation: zorepadPop 2.2s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scissorsBanner {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}

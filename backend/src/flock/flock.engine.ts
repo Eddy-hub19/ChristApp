@@ -132,11 +132,15 @@ export interface Player {
   brain?: unknown;
 }
 
+/** Вид їжі-шерсті (клаптики після «Ножиць»): малюється окремим спрайтом. */
+export const FOOD_KIND_WOOL = 3;
 export interface Food {
   id: number;
   x: number;
   y: number;
   kind: number;
+  /** Своя маса (для шерсті після «Ножиць»); без неї - стандартна foodMass. */
+  mass?: number;
 }
 export interface Thorn {
   id: number;
@@ -184,10 +188,22 @@ export interface FoodEvent {
   oldChunk: number;
 }
 
+/** Подія «Ножиць» для клієнтів: де спрацювало, радіус, хто підібрав і кого підстригло. */
+export interface ScissorsEvent {
+  x: number;
+  y: number;
+  r: number;
+  taker: number;
+  victims: number[];
+}
+
 export interface DeathEvent {
   pid: number;
   killerPid: number;
 }
+
+/** Бонуси, що з'являються як звичайні (без рідкісних «Ножиць»: їх спавнить окремий шанс). */
+const REGULAR_BONUS_KINDS = BONUS_KINDS.filter((k) => k !== 'scissors');
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
 export const speedOf = (mass: number) =>
@@ -216,6 +232,7 @@ export class FlockWorld {
   /** «Зорепад»: зірки на арені й події цього тіку (очищаються щотіку, як foodEvents). */
   readonly stars: Star[] = [];
   readonly starEvents: StarEvent[] = [];
+  readonly scissorsEvents: ScissorsEvent[] = [];
   private zActive = false;
   private zUntil = 0;
   private zNextSpawnAt = 0;
@@ -446,6 +463,17 @@ export class FlockWorld {
     this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
   }
 
+  /** Додає їжу в задану точку (шерсть після «Ножиць»): ті самі події, що й у звичайної їжі. */
+  private addFoodAt(x: number, y: number, kind: number, mass?: number) {
+    const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
+    this.nextFoodId = id + 1;
+    const food: Food = { id, x, y, kind, mass };
+    this.foodById.set(id, food);
+    const chunk = chunkIndexOf(x, y);
+    this.foodChunks[chunk].set(id, food);
+    this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
+  }
+
   private removeFood(food: Food) {
     this.foodById.delete(food.id);
     const chunk = chunkIndexOf(food.x, food.y);
@@ -459,11 +487,18 @@ export class FlockWorld {
       this.bonuses.some((b) => b.id === i),
     );
     this.nextBonusId = id + 1;
+    // «Ножиці» рідкісні: окремий шанс, і не більше одних на полі
+    const scissors =
+      !this.bonuses.some((b) => b.kind === 'scissors') &&
+      this.rng() < C.scissors.spawnChance;
+    const kind = scissors
+      ? 'scissors'
+      : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
     this.bonuses.push({
       id,
       x: this.rand(120, C.worldSize - 120),
       y: this.rand(120, C.worldSize - 120),
-      kind: BONUS_KINDS[Math.floor(this.rng() * BONUS_KINDS.length)],
+      kind,
     });
   }
 
@@ -510,6 +545,7 @@ export class FlockWorld {
     this.tickNo++;
     this.foodEvents.length = 0;
     this.starEvents.length = 0;
+    this.scissorsEvents.length = 0;
     this.deaths.length = 0;
     const nowMs = this.now;
 
@@ -799,7 +835,7 @@ export class FlockWorld {
   private stepFood() {
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || this.isGhost(p)) continue;
-      const gain = C.foodMass * (this.hasEffect(p, 'double') ? 2 : 1);
+      const base = C.foodMass * (this.hasEffect(p, 'double') ? 2 : 1);
       for (const c of p.cells) {
         // підбір за візуальним дотиком: край клітини торкається спрайта їжі (foodReach), а не лише центр усередині
         const reach = radiusOf(c.mass) + FOOD_REACH;
@@ -810,7 +846,8 @@ export class FlockWorld {
         for (const f of EAT) {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
-          c.mass += gain;
+          // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
+          c.mass += f.mass ?? base;
         }
       }
     }
@@ -884,6 +921,10 @@ export class FlockWorld {
       big.mass += Math.max(C.goldenMinMass, big.mass * C.goldenMassFraction);
       return;
     }
+    if (kind === 'scissors') {
+      this.applyScissors(p, cell);
+      return;
+    }
     if (kind === 'freeze') {
       const near: { p: Player; d: number }[] = [];
       for (const o of this.players.values()) {
@@ -899,6 +940,59 @@ export class FlockWorld {
       return;
     }
     p.effects[kind] = this.now + C.bonusDurations[kind];
+  }
+
+  /** «Ножиці»: хвиля навколо клітини, що підібрала бонус; подробиці правил - у C.scissors. */
+  private applyScissors(taker: Player, cell: Cell) {
+    const S = C.scissors;
+    const R = Math.max(S.minRadius, radiusOf(cell.mass) * S.radiusMul);
+    const victims: number[] = [];
+    for (const o of this.players.values()) {
+      if (o === taker || !o.alive) continue;
+      if (S.immunePaused && o.paused) continue;
+      if (S.immuneShield && this.isShielded(o)) continue;
+      if (this.now - o.spawnedAt < S.newbieImmuneMs) continue;
+      let total = 0;
+      for (const c of o.cells) total += c.mass;
+      if (total <= S.massThreshold) continue;
+      const hit = o.cells.filter(
+        (c) => Math.hypot(c.x - cell.x, c.y - cell.y) <= R,
+      );
+      if (!hit.length) continue;
+      // нижче minMassAfter не опускаємо: якщо половини забагато, зменшуємо зріз пропорційно
+      let want = 0;
+      for (const c of hit) want += c.mass * S.cutFraction;
+      const allowed = Math.max(0, total - S.minMassAfter);
+      const k = want > allowed ? allowed / want : 1;
+      if (k <= 0) continue;
+      for (const c of hit) {
+        const cut = c.mass * S.cutFraction * k;
+        c.mass -= cut;
+        this.scatterWool(c.x, c.y, radiusOf(c.mass + cut) * S.woolScatter, cut);
+      }
+      victims.push(o.id);
+    }
+    this.scissorsEvents.push({
+      x: Math.round(cell.x),
+      y: Math.round(cell.y),
+      r: Math.round(R),
+      taker: taker.id,
+      victims,
+    });
+  }
+
+  /** Розсипає зрізану масу жмутами шерсті навколо точки (маса зберігається повністю). */
+  private scatterWool(x: number, y: number, spread: number, mass: number) {
+    const S = C.scissors;
+    const n = Math.max(1, Math.min(S.woolMaxPieces, Math.ceil(mass / S.woolPieceMass)));
+    const each = mass / n;
+    for (let i = 0; i < n; i++) {
+      const a = this.rng() * TWO_PI;
+      const d = Math.sqrt(this.rng()) * spread;
+      const fx = Math.min(C.worldSize - 20, Math.max(20, x + Math.cos(a) * d));
+      const fy = Math.min(C.worldSize - 20, Math.max(20, y + Math.sin(a) * d));
+      this.addFoodAt(fx, fy, FOOD_KIND_WOOL, each);
+    }
   }
 
   // ---------- «Зорепад» ----------

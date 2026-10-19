@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ShieldIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
+import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
 import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang } from "./flockWhatsNewData";
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
@@ -18,6 +18,7 @@ const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   skins: (p) => <FlockIcon {...p} />,
   freeze: (p) => <SnowflakeIcon {...p} />,
   boost: (p) => <BoltIcon {...p} />,
+  scissors: (p) => <ScissorsIcon {...p} />,
   names: (p) => <NameTagIcon {...p} />,
   leaf: (p) => <LeafIcon {...p} />,
   shield: (p) => <ShieldIcon {...p} />,

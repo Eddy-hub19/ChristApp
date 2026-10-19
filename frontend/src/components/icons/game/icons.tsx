@@ -201,6 +201,21 @@ export function BoltIcon(props: ColorIconProps) {
   );
 }
 
+export function ScissorsIcon(props: ColorIconProps) {
+  const g = useGradient("#ff9ab8", "#ff4f86");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M9.6 12.6L18.6 3.4" stroke="#e3eaf2" strokeWidth="3" strokeLinecap="round" />
+      <path d="M14.4 12.6L5.4 3.4" stroke="#c4cfdb" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="7.4" cy="17.6" r="3.6" fill={g.fill} {...stroke} />
+      <circle cx="16.6" cy="17.6" r="3.6" fill={g.fill} {...stroke} />
+      <circle cx="7.4" cy="17.6" r="1.4" fill="#fff" />
+      <circle cx="16.6" cy="17.6" r="1.4" fill="#fff" />
+    </ColorIconSvg>
+  );
+}
+
 export function NameTagIcon(props: ColorIconProps) {
   const g = useGradient("#9be3a0", "#4fb862");
   return (

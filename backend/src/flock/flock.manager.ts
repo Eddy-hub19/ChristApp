@@ -417,12 +417,21 @@ class Arena {
     }
     // «Зорепад»: події (старт / зірка з'явилась / з'їдена) - одним малим повідомленням усім, без потоку позицій.
     const starMsg = w.starEvents.length ? { e: w.starEvents } : null;
+    // «Ножиці»: усім - анімація хвилі; клієнт сам вирішує, чи він серед постраждалих
+    const scissorsMsgs = w.scissorsEvents.map((e) => ({
+      x: e.x,
+      y: e.y,
+      r: e.r,
+      t: e.taker,
+      v: e.victims,
+    }));
     for (const s of this.sessions.values()) {
       const key = s.connKey;
       if (!key) continue; // у паузі: нікуди слати
       const p = w.players.get(s.pid);
       if (!p) continue;
       if (starMsg) send(key, 'z', starMsg);
+      for (const m of scissorsMsgs) send(key, 'sc', m);
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
         send(key, 'd', {

@@ -1116,7 +1116,9 @@
       "nobody": "nobody"
     },
     "events": {
-      "zorepad": "Starfall!"
+      "zorepad": "Starfall!",
+      "scissorsTaker": "Scissors! Sheared: {count}",
+      "scissorsVictim": "You got a haircut!"
     },
     "status": {
       "full": "The arena is full, try again in a bit",
@@ -1136,7 +1138,8 @@
       "double": "Double mass",
       "freeze": "Freeze",
       "golden": "Golden fleece",
-      "boost": "Boost"
+      "boost": "Boost",
+      "scissors": "Scissors"
     },
     "skins": {
       "0": "White sheep",

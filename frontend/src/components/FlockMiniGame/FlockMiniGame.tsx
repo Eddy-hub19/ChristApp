@@ -148,6 +148,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [buyError, setBuyError] = useState<string | null>(null);
   /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
   const [zorepad, setZorepad] = useState<number | null>(null);
+  const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
@@ -264,6 +265,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onNotice: setNotice,
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
+        onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count }),
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
           setMe((m) => (m ? { ...m, rubies: r.balance } : m));
@@ -301,6 +303,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const id = setTimeout(() => setZorepad(null), 2600);
     return () => clearTimeout(id);
   }, [zorepad]);
+
+  useEffect(() => {
+    if (scissorsMsg === null) return;
+    const id = setTimeout(() => setScissorsMsg(null), 2200);
+    return () => clearTimeout(id);
+  }, [scissorsMsg]);
 
   // «+10»: підпис і анімація зникають самі
   useEffect(() => {
@@ -634,6 +642,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {zorepad !== null ? (
             <div key={zorepad} className={styles.zorepadBanner} role="status">
               {t("events.zorepad")}
+            </div>
+          ) : null}
+          {scissorsMsg ? (
+            <div key={scissorsMsg.id} className={styles.scissorsBanner} role="status">
+              {scissorsMsg.taker ? t("events.scissorsTaker", { count: scissorsMsg.count }) : t("events.scissorsVictim")}
             </div>
           ) : null}
           {reward ? (
