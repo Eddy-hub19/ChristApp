@@ -10,7 +10,7 @@ import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MessagesService } from 'src/messages/messages.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
-import { AsyncLimiter } from './async-limiter';
+import { AsyncLimiter, mapWithConcurrency } from './async-limiter';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
@@ -55,6 +55,9 @@ type PushSubscriptionRecord = {
   p256dh: string;
   auth: string;
 };
+
+/** Сколько пушей чата отправляется одновременно (остальные ждут): не блокируем event loop, где тикает «Отара». */
+const CHAT_PUSH_CONCURRENCY = 8;
 
 @Injectable()
 export class PushService implements OnModuleDestroy {
@@ -334,8 +337,10 @@ export class PushService implements OnModuleDestroy {
       this.logger.warn(`Не удалось посчитать badge для push: ${reason}`);
     }
 
-    const results = await Promise.all(
-      subscriptions.map((subscription) => {
+    const results = await mapWithConcurrency(
+      subscriptions,
+      CHAT_PUSH_CONCURRENCY,
+      (subscription) => {
         const { title, body } = buildPushDisplay({
           kind: roomKind,
           senderName: input.senderUsername,
@@ -363,7 +368,7 @@ export class PushService implements OnModuleDestroy {
           },
           'chat',
         );
-      }),
+      },
     );
     this.logger.log(
       summarizeDispatch(

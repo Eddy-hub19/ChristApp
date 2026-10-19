@@ -22,3 +22,28 @@ export class AsyncLimiter {
     }
   }
 }
+
+/**
+ * Как `Promise.all(items.map(fn))`, но не больше `limit` задач одновременно (порядок результатов сохраняется).
+ * Для рассылки пушей: шифрование и TLS-рукопожатия для сотен устройств разом блокируют event loop на десятки
+ * миллисекунд (замер: 150 устройств ≈ 60 мс подряд), а игровой тик «Отары» живёт в том же процессе и опаздывает.
+ * С ограничением работа идёт короткими порциями, между которыми event loop успевает обработать таймеры.
+ */
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker),
+  );
+  return results;
+}
