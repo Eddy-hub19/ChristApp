@@ -657,6 +657,48 @@
   }
 }
 
+.zorepadBanner {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  z-index: 6;
+  width: max-content;
+  max-width: 92vw;
+  text-align: center;
+  pointer-events: none;
+  font-size: 40px;
+  font-weight: 800;
+  color: #fff3a8;
+  text-shadow: 0 2px 16px rgba(255, 170, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.7);
+  animation: zorepadPop 2.6s ease-out forwards;
+}
+@keyframes zorepadPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.6);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.15);
+  }
+  24% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zorepadBanner {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}
+
 /* --- преміум-ряд скінів --- */
 .premiumTitle {
   color: color-mix(in srgb, #d9a21b 85%, var(--foreground));

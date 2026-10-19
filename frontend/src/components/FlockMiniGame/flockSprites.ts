@@ -193,6 +193,70 @@ export function bonusFullSprite(kind: string, color: string, icon: string, dark:
 /** Сторона спрайта бонуса у світових одиницях (було 100, тепер x1.2: диск і свічення ростуть разом зі спрайтом). */
 export const BONUS_WORLD_SIZE = 120;
 
+// ---------- зірки «Зорепаду» ----------
+const STAR_PX = 192;
+let starCv: HTMLCanvasElement | null = null;
+let starShadowCv: HTMLCanvasElement | null = null;
+/** Піврозмір зірки у світових одиницях (клітина стартової маси має радіус ~20). */
+export const STAR_WORLD_R = 46;
+/** Спрайт зірки: золота п'ятикутна зірка зі світінням, один раз у кеші. */
+export function starSprite() {
+  if (starCv) return starCv;
+  const cv = makeCanvas(STAR_PX, STAR_PX);
+  const c = cv.getContext("2d");
+  if (c) {
+    const m = STAR_PX / 2;
+    const glow = c.createRadialGradient(m, m, 0, m, m, m);
+    glow.addColorStop(0, "rgba(255,240,150,0.95)");
+    glow.addColorStop(0.45, "rgba(255,214,90,0.35)");
+    glow.addColorStop(1, "rgba(255,214,90,0)");
+    c.fillStyle = glow;
+    c.fillRect(0, 0, STAR_PX, STAR_PX);
+    c.translate(m, m);
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i / 10) * TAU;
+      const r = i % 2 === 0 ? m * 0.62 : m * 0.26;
+      c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    c.closePath();
+    const g = c.createLinearGradient(0, -m * 0.6, 0, m * 0.5);
+    g.addColorStop(0, "#fff3a8");
+    g.addColorStop(1, "#ffb81c");
+    c.fillStyle = g;
+    c.fill();
+    c.lineJoin = "round";
+    c.lineWidth = 4;
+    c.strokeStyle = "#e08a00";
+    c.stroke();
+  }
+  starCv = cv;
+  return cv;
+}
+/** Тінь-мітка на землі там, де приземлиться зірка. */
+export function starShadowSprite() {
+  if (starShadowCv) return starShadowCv;
+  const cv = makeCanvas(STAR_PX, STAR_PX);
+  const c = cv.getContext("2d");
+  if (c) {
+    const m = STAR_PX / 2;
+    const g = c.createRadialGradient(m, m, m * 0.1, m, m, m * 0.95);
+    g.addColorStop(0, "rgba(0,0,0,0.55)");
+    g.addColorStop(0.7, "rgba(0,0,0,0.3)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, STAR_PX, STAR_PX);
+    c.strokeStyle = "rgba(255,230,120,0.9)";
+    c.lineWidth = 5;
+    c.setLineDash([14, 10]);
+    c.beginPath();
+    c.arc(m, m, m * 0.72, 0, TAU);
+    c.stroke();
+  }
+  starShadowCv = cv;
+  return cv;
+}
+
 // ---------- кущі ----------
 let thornCv: HTMLCanvasElement | null = null;
 const THORN_PX = 256;
@@ -404,5 +468,7 @@ export function clearSpriteCaches() {
   digitAtlas.clear();
   bonusCache.clear();
   thornCv = null;
+  starCv = null;
+  starShadowCv = null;
   tile = null;
 }

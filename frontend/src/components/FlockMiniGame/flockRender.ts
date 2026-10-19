@@ -2,7 +2,7 @@ import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
 import { mapTheme } from "./flockMaps";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, thornSprite } from "./flockSprites";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -27,6 +27,8 @@ const TAU = Math.PI * 2;
 const FAR_SCALE = 0.4;
 /** Мінімальний розмір їжі на екрані (CSS px): на дальній камері вона лишається помітною. */
 const FOOD_MIN_PX = 7;
+/** З якої висоти (світові одиниці) падає зірка «Зорепаду». */
+const STAR_FALL_H = 1000;
 const VISIBLE: RCell[] = [];
 const byMass = (a: RCell, b: RCell) => a.mass - b.mass;
 /** Клітини легші за цю масу ховаються під кущем (кущ малюється поверх них). */
@@ -174,6 +176,26 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     const pulse = 1 + Math.sin(o.time * 4 + b.id) * 0.12;
     const sz = BONUS_WORLD_SIZE * pulse;
     ctx.drawImage(bonusFullSprite(b.kind, BONUS_COLOR[b.kind] ?? "#fff", BONUS_ICON[b.kind] ?? "?", theme.dark), b.x - sz / 2, b.y - sz / 2, sz, sz);
+  }
+
+  // зірки «Зорепаду»: на землі спершу тінь-мітка, потім зірка падає зверху (кешовані спрайти, без обчислень форми)
+  for (const s of m.stars.values()) {
+    const R = STAR_WORLD_R;
+    if (s.x < x0 - R * 2 || s.x > x1 + R * 2 || s.y < y0 - STAR_FALL_H - R * 2 || s.y > y1 + R * 2) continue;
+    const k = (m.localNow - s.t0) / s.fall;
+    if (k < 1) {
+      const p = Math.max(0, k);
+      const sh = R * (0.55 + 0.75 * p);
+      ctx.globalAlpha = 0.35 + 0.65 * p;
+      ctx.drawImage(starShadowSprite(), s.x - sh * 1.15, s.y - sh * 1.15, sh * 2.3, sh * 2.3);
+      const rise = STAR_FALL_H * (1 - p) * (1 - p);
+      ctx.globalAlpha = Math.min(1, p * 4);
+      ctx.drawImage(starSprite(), s.x - R * 1.6, s.y - rise - R * 1.6, R * 3.2, R * 3.2);
+      ctx.globalAlpha = 1;
+    } else {
+      const sz = R * 3.2 * (1 + Math.sin(o.time * 5 + s.id) * 0.06);
+      ctx.drawImage(starSprite(), s.x - sz / 2, s.y - sz / 2, sz, sz);
+    }
   }
 
   // клітини: малі - під кущами (масиви перевикористовуємо - без виділення памʼяті щокадру)

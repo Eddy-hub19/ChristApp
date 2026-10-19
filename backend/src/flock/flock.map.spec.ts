@@ -31,12 +31,12 @@ describe('Карта: размер и еда', () => {
     expect(CHUNKS_PER_SIDE).toBe(Math.ceil(C.worldSize / C.chunkSize));
   });
 
-  it('еда крупнее в 1.5 раза, плотность та же, что на карте 4000 (700 на 4000²)', () => {
+  it('еда крупнее в 1.5 раза, плотность на 30-40% выше, чем на карте 4000 (700 на 4000²)', () => {
     expect(C.foodRadius / 8.5).toBeCloseTo(1.5, 5);
     const before = 700 / 4000 ** 2;
     const after = C.maxFood / C.worldSize ** 2;
-    expect(after / before).toBeGreaterThan(0.98);
-    expect(after / before).toBeLessThan(1.03);
+    expect(after / before).toBeGreaterThan(1.3);
+    expect(after / before).toBeLessThan(1.4);
   });
 
   describe('радиус подбора еды', () => {

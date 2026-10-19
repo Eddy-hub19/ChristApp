@@ -1114,6 +1114,9 @@
       "ate": "Eaten",
       "nobody": "nobody"
     },
+    "events": {
+      "zorepad": "Starfall!"
+    },
     "status": {
       "full": "The arena is full, try again in a bit",
       "afk": "You were disconnected for inactivity",
