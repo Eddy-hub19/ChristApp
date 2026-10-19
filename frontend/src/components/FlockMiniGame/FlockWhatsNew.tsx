@@ -10,6 +10,11 @@ import styles from "./FlockWhatsNew.module.scss";
 
 const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   ruby: (p) => <RubyIcon {...p} />,
+  star: (p) => (
+    <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.3 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" fill="#ffc93c" stroke="#e08a00" strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  ),
   skins: (p) => <FlockIcon {...p} />,
   freeze: (p) => <SnowflakeIcon {...p} />,
   boost: (p) => <BoltIcon {...p} />,

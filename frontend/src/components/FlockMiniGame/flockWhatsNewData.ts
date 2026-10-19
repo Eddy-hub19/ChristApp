@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -71,9 +71,39 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "skins",
         text: {
-          ua: "8 нових особливих скінів по 40 рубінів: кришталева, кактус, грибок, лавова, галактична, грозова, робот і суші",
-          ru: "8 новых особенных скинов по 40 рубинов: хрустальная, кактус, грибок, лавовая, галактическая, грозовая, робот и суши",
-          en: "8 new special skins for 40 rubies each: crystal, cactus, mushroom, lava, galaxy, storm, robot and sushi",
+          ua: "6 нових особливих скінів по 40 рубінів: кришталева, кактус, лавова, галактична, грозова і суші",
+          ru: "6 новых особенных скинов по 40 рубинов: хрустальная, кактус, лавовая, галактическая, грозовая и суши",
+          en: "6 new special skins for 40 rubies each: crystal, cactus, lava, galaxy, storm and sushi",
+        },
+      },
+    ],
+  },
+  {
+    version: 3,
+    date: "2026-10-20",
+    items: [
+      {
+        icon: "ruby",
+        text: {
+          ua: "Рубіни тепер за 1500 маси",
+          ru: "Рубины теперь за 1500 массы",
+          en: "Rubies are now earned at 1500 mass",
+        },
+      },
+      {
+        icon: "star",
+        text: {
+          ua: "Зорепад: коли хтось досягає 1000, з неба падають зірки",
+          ru: "Зорепад: когда кто-то достигает 1000, с неба падают звёзды",
+          en: "Starfall: when someone reaches 1000, stars fall from the sky",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "Більше їжі на карті",
+          ru: "Больше еды на карте",
+          en: "More food on the map",
         },
       },
     ],
