@@ -175,6 +175,54 @@ describe('PushService', () => {
     expect(firstPayload.badgeCount).toBe(2);
   });
 
+  it('flock invite in global chat goes only to users who have a flock profile', async () => {
+    prisma.user.findMany.mockResolvedValue([{ id: 'u2' }]);
+    prisma.room.findUnique.mockResolvedValue({ title: 'global-chat' });
+    prisma.pushSubscription.findMany.mockResolvedValue([]);
+
+    await service.sendChatMessagePush({
+      messageId: 'msg-flock-1',
+      roomId: GLOBAL_ROOM,
+      senderId: 'u1',
+      senderUsername: 'sender',
+      content: '[[flock-invite:7]]',
+      createdAt: new Date('2026-03-13T10:00:00.000Z'),
+    });
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { not: 'u1' },
+        isActive: true,
+        flockProfile: { isNot: null },
+      },
+      select: { id: true },
+    });
+  });
+
+  it('flock invite in a group room filters members by flock profile; ordinary text does not', async () => {
+    prisma.roomMember.findMany.mockResolvedValue([]);
+    prisma.room.findUnique.mockResolvedValue({ title: 'group' });
+    const send = (content: string) =>
+      service.sendChatMessagePush({
+        messageId: 'm',
+        roomId: 'room-g',
+        senderId: 'u1',
+        senderUsername: 'sender',
+        content,
+        createdAt: new Date('2026-03-13T10:00:00.000Z'),
+      });
+
+    await send('[[flock-invite:7]]');
+    expect(prisma.roomMember.findMany.mock.calls[0][0].where.user).toEqual({
+      flockProfile: { isNot: null },
+    });
+
+    await send('привет, го в Отару');
+    expect(prisma.roomMember.findMany.mock.calls[1][0].where).not.toHaveProperty(
+      'user',
+    );
+  });
+
   it('sends direct message push only to recipient without duplicates', async () => {
     prisma.roomMember.findMany.mockResolvedValue([
       { userId: 'u2' },

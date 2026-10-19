@@ -23,7 +23,12 @@ import {
   type PushKind,
   type PushSendResult,
 } from './push-delivery';
-import { buildPushDisplay, pushMessageText, truncatePushText } from './push-text';
+import {
+  buildPushDisplay,
+  isFlockInvitePush,
+  pushMessageText,
+  truncatePushText,
+} from './push-text';
 
 type ChatPushNotificationInput = {
   messageId: string;
@@ -273,9 +278,12 @@ export class PushService implements OnModuleDestroy {
       return;
     }
 
+    // Приглашение в «Отару» шлём только тем, кто уже открывал игру (есть игровой профиль): остальным оно не нужно,
+    // а для Global это ещё и меньше подписок, бейджей и отправок.
     const { recipientUserIds, roomTitle } = await this.resolveRecipientUserIds(
       input.roomId,
       input.senderId,
+      isFlockInvitePush(input.content),
     );
 
     // Пуш не шлемо ЛИШЕ тим, хто просто зараз дивиться цей чат (застосунок видимий, кімната на екрані).
@@ -370,7 +378,11 @@ export class PushService implements OnModuleDestroy {
   private async resolveRecipientUserIds(
     roomId: string,
     senderId: string,
+    flockPlayersOnly = false,
   ): Promise<{ recipientUserIds: string[]; roomTitle: string | null }> {
+    const playedFlock = flockPlayersOnly
+      ? { flockProfile: { isNot: null } }
+      : {};
     if (roomId === this.GLOBAL_ROOM) {
       const users = await this.prisma.user.findMany({
         where: {
@@ -378,6 +390,7 @@ export class PushService implements OnModuleDestroy {
             not: senderId,
           },
           isActive: true,
+          ...playedFlock,
         },
         select: {
           id: true,
@@ -402,6 +415,7 @@ export class PushService implements OnModuleDestroy {
         userId: {
           not: senderId,
         },
+        ...(flockPlayersOnly ? { user: playedFlock } : {}),
       },
       select: {
         userId: true,
