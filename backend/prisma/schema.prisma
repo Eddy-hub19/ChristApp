@@ -318,6 +318,8 @@ model FlockProfile {
   selectedSkin    Int       @default(0)
   /// Остання переглянута версія плашки «Що нового» (щоб не показувати повторно на іншому пристрої).
   whatsNewSeen    Int       @default(0)
+  /// Коли гравець отримав разовий бонус за перший вхід у гру (null - ще ні).
+  entryBonusAt    DateTime?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -325,6 +327,7 @@ enum RubyReason {
   ARENA_TOP1
   SKIN_PURCHASE
   ADMIN_ADJUST
+  ENTRY_BONUS
 }
 
 /// Журнал рубінів: тільки додавання рядків.

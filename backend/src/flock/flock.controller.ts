@@ -23,8 +23,12 @@ export class FlockController {
   }
 
   @Get('me')
-  me(@Req() req: Request) {
-    return this.rubies.getMe(this.uid(req));
+  async me(@Req() req: Request) {
+    const userId = this.uid(req);
+    // відкриття гри = перший запит профілю: тут же нараховуємо разовий бонус (баланс у відповіді вже з ним)
+    const bonus = await this.rubies.claimEntryBonus(userId);
+    const me = await this.rubies.getMe(userId);
+    return bonus ? { ...me, entryBonus: bonus.amount } : me;
   }
 
   @Post('skins/:id/buy')

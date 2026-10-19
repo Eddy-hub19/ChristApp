@@ -154,6 +154,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [isTouch, setIsTouch] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<FlockNotice>(null);
+  /** Разовый бонус за первый вход (показывается один раз в лобби). */
+  const [entryBonus, setEntryBonus] = useState(0);
   const [reconnectLeft, setReconnectLeft] = useState(0);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcedRef = useRef(false);
@@ -210,6 +212,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         }
       }
       setMe(data);
+      if (data.entryBonus) setEntryBonus(data.entryBonus);
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
       setSkin((cur) => (isPaidSkin(cur) && !data.ownedSkins.includes(cur) ? 0 : cur));
@@ -852,6 +855,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             </dl>
 
+            {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
             {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
