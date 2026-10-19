@@ -39,11 +39,15 @@ d('FlockRubiesService (БД)', () => {
   const giveRubies = (actor: string, user: string, amount: number) =>
     svc.adminAdjust(actor, user, amount, 'test');
 
-  // Скриті скіни (HIDDEN_SKINS) купити не можна: тести цін преміуму відкривають їх на час тесту.
+  // Скриті скіни (HIDDEN_SKINS) купити не можна. Зараз скритих нема (анімовані повернули), тож тести механізму
+  // приховування ховають преміум-скіни на час тесту, а тести цін - відкривають усе.
   const hidden = HIDDEN_SKINS as number[];
   const hiddenSaved = [...hidden];
   const openSkins = () => {
     hidden.length = 0;
+  };
+  const hideSkins = () => {
+    hidden.splice(0, hidden.length, 18, 19, 20, 21, 22, 23);
   };
   afterEach(() => {
     hidden.splice(0, hidden.length, ...hiddenSaved);
@@ -345,7 +349,7 @@ d('FlockRubiesService (БД)', () => {
   });
 
   it('скриті скіни: купити не можна навіть із балансом, баланс і покупки не змінюються', async () => {
-    expect(HIDDEN_SKINS.length).toBeGreaterThan(0);
+    hideSkins();
     const u = await makeUser();
     await giveRubies('admin', u.id, 1000);
     for (const id of HIDDEN_SKINS) {
@@ -364,6 +368,7 @@ d('FlockRubiesService (БД)', () => {
   });
 
   it('скіни, куплені до приховування, лишаються у гравця й доступні для гри', async () => {
+    hideSkins();
     const u = await makeUser();
     const id = HIDDEN_SKINS[0];
     await prisma.flockSkinPurchase.create({
