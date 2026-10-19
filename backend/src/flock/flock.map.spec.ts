@@ -22,20 +22,20 @@ function lcg(seed: number) {
 }
 
 describe('Карта: размер и еда', () => {
-  it('мир на 25-30% больше по каждой стороне, позиции помещаются в u16 пакетов (шаг 1/16)', () => {
-    const k = C.worldSize / 3200;
-    expect(k).toBeGreaterThanOrEqual(1.25);
-    expect(k).toBeLessThanOrEqual(1.3);
+  it('мир на 15-20% меньше прежнего (4000) по каждой стороне, позиции помещаются в u16 пакетов (шаг 1/16)', () => {
+    const k = C.worldSize / 4000;
+    expect(k).toBeGreaterThanOrEqual(0.8);
+    expect(k).toBeLessThanOrEqual(0.85);
     expect(C.worldSize).toBeLessThan(65535 / 16);
     expect(CHUNKS_PER_SIDE).toBe(Math.ceil(C.worldSize / C.chunkSize));
   });
 
-  it('еда крупнее в 1.5 раза, плотность не выше прежней (520 на 3200²)', () => {
+  it('еда крупнее в 1.5 раза, плотность та же, что на карте 4000 (700 на 4000²)', () => {
     expect(C.foodRadius / 8.5).toBeCloseTo(1.5, 5);
-    const before = 520 / 3200 ** 2;
+    const before = 700 / 4000 ** 2;
     const after = C.maxFood / C.worldSize ** 2;
-    expect(after).toBeLessThanOrEqual(before);
-    expect(after).toBeGreaterThan(before * 0.75); // но поле не выглядит пустым
+    expect(after / before).toBeGreaterThan(0.98);
+    expect(after / before).toBeLessThan(1.03);
   });
 
   describe('радиус подбора еды', () => {
