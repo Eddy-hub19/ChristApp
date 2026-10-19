@@ -3,6 +3,7 @@ import { FLOCK_CONFIG, BONUS_KINDS, FREE_SKINS } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
   FlockWorld,
+  pickMapId,
   chunkIndexOf,
   type Player,
   type Rng,
@@ -104,6 +105,8 @@ class Arena {
   private readonly tmpSeen = new Set<number>();
   /** Кущі не рухаються й не зникають: список будується один раз і йде клієнтам у `welcome`. */
   readonly thornList: StateInput['thorns'];
+  /** Вид карти арени (FLOCK_MAPS), випадковий при створенні; йде клієнтам у `welcome`. */
+  readonly mapId: number;
   /** Поточна частота (знижується запобіжником, коли CPU не встигає). */
   readonly rate = new AdaptiveRate();
   /** Боти за навантаженням: регулятор, боти «на виході», журнал рішень для адмінки. */
@@ -125,7 +128,8 @@ class Arena {
     /** Лаг loop і CPU процесу (у тестах підміняється). За замовчуванням міряє сама арена. */
     private readonly loadProbe?: () => Pick<LoadSample, 'loopP99Ms' | 'cpuPct'>,
   ) {
-    this.world = new FlockWorld(rng);
+    this.mapId = pickMapId(rng);
+    this.world = new FlockWorld(rng, this.mapId);
     this.thornList = this.world.thorns.map((t) => ({
       id: t.id,
       x: t.x,
@@ -653,6 +657,8 @@ export interface JoinResult {
   token?: string;
   /** Кущі арени (один раз при вході; далі не змінюються). */
   thorns?: { id: number; x: number; y: number; mass: number }[];
+  /** Вид карти арени (FLOCK_MAPS). */
+  mapId?: number;
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
   resumed?: boolean;
   /** Клієнт прислав токен, але сесія вже завершилась: звичайний вхід. */
@@ -761,6 +767,7 @@ export class FlockManager {
       humans: s.arena.humans,
       token: s.token,
       thorns: s.arena.thornList,
+      mapId: s.arena.mapId,
     };
   }
 

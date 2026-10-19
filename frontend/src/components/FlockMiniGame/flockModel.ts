@@ -29,6 +29,8 @@ export interface FlockCfg {
   thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Піврозмір спрайта їжі (світові одиниці). Без поля - 8.5 (старий сервер). */
   foodRadius?: number;
+  /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
+  map?: number;
 }
 
 export interface RCell {

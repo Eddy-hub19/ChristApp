@@ -168,6 +168,8 @@ export class FlockGateway
       world: FLOCK_CONFIG.worldSize,
       /** Кущі арени: один раз тут, у пакетах стану їх більше нема (для клієнтів v2+). */
       thorns: res.thorns,
+      /** Вид карти арени (палітра на клієнті); без поля (старий сервер) - 0. */
+      map: res.mapId,
       /** Піврозмір спрайта їжі (світові одиниці). */
       foodRadius: FLOCK_CONFIG.foodRadius,
       chunk: FLOCK_CONFIG.chunkSize,

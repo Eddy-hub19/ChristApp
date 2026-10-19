@@ -55,9 +55,16 @@ export default function TabBar() {
   const token = getAuthToken();
   const userId = token ? getUserIdFromJwt(token) : undefined;
 
+  /**
+   * Пока игрок в полноэкранной игре, навбар невидим: сводку непрочитанного не обновляем (ни по сообщениям, ни по таймеру).
+   * Иначе каждое сообщение чата заставляет каждого игрока слать запрос на сервер, где в том же процессе тикает арена.
+   * При выходе из игры эффект по pathname обновит устаревшие данные.
+   */
+  const inFullscreenGame = isFullscreenPath(pathname);
+
   const unreadQuery = useQuery({
     ...unreadSummaryQueryOptions(userId),
-    refetchInterval: UNREAD_REFRESH_INTERVAL_MS,
+    refetchInterval: inFullscreenGame ? false : UNREAD_REFRESH_INTERVAL_MS,
   });
 
   const unreadCount = Number(unreadQuery.data?.totalUnread ?? 0);
@@ -72,8 +79,9 @@ export default function TabBar() {
 
   /** Серія подій (focus, visibility, newMessage, зміна маршруту) зливається в один запит. */
   const refetchUnread = useCallback(() => {
+    if (inFullscreenGame) return;
     requestUnreadSummaryRefresh(queryClient, userId);
-  }, [queryClient, userId]);
+  }, [queryClient, userId, inFullscreenGame]);
 
   const hiddenRoutes = ["/", "/register", "/offline"];
   /** Список чатів — таб видимий; відкрита кімната — таб прихований, більше місця під листування. */

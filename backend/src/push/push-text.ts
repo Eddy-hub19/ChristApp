@@ -27,6 +27,13 @@ const META_SUFFIX = ']]';
 
 export const PUSH_BODY_MAX_LEN = 220;
 
+/** Это приглашение в «Отару» (`[[flock-invite:<арена>]]`, возможно с legacy-префиксом ответа). */
+export function isFlockInvitePush(content: string | null | undefined): boolean {
+  return FLOCK_INVITE_RE.test(
+    stripLegacyReplyPrefix(String(content ?? '')).trim(),
+  );
+}
+
 const collapse = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 function stripHtml(text: string) {

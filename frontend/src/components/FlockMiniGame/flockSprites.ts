@@ -350,7 +350,7 @@ function hash(a: number, b: number) {
  */
 export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUnit: number): CanvasPattern | null {
   const q = Math.max(0.25, Math.round(pxPerUnit * 4) / 4);
-  const key = `${theme.dark ? "d" : "l"}|${q}`;
+  const key = `${theme.dark ? "d" : "l"}|${theme.bg}|${q}`;
   if (tile && tile.key === key) return tile.pattern;
   const span = GRID * TILE_CELLS;
   const size = Math.round(span * q);

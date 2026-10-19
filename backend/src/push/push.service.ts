@@ -10,7 +10,7 @@ import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MessagesService } from 'src/messages/messages.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
-import { AsyncLimiter } from './async-limiter';
+import { AsyncLimiter, mapWithConcurrency } from './async-limiter';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 import { MessageType, Prisma } from '@prisma/client';
@@ -23,7 +23,12 @@ import {
   type PushKind,
   type PushSendResult,
 } from './push-delivery';
-import { buildPushDisplay, pushMessageText, truncatePushText } from './push-text';
+import {
+  buildPushDisplay,
+  isFlockInvitePush,
+  pushMessageText,
+  truncatePushText,
+} from './push-text';
 
 type ChatPushNotificationInput = {
   messageId: string;
@@ -50,6 +55,9 @@ type PushSubscriptionRecord = {
   p256dh: string;
   auth: string;
 };
+
+/** Сколько пушей чата отправляется одновременно (остальные ждут): не блокируем event loop, где тикает «Отара». */
+const CHAT_PUSH_CONCURRENCY = 8;
 
 @Injectable()
 export class PushService implements OnModuleDestroy {
@@ -273,9 +281,12 @@ export class PushService implements OnModuleDestroy {
       return;
     }
 
+    // Приглашение в «Отару» шлём только тем, кто уже открывал игру (есть игровой профиль): остальным оно не нужно,
+    // а для Global это ещё и меньше подписок, бейджей и отправок.
     const { recipientUserIds, roomTitle } = await this.resolveRecipientUserIds(
       input.roomId,
       input.senderId,
+      isFlockInvitePush(input.content),
     );
 
     // Пуш не шлемо ЛИШЕ тим, хто просто зараз дивиться цей чат (застосунок видимий, кімната на екрані).
@@ -326,8 +337,10 @@ export class PushService implements OnModuleDestroy {
       this.logger.warn(`Не удалось посчитать badge для push: ${reason}`);
     }
 
-    const results = await Promise.all(
-      subscriptions.map((subscription) => {
+    const results = await mapWithConcurrency(
+      subscriptions,
+      CHAT_PUSH_CONCURRENCY,
+      (subscription) => {
         const { title, body } = buildPushDisplay({
           kind: roomKind,
           senderName: input.senderUsername,
@@ -355,7 +368,7 @@ export class PushService implements OnModuleDestroy {
           },
           'chat',
         );
-      }),
+      },
     );
     this.logger.log(
       summarizeDispatch(
@@ -370,7 +383,11 @@ export class PushService implements OnModuleDestroy {
   private async resolveRecipientUserIds(
     roomId: string,
     senderId: string,
+    flockPlayersOnly = false,
   ): Promise<{ recipientUserIds: string[]; roomTitle: string | null }> {
+    const playedFlock = flockPlayersOnly
+      ? { flockProfile: { isNot: null } }
+      : {};
     if (roomId === this.GLOBAL_ROOM) {
       const users = await this.prisma.user.findMany({
         where: {
@@ -378,6 +395,7 @@ export class PushService implements OnModuleDestroy {
             not: senderId,
           },
           isActive: true,
+          ...playedFlock,
         },
         select: {
           id: true,
@@ -402,6 +420,7 @@ export class PushService implements OnModuleDestroy {
         userId: {
           not: senderId,
         },
+        ...(flockPlayersOnly ? { user: playedFlock } : {}),
       },
       select: {
         userId: true,

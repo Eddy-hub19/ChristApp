@@ -1,7 +1,10 @@
 import {
   BONUS_KINDS,
   FLOCK_CONFIG,
+  FLOCK_MAPS,
   NUM_SKINS,
+  type MapLayout,
+  type ThornCfg,
   type BonusKind,
 } from './flock.config';
 import { SpatialGrid } from './flock.grid';
@@ -25,16 +28,46 @@ export type ThornSpec = { x: number; y: number; mass: number };
  */
 export function generateThorns(
   rng: Rng,
-  cfg: typeof C.thorns = C.thorns,
+  cfg: ThornCfg = C.thorns,
   world: number = C.worldSize,
+  layout: MapLayout = 'scatter',
 ): ThornSpec[] {
   const count = cfg.min + Math.floor(rng() * (cfg.max - cfg.min + 1));
   const out: ThornSpec[] = [];
   const mid = world / 2;
+  const span = world - 2 * cfg.edgeMargin;
+  // центри купок (clusters): 3-4 точки, довкола яких сидять кущі
+  const hubs =
+    layout === 'clusters'
+      ? Array.from({ length: 3 + Math.floor(rng() * 2) }, () => ({
+          x: cfg.edgeMargin + rng() * span,
+          y: cfg.edgeMargin + rng() * span,
+        }))
+      : [];
+  const candidate = (n: number) => {
+    if (layout === 'clusters') {
+      const h = hubs[n % hubs.length];
+      const a = rng() * TWO_PI;
+      const d = rng() * world * 0.1;
+      return { x: h.x + Math.cos(a) * d, y: h.y + Math.sin(a) * d };
+    }
+    if (layout === 'ring') {
+      const a = rng() * TWO_PI;
+      const d = world * 0.3 + (rng() - 0.5) * world * 0.08;
+      return { x: mid + Math.cos(a) * d, y: mid + Math.sin(a) * d };
+    }
+    return { x: cfg.edgeMargin + rng() * span, y: cfg.edgeMargin + rng() * span };
+  };
   for (let n = 0; n < count; n++) {
     for (let attempt = 0; attempt < 60; attempt++) {
-      const x = cfg.edgeMargin + rng() * (world - 2 * cfg.edgeMargin);
-      const y = cfg.edgeMargin + rng() * (world - 2 * cfg.edgeMargin);
+      const { x, y } = candidate(n);
+      if (
+        x < cfg.edgeMargin ||
+        y < cfg.edgeMargin ||
+        x > world - cfg.edgeMargin ||
+        y > world - cfg.edgeMargin
+      )
+        continue;
       if (Math.hypot(x - mid, y - mid) < cfg.centerClear) continue;
       if (out.some((t) => Math.hypot(t.x - x, t.y - y) < cfg.minGap)) continue;
       out.push({
@@ -46,6 +79,11 @@ export function generateThorns(
     }
   }
   return out;
+}
+
+/** Номер випадкової карти (рівноймовірно). */
+export function pickMapId(rng: Rng): number {
+  return FLOCK_MAPS[Math.min(FLOCK_MAPS.length - 1, Math.floor(rng() * FLOCK_MAPS.length))].id;
 }
 
 export interface Cell {
@@ -174,8 +212,13 @@ export class FlockWorld {
   private nextBonusId = 1;
   private bonusTimer = 0;
 
-  constructor(private readonly rng: Rng = Math.random) {
-    for (const t of generateThorns(rng))
+  constructor(
+    private readonly rng: Rng = Math.random,
+    /** Вид карти (FLOCK_MAPS): задає розкладку й параметри кущів. */
+    readonly mapId: number = 0,
+  ) {
+    const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
+    for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout))
       this.thorns.push({ id: this.nextThornId++, ...t });
     for (let i = 0; i < C.maxFood; i++) this.spawnFood();
   }

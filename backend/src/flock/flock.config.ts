@@ -60,8 +60,8 @@ export const FLOCK_CONFIG = {
     retireHideFactor: 1.35,
   },
 
-  /** 3200 -> 4000 (+25% по кожній стороні). Позиції в пакетах - u16 з кроком 1/16, тож стеля 4095. */
-  worldSize: 4000,
+  /** 4000 -> 3400 (-15% по кожній стороні, площа -28%). Позиції в пакетах - u16 з кроком 1/16, тож стеля 4095. */
+  worldSize: 3400,
   chunkSize: 320,
   /** Як часто шлемо таблицю лідерів і мінікарту (с). */
   boardEverySec: 1.5,
@@ -72,12 +72,12 @@ export const FLOCK_CONFIG = {
 
   // --- решта лімітів світу ---
   maxCellsPerPlayer: 16,
-  /** Площа +56%, а їжа крупніша: щільність трохи нижча за колишню (520 на 3200² -> 700 на 4000²). */
-  maxFood: 700,
+  /** Щільність та сама, що була (700 на 4000²) -> 506 на 3400²; округлено до 510. */
+  maxFood: 510,
   /** Кущі: випадкова кількість і розкладка при кожному створенні арени. */
   thorns: {
-    min: 10,
-    max: 18,
+    min: 7,
+    max: 13,
     /** Мінімальна відстань між центрами кущів. */
     minGap: 380,
     /** Мінімальна відстань від краю світу до центру куща. */
@@ -215,6 +215,31 @@ export const FLOCK_CONFIG = {
   },
 } as const;
 
+/** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
+/** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
+export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
+
+export type MapLayout = 'scatter' | 'clusters' | 'ring';
+
+export interface FlockMapDef {
+  /** Номер карти по мережі (u8, у welcome); клієнт за ним вибирає палітру. */
+  id: number;
+  name: string;
+  layout: MapLayout;
+  /** Перекриття C.thorns для цієї карти. */
+  thorns: Partial<ThornCfg>;
+}
+
+/**
+ * Види карт: арена при створенні випадково (рівноймовірно) бере одну з них. Новий вид = ще один запис тут
+ * + палітра з таким id на клієнті (flockMaps.ts).
+ */
+export const FLOCK_MAPS: readonly FlockMapDef[] = [
+  { id: 0, name: 'meadow', layout: 'scatter', thorns: {} },
+  { id: 1, name: 'grove', layout: 'clusters', thorns: { min: 8, max: 12, minGap: 300 } },
+  { id: 2, name: 'frost', layout: 'ring', thorns: { min: 8, max: 11, minGap: 340, massMin: 66, massMax: 92 } },
+];
+
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;
 export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
@@ -239,7 +264,7 @@ export const skinPriceOf = (id: number) =>
 /**
  * Скрытые скіни (тимчасово): не показуються в лобі й магазині, купити їх не можна (сервер відхиляє `skin_hidden`).
  * Уже куплені лишаються в гравця й доступні для гри. Щоб відкрити скіни - достатньо спорожнити цей масив.
- * Зараз сховано шість преміум-скінів з анімацією (18-23).
+ * Зараз скритих нема: анімовані преміум-скіни (18-23) повернули. Щоб знову сховати - вписати їх номери.
  */
-export const HIDDEN_SKINS: readonly number[] = [18, 19, 20, 21, 22, 23];
+export const HIDDEN_SKINS: readonly number[] = [];
 export const isHiddenSkin = (id: number) => HIDDEN_SKINS.includes(id);
