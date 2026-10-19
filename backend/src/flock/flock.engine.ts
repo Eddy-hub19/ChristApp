@@ -160,6 +160,20 @@ export interface Bonus {
   kind: BonusKind;
 }
 
+/** Зірка події «Зорепад»: падає fallMs, підбирається після landAt. */
+export interface Star {
+  id: number;
+  x: number;
+  y: number;
+  landAt: number;
+  expiresAt: number;
+}
+/** Подія для клієнтів: [0, тривалість] старт; [1, id, x, y, fallMs] зірка з'явилась; [2, id, pid] з'їдена (pid 0 - зникла сама). */
+export type StarEvent =
+  | [0, number]
+  | [1, number, number, number, number]
+  | [2, number, number];
+
 export const FOOD_ADD = 1;
 export const FOOD_DEL = 0;
 export const FOOD_MOVE = 2;
@@ -199,6 +213,14 @@ export class FlockWorld {
   readonly blobs: Blob[] = [];
   readonly bonuses: Bonus[] = [];
   readonly foodEvents: FoodEvent[] = [];
+  /** «Зорепад»: зірки на арені й події цього тіку (очищаються щотіку, як foodEvents). */
+  readonly stars: Star[] = [];
+  readonly starEvents: StarEvent[] = [];
+  private zActive = false;
+  private zUntil = 0;
+  private zNextSpawnAt = 0;
+  private zNextStartAt = 0;
+  private nextStarId = 1;
   readonly deaths: DeathEvent[] = [];
   /** Хто зараз перший за масою (для "часу в топ-1"). */
   leaderPid = 0;
@@ -487,6 +509,7 @@ export class FlockWorld {
     this.now += dt * 1000;
     this.tickNo++;
     this.foodEvents.length = 0;
+    this.starEvents.length = 0;
     this.deaths.length = 0;
     const nowMs = this.now;
 
@@ -535,6 +558,8 @@ export class FlockWorld {
     }
     this.leaderPid = leader?.id ?? 0;
     if (leader && !leader.paused) leader.topMs += dt * 1000;
+
+    this.stepZorepad();
 
     // поповнення їжі (порціями, щоб не стрибало)
     for (let i = 0; i < C.foodRegrowPerTick && this.foodById.size < C.maxFood; i++)
@@ -874,6 +899,151 @@ export class FlockWorld {
       return;
     }
     p.effects[kind] = this.now + C.bonusDurations[kind];
+  }
+
+  // ---------- «Зорепад» ----------
+  /** Зірки для нового клієнта (welcome): скільки мс лишилось до приземлення (0 - уже лежить). */
+  starsSnapshot() {
+    return this.stars.map((s) => ({
+      id: s.id,
+      x: Math.round(s.x),
+      y: Math.round(s.y),
+      fall: Math.max(0, Math.round(s.landAt - this.now)),
+    }));
+  }
+
+  private stepZorepad() {
+    const Z = C.zorepad;
+    // підбір приземлених зірок і зникання старих
+    for (let i = this.stars.length - 1; i >= 0; i--) {
+      const s = this.stars[i];
+      if (this.now >= s.expiresAt) {
+        this.stars.splice(i, 1);
+        this.starEvents.push([2, s.id, 0]);
+        continue;
+      }
+      if (this.now < s.landAt) continue;
+      let taker: Player | null = null;
+      let takerCell: Cell | null = null;
+      this.cellGrid.query(s.x, s.y, 260, (c) => {
+        if (taker) return;
+        const pl = this.players.get(c.pid);
+        if (!pl || !pl.alive || pl.paused || this.isGhost(pl)) return;
+        if (Math.hypot(c.x - s.x, c.y - s.y) < radiusOf(c.mass) + Z.pickupReach) {
+          taker = pl;
+          takerCell = c;
+        }
+      });
+      if (!taker || !takerCell) continue;
+      this.stars.splice(i, 1);
+      (takerCell as Cell).mass += Z.starMass;
+      this.starEvents.push([2, s.id, (taker as Player).id]);
+    }
+
+    if (!this.zActive) {
+      if (this.now >= this.zNextStartAt && this.canStartZorepad()) {
+        this.zActive = true;
+        this.zUntil = this.now + Z.durationMs;
+        this.zNextSpawnAt = this.now;
+        this.zNextStartAt =
+          this.now +
+          Z.cooldownMinMs +
+          this.rng() * (Z.cooldownMaxMs - Z.cooldownMinMs);
+        this.starEvents.push([0, Z.durationMs]);
+      }
+      return;
+    }
+    if (this.now >= this.zUntil) {
+      this.zActive = false;
+      return;
+    }
+    while (this.now >= this.zNextSpawnAt) {
+      this.zNextSpawnAt += Z.spawnEveryMs;
+      this.spawnStar();
+    }
+  }
+
+  /** Подія стартує, коли жива людина досягла triggerMass і на арені є хоча б minAlive живих гравців. */
+  private canStartZorepad() {
+    const Z = C.zorepad;
+    let alive = 0;
+    let big = false;
+    for (const p of this.players.values()) {
+      if (!p.alive) continue;
+      alive++;
+      if (!p.bot && p.total >= Z.triggerMass) big = true;
+    }
+    return big && alive >= Z.minAlive;
+  }
+
+  private spawnStar() {
+    const Z = C.zorepad;
+    if (this.stars.length >= Z.maxStars) return;
+    const pos = this.pickStarPos();
+    if (!pos) return;
+    const id = this.nextId(this.nextStarId, (i) =>
+      this.stars.some((s) => s.id === i),
+    );
+    this.nextStarId = id + 1;
+    const landAt = this.now + Z.fallMs;
+    this.stars.push({
+      id,
+      x: pos.x,
+      y: pos.y,
+      landAt,
+      expiresAt: landAt + Z.lifetimeMs,
+    });
+    this.starEvents.push([
+      1,
+      id,
+      Math.round(pos.x),
+      Math.round(pos.y),
+      Z.fallMs,
+    ]);
+  }
+
+  /** Точка для зірки: подалі від лідера (поруч - нічого, далі - рідко), здебільшого біля менших за нього. */
+  private pickStarPos(): { x: number; y: number } | null {
+    const Z = C.zorepad;
+    const leader = this.players.get(this.leaderPid);
+    const lc = leader && leader.alive ? this.centroid(leader) : null;
+    const smaller: Player[] = [];
+    if (leader && lc) {
+      for (const p of this.players.values())
+        if (p.alive && p !== leader && p.total < leader.total) smaller.push(p);
+    }
+    const lo = Z.edgeMargin;
+    const hi = C.worldSize - Z.edgeMargin;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      let x: number;
+      let y: number;
+      if (smaller.length && this.rng() < Z.nearSmallerShare) {
+        const c = this.centroid(
+          smaller[Math.floor(this.rng() * smaller.length)],
+        );
+        const a = this.rng() * TWO_PI;
+        const d = this.rng() * Z.nearSmallerRadius;
+        x = c.x + Math.cos(a) * d;
+        y = c.y + Math.sin(a) * d;
+      } else {
+        x = this.rand(lo, hi);
+        y = this.rand(lo, hi);
+      }
+      x = Math.min(hi, Math.max(lo, x));
+      y = Math.min(hi, Math.max(lo, y));
+      if (lc) {
+        const dl = Math.hypot(x - lc.x, y - lc.y);
+        if (dl < Z.leaderClearRadius) continue;
+        if (dl < Z.leaderSparseRadius) {
+          const k =
+            (dl - Z.leaderClearRadius) /
+            (Z.leaderSparseRadius - Z.leaderClearRadius);
+          if (this.rng() > k) continue;
+        }
+      }
+      return { x, y };
+    }
+    return null;
   }
 
   leaderboard(limit = 10) {

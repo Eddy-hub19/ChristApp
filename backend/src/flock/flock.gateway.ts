@@ -170,6 +170,8 @@ export class FlockGateway
       thorns: res.thorns,
       /** Вид карти арени (палітра на клієнті); без поля (старий сервер) - 0. */
       map: res.mapId,
+      /** Зірки «Зорепаду» на момент входу: { id, x, y, fall - мс до приземлення }. */
+      stars: res.stars,
       /** Піврозмір спрайта їжі (світові одиниці). */
       foodRadius: FLOCK_CONFIG.foodRadius,
       chunk: FLOCK_CONFIG.chunkSize,

@@ -31,6 +31,17 @@ export interface FlockCfg {
   foodRadius?: number;
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
+  /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
+  stars?: { id: number; x: number; y: number; fall: number }[];
+}
+
+/** Зірка «Зорепаду»: падає fall мс від t0 (локальний час, мс), потім лежить, поки її не з'їдять. */
+export interface RStar {
+  id: number;
+  x: number;
+  y: number;
+  t0: number;
+  fall: number;
 }
 
 export interface RCell {
@@ -113,6 +124,8 @@ export class FlockModel {
   readonly dying: RDying[] = [];
   readonly players = new Map<number, PlayerMeta>();
   thorns: { id: number; x: number; y: number; mass: number }[] = [];
+  /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
+  readonly stars = new Map<number, RStar>();
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
   effects: ActiveEffect[] = [];
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
@@ -296,6 +309,27 @@ export class FlockModel {
     // кущі сервер шле один раз у welcome; зі стану беремо лише для старого сервера (без cfg.thorns)
     if (!this.cfg.thorns) this.thorns = s.thorns;
     this.bonuses = s.bonuses.map((b) => ({ id: b.id, kind: BONUS_CODE[b.kind] ?? "golden", x: b.x, y: b.y }));
+  }
+
+  /** Зірки, що вже були на арені, коли ми зайшли (з welcome). */
+  applyStarsSnapshot(list: { id: number; x: number; y: number; fall: number }[] | undefined, recvMs: number) {
+    for (const s of list ?? []) this.stars.set(s.id, { id: s.id, x: s.x, y: s.y, t0: recvMs, fall: Math.max(1, s.fall) });
+  }
+
+  /**
+   * Події «Зорепаду»: [0, мс] старт, [1, id, x, y, fallMs] зірка з'явилась, [2, id, pid] з'їдена/зникла.
+   * Повертає тривалість, якщо в пакеті був старт події (для напису «Зорепад!»), інакше 0.
+   */
+  applyStarEvents(events: unknown, recvMs: number = this.localNow): number {
+    if (!Array.isArray(events)) return 0;
+    let started = 0;
+    for (const e of events) {
+      if (!Array.isArray(e)) continue;
+      if (e[0] === 0) started = Number(e[1]) || 1;
+      else if (e[0] === 1) this.stars.set(e[1], { id: e[1], x: e[2], y: e[3], t0: recvMs, fall: Math.max(1, Number(e[4]) || 1000) });
+      else if (e[0] === 2) this.stars.delete(e[1]);
+    }
+    return started;
   }
 
   applyBoard(pkt: ArrayBuffer | Uint8Array) {

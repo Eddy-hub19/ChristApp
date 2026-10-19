@@ -415,11 +415,14 @@ class Arena {
         }),
       });
     }
+    // «Зорепад»: події (старт / зірка з'явилась / з'їдена) - одним малим повідомленням усім, без потоку позицій.
+    const starMsg = w.starEvents.length ? { e: w.starEvents } : null;
     for (const s of this.sessions.values()) {
       const key = s.connKey;
       if (!key) continue; // у паузі: нікуди слати
       const p = w.players.get(s.pid);
       if (!p) continue;
+      if (starMsg) send(key, 'z', starMsg);
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
         send(key, 'd', {
@@ -659,6 +662,8 @@ export interface JoinResult {
   thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Вид карти арени (FLOCK_MAPS). */
   mapId?: number;
+  /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
+  stars?: { id: number; x: number; y: number; fall: number }[];
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
   resumed?: boolean;
   /** Клієнт прислав токен, але сесія вже завершилась: звичайний вхід. */
@@ -768,6 +773,7 @@ export class FlockManager {
       token: s.token,
       thorns: s.arena.thornList,
       mapId: s.arena.mapId,
+      stars: s.arena.world.starsSnapshot(),
     };
   }
 

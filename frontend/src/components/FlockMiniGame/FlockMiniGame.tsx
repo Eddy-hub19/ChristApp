@@ -146,6 +146,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [confirming, setConfirming] = useState(false);
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
+  /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
+  const [zorepad, setZorepad] = useState<number | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
@@ -258,6 +260,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         autoResume: true,
         onNotice: setNotice,
         onStatus: (s) => setStatus(s),
+        onZorepad: () => setZorepad(Date.now()),
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
           setMe((m) => (m ? { ...m, rubies: r.balance } : m));
@@ -289,6 +292,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
     clientRef.current?.join(skin);
   }, [skin]);
+
+  useEffect(() => {
+    if (zorepad === null) return;
+    const id = setTimeout(() => setZorepad(null), 2600);
+    return () => clearTimeout(id);
+  }, [zorepad]);
 
   // «+10»: підпис і анімація зникають самі
   useEffect(() => {
@@ -612,6 +621,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <div className={styles.reconnect} role="status">
               <span className={styles.spinner} aria-hidden />
               <span>{t("reconnecting", { seconds: reconnectLeft })}</span>
+            </div>
+          ) : null}
+          {zorepad !== null ? (
+            <div key={zorepad} className={styles.zorepadBanner} role="status">
+              {t("events.zorepad")}
             </div>
           ) : null}
           {reward ? (

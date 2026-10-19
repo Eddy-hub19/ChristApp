@@ -56,6 +56,8 @@ export interface FlockClientOptions {
   onDeath: (info: DeathInfo) => void;
   onNotice?: (notice: FlockNotice) => void;
   onReward?: (reward: RewardInfo) => void;
+  /** Стартувала подія «Зорепад»: показати напис. */
+  onZorepad?: () => void;
 }
 
 type Sock = ReturnType<typeof createSocket>;
@@ -163,6 +165,7 @@ export class FlockClient {
     socket.on("w", (cfg: FlockCfg) => {
       this.later(() => {
         this.model = new FlockModel(cfg);
+        this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.stored = {
           token: cfg.resumeToken,
           arenaId: cfg.arenaId,
@@ -208,6 +211,12 @@ export class FlockClient {
         this.stored = null;
         this.setStatus("dead");
         this.opts.onDeath(info);
+      });
+    });
+    socket.on("z", (msg: { e?: unknown }) => {
+      this.later(() => {
+        if (!this.model) return;
+        if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
       });
     });
     socket.on("r", (r: RewardInfo) => {
