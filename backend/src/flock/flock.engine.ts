@@ -537,7 +537,7 @@ export class FlockWorld {
     if (leader && !leader.paused) leader.topMs += dt * 1000;
 
     // поповнення їжі (порціями, щоб не стрибало)
-    for (let i = 0; i < 8 && this.foodById.size < C.maxFood; i++)
+    for (let i = 0; i < C.foodRegrowPerTick && this.foodById.size < C.maxFood; i++)
       this.spawnFood();
     this.bonusTimer += dt * 1000;
     if (this.bonusTimer >= C.bonusSpawnEveryMs) {
