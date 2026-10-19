@@ -110,6 +110,7 @@
       "reasons": {
         "ARENA_TOP1": "Arena first place",
         "SKIN_PURCHASE": "Skin purchase",
+        "ENTRY_BONUS": "Game entry bonus",
         "ADMIN_ADJUST": "Admin adjustment"
       },
       "errors": {
@@ -1121,7 +1122,8 @@
       "expired": "Your session has ended, starting over",
       "resuming": "Getting you back into the game…",
       "taken": "The game is open in another window",
-      "skinLocked": "This skin hasn't been bought yet"
+      "skinLocked": "This skin hasn't been bought yet",
+      "entryBonus": "Entry bonus: +{count} 💎"
     },
     "bonuses": {
       "speed": "Speed boost",

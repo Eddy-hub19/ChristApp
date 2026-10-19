@@ -198,6 +198,8 @@ export const FLOCK_CONFIG = {
     top1Reward: 10,
     top1MassThreshold: 3000,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
+    /** Разовий бонус кожному гравцеві за перший вхід у гру (не входить у dailyLimit). */
+    entryBonus: 20,
     dailyLimit: 100,
     dailyTimeZone: 'Europe/Kyiv',
     /** Вартість звичайного платного скіна. */

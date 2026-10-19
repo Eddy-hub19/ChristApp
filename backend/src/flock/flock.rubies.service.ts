@@ -181,6 +181,31 @@ export class FlockRubiesService {
     });
   }
 
+  /**
+   * Разовий бонус за перший вхід у гру: +entryBonus рубінів, один раз на гравця (під блокуванням профілю,
+   * тож паралельні запити не нарахують двічі). Повертає null, якщо бонус уже отримано.
+   */
+  async claimEntryBonus(userId: string): Promise<AwardResult | null> {
+    if (R.entryBonus <= 0) return null;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const profile = await tx.flockProfile.findUniqueOrThrow({
+        where: { userId },
+        select: { entryBonusAt: true },
+      });
+      if (profile.entryBonusAt) return null;
+      const next = await this.apply(tx, userId, balance, {
+        delta: R.entryBonus,
+        reason: RubyReason.ENTRY_BONUS,
+      });
+      await tx.flockProfile.update({
+        where: { userId },
+        data: { entryBonusAt: new Date() },
+      });
+      return { amount: R.entryBonus, balance: next };
+    });
+  }
+
   /** Покупка: перевірка балансу, списання, запис покупки й журналу - атомарно. */
   async buySkin(userId: string, skinId: number) {
     if (!Number.isInteger(skinId) || skinId < 0 || skinId >= NUM_SKINS)

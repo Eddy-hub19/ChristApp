@@ -381,6 +381,22 @@ d('FlockRubiesService (БД)', () => {
     expect(await svc.canUseSkin(other.id, id)).toBe(false);
   });
 
+  it('бонус за перший вхід: +20 один раз, повторно і паралельно не нараховується, пишеться в журнал', async () => {
+    const u = await makeUser();
+    const [a, b] = await Promise.all([
+      svc.claimEntryBonus(u.id),
+      svc.claimEntryBonus(u.id),
+    ]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect(await svc.claimEntryBonus(u.id)).toBeNull();
+    expect((await svc.getMe(u.id)).rubies).toBe(20);
+    const tx = await prisma.rubyTransaction.findMany({
+      where: { userId: u.id, reason: 'ENTRY_BONUS' },
+    });
+    expect(tx).toHaveLength(1);
+    expect(tx[0]).toMatchObject({ delta: 20, balanceAfter: 20 });
+  });
+
   it('whatsNewSeen: тільки вперед, за замовчуванням 0, сміття відхиляється', async () => {
     const u = await makeUser();
     expect((await svc.getMe(u.id)).whatsNewSeen).toBe(0);

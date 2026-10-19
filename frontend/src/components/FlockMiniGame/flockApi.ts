@@ -9,6 +9,8 @@ export interface FlockMe {
   selectedSkin: number;
   /** Последняя просмотренная версия плашки «Що нового». */
   whatsNewSeen?: number;
+  /** Приходить лише в тій відповіді, що нарахувала разовий бонус за перший вхід. */
+  entryBonus?: number;
   statsImported: boolean;
   stats: FlockStats;
   config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number };
