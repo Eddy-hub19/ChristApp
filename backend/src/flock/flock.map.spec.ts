@@ -1,9 +1,10 @@
-import { FLOCK_CONFIG as C } from './flock.config';
+import { FLOCK_CONFIG as C, FLOCK_CONFIG, FLOCK_MAPS } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
   FOOD_REACH,
   FlockWorld,
   generateThorns,
+  pickMapId,
   radiusOf,
 } from './flock.engine';
 import { FlockManager } from './flock.manager';
@@ -203,5 +204,52 @@ describe('Кусты передаются один раз', () => {
       true,
     );
     mgr.dispose();
+  });
+});
+
+describe('Карта: виды карт', () => {
+  it('три вида: обычная + 2 новых, id подряд с нуля', () => {
+    expect(FLOCK_MAPS.map((m) => m.id)).toEqual([0, 1, 2]);
+  });
+
+  it('pickMapId выбирает все виды с равной вероятностью', () => {
+    const rng = lcg(11);
+    const n = [0, 0, 0];
+    for (let i = 0; i < 6000; i++) n[pickMapId(rng)]++;
+    for (const k of n) expect(Math.abs(k - 2000)).toBeLessThan(200);
+  });
+
+  it.each(FLOCK_MAPS.map((m) => [m.name, m] as const))(
+    '%s: кусты в границах конфига, не у краёв и не в центре, без пересечений',
+    (_n, map) => {
+      const cfg = { ...FLOCK_CONFIG.thorns, ...map.thorns };
+      for (let seed = 1; seed <= 40; seed++) {
+        const t = generateThorns(lcg(seed), cfg, FLOCK_CONFIG.worldSize, map.layout);
+        expect(t.length).toBeGreaterThan(0);
+        expect(t.length).toBeLessThanOrEqual(cfg.max);
+        const mid = FLOCK_CONFIG.worldSize / 2;
+        for (const a of t) {
+          expect(a.x).toBeGreaterThanOrEqual(cfg.edgeMargin);
+          expect(a.x).toBeLessThanOrEqual(FLOCK_CONFIG.worldSize - cfg.edgeMargin);
+          expect(Math.hypot(a.x - mid, a.y - mid)).toBeGreaterThanOrEqual(cfg.centerClear);
+          for (const b of t)
+            if (a !== b) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(cfg.minGap);
+        }
+      }
+    },
+  );
+
+  it('арена получает вид карты и отдаёт его в ответе на вход (клиент и сервер видят один и тот же)', () => {
+    const seen = new Set<number>();
+    for (let seed = 1; seed <= 60; seed++) {
+      const mgr = new FlockManager(() => undefined, lcg(seed), () => 1_000_000);
+      const r = mgr.join('c1', 'u1', 'Аня', 1);
+      const arena = mgr._arena(1)!;
+      expect(r.mapId).toBe(arena.mapId);
+      expect(arena.world.mapId).toBe(arena.mapId);
+      seen.add(r.mapId as number);
+      mgr.dispose();
+    }
+    expect(seen.size).toBe(FLOCK_MAPS.length);
   });
 });

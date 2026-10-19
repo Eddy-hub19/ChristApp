@@ -215,6 +215,31 @@ export const FLOCK_CONFIG = {
   },
 } as const;
 
+/** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
+/** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
+export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
+
+export type MapLayout = 'scatter' | 'clusters' | 'ring';
+
+export interface FlockMapDef {
+  /** Номер карти по мережі (u8, у welcome); клієнт за ним вибирає палітру. */
+  id: number;
+  name: string;
+  layout: MapLayout;
+  /** Перекриття C.thorns для цієї карти. */
+  thorns: Partial<ThornCfg>;
+}
+
+/**
+ * Види карт: арена при створенні випадково (рівноймовірно) бере одну з них. Новий вид = ще один запис тут
+ * + палітра з таким id на клієнті (flockMaps.ts).
+ */
+export const FLOCK_MAPS: readonly FlockMapDef[] = [
+  { id: 0, name: 'meadow', layout: 'scatter', thorns: {} },
+  { id: 1, name: 'grove', layout: 'clusters', thorns: { min: 8, max: 12, minGap: 300 } },
+  { id: 2, name: 'frost', layout: 'ring', thorns: { min: 8, max: 11, minGap: 340, massMin: 66, massMax: 92 } },
+];
+
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;
 export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,

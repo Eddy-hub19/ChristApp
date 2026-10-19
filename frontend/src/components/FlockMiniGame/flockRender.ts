@@ -1,6 +1,7 @@
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
+import { mapTheme } from "./flockMaps";
 import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, thornSprite } from "./flockSprites";
 
 export { drawCreature };
@@ -123,7 +124,8 @@ export interface DrawOpts {
 }
 
 export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawOpts) {
-  const { width: W, height: H, dpr, theme } = o;
+  const { width: W, height: H, dpr } = o;
+  const theme = mapTheme(o.theme, m.cfg.map);
   const scale = viewScale(W, H, m.camR);
   const world = m.cfg.world;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -307,7 +309,8 @@ function drawPauseBadge(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, 
 }
 
 /** Мінікарта: світ у квадраті `size` px; гравці - точки за масою, ти - з обідком. */
-export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: number, dpr: number, theme: Theme) {
+export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: number, dpr: number, baseTheme: Theme) {
+  const theme = mapTheme(baseTheme, m.cfg.map);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = theme.dark ? "rgba(18,34,24,0.72)" : "rgba(235,248,225,0.78)";
