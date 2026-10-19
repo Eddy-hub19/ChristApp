@@ -146,8 +146,8 @@ d('FlockRubiesService (БД)', () => {
   it('подвійна покупка послідовно: already_owned, списано один раз', async () => {
     const u = await makeUser();
     await giveRubies('admin', u.id, 100);
-    await svc.buySkin(u.id, FREE_SKINS + 1);
-    await expect(svc.buySkin(u.id, FREE_SKINS + 1)).rejects.toMatchObject({
+    await svc.buySkin(u.id, FREE_SKINS + 2);
+    await expect(svc.buySkin(u.id, FREE_SKINS + 2)).rejects.toMatchObject({
       response: { code: 'already_owned' },
     });
     expect((await svc.getMe(u.id)).rubies).toBe(80);

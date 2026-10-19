@@ -37,7 +37,7 @@ describe('скіни: ціни й діапазони', () => {
       expect(isPaidSkin(id)).toBe(true);
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(true);
-      expect(isHiddenSkin(id)).toBe(false); // особливі видимі й купуються
+      expect(isHiddenSkin(id)).toBe([26, 30].includes(id)); // сховані лише грибок і робот
       expect(skinPriceOf(id)).toBe(C.rubies.specialSkinPrice);
     }
     expect(C.rubies.specialSkinPrice).toBe(40);

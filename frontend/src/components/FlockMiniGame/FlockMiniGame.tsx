@@ -5,7 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { isPaidSkin, isPremiumSkin, isSpecialSkin, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -343,9 +343,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   // скрытые скины (сервер: config.hiddenSkins) не показываем, пока профиль не загружен - тоже; купленные остаются
-  const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : PREMIUM_SKIN_IDS;
+  const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : HIDDEN_SKIN_IDS;
   const ownedSkins = me?.ownedSkins ?? null;
+  const freeIds = Array.from({ length: FREE_SKINS }, (_, i) => i);
+  const paidIds = visibleSkinIds(PAID_SKIN_IDS, hiddenSkins, ownedSkins);
   const premiumIds = visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins);
+  const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
+  /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
+  const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
 
   const priceOf = (i: number) =>
     isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 40) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20);
@@ -757,20 +762,29 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
             <h3 className={styles.h3}>{t("chooseSkin")}</h3>
             <div className={styles.skins} role="radiogroup" aria-label={t("chooseSkin")}>
-              {visibleSkinIds(Array.from({ length: PREMIUM_FROM }, (_, i) => i), hiddenSkins, ownedSkins).map((i) => skinButton(i))}
+              {freeIds.map((i) => skinButton(i))}
             </div>
+            {paidIds.length > 0 ? (
+              <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
+                {paidIds.map((i) => skinButton(i))}
+              </div>
+            ) : null}
             {premiumIds.length > 0 ? (
               <>
                 <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
-                <div className={styles.skins} role="radiogroup" aria-label={t("premium")}>
+                <div className={styles.skins} style={rowCols(premiumIds)} role="radiogroup" aria-label={t("premium")}>
                   {premiumIds.map((i) => skinButton(i))}
                 </div>
               </>
             ) : null}
-            <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
-            <div className={styles.skins} role="radiogroup" aria-label={t("special")}>
-              {SPECIAL_SKIN_IDS.map((i) => skinButton(i))}
-            </div>
+            {specialIds.length > 0 ? (
+              <>
+                <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
+                <div className={styles.skins} style={rowCols(specialIds)} role="radiogroup" aria-label={t("special")}>
+                  {specialIds.map((i) => skinButton(i))}
+                </div>
+              </>
+            ) : null}
             {previewSkin !== null ? (
               <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
                 <SkinPreview skinId={previewSkin} size={84} />
