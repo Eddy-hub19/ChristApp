@@ -3,7 +3,7 @@ import { BOT_NAMES, initBot, pickBotName, thinkBot } from './flock.bots';
 import { CHUNKS_PER_SIDE, FlockWorld, type Player } from './flock.engine';
 
 function world() {
-  let s = 2;
+  let s = 3;
   const rng = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
   const w = new FlockWorld(rng);
   for (const m of w.foodChunks) m.clear();

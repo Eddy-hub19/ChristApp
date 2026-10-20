@@ -4,7 +4,7 @@ export const FREE_SKINS = 12;
 export const PREMIUM_FROM = 18;
 /** Скіни з номерами >= SPECIAL_FROM - «особливі» (статичні, окремий ряд у лобі). */
 export const SPECIAL_FROM = 24;
-export const TOTAL_SKINS = 32;
+export const TOTAL_SKINS = 34;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < TOTAL_SKINS;
 export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < SPECIAL_FROM;
 export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < TOTAL_SKINS;

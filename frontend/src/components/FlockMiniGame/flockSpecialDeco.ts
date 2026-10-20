@@ -1,12 +1,12 @@
 import type { Skin, SkinDeco } from "./flockSkins";
 
 /**
- * «Особливі» скіни (24..31, без анімації): кристальна, кактус, грибок, лавова, галактична, грозова, робот, суші.
+ * «Особливі» скіни (24..33, без анімації): кристальна, кактус, грибок, лавова, галактична, грозова, робот, суші, листочки, цукерка.
  * Малюються як і решта платних: базова вівця + прикраса в тих самих координатах (мордочка дивиться вздовж `ang`).
  * Частини, що виступають за тіло, - позаду (`drawSpecialBehind`) або поверх нього (`drawSpecialFront`).
  * Усе лише в кеш-спрайт: жодних анімацій і ніякого малювання на кадр.
  */
-export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi"];
+export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi", "leaves", "candy"];
 
 export const isSpecialDeco = (d: SkinDeco | undefined): boolean => !!d && SPECIAL_DECOS.includes(d);
 
@@ -23,6 +23,10 @@ export function specialExtent(skin: Skin): number {
     case "storm":
     case "galaxy":
       return 1.4;
+    case "leaves":
+      return 1.4;
+    case "candy":
+      return 1.65;
     case "sushi":
     case "cactus":
       return 1.3;
@@ -60,6 +64,53 @@ function frame(r: number, ang: number) {
     fy,
     pt: (f: number, s: number): [number, number] => [(fx * f + px * s) * r, (fy * f + py * s) * r],
   };
+}
+
+const LEAF_COLORS = ["#d9531e", "#e8892a", "#f0b43a", "#b5381f", "#9a6a22"];
+
+/** Листок: черешок в (0,0), кончик на +x на длину len; в центре жилка. */
+function leaf(c: CanvasRenderingContext2D, x: number, y: number, dir: number, len: number, color: string) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(dir);
+  c.fillStyle = color;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.bezierCurveTo(len * 0.25, -len * 0.42, len * 0.8, -len * 0.38, len, 0);
+  c.bezierCurveTo(len * 0.8, len * 0.38, len * 0.25, len * 0.42, 0, 0);
+  c.fill();
+  c.strokeStyle = "rgba(80,30,10,0.45)";
+  c.lineWidth = Math.max(0.8, len * 0.04);
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(len * 0.9, 0);
+  c.stroke();
+  c.restore();
+}
+
+/** Обёртка-«хвостик» конфеты: два лепестка веером от точки (x, y) в направлении dir. */
+function candyTwist(c: CanvasRenderingContext2D, x: number, y: number, dir: number, r: number) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(dir);
+  for (const [fill, spread] of [
+    ["#f2a0bf", 0.62],
+    ["#ffc4d8", 0.5],
+  ] as const) {
+    c.fillStyle = fill;
+    c.strokeStyle = "#d9709a";
+    c.lineWidth = Math.max(1, r * 0.04);
+    c.lineJoin = "round";
+    for (const side of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.quadraticCurveTo(r * 0.25, side * r * spread * 0.9, r * 0.55, side * r * spread * 0.75);
+      c.quadraticCurveTo(r * 0.62, side * r * 0.05, 0, 0);
+      c.fill();
+      c.stroke();
+    }
+  }
+  c.restore();
 }
 
 function flame(c: CanvasRenderingContext2D, x: number, y: number, dir: number, len: number, w: number, outer: string, inner: string) {
@@ -178,6 +229,23 @@ export function drawSpecialBehind(c: CanvasRenderingContext2D, skin: Skin, r: nu
       }
       break;
     }
+    case "candy": {
+      // обёртка по бокам тела (перпендикулярно взгляду)
+      for (const side of [-1, 1]) {
+        const a = ang + side * (Math.PI / 2);
+        candyTwist(c, Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, a, r * 0.95);
+      }
+      break;
+    }
+    case "leaves": {
+      // листочки, що стирчать позаду й по боках
+      for (let i = 0; i < 9; i++) {
+        const a = ang + Math.PI + (i - 4) * 0.5;
+        const l = r * (0.5 + (i % 3) * 0.1);
+        leaf(c, Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8, a + ((i % 2) - 0.5) * 0.6, l, LEAF_COLORS[i % LEAF_COLORS.length]);
+      }
+      break;
+    }
     case "robot": {
       // антена з помаранчевою кулькою
       const { pt } = frame(r, ang);
@@ -234,6 +302,50 @@ export function drawSpecialFront(c: CanvasRenderingContext2D, skin: Skin, r: num
         c.lineWidth = line;
         c.lineJoin = "round";
         c.stroke();
+      }
+      break;
+    }
+    case "candy": {
+      // розовая спираль на теле, мордочка остаётся чистой (evenodd-вырез под неё)
+      const { fx, fy } = frame(r, ang);
+      c.save();
+      c.beginPath();
+      c.arc(0, 0, r * 0.9, 0, TAU);
+      c.ellipse(fx * r * 0.36, fy * r * 0.36, r * 0.5, r * 0.44, ang, 0, TAU);
+      c.clip("evenodd");
+      c.strokeStyle = "#f6a9c4";
+      c.lineWidth = r * 0.13;
+      c.lineCap = "round";
+      c.beginPath();
+      const cx0 = -r * 0.15;
+      const cy0 = -r * 0.2;
+      for (let t = 0; t <= 3 * TAU; t += 0.15) {
+        const rad = (t / (3 * TAU)) * r * 1.5;
+        const px = cx0 + Math.cos(t + ang) * rad;
+        const py = cy0 + Math.sin(t + ang) * rad;
+        if (t === 0) c.moveTo(px, py);
+        else c.lineTo(px, py);
+      }
+      c.stroke();
+      c.restore();
+      break;
+    }
+    case "leaves": {
+      // листочки на шерсті й вінок з листя на маківці
+      for (const [f, s2, rot, len, k] of [
+        [-0.2, -0.55, 0.6, 0.42, 0],
+        [-0.55, 0.4, -0.9, 0.4, 1],
+        [-0.1, 0.55, 2.2, 0.36, 2],
+        [-0.8, -0.2, 3.4, 0.38, 3],
+        [0.05, -0.05, 1.3, 0.3, 4],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        leaf(c, x, y, ang + rot, r * len, LEAF_COLORS[k]);
+      }
+      const [cx, cy] = pt(-0.45, 0);
+      for (let k = 0; k < 6; k++) {
+        const a = ang + (k / 6) * TAU;
+        leaf(c, cx + Math.cos(a) * r * 0.08, cy + Math.sin(a) * r * 0.08, a, r * 0.3, LEAF_COLORS[(k + 1) % LEAF_COLORS.length]);
       }
       break;
     }

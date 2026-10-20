@@ -81,15 +81,15 @@ export const FLOCK_CONFIG = {
     min: 7,
     max: 13,
     /** Мінімальна відстань між центрами кущів. */
-    /** ~3-4 діаметри куща (діаметр 120-170): кущі розкидані рідко й рівномірно. */
-    minGap: 520,
+    minGap: 380,
     /** Мінімальна відстань від краю світу до центру куща. */
     edgeMargin: 260,
     /** Ніяких кущів у центрі світу: це запасна точка появи гравця. */
     centerClear: 340,
     /** Маса куща (радіус = radiusK * sqrt(маса)) випадкова в цих межах - розмір трохи різний. */
-    massMin: 200,
-    massMax: 400,
+    massMin: 58,
+    /** Радіус до ~150: у найширший кущ влізе й гравець із 500+ масою (радіус 94). */
+    massMax: 1275,
   },
   maxBlobs: 200,
   maxBonuses: 6,
@@ -237,8 +237,8 @@ export const FLOCK_CONFIG = {
     pickupReach: 40,
     /** Мінімум живих гравців на арені (разом із ботами), щоб подія стартувала. */
     minAlive: 2,
-    /** Скільки «Зорепадів» один гравець може викликати за одне життя (від входу/відродження до смерті). */
-    maxPerPlayerLife: 2,
+    /** Скільки разів «Зорепад» може статися за одну гру (арену). */
+    maxPerGame: 3,
     cooldownMinMs: 60_000,
     cooldownMaxMs: 90_000,
     /** Навколо лідера зірок немає; до leaderSparseRadius вони рідкі (ймовірність росте лінійно). */
@@ -277,20 +277,24 @@ export const FLOCK_CONFIG = {
     freeSkins: 12,
     /** Скіни з номерами >= premiumFrom - преміум (дорожчі, з анімацією). */
     premiumFrom: 18,
-    /** Вартість «особливого» скіна (ряд 24-31, без анімації) - окремо від звичайних і преміум. */
+    /** Вартість «особливого» скіна (ряд 24-33, без анімації) - окремо від звичайних і преміум. */
     specialSkinPrice: 40,
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
   },
 } as const;
 
+/** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
 /** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
+
+export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
 export interface FlockMapDef {
   /** Номер карти по мережі (u8, у welcome); клієнт за ним вибирає палітру. */
   id: number;
   name: string;
+  layout: MapLayout;
   /** Перекриття C.thorns для цієї карти. */
   thorns: Partial<ThornCfg>;
 }
@@ -300,9 +304,9 @@ export interface FlockMapDef {
  * + палітра з таким id на клієнті (flockMaps.ts).
  */
 export const FLOCK_MAPS: readonly FlockMapDef[] = [
-  { id: 0, name: 'meadow', thorns: {} },
-  { id: 1, name: 'grove', thorns: {} },
-  { id: 2, name: 'frost', thorns: {} },
+  { id: 0, name: 'meadow', layout: 'scatter', thorns: {} },
+  { id: 1, name: 'grove', layout: 'clusters', thorns: { min: 8, max: 12, minGap: 300 } },
+  { id: 2, name: 'frost', layout: 'ring', thorns: { min: 8, max: 11, minGap: 340, massMin: 66, massMax: 1275 } },
 ];
 
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;
@@ -310,8 +314,8 @@ export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
 ) as BonusKind[];
 
-/** Безкоштовні 0..11, шість платних 12..17, шість преміум 18..23 і вісім особливих 24..31 (номер скіна по мережі - u8). */
-export const NUM_SKINS = 32;
+/** Безкоштовні 0..11, шість платних 12..17, шість преміум 18..23 і десять особливих 24..33 (номер скіна по мережі - u8). */
+export const NUM_SKINS = 34;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;

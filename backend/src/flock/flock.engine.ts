@@ -3,6 +3,7 @@ import {
   FLOCK_CONFIG,
   FLOCK_MAPS,
   NUM_SKINS,
+  type MapLayout,
   type ThornCfg,
   type BonusKind,
 } from './flock.config';
@@ -30,35 +31,60 @@ function randomThornMass(rng: Rng, cfg: ThornCfg): number {
 }
 
 /**
- * Випадкова розкладка кущів для нової арени: випадкова кількість, рівномірно по всій карті (best-candidate:
- * з кількох випадкових точок береться найвіддаленіша від уже поставлених), мінімальна відстань між кущами й від країв,
- * без центру світу (запасна точка появи), маса (отже й розмір) випадкова. Чиста функція від rng - тестується окремо.
+ * Випадкова розкладка кущів для нової арени: випадкова кількість, мінімальна відстань між кущами й від країв,
+ * без центру світу (запасна точка появи), маса (отже й розмір) трохи різна. Чиста функція від rng - тестується окремо.
  */
 export function generateThorns(
   rng: Rng,
   cfg: ThornCfg = C.thorns,
   world: number = C.worldSize,
+  layout: MapLayout = 'scatter',
 ): ThornSpec[] {
   const count = cfg.min + Math.floor(rng() * (cfg.max - cfg.min + 1));
   const out: ThornSpec[] = [];
   const mid = world / 2;
   const span = world - 2 * cfg.edgeMargin;
-  for (let n = 0; n < count; n++) {
-    let best: { x: number; y: number } | null = null;
-    let bestD = -1;
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const x = cfg.edgeMargin + rng() * span;
-      const y = cfg.edgeMargin + rng() * span;
-      if (Math.hypot(x - mid, y - mid) < cfg.centerClear) continue;
-      let d = Infinity;
-      for (const t of out) d = Math.min(d, Math.hypot(t.x - x, t.y - y));
-      if (d < cfg.minGap) continue;
-      if (d > bestD) {
-        bestD = d;
-        best = { x, y };
-      }
+  // центри купок (clusters): 3-4 точки, довкола яких сидять кущі
+  const hubs =
+    layout === 'clusters'
+      ? Array.from({ length: 3 + Math.floor(rng() * 2) }, () => ({
+          x: cfg.edgeMargin + rng() * span,
+          y: cfg.edgeMargin + rng() * span,
+        }))
+      : [];
+  const candidate = (n: number) => {
+    if (layout === 'clusters') {
+      const h = hubs[n % hubs.length];
+      const a = rng() * TWO_PI;
+      const d = rng() * world * 0.1;
+      return { x: h.x + Math.cos(a) * d, y: h.y + Math.sin(a) * d };
     }
-    if (best) out.push({ ...best, mass: randomThornMass(rng, cfg) });
+    if (layout === 'ring') {
+      const a = rng() * TWO_PI;
+      const d = world * 0.3 + (rng() - 0.5) * world * 0.08;
+      return { x: mid + Math.cos(a) * d, y: mid + Math.sin(a) * d };
+    }
+    return { x: cfg.edgeMargin + rng() * span, y: cfg.edgeMargin + rng() * span };
+  };
+  for (let n = 0; n < count; n++) {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const { x, y } = candidate(n);
+      if (
+        x < cfg.edgeMargin ||
+        y < cfg.edgeMargin ||
+        x > world - cfg.edgeMargin ||
+        y > world - cfg.edgeMargin
+      )
+        continue;
+      if (Math.hypot(x - mid, y - mid) < cfg.centerClear) continue;
+      if (out.some((t) => Math.hypot(t.x - x, t.y - y) < cfg.minGap)) continue;
+      out.push({
+        x,
+        y,
+        mass: randomThornMass(rng, cfg),
+      });
+      break;
+    }
   }
   return out;
 }
@@ -100,8 +126,6 @@ export interface Player {
   lastSplitAt: number;
   lastThrowAt: number;
   spawnedAt: number;
-  /** Скільки «Зорепадів» цей гравець уже викликав за поточне життя (максимум C.zorepad.maxPerPlayerLife). */
-  zorepadCalls: number;
   /** Пауза після розриву зʼєднання: стоїть, недоторкана, нікого не їсть, ефекти не тікають. */
   paused: boolean;
   pausedAt: number;
@@ -221,6 +245,8 @@ export class FlockWorld {
   private zUntil = 0;
   private zNextSpawnAt = 0;
   private zNextStartAt = 0;
+  /** Скільки разів «Зорепад» уже був на цій арені (максимум C.zorepad.maxPerGame). */
+  private zCount = 0;
   private nextStarId = 1;
   readonly deaths: DeathEvent[] = [];
   /** Хто зараз перший за масою (для "часу в топ-1"). */
@@ -241,7 +267,7 @@ export class FlockWorld {
     readonly mapId: number = 0,
   ) {
     const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
-    for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize))
+    for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout))
       this.thorns.push({ id: this.nextThornId++, ...t });
     for (let i = 0; i < C.maxFood; i++) this.spawnFood();
   }
@@ -282,7 +308,6 @@ export class FlockWorld {
       lastSplitAt: -1e9,
       lastThrowAt: -1e9,
       spawnedAt: this.now,
-      zorepadCalls: 0,
       paused: false,
       pausedAt: 0,
       diedAt: 0,
@@ -309,7 +334,6 @@ export class FlockWorld {
     p.frozenUntil = 0;
     p.boostUntil = this.now + C.spawnBoost.durationMs;
     p.spawnedAt = this.now;
-    p.zorepadCalls = 0;
     p.paused = false;
     p.maxMass = C.startMass;
     p.total = C.startMass;
@@ -1023,9 +1047,8 @@ export class FlockWorld {
     }
 
     if (!this.zActive) {
-      const caller = this.now >= this.zNextStartAt ? this.zorepadCaller() : null;
-      if (caller) {
-        caller.zorepadCalls++;
+      if (this.zCount < Z.maxPerGame && this.now >= this.zNextStartAt && this.canStartZorepad()) {
+        this.zCount++;
         this.zActive = true;
         this.zUntil = this.now + Z.durationMs;
         this.zNextSpawnAt = this.now;
@@ -1047,21 +1070,17 @@ export class FlockWorld {
     }
   }
 
-  /**
-   * Хто викличе «Зорепад»: жива людина з triggerMass+, що ще не вичерпала ліміт за життя (найважча з таких),
-   * за умови що на арені є хоча б minAlive живих гравців. Інакше null.
-   */
-  private zorepadCaller(): Player | null {
+  /** Подія стартує, коли жива людина досягла triggerMass і на арені є хоча б minAlive живих гравців. */
+  private canStartZorepad() {
     const Z = C.zorepad;
     let alive = 0;
-    let caller: Player | null = null;
+    let big = false;
     for (const p of this.players.values()) {
       if (!p.alive) continue;
       alive++;
-      if (p.bot || p.total < Z.triggerMass || p.zorepadCalls >= Z.maxPerPlayerLife) continue;
-      if (!caller || p.total > caller.total) caller = p;
+      if (!p.bot && p.total >= Z.triggerMass) big = true;
     }
-    return alive >= Z.minAlive ? caller : null;
+    return big && alive >= Z.minAlive;
   }
 
   private spawnStar() {

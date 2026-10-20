@@ -125,13 +125,13 @@ describe('Карта: случайные кусты', () => {
       }
   });
 
-  it('размер кустов случайный в пределах 200..400 массы', () => {
+  it('ширина кустов сильно различается; самые широкие вмещают игрока с 500+ массой', () => {
     const masses = layouts.flat().map((t) => t.mass);
-    expect(T.massMin).toBe(200);
-    expect(T.massMax).toBe(400);
     expect(Math.min(...masses)).toBeGreaterThanOrEqual(T.massMin);
     expect(Math.max(...masses)).toBeLessThanOrEqual(T.massMax);
     expect(new Set(masses.map((m) => Math.round(m))).size).toBeGreaterThan(5);
+    const widest = Math.max(...masses.map((m) => radiusOf(m)));
+    expect(widest).toBeGreaterThan(radiusOf(500));
   });
 
   it('при каждом создании арены раскладка другая, а при том же rng - та же (детерминизм)', () => {
@@ -223,7 +223,7 @@ describe('Карта: виды карт', () => {
     (_n, map) => {
       const cfg = { ...FLOCK_CONFIG.thorns, ...map.thorns };
       for (let seed = 1; seed <= 40; seed++) {
-        const t = generateThorns(lcg(seed), cfg, FLOCK_CONFIG.worldSize);
+        const t = generateThorns(lcg(seed), cfg, FLOCK_CONFIG.worldSize, map.layout);
         expect(t.length).toBeGreaterThan(0);
         expect(t.length).toBeLessThanOrEqual(cfg.max);
         const mid = FLOCK_CONFIG.worldSize / 2;
