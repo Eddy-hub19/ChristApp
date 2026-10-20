@@ -2,8 +2,8 @@ export type SkinKind = "sheep" | "lamb" | "ram" | "wolf" | "dog";
 
 /** Прикраса поверх базового вигляду (платні скіни). */
 export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "stars" | "angel" | "rainbow" | "frost" | "sun" | "david" | "polar"
-  // «особливі» (24..31), статичні
-  | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi";
+  // «особливі» (24..33), статичні
+  | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy";
 
 /** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
 export interface SkinAnim {
@@ -30,7 +30,7 @@ export interface Skin {
   accent: string;
 }
 
-/** Порядок = номер скіна на сервері (NUM_SKINS = 32: 0-11 безкоштовні, 12-17 платні, 18-23 преміум, 24-31 особливі). Назви - у перекладах flock.skins.<id>. */
+/** Порядок = номер скіна на сервері (NUM_SKINS = 34: 0-11 безкоштовні, 12-17 платні, 18-23 преміум, 24-32 особливі). Назви - у перекладах flock.skins.<id>. */
 export const SKINS: Skin[] = [
   { kind: "sheep", fur: "#f6f1e7", light: "#ffffff", face: "#3b3532", accent: "#f2a7b3" },
   { kind: "sheep", fur: "#f7c6d3", light: "#ffe4ec", face: "#4a3440", accent: "#f08aa4" },
@@ -58,7 +58,7 @@ export const SKINS: Skin[] = [
   { kind: "ram", deco: "sun", anim: { frames: 4, fps: 5 }, fur: "#f7e3a6", light: "#fff6d2", face: "#5a3d12", accent: "#e0a41f" },
   { kind: "lamb", deco: "david", anim: { frames: 2, fps: 3 }, fur: "#fff1d6", light: "#ffffff", face: "#d9a58a", accent: "#ffa3a8" },
   { kind: "wolf", deco: "polar", anim: { frames: 3, fps: 3 }, fur: "#e3ebf4", light: "#ffffff", face: "#c3d5e8", accent: "#5cd6ff" },
-  // --- особливі (24..31), по 40 рубінів, статичні ---
+  // --- особливі (24..33), по 40 рубінів, статичні ---
   { kind: "sheep", deco: "crystal", fur: "#eceaf6", light: "#ffffff", face: "#2b2326", accent: "#f6a9c0" },
   { kind: "sheep", deco: "cactus", fur: "#86b48a", light: "#b5d9b3", face: "#1f2a23", accent: "#f6a9c0" },
   { kind: "sheep", deco: "mushroom", fur: "#f6ead8", light: "#ffffff", face: "#3a2620", accent: "#f2a0a8" },
@@ -67,6 +67,8 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "storm", fur: "#e9ecf2", light: "#ffffff", face: "#232630", accent: "#f6a9c0" },
   { kind: "sheep", deco: "robot", fur: "#e4dfd2", light: "#ffffff", face: "#1d2030", accent: "#ff9db0" },
   { kind: "sheep", deco: "sushi", fur: "#f8f5ea", light: "#ffffff", face: "#2c2321", accent: "#f6a9b0" },
+  { kind: "sheep", deco: "leaves", fur: "#f1d9a8", light: "#fff0cc", face: "#3a2618", accent: "#f0a070" },
+  { kind: "sheep", deco: "candy", fur: "#fff1f4", light: "#ffffff", face: "#17151a", accent: "#ff8fb0" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
