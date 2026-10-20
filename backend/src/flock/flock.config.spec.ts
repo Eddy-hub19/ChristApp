@@ -17,7 +17,7 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(32);
+    expect(NUM_SKINS).toBe(34);
     for (let id = 0; id < FREE_SKINS; id++) {
       expect(isPaidSkin(id)).toBe(false);
       expect(isPremiumSkin(id)).toBe(false);
@@ -46,7 +46,7 @@ describe('скіни: ціни й діапазони', () => {
     expect(isPaidSkin(NUM_SKINS)).toBe(false);
   });
 
-  it('номер скіна по мережі - u8: усі 32 (і до 255) проходять кодек без змін формату', () => {
+  it('номер скіна по мережі - u8: усі 34 (і до 255) проходять кодек без змін формату', () => {
     const ids = Array.from({ length: NUM_SKINS }, (_, i) => i).concat(255);
     const buf = encodeState({
       tick: 1,

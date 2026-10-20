@@ -22,6 +22,14 @@ const EAT: Food[] = [];
 
 export type ThornSpec = { x: number; y: number; mass: number };
 
+/** Маса куща з рівномірним розподілом за радіусом (радіус ~ sqrt(маса)): і вузькі, і широкі кущі трапляються часто. */
+function randomThornMass(rng: Rng, cfg: ThornCfg): number {
+  const lo = Math.sqrt(cfg.massMin);
+  const hi = Math.sqrt(cfg.massMax);
+  const k = lo + rng() * (hi - lo);
+  return k * k;
+}
+
 /**
  * Випадкова розкладка кущів для нової арени: випадкова кількість, мінімальна відстань між кущами й від країв,
  * без центру світу (запасна точка появи), маса (отже й розмір) трохи різна. Чиста функція від rng - тестується окремо.
@@ -73,7 +81,7 @@ export function generateThorns(
       out.push({
         x,
         y,
-        mass: cfg.massMin + rng() * (cfg.massMax - cfg.massMin),
+        mass: randomThornMass(rng, cfg),
       });
       break;
     }
@@ -237,6 +245,8 @@ export class FlockWorld {
   private zUntil = 0;
   private zNextSpawnAt = 0;
   private zNextStartAt = 0;
+  /** Скільки разів «Зорепад» уже був на цій арені (максимум C.zorepad.maxPerGame). */
+  private zCount = 0;
   private nextStarId = 1;
   readonly deaths: DeathEvent[] = [];
   /** Хто зараз перший за масою (для "часу в топ-1"). */
@@ -868,6 +878,8 @@ export class FlockWorld {
         const r = radiusOf(c.mass);
         for (const t of this.thorns) {
           const tr = radiusOf(t.mass);
+          // клітина менша за кущ може залізти всередину (ховається) і не рветься
+          if (r <= tr) continue;
           if (Math.hypot(c.x - t.x, c.y - t.y) < r - tr * 0.3) {
             this.popCell(p, c);
             break;
@@ -1035,7 +1047,8 @@ export class FlockWorld {
     }
 
     if (!this.zActive) {
-      if (this.now >= this.zNextStartAt && this.canStartZorepad()) {
+      if (this.zCount < Z.maxPerGame && this.now >= this.zNextStartAt && this.canStartZorepad()) {
+        this.zCount++;
         this.zActive = true;
         this.zUntil = this.now + Z.durationMs;
         this.zNextSpawnAt = this.now;
