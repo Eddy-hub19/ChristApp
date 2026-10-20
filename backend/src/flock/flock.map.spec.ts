@@ -125,14 +125,13 @@ describe('Карта: случайные кусты', () => {
       }
   });
 
-  it('размеры слегка различаются, но в разумных пределах', () => {
+  it('ширина кустов сильно различается; самые широкие вмещают игрока с 500+ массой', () => {
     const masses = layouts.flat().map((t) => t.mass);
     expect(Math.min(...masses)).toBeGreaterThanOrEqual(T.massMin);
     expect(Math.max(...masses)).toBeLessThanOrEqual(T.massMax);
     expect(new Set(masses.map((m) => Math.round(m))).size).toBeGreaterThan(5);
-    // разброс радиуса не более ~±15%: «слегка»
-    const r = (m: number) => radiusOf(m);
-    expect(r(T.massMax) / r(T.massMin)).toBeLessThan(1.25);
+    const widest = Math.max(...masses.map((m) => radiusOf(m)));
+    expect(widest).toBeGreaterThan(radiusOf(500));
   });
 
   it('при каждом создании арены раскладка другая, а при том же rng - та же (детерминизм)', () => {

@@ -258,17 +258,25 @@ export function starShadowSprite() {
 }
 
 // ---------- кущі ----------
-let thornCv: HTMLCanvasElement | null = null;
+const thornCvs: Record<string, HTMLCanvasElement> = {};
 const THORN_PX = 256;
-export function thornSprite() {
-  if (thornCv) return thornCv;
+/** Цвета куста: [шипы, основа, блик, ягоды]. Осенняя карта - листва рыже-красная. */
+const THORN_COLORS = {
+  green: ["#2f7a3a", "#47a357", "#5fbf6e", "#e9577f"],
+  autumn: ["#a8421a", "#d9731f", "#f0a63a", "#7a1f1f"],
+} as const;
+export type ThornKind = keyof typeof THORN_COLORS;
+export function thornSprite(kind: ThornKind = "green") {
+  const cached = thornCvs[kind];
+  if (cached) return cached;
+  const [cSpike, cBody, cShine, cBerry] = THORN_COLORS[kind];
   const cv = makeCanvas(THORN_PX, THORN_PX);
   const c = cv.getContext("2d");
   if (c) {
     const r = THORN_PX * 0.47;
     c.translate(THORN_PX / 2, THORN_PX / 2);
     const spikes = 16;
-    c.fillStyle = "#2f7a3a";
+    c.fillStyle = cSpike;
     c.beginPath();
     for (let i = 0; i < spikes * 2; i++) {
       const a = (i / (spikes * 2)) * TAU;
@@ -277,13 +285,13 @@ export function thornSprite() {
     }
     c.closePath();
     c.fill();
-    c.fillStyle = "#47a357";
+    c.fillStyle = cBody;
     circle(c, 0, 0, r * 0.72);
     c.fill();
-    c.fillStyle = "#5fbf6e";
+    c.fillStyle = cShine;
     circle(c, -r * 0.2, -r * 0.22, r * 0.38);
     c.fill();
-    c.fillStyle = "#e9577f";
+    c.fillStyle = cBerry;
     for (const [dx, dy] of [
       [0.25, 0.2],
       [-0.3, 0.3],
@@ -293,7 +301,7 @@ export function thornSprite() {
       c.fill();
     }
   }
-  thornCv = cv;
+  thornCvs[kind] = cv;
   return cv;
 }
 /** Радіус куща в спрайті відносно його половини (0.47) - щоб малювати з тим самим масштабом. */
@@ -467,7 +475,7 @@ export function clearSpriteCaches() {
   texts.clear();
   digitAtlas.clear();
   bonusCache.clear();
-  thornCv = null;
+  for (const k of Object.keys(thornCvs)) delete thornCvs[k];
   starCv = null;
   starShadowCv = null;
   tile = null;

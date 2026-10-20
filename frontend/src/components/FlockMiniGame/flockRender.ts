@@ -1,7 +1,7 @@
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
-import { mapTheme } from "./flockMaps";
+import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
 import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite } from "./flockSprites";
 
 export { drawCreature };
@@ -317,22 +317,34 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     VISIBLE.push(c);
   }
   VISIBLE.sort(byMass);
-  for (let i = 0; i < VISIBLE.length; i++) if (VISIBLE[i].mass < HIDE_UNDER_THORN_MASS) drawCell(ctx, m, VISIBLE[i], o, scale);
+  // клетка под кустом: легкая, либо целиком влезшая в более широкий куст
+  const hidden = (c: RCell) => {
+    if (c.mass < HIDE_UNDER_THORN_MASS) return true;
+    const r = m.radiusOf(c.mass);
+    for (const t of m.thorns) if (r < m.radiusOf(t.mass) && Math.hypot(c.x - t.x, c.y - t.y) < m.radiusOf(t.mass) - r * 0.5) return true;
+    return false;
+  };
+  const thornKind = m.cfg.map === AUTUMN_MAP_ID ? "autumn" : "green";
+  const drawnUnder: boolean[] = [];
+  for (let i = 0; i < VISIBLE.length; i++) {
+    drawnUnder[i] = hidden(VISIBLE[i]);
+    if (drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
+  }
   for (const t of m.thorns) {
     const tr = m.radiusOf(t.mass);
     if (t.x < x0 - tr || t.x > x1 + tr || t.y < y0 - tr || t.y > y1 + tr) continue;
     const sz = (tr / THORN_SPRITE_FILL) * 1.0;
     if (far) {
-      ctx.drawImage(thornSprite(), t.x - sz, t.y - sz, sz * 2, sz * 2);
+      ctx.drawImage(thornSprite(thornKind), t.x - sz, t.y - sz, sz * 2, sz * 2);
       continue;
     }
     ctx.save();
     ctx.translate(t.x, t.y);
     ctx.rotate(Math.sin(o.time * 0.8 + t.x) * 0.04);
-    ctx.drawImage(thornSprite(), -sz, -sz, sz * 2, sz * 2);
+    ctx.drawImage(thornSprite(thornKind), -sz, -sz, sz * 2, sz * 2);
     ctx.restore();
   }
-  for (let i = 0; i < VISIBLE.length; i++) if (VISIBLE[i].mass >= HIDE_UNDER_THORN_MASS) drawCell(ctx, m, VISIBLE[i], o, scale);
+  for (let i = 0; i < VISIBLE.length; i++) if (!drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
 
   // клітини, що тануть (з'їдені)
   for (const d of m.dying) {

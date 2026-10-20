@@ -4,6 +4,9 @@ import type { Theme } from "./flockRender";
  * Палитры видов карт. Номер = `map` из welcome (сервер: FLOCK_MAPS в flock.config.ts). 0 - обычный луг.
  * Новый вид карты = запись здесь + запись на сервере; для светлой и тёмной темы цвета свои.
  */
+/** Осенняя роща: кусты тоже осенние. */
+export const AUTUMN_MAP_ID = 1;
+
 export const MAP_PALETTES: Record<number, { light: Partial<Theme>; dark: Partial<Theme> }> = {
   // 1: осенняя роща (кусты купками)
   1: {
