@@ -122,6 +122,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 5,
+    date: "2026-10-20",
+    items: [
+      {
+        icon: "skins",
+        text: {
+          ua: "2 нові скіни по 20 рубінів: Сердечна вівця й М'ятна вівця",
+          ru: "2 новых скина по 20 рубинов: Сердечная овечка и Мятная овечка",
+          en: "2 new skins for 20 rubies each: Heart Sheep and Mint Sheep",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

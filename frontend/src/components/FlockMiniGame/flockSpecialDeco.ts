@@ -113,6 +113,30 @@ function candyTwist(c: CanvasRenderingContext2D, x: number, y: number, dir: numb
   c.restore();
 }
 
+function heart(c: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(rot);
+  c.beginPath();
+  c.moveTo(0, size * 0.35);
+  c.bezierCurveTo(-size * 0.95, -size * 0.2, -size * 0.45, -size * 0.85, 0, -size * 0.3);
+  c.bezierCurveTo(size * 0.45, -size * 0.85, size * 0.95, -size * 0.2, 0, size * 0.35);
+  c.closePath();
+  c.restore();
+}
+
+function spiral(c: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number) {
+  c.beginPath();
+  for (let t = 0; t <= 3.2 * Math.PI; t += 0.2) {
+    const rad = (t / (3.2 * Math.PI)) * size;
+    const px = x + Math.cos(t + rot) * rad;
+    const py = y + Math.sin(t + rot) * rad;
+    if (t === 0) c.moveTo(px, py);
+    else c.lineTo(px, py);
+  }
+  c.stroke();
+}
+
 function flame(c: CanvasRenderingContext2D, x: number, y: number, dir: number, len: number, w: number, outer: string, inner: string) {
   const ux = Math.cos(dir);
   const uy = Math.sin(dir);
@@ -303,6 +327,61 @@ export function drawSpecialFront(c: CanvasRenderingContext2D, skin: Skin, r: num
         c.lineJoin = "round";
         c.stroke();
       }
+      break;
+    }
+    case "hearts":
+    case "mint": {
+      const { pt } = frame(r, ang);
+      if (skin.deco === "hearts") {
+        // [вперёд, вбок, размер, залитое, поворот]
+        for (const [f, sd, sz, filled, rot] of [
+          [-0.55, -0.35, 0.2, 1, -0.4],
+          [-0.2, -0.72, 0.15, 0, 0.5],
+          [-0.75, 0.2, 0.17, 0, 0.3],
+          [-0.4, 0.62, 0.22, 1, 0.6],
+          [0.05, 0.72, 0.13, 0, -0.5],
+          [0.1, -0.7, 0.16, 1, 0.2],
+          [-0.95, -0.05, 0.12, 1, -0.2],
+          [-0.15, 0.2, 0.1, 0, 0.1],
+        ] as const) {
+          const [x, y] = pt(f, sd);
+          heart(c, x, y, sz * r, ang + rot);
+          if (filled) {
+            c.fillStyle = "#d9232b";
+            c.fill();
+          } else {
+            c.strokeStyle = "#e0343a";
+            c.lineWidth = Math.max(1, r * 0.035);
+            c.lineJoin = "round";
+            c.stroke();
+          }
+        }
+      } else {
+        c.strokeStyle = "#ffffff";
+        c.lineCap = "round";
+        c.lineWidth = Math.max(1, r * 0.05);
+        for (const [f, sd, sz, rot] of [
+          [-0.45, -0.3, 0.2, 0],
+          [-0.15, -0.72, 0.13, 2],
+          [-0.8, 0.25, 0.16, 4],
+          [-0.35, 0.65, 0.18, 1],
+          [0.15, 0.7, 0.12, 3],
+          [0.1, -0.68, 0.14, 5],
+          [-0.95, -0.15, 0.1, 2.5],
+        ] as const) {
+          const [x, y] = pt(f, sd);
+          spiral(c, x, y, sz * r, rot);
+        }
+      }
+      // розовая щёчка сбоку мордочки (носик под ней закрываем цветом мордочки)
+      c.fillStyle = skin.face;
+      const [nx, ny] = pt(0.62, 0);
+      circle(c, nx, ny, r * 0.1);
+      c.fill();
+      c.fillStyle = skin.accent;
+      const [kx, ky] = pt(0.5, 0.26);
+      circle(c, kx, ky, r * 0.08);
+      c.fill();
       break;
     }
     case "candy": {

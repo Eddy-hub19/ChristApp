@@ -44,8 +44,8 @@ describe('FlockManager', () => {
     expect(ctx.mgr._arena(1)).toBeUndefined();
   });
 
-  it('боти беруть лише безкоштовні скіни, навіть коли платних уже 34', () => {
-    expect(NUM_SKINS).toBe(34);
+  it('боти беруть лише безкоштовні скіни, навіть коли платних уже 36', () => {
+    expect(NUM_SKINS).toBe(36);
     ctx.mgr.join('c1', 'u1', 'Аня', 1);
     const seen = new Set<number>();
     for (const p of ctx.mgr._arena(1)!.world.players.values()) {
@@ -525,7 +525,7 @@ describe('FlockManager', () => {
         ctx.sent.find((m) => m.event === 's' && m.key === 'c2')!.payload,
       );
       const mine = st.cells.find((c) => c.pid === player.id);
-      if (mine) expect(mine.fx & 32).toBe(34);
+      if (mine) expect(mine.fx & 32).toBe(32);
       if (mine) {
         const t = st.paused.find((p) => p.pid === player.id)!;
         expect(t.remainingMs).toBeGreaterThan(12_000);
