@@ -3,7 +3,9 @@ export type SkinKind = "sheep" | "lamb" | "ram" | "wolf" | "dog";
 /** Прикраса поверх базового вигляду (платні скіни). */
 export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "stars" | "angel" | "rainbow" | "frost" | "sun" | "david" | "polar"
   // «особливі» (24..33), статичні
-  | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy";
+  | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy"
+  // платные обычные (34, 35), статичные
+  | "hearts" | "mint";
 
 /** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
 export interface SkinAnim {
@@ -30,7 +32,7 @@ export interface Skin {
   accent: string;
 }
 
-/** Порядок = номер скіна на сервері (NUM_SKINS = 34: 0-11 безкоштовні, 12-17 платні, 18-23 преміум, 24-32 особливі). Назви - у перекладах flock.skins.<id>. */
+/** Порядок = номер скіна на сервері (NUM_SKINS = 36: 0-11 безкоштовні, 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні, у тому ж ряду лобі, що й 12-17)). Назви - у перекладах flock.skins.<id>. */
 export const SKINS: Skin[] = [
   { kind: "sheep", fur: "#f6f1e7", light: "#ffffff", face: "#3b3532", accent: "#f2a7b3" },
   { kind: "sheep", fur: "#f7c6d3", light: "#ffe4ec", face: "#4a3440", accent: "#f08aa4" },
@@ -69,6 +71,9 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "sushi", fur: "#f8f5ea", light: "#ffffff", face: "#2c2321", accent: "#f6a9b0" },
   { kind: "sheep", deco: "leaves", fur: "#f1d9a8", light: "#fff0cc", face: "#3a2618", accent: "#f0a070" },
   { kind: "sheep", deco: "candy", fur: "#fff1f4", light: "#ffffff", face: "#17151a", accent: "#ff8fb0" },
+  // --- платні звичайні (34, 35), по 20 рубінів, статичні; в лобі стоять у ряду з 12..17 ---
+  { kind: "sheep", deco: "hearts", fur: "#2b2326", light: "#40343a", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "mint", fur: "#bfe6dc", light: "#e4f6f1", face: "#1f2c2b", accent: "#f6a6b8" },
 ];
 
 export const SKIN_COUNT = SKINS.length;

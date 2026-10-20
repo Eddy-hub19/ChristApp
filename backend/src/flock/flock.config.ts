@@ -315,13 +315,15 @@ export const BONUS_KINDS = Object.keys(
 ) as BonusKind[];
 
 /** Безкоштовні 0..11, шість платних 12..17, шість преміум 18..23 і десять особливих 24..33 (номер скіна по мережі - u8). */
-export const NUM_SKINS = 34;
+/** Звичайні платні скіни після особливих (34, 35): ціна як у 12..17 (skinPrice). */
+export const EXTRA_PAID_FROM = 34;
+export const NUM_SKINS = 36;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
 export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < SPECIAL_FROM;
-export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < NUM_SKINS;
+export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < EXTRA_PAID_FROM;
 /** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
   isSpecialSkin(id)

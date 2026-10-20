@@ -37,7 +37,7 @@ describe("рубіни: множина (ICU plural)", () => {
 describe("скіни: платні 12..17, преміум 18..23 і особливі 24..33", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
     expect(SKINS).toHaveLength(TOTAL_SKINS);
-    expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17]);
+    expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17, 34, 35]);
     expect(isPaidSkin(FREE_SKINS - 1)).toBe(false);
     expect(isPaidSkin(FREE_SKINS)).toBe(true);
     expect(isPaidSkin(TOTAL_SKINS)).toBe(false);
@@ -70,7 +70,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("особливі 24..33: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
     expect(SPECIAL_FROM).toBe(24);
-    expect(TOTAL_SKINS).toBe(34);
+    expect(TOTAL_SKINS).toBe(36);
     expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
     expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
     expect(isSpecialSkin(23)).toBe(false);

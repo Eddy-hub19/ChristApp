@@ -1,6 +1,7 @@
 import {
   FLOCK_CONFIG as C,
   FREE_SKINS,
+  EXTRA_PAID_FROM,
   NUM_SKINS,
   PREMIUM_FROM,
   SPECIAL_FROM,
@@ -17,7 +18,7 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(34);
+    expect(NUM_SKINS).toBe(36);
     for (let id = 0; id < FREE_SKINS; id++) {
       expect(isPaidSkin(id)).toBe(false);
       expect(isPremiumSkin(id)).toBe(false);
@@ -33,12 +34,19 @@ describe('скіни: ціни й діапазони', () => {
       expect(isSpecialSkin(id)).toBe(false);
       expect(skinPriceOf(id)).toBe(C.rubies.premiumSkinPrice);
     }
-    for (let id = SPECIAL_FROM; id < NUM_SKINS; id++) {
+    for (let id = SPECIAL_FROM; id < EXTRA_PAID_FROM; id++) {
       expect(isPaidSkin(id)).toBe(true);
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(true);
       expect(isHiddenSkin(id)).toBe([26, 30].includes(id)); // сховані лише грибок і робот
       expect(skinPriceOf(id)).toBe(C.rubies.specialSkinPrice);
+    }
+    for (let id = EXTRA_PAID_FROM; id < NUM_SKINS; id++) {
+      expect(isPaidSkin(id)).toBe(true);
+      expect(isPremiumSkin(id)).toBe(false);
+      expect(isSpecialSkin(id)).toBe(false);
+      expect(isHiddenSkin(id)).toBe(false);
+      expect(skinPriceOf(id)).toBe(C.rubies.skinPrice);
     }
     expect(C.rubies.specialSkinPrice).toBe(40);
     expect(C.rubies.skinPrice).toBe(20);
@@ -46,7 +54,7 @@ describe('скіни: ціни й діапазони', () => {
     expect(isPaidSkin(NUM_SKINS)).toBe(false);
   });
 
-  it('номер скіна по мережі - u8: усі 34 (і до 255) проходять кодек без змін формату', () => {
+  it('номер скіна по мережі - u8: усі 36 (і до 255) проходять кодек без змін формату', () => {
     const ids = Array.from({ length: NUM_SKINS }, (_, i) => i).concat(255);
     const buf = encodeState({
       tick: 1,
