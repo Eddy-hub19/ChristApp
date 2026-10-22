@@ -6,6 +6,7 @@ import {
   type DecodedBoard,
   type DecodedState,
 } from "./flockProtocol";
+import { PHRASE_MAX_MS } from "./flockPhrases";
 
 export interface FlockCfg {
   pid: number;
@@ -141,6 +142,8 @@ export class FlockModel {
   /** Активні хвилі «Ножиць» (анімація ~SCISSORS_WAVE_MS, потім прибираються при малюванні). */
   readonly scissorsWaves: RScissorsWave[] = [];
   effects: ActiveEffect[] = [];
+  /** pid -> активна швидка фраза: id і локальний час (годинник кадру) її кінця. Прибирається, коли гравець зник із зони. */
+  readonly phrases = new Map<number, { id: number; end: number }>();
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
   readonly pausedUntil = new Map<number, number>();
   board: DecodedBoard = { top: [], alive: 0, map: [] };
@@ -282,6 +285,12 @@ export class FlockModel {
         });
       }
     }
+    if (this.phrases.size) {
+      // гравця вже не видно (вийшов із зони / з'їдений): хмаринку забуваємо, сервер надішле її знову, коли він зʼявиться
+      const pids = new Set<number>();
+      for (const c of s.cells) pids.add(c.pid);
+      for (const pid of this.phrases.keys()) if (!pids.has(pid)) this.phrases.delete(pid);
+    }
     for (const c of this.cells.values()) {
       if (seen.has(c.id)) continue;
       this.cells.delete(c.id);
@@ -356,6 +365,23 @@ export class FlockModel {
     this.scissorsWaves.push({ x: e.x, y: e.y, r: e.r, t0: recvMs });
     const victims = Array.isArray(e.v) ? e.v : [];
     return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length };
+  }
+
+  /**
+   * Подія `q` ({p: pid, i: id фрази (0 - скинути), t: кінець у часі сервера, мс}). Час сервера переводимо в локальний
+   * годинник кадру через звʼязок годинників зі станів; не довше PHRASE_MAX_MS від отримання.
+   */
+  applyPhrase(msg: unknown, recvMs: number = this.localNow) {
+    const e = msg as { p?: unknown; i?: unknown; t?: unknown } | null;
+    if (!e || typeof e.p !== "number" || typeof e.i !== "number") return;
+    if (e.i <= 0) {
+      this.phrases.delete(e.p);
+      return;
+    }
+    const cap = recvMs + PHRASE_MAX_MS;
+    const end = typeof e.t === "number" && this.clockBase !== null ? e.t + this.clockBase : cap;
+    if (end <= recvMs) return;
+    this.phrases.set(e.p, { id: e.i, end: Math.min(end, cap) });
   }
 
   applyBoard(pkt: ArrayBuffer | Uint8Array) {

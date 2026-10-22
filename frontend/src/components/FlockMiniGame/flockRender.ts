@@ -3,10 +3,11 @@ import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProt
 import { circle, drawCreature } from "./flockCreature";
 import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
 import { BOSS_SKIN } from "./flockSkins";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite, type ThornKind } from "./flockSprites";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
+import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
 export interface Theme {
   dark: boolean;
@@ -195,6 +196,11 @@ function foodSprite(kind: number, dark: boolean) {
   }));
 }
 
+/** Скільки CSS px має шрифт хмаринки фрази на екрані (розмір не залежить від масштабу камери). */
+const BUBBLE_FONT_PX = 14;
+/** Овечка, менша за стільки CSS px на екрані, фразу не показує (надто далеко). */
+const BUBBLE_MIN_SHEEP_PX = 8;
+
 export interface DrawOpts {
   width: number;
   height: number;
@@ -205,6 +211,10 @@ export interface DrawOpts {
   selfAngle: number;
   showNames: boolean;
   botLabel: string;
+  /** Мова інтерфейсу: за нею вибираємо текст фрази. Без поля фрази не малюються. */
+  phraseLang?: PhraseLang;
+  /** «Ховати чужі фрази»: свою показуємо все одно. */
+  hideOthersPhrases?: boolean;
 }
 
 export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawOpts) {
@@ -376,7 +386,35 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       if (r * scale > 38 && c.pid === m.cfg.pid) drawDigits(ctx, c.mass, c.x, ty + size * 0.95, size * 0.62, scale, dpr, theme);
     }
   }
+  if (o.phraseLang && m.phrases.size) drawPhrases(ctx, m, o, theme, scale);
   ctx.restore();
+}
+
+/** Хмаринки фраз над найбільшою клітиною гравця, поверх імен: готовий спрайт, розмір на екрані ~сталий, останні секунди тануть. */
+function drawPhrases(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawOpts, theme: Theme, scale: number) {
+  const lang = o.phraseLang as PhraseLang;
+  for (const [pid, ph] of m.phrases) {
+    const left = ph.end - m.localNow;
+    if (left <= 0) {
+      m.phrases.delete(pid);
+      continue;
+    }
+    if (o.hideOthersPhrases && pid !== m.cfg.pid) continue;
+    const cell = m.cells.get(LARGEST.get(pid) ?? -1);
+    if (!cell) continue;
+    const r = m.radiusOf(cell.mass);
+    if (r * scale < BUBBLE_MIN_SHEEP_PX) continue;
+    const def = phraseById(ph.id);
+    if (!def) continue;
+    // великі овечки зблизька - трохи більша хмаринка; здалеку розмір на екрані не падає нижче базового
+    const k = 1 + Math.min(0.4, (r * scale) / 500);
+    const spr = phraseBubbleSprite(ph.id, lang, `${def.emoji} ${def.text[lang]}`, BUBBLE_FONT_PX * k * o.dpr, theme);
+    // спрайт намальовано під шрифт ≈ BUBBLE_FONT_PX·k CSS px (з округленням до "відра"): світових одиниць на px спрайта
+    const wScale = (BUBBLE_FONT_PX * k) / (scale * spr.px);
+    ctx.globalAlpha = left < PHRASE_FADE_MS ? Math.max(0, left / PHRASE_FADE_MS) : 1;
+    ctx.drawImage(spr.cv, cell.x - spr.tipX * wScale, cell.y - r * 0.92 - spr.tipY * wScale, spr.cv.width * wScale, spr.cv.height * wScale);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: DrawOpts, scale: number) {

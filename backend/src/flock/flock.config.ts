@@ -290,6 +290,16 @@ export const FLOCK_CONFIG = {
     specialFrom: 24,
   },
 
+  // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
+  phrases: {
+    /** Допустимі id фраз. Нова фраза = дописати id сюди й запис у клієнтський flockPhrases.ts. */
+    ids: [1, 2, 3, 4, 5, 6, 7, 8] as readonly number[],
+    /** Скільки висить хмаринка (мс); не більше 30 с (див. PHRASE_MAX_MS). */
+    durationMs: 30_000,
+    /** Не частіше однієї фрази на гравця за цей час (мс). */
+    cooldownMs: 3_000,
+  },
+
   // --- «Рекорди дня» і нагорода за серію днів на 1-му місці (доба за rubies.dailyTimeZone) ---
   dailyRecords: {
     /** Скільки днів поспіль треба бути №1 за день. */
@@ -495,6 +505,10 @@ export function clientGameConfig() {
       topSize: c.dailyRecords.topSize,
     },
     artifactPrice: c.artifacts.price,
+    phrases: {
+      durationMs: phraseDurationMs(),
+      cooldownMs: c.phrases.cooldownMs,
+    },
   };
 }
 
@@ -545,5 +559,11 @@ export const ARTIFACT = {
   censer: 7,
 } as const;
 export const NUM_ARTIFACTS = 7;
+/** Стеля тривалості хмаринки: значення в конфігу не може її перевищити. */
+export const PHRASE_MAX_MS = 30_000;
+export const phraseDurationMs = () =>
+  Math.max(0, Math.min(PHRASE_MAX_MS, FLOCK_CONFIG.phrases.durationMs));
+export const isPhraseId = (id: unknown): id is number =>
+  typeof id === 'number' && FLOCK_CONFIG.phrases.ids.includes(id);
 export const isArtifactId = (id: unknown): id is number =>
   typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= NUM_ARTIFACTS;

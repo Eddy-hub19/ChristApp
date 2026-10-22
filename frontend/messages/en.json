@@ -1144,7 +1144,12 @@
     "controls": {
       "split": "Split",
       "throw": "Throw",
-      "keys": "Mouse — move · Space — split · W — throw"
+      "keys": "Mouse — move · Space — split · W — throw · T — phrases"
+    },
+    "phrases": {
+      "open": "Quick phrases",
+      "title": "Quick phrases",
+      "hideOthers": "Hide others' phrases"
     },
     "daily": {
       "title": "Daily records",
