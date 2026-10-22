@@ -1121,6 +1121,7 @@
       "title": "Artifacts",
       "hint": "Worn on top of any skin, one at a time. Bought with rubies.",
       "none": "No artifact",
+      "notWorn": "not worn",
       "takeOff": "Take off",
       "worn": "Worn",
       "items": {
@@ -1278,6 +1279,14 @@
       "titleOwn": "You invited friends to Flock",
       "sub": "A shared arena of sheep and wolves",
       "play": "Play"
+    },
+    "info": {
+      "open": "About the game",
+      "title": "About the game",
+      "close": "Close",
+      "tabAbout": "About",
+      "tabUpdates": "Updates",
+      "new": "New"
     },
     "whatsNew": {
       "title": "What's new in Flock",

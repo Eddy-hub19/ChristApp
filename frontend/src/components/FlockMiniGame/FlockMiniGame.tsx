@@ -15,6 +15,7 @@ import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFloc
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import FlockInvite from "./FlockInvite";
 import { isResumable, loadFlockSession } from "./flockSession";
+import FlockInfo from "./FlockInfo";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
@@ -169,17 +170,40 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [reconnectLeft, setReconnectLeft] = useState(0);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcedRef = useRef(false);
+  /** Шторка «Про гру» (кнопка «i») и раздел «Артефакти» в лобби: оба каждый раз стартуют свёрнутыми / закрытыми. */
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [artifactsOpen, setArtifactsOpen] = useState(false);
+  /** Версия «Що нового», просмотренная ДО этого открытия игры (для точки «Нове» во вкладке «Оновлення»). */
+  const seenBeforeRef = useRef<number | null>(null);
   const resumableAtOpenRef = useRef(false);
 
   // «Що нового» / «Ласкаво просимо»: решаем один раз за открытие, когда пришёл профиль с сервера.
   useEffect(() => {
     if (!open) {
       announcedRef.current = false;
+      seenBeforeRef.current = null;
       setAnnouncement(null);
+      setInfoOpen(false);
+      setArtifactsOpen(false);
       return;
     }
     resumableAtOpenRef.current = isResumable(loadFlockSession());
   }, [open]);
+  const onUpdatesViewed = useCallback(
+    (version: number) => {
+      saveLocalSeen(userId, version);
+      void markWhatsNewSeen(version).catch(() => undefined);
+      setMe((m) => (m ? { ...m, whatsNewSeen: Math.max(m.whatsNewSeen ?? 0, version) } : m));
+    },
+    [userId],
+  );
+  const closeInfo = useCallback(() => setInfoOpen(false), []);
+
+  // запоминаем «просмотрено» до того, как плашка ниже пометит версию как просмотренную
+  useEffect(() => {
+    if (!open || !me || seenBeforeRef.current !== null) return;
+    seenBeforeRef.current = Math.max(me.whatsNewSeen ?? 0, loadLocalSeen(userId));
+  }, [open, me, userId]);
   useEffect(() => {
     if (!open || !me || announcedRef.current) return;
     const a = decideAnnouncement({
@@ -825,11 +849,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         />
       ) : null}
 
+      {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
+
       {showLobby ? (
         <div className={styles.cardWrap}>
           <div className={styles.card}>
             <div className={styles.cardHead}>
-              <h2>{t("title")}</h2>
+              <div className={styles.titleRow}>
+                <h2>{t("title")}</h2>
+                <button type="button" className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} aria-haspopup="dialog">
+                  i
+                </button>
+              </div>
               <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
                 <RubyIcon size={18} />
                 <span>{me?.rubies ?? 0}</span>
@@ -904,7 +935,22 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             ) : null}
 
-            <h3 className={`${styles.h3} ${styles.artifactTitle}`}>{t("artifacts.title")}</h3>
+            <div className={styles.accordion}>
+              <button type="button" className={styles.accordionHead} aria-expanded={artifactsOpen} aria-controls="flock-artifacts-body" onClick={() => setArtifactsOpen((v) => !v)}>
+                <span className={`${styles.h3} ${styles.artifactTitle} ${styles.accordionTitle}`}>{t("artifacts.title")}</span>
+                <span className={styles.accordionCurrent}>
+                  {artifact > 0 ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={artifactIconSrc(artifact) ?? ""} alt="" width={22} height={22} decoding="async" />
+                  ) : null}
+                  <span className={styles.accordionCurrentName}>{artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.notWorn")}</span>
+                </span>
+                <svg className={`${styles.chevron} ${artifactsOpen ? styles.chevronOpen : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              <div className={`${styles.collapse} ${artifactsOpen ? styles.collapseOpen : ""}`}>
+                <div id="flock-artifacts-body" className={styles.collapseInner} inert={!artifactsOpen}>
             <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
             <div className={styles.artifactPreviewRow}>
               <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
@@ -980,6 +1026,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 </div>
               </div>
             ) : null}
+                </div>
+              </div>
+            </div>
 
             <h3 className={styles.h3}>{t("controls.title")}</h3>
             <div className={styles.segment} role="radiogroup" aria-label={t("controls.title")}>

@@ -419,6 +419,61 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {} },
 ];
 
+/**
+ * Числа для экрана «Про гру» в лобби: уходят клиенту в ответе /flock/me (config.game), чтобы тексты не расходились с игрой.
+ * Новое число для описания - дописать сюда и сослаться на него путём из flockInfoData.ts на клиенте.
+ */
+export function clientGameConfig() {
+  const c = FLOCK_CONFIG;
+  return {
+    bonusDurations: { ...c.bonusDurations },
+    speedMultiplier: c.speedMultiplier,
+    goldenMassFraction: c.goldenMassFraction,
+    goldenMinMass: c.goldenMinMass,
+    freezeMaxTargets: c.freezeMaxTargets,
+    scissors: {
+      cutFraction: c.scissors.cutFraction,
+      massThreshold: c.scissors.massThreshold,
+      minMassAfter: c.scissors.minMassAfter,
+    },
+    spawnBoost: { ...c.spawnBoost },
+    spawnShieldMs: c.spawnShieldMs,
+    resumePauseMs: c.resumePauseMs,
+    resumeShieldMs: c.resumeShieldMs,
+    botGraceMs: c.botGraceMs,
+    mergeDelayMs: c.mergeDelayMs,
+    eatRatio: c.eatRatio,
+    foodMass: c.foodMass,
+    throwMass: c.throwMass,
+    thornPopMass: Math.round(c.thornMass * c.thornPopRatio),
+    zorepad: {
+      triggerMass: c.zorepad.triggerMass,
+      durationMs: c.zorepad.durationMs,
+      starMass: c.zorepad.starMass,
+      maxPerGame: c.zorepad.maxPerGame,
+    },
+    boss: {
+      startMass: c.boss.startMass,
+      maxMass: c.boss.maxMass,
+      firstSpawnMinMs: c.boss.firstSpawnMinMs,
+      firstSpawnMaxMs: c.boss.firstSpawnMaxMs,
+      respawnMinMs: c.boss.respawnMinMs,
+      respawnMaxMs: c.boss.respawnMaxMs,
+    },
+    rubies: {
+      top1Reward: c.rubies.top1Reward,
+      top1MassThreshold: c.rubies.top1MassThreshold,
+      dailyLimit: c.rubies.dailyLimit,
+      entryBonus: c.rubies.entryBonus,
+      bossKillReward: c.rubies.bossKillReward,
+      skinPrice: c.rubies.skinPrice,
+      premiumSkinPrice: c.rubies.premiumSkinPrice,
+      specialSkinPrice: c.rubies.specialSkinPrice,
+    },
+    artifactPrice: c.artifacts.price,
+  };
+}
+
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;
 export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
