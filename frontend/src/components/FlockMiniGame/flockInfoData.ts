@@ -88,6 +88,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
       },
       {
+        id: "daily",
+        icon: "trophy",
+        title: { ua: "Рекорди дня й серія", ru: "Рекорды дня и серия", en: "Daily records & streak" },
+        text: {
+          ua: "У лобі — таблиця «Рекорди дня»: топ-{top} за найбільшою масою за добу (за часом Києва), скидається опівночі. Боти й Вожак не рахуються. Хто {days} дні поспіль посідає 1-ше місце за день (з масою від {mass}), отримує {reward} рубінів — поза добовим лімітом арени. Після нагороди серія починається заново; якщо наступного дня 1-ше місце візьме хтось інший, серія обривається.",
+          ru: "В лобби — таблица «Рекорды дня»: топ-{top} по наибольшей массе за сутки (по времени Киева), сбрасывается в полночь. Боты и Вожак не считаются. Кто {days} дня подряд занимает 1-е место за день (с массой от {mass}), получает {reward} рубинов — вне суточного лимита арены. После награды серия начинается заново; если на следующий день 1-е место займёт кто-то другой, серия обрывается.",
+          en: "The lobby shows a “Daily records” table: top {top} by biggest mass of the day (Kyiv time), reset at midnight. Bots and the Alpha don't count. Finish 1st of the day (with a mass of {mass}+) {days} days in a row to earn {reward} rubies — outside the arena's daily limit. After the reward the streak starts over; if someone else takes 1st the next day, the streak breaks.",
+        },
+        params: { top: num("dailyRecords.topSize"), days: num("dailyRecords.streakDays"), mass: num("dailyRecords.minMass"), reward: num("dailyRecords.streakReward") },
+      },
+      {
         id: "spend",
         icon: "skins",
         title: { ua: "На що витратити", ru: "На что потратить", en: "What to spend on" },

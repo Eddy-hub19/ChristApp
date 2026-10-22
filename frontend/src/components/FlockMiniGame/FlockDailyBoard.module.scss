@@ -1,0 +1,142 @@
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+}
+
+.resets {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  font-size: 14px;
+}
+
+.me {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  font-weight: 700;
+}
+
+.outside {
+  margin-top: 2px;
+}
+
+.place {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.gold {
+  background: #f5c542;
+  color: #4a3500;
+}
+
+.silver {
+  background: #c4cad3;
+  color: #2f3540;
+}
+
+.bronze {
+  background: #cd8b52;
+  color: #3d2008;
+}
+
+.avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mass {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 10px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  background: linear-gradient(135deg, color-mix(in srgb, #f5c542 22%, transparent), color-mix(in srgb, var(--foreground) 6%, transparent));
+
+  strong {
+    font-size: 16px;
+  }
+  span:last-child {
+    opacity: 0.7;
+  }
+}
+
+.emptyIcon {
+  font-size: 26px;
+}
+
+.streak {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.65;
+}

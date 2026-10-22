@@ -68,6 +68,9 @@ interface Session {
   aspect: number;
   /** Нагороду за 1-ше місце в цьому житті вже видано (скидається при народженні). */
   rewardedThisLife: boolean;
+  /** Коли востаннє віддавали масу в «Рекорди дня» (годинник світу) і яку. */
+  massReportedAt: number;
+  massReported: number;
   /** Старий клієнт (до v2) не знає про кущі з `welcome` - йому кущі йдуть у кожному пакеті стану. */
   thornsInState: boolean;
 }
@@ -77,6 +80,8 @@ export interface FlockHooks {
   onTop1?: (userId: string, connKey: string | null) => void;
   /** Гравець з'їв «Вожака» (лише людина з сесією). */
   onBossKill?: (userId: string, connKey: string | null) => void;
+  /** Найбільша маса поточного життя (для «Рекордів дня»): не частіше writeThrottleMs на гравця, а також при смерті й виході. */
+  onMass?: (userId: string, maxMass: number) => void;
   /** Овечка гравця загинула: підсумки життя (для статистики). */
   onDeath?: (
     userId: string,
@@ -537,6 +542,15 @@ class Arena {
       if (!key) continue; // у паузі: нікуди слати
       const p = w.players.get(s.pid);
       if (!p) continue;
+      const mm = Math.round(p.maxMass);
+      if (
+        mm > s.massReported &&
+        w.now - s.massReportedAt >= C.dailyRecords.writeThrottleMs
+      ) {
+        s.massReported = mm;
+        s.massReportedAt = w.now;
+        this.hooks.onMass?.(s.userId, mm);
+      }
       if (starMsg) send(key, 'z', starMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       for (const m of bossMsgs) send(key, 'bm', m);
@@ -550,6 +564,7 @@ class Arena {
           topMs: Math.round(p.topMs),
           killer: w.players.get(p.killerPid)?.name ?? null,
         });
+        this.hooks.onMass?.(s.userId, p.maxMass);
         this.hooks.onDeath?.(s.userId, {
           maxMass: p.maxMass,
           kills: p.kills,
@@ -884,6 +899,8 @@ export class FlockManager {
       deadSent: false,
       aspect: 1,
       rewardedThisLife: false,
+      massReportedAt: 0,
+      massReported: 0,
       thornsInState: opts.legacyThorns === true,
     };
     arena.sessions.set(userId, session);
@@ -1005,6 +1022,8 @@ export class FlockManager {
     if (s.connKey) this.byConn.delete(s.connKey);
     this.byUser.delete(s.userId);
     const arena = s.arena;
+    const leaving = arena.world.players.get(s.pid);
+    if (leaving) this.hooks.onMass?.(s.userId, leaving.maxMass);
     arena.sessions.delete(s.userId);
     arena.world.removePlayer(s.pid);
     if (arena.humans === 0) {

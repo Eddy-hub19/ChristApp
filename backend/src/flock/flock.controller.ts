@@ -11,12 +11,16 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
+import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
 
 @Controller('flock')
 @UseGuards(JwtAuthGuard)
 export class FlockController {
-  constructor(private readonly rubies: FlockRubiesService) {}
+  constructor(
+    private readonly rubies: FlockRubiesService,
+    private readonly daily: FlockDailyService,
+  ) {}
 
   private uid(req: Request) {
     return (req.user as { id: string }).id;
@@ -27,8 +31,23 @@ export class FlockController {
     const userId = this.uid(req);
     // відкриття гри = перший запит профілю: тут же нараховуємо разовий бонус (баланс у відповіді вже з ним)
     const bonus = await this.rubies.claimEntryBonus(userId);
-    const me = await this.rubies.getMe(userId);
-    return bonus ? { ...me, entryBonus: bonus.amount } : me;
+    const streakAward = await this.daily.claimStreakAward(userId);
+    const [me, daily] = await Promise.all([
+      this.rubies.getMe(userId),
+      this.daily.getBoard(userId),
+    ]);
+    return {
+      ...me,
+      daily,
+      ...(bonus ? { entryBonus: bonus.amount } : {}),
+      ...(streakAward > 0 ? { streakAward } : {}),
+    };
+  }
+
+  /** Лише таблиця «Рекорди дня» (лобі оновлює її раз на ~30 с). */
+  @Get('daily')
+  dailyBoard(@Req() req: Request) {
+    return this.daily.getBoard(this.uid(req));
   }
 
   @Post('skins/:id/buy')

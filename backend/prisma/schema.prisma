@@ -46,6 +46,8 @@ model User {
   flockProfile        FlockProfile?
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
   flockSkinPurchases  FlockSkinPurchase[]
+  flockDailyRecords   FlockDailyRecord[]
+  flockStreak         FlockStreak?
   flockArtifactPurchases FlockArtifactPurchase[]
 }
 
@@ -335,6 +337,7 @@ enum RubyReason {
   ENTRY_BONUS
   ARTIFACT_PURCHASE
   ARENA_BOSS
+  ARENA_STREAK
 }
 
 /// Журнал рубінів: тільки додавання рядків.
@@ -376,4 +379,35 @@ model FlockArtifactPurchase {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, artifactId])
+}
+
+/// Найбільша маса гравця за добу (доба за часом Києва, `day` = "YYYY-MM-DD").
+model FlockDailyRecord {
+  day       String
+  userId    String
+  maxMass   Int
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([day, userId])
+  @@index([day, maxMass(sort: Desc)])
+}
+
+/// Підсумок закритої доби; наявність рядка = доба вже пораховано (захист від повторного нарахування).
+model FlockDayWinner {
+  day      String   @id
+  /// null - ніхто не набрав мінімальну масу.
+  userId   String?
+  maxMass  Int      @default(0)
+  closedAt DateTime @default(now())
+}
+
+/// Серія днів поспіль на 1-му місці (один рядок на поточного лідера).
+model FlockStreak {
+  userId       String @id
+  days         Int
+  lastDay      String
+  /// Видані, але ще не показані гравцю рубіни за серію (скидається при показі).
+  pendingAward Int    @default(0)
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

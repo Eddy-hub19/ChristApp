@@ -13,6 +13,7 @@ import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FLOCK_CONFIG, NUM_SKINS } from './flock.config';
 import { FlockManager } from './flock.manager';
+import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
 import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
@@ -40,6 +41,7 @@ export class FlockGateway
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
     private readonly rubies: FlockRubiesService,
+    private readonly daily: FlockDailyService,
   ) {
     this.manager = new FlockManager(
       createSender((key) => this.ns?.sockets.get(key)),
@@ -48,6 +50,7 @@ export class FlockGateway
       {
         onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
+        onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         onDeath: (userId, run) =>
           void this.rubies
             .recordRun(userId, run)
