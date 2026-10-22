@@ -1,10 +1,13 @@
 import {
+  IsIn,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+import { BUBBLE_STYLE_IDS } from 'src/config/bubble-styles';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -50,4 +53,10 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(500)
   bio?: string;
+
+  /** Стиль пузырей сообщений (только значения из BUBBLE_STYLE_IDS). */
+  @IsOptional()
+  @IsString()
+  @IsIn([...BUBBLE_STYLE_IDS], { message: 'Неизвестный стиль пузыря' })
+  bubbleStyle?: string;
 }

@@ -1,0 +1,164 @@
+/*
+ * Стили пузырей сообщений. Подключается в globals.scss; пузырь получает атрибуты:
+ *   data-bubble-style="lamb|dove|lion|vine"  - сам стиль (default - атрибута нет)
+ *   data-bubble-own                           - свой пузырь (хвостик справа, персонаж справа)
+ *   data-bubble-start                         - первое сообщение группы подряд идущих сообщений одного человека (рисуем персонажа)
+ *   data-bubble-tone="dark"                   - принудительно тёмный вариант (кинозал всегда тёмный)
+ * Цвета, рамки и скругления - только CSS-переменные; никаких анимаций, backdrop-filter и больших теней.
+ * Персонаж - один фон-SVG (кэшируется браузером) в одном дочернем <span data-bs-char> на группу, края - лёгкие псевдоэлементы.
+ * Новый стиль = блок переменных тут + запись в src/lib/bubbleStyles.ts и backend/src/config/bubble-styles.ts.
+ */
+
+/* ---------- общие правила ---------- */
+html:root [data-bubble-style][data-bubble-style] {
+  /* z-index:-1 у персонажа и краёв остаётся внутри пузыря (за текстом), а не уходит под фон панели */
+  isolation: isolate;
+  background: var(--bs-bg) !important;
+  border-color: var(--bs-border) !important;
+  color: var(--bs-text) !important;
+  box-shadow: none !important;
+  border-radius: var(--bs-radius) !important;
+}
+html:root [data-bubble-style][data-bubble-own] {
+  border-bottom-right-radius: 4px !important;
+}
+html:root [data-bubble-style]:not([data-bubble-own]) {
+  border-bottom-left-radius: 4px !important;
+}
+
+/* Персонаж в углу первого сообщения группы: выступает над пузырём, не заходит на текст (отступ пузыря сверху 9px). */
+[data-bubble-style][data-bubble-start] {
+  margin-top: 38px;
+}
+[data-bs-char] {
+  position: absolute;
+  top: -37px;
+  left: -6px;
+  z-index: -1;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  background: no-repeat center / contain;
+}
+[data-bubble-own] > [data-bs-char] {
+  left: auto;
+  right: -6px;
+}
+[data-bubble-style="lamb"] > [data-bs-char] {
+  background-image: url("/bubbles/lamb.svg");
+}
+[data-bubble-style="dove"] > [data-bs-char] {
+  background-image: url("/bubbles/dove.svg");
+}
+[data-bubble-style="lion"] > [data-bs-char] {
+  background-image: url("/bubbles/lion.svg");
+}
+
+/* Лёгкие края: по одному фону-SVG на псевдоэлемент (за текстом, поверх фона пузыря). */
+[data-bubble-style="lamb"]::after,
+[data-bubble-style="dove"]::before,
+[data-bubble-style="dove"]::after,
+[data-bubble-style="vine"]::before,
+[data-bubble-style="vine"]::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background: no-repeat center / contain;
+}
+[data-bubble-style="lamb"]::after {
+  top: -9px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  background-image: url("/bubbles/spark.svg");
+}
+[data-bubble-style="dove"]::before {
+  top: -10px;
+  right: 14px;
+  width: 34px;
+  height: 20px;
+  background-image: url("/bubbles/cloud.svg");
+}
+[data-bubble-style="dove"]::after {
+  bottom: -8px;
+  left: 16px;
+  width: 28px;
+  height: 17px;
+  background-image: url("/bubbles/cloud.svg");
+}
+[data-bubble-style="vine"]::before {
+  top: -12px;
+  left: -13px;
+  width: 38px;
+  height: 38px;
+  background-image: url("/bubbles/vine-tl.svg");
+}
+[data-bubble-style="vine"]::after {
+  bottom: -12px;
+  right: -13px;
+  width: 38px;
+  height: 38px;
+  background-image: url("/bubbles/vine-br.svg");
+}
+/* Свой пузырь Винограда: лоза с другой стороны от персонажей не нужна, углы те же. */
+
+/* ---------- переменные стилей: светлая тема ---------- */
+[data-bubble-style="lamb"] {
+  --bs-bg: linear-gradient(165deg, #fffaf0, #fbeccf);
+  --bs-border: #e3b866;
+  --bs-text: #44361a;
+  --bs-muted: #7d6a44;
+  --bs-radius: 20px;
+}
+[data-bubble-style="dove"] {
+  --bs-bg: linear-gradient(165deg, #e8f4fd, #d5e9f9);
+  --bs-border: #98c2e8;
+  --bs-text: #1d3955;
+  --bs-muted: #4f6f8c;
+  --bs-radius: 18px;
+}
+[data-bubble-style="lion"] {
+  --bs-bg: linear-gradient(165deg, #fde6b8, #f9cf8c);
+  --bs-border: #d4922a;
+  --bs-text: #4a2d07;
+  --bs-muted: #7f5520;
+  --bs-radius: 14px;
+}
+[data-bubble-style="vine"] {
+  --bs-bg: linear-gradient(165deg, #e8f4d8, #d4e9bd);
+  --bs-border: #86b45c;
+  --bs-text: #25401a;
+  --bs-muted: #4e6c3a;
+  --bs-radius: 16px;
+}
+
+/* ---------- тёмная тема (и кинозал) ---------- */
+html[data-theme="dark"] [data-bubble-style="lamb"],
+[data-bubble-style="lamb"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #3d3424, #322a1c);
+  --bs-border: #8e7439;
+  --bs-text: #f6edd7;
+  --bs-muted: #c4b48e;
+}
+html[data-theme="dark"] [data-bubble-style="dove"],
+[data-bubble-style="dove"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #223a50, #1b3044);
+  --bs-border: #4d7ca6;
+  --bs-text: #e6f2fc;
+  --bs-muted: #a2bdd6;
+}
+html[data-theme="dark"] [data-bubble-style="lion"],
+[data-bubble-style="lion"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #4d3516, #3f2b11);
+  --bs-border: #b27a22;
+  --bs-text: #fbe9c9;
+  --bs-muted: #d2b383;
+}
+html[data-theme="dark"] [data-bubble-style="vine"],
+[data-bubble-style="vine"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #2a3d20, #223319);
+  --bs-border: #5d8a3e;
+  --bs-text: #e5f2d6;
+  --bs-muted: #a9c48f;
+}

@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 import { useHydrated } from "@/hooks/useHydrated";
 import { getInitials } from "@/lib/utils";
 import styles from "@/components/MessageBubble/MessageBubble.module.scss";
+import { BUBBLE_STYLES_WITH_CHARACTER, DEFAULT_BUBBLE_STYLE, type BubbleStyleId } from "@/lib/bubbleStyles";
 import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
 import MessageActionMenu from "@/components/ChatShared/MessageActionMenu";
 import ReactionPills from "@/components/ChatShared/ReactionPills";
@@ -86,6 +87,10 @@ type MessageBubbleProps = {
   hideSenderName?: boolean;
   hideOwnSenderName?: boolean;
   senderNameMode?: "inline" | "compact-above";
+  /** Стиль пузыря отправителя (уже с учётом доступа и настройки зрителя); default - обычный. */
+  bubbleStyle?: BubbleStyleId;
+  /** Первое сообщение группы подряд идущих сообщений одного человека: здесь рисуется персонаж стиля. */
+  bubbleGroupStart?: boolean;
 };
 
 const URL_REGEX = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
@@ -351,6 +356,8 @@ function MessageBubble({
   hideSenderName = false,
   hideOwnSenderName = false,
   senderNameMode = "inline",
+  bubbleStyle = DEFAULT_BUBBLE_STYLE,
+  bubbleGroupStart = false,
 }: MessageBubbleProps) {
   const tShared = useTranslations("chatShared");
   const tChat = useTranslations("chat");
@@ -445,13 +452,25 @@ function MessageBubble({
   };
 
   const bubbleClassName = `${bubble} ${flockInvite || gameInvite ? styles.inviteBubble : ""} ${sharedStyles.gestureSurface} ${isHighlighted ? styles.highlightedBubble : ""}`;
+  // Стиль пузыря: только атрибуты (цвета, рамки, персонаж и края - в styles/bubbleStyles.scss); стикеры без пузыря не красим.
+  const styledBubble = bubbleStyle !== DEFAULT_BUBBLE_STYLE && !stickerPayload;
+  const showBubbleCharacter =
+    styledBubble && bubbleGroupStart && BUBBLE_STYLES_WITH_CHARACTER.has(bubbleStyle);
   const interactiveBubbleProps = {
     ref: gestures.setElement,
     ...gestures.handlers,
+    ...(styledBubble
+      ? {
+          "data-bubble-style": bubbleStyle,
+          "data-bubble-own": isOwnMessage ? "" : undefined,
+          "data-bubble-start": showBubbleCharacter ? "" : undefined,
+        }
+      : null),
   };
 
   const bubbleBody = (
     <>
+      {showBubbleCharacter ? <span data-bs-char aria-hidden /> : null}
       {message.replyTo ? (
         <ReplyQuote
           username={message.replyTo.username}

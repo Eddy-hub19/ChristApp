@@ -10,11 +10,13 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import createSocket from "socket.io-client";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { attachPresenceReporter } from "@/lib/presenceReporter";
+import { attachBubbleStyleListener } from "@/lib/bubbleStyles";
 import { usePathname } from "@/i18n/navigation";
 import { getCinemaSessionActive, subscribeCinemaSession } from "@/lib/cinemaSessionStore";
 
@@ -40,6 +42,7 @@ type PresenceSocketProviderProps = {
 };
 
 const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   // Активна сесія «Кіношки» (зала або мініплеєр) тримає сокет і на /chat/<id>, інакше синхронізація обірветься.
   const cinemaSessionActive = useSyncExternalStore(
@@ -52,6 +55,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
   const socketRef = useRef<PresenceSocket | null>(null);
   const currentTokenRef = useRef<string | null>(null);
   const detachPresenceRef = useRef<(() => void) | null>(null);
+  const detachBubbleRef = useRef<(() => void) | null>(null);
   const [socket, setSocket] = useState<PresenceSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -59,6 +63,8 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
     const detachPresence = () => {
       detachPresenceRef.current?.();
       detachPresenceRef.current = null;
+      detachBubbleRef.current?.();
+      detachBubbleRef.current = null;
     };
 
     const disconnectSocket = () => {
@@ -113,6 +119,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       nextSocket.on("disconnect", () => setIsConnected(false));
       // «Онлайн» = застосунок видно, а не «сокет підключений» — див. presenceReporter.
       detachPresenceRef.current = attachPresenceReporter(nextSocket);
+      detachBubbleRef.current = attachBubbleStyleListener(nextSocket, queryClient);
 
       socketRef.current = nextSocket;
       setSocket(nextSocket);
@@ -136,7 +143,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       document.removeEventListener("visibilitychange", onAuthChanged);
       disconnectSocket();
     };
-  }, [shouldUsePresenceSocket]);
+  }, [shouldUsePresenceSocket, queryClient]);
 
   const contextValue = useMemo(
     () => ({

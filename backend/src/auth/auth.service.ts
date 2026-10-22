@@ -28,6 +28,7 @@ const USER_SAFE_SELECT = {
   themeBackgroundHex: true,
   themeFontKey: true,
   bio: true,
+  bubbleStyle: true,
 } as const;
 
 const REFRESH_TOKEN_TTL_DAYS = 7;

@@ -17,6 +17,7 @@ export class ChatController {
       fileUrl: m.fileUrl ?? undefined,
       username: m.sender.nickname || m.sender.username,
       handle: m.sender.username,
+      bubbleStyle: m.sender.bubbleStyle,
       senderId: m.senderId,
       createdAt: m.createdAt,
     }));

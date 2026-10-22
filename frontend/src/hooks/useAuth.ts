@@ -19,6 +19,7 @@ import {
   messageFromApiResponseBody,
 } from "@/lib/apiError";
 import { recordDailyVisit } from "@/lib/appStreak";
+import { ingestBubbleStyles } from "@/lib/bubbleStyles";
 import { filterTesterUsers } from "@/lib/testerUsers";
 import { applyUserAppearanceToDocument } from "@/lib/userAppearance";
 import {
@@ -91,6 +92,13 @@ export function useAuth(options?: UseAuthOptions) {
     select: selectVisibleUsers,
   });
   const users = directoryQuery.data ?? EMPTY_USERS;
+  // стили пузырей из справочника - в общее хранилище (realtime-обновления приходят событием сокета)
+  useEffect(() => {
+    if (users.length) ingestBubbleStyles(users);
+  }, [users]);
+  useEffect(() => {
+    if (user) ingestBubbleStyles([user]);
+  }, [user]);
 
   const setAuthenticatedUser = useCallback(
     (u: AuthUser) => {

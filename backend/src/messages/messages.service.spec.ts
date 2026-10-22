@@ -187,7 +187,7 @@ describe('MessagesService', () => {
       });
 
       expect(prisma.message.create.mock.calls[0][0]).toMatchObject({
-        include: { sender: true },
+        include: { sender: { select: expect.objectContaining({ bubbleStyle: true }) } },
       });
       expect(result.sender).toEqual(sender);
     });
