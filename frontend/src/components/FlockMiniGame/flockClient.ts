@@ -231,6 +231,9 @@ export class FlockClient {
         if (r && (r.taker || r.victim)) this.opts.onScissors?.(r);
       });
     });
+    socket.on("q", (msg: unknown) => {
+      this.later(() => this.model?.applyPhrase(msg, performance.now()));
+    });
     socket.on("bm", (msg: { k?: unknown; n?: unknown }) => {
       if (msg?.k === 1 || msg?.k === 2) this.opts.onBoss?.({ kind: msg.k, name: typeof msg.n === "string" ? msg.n : "" });
     });
@@ -328,6 +331,13 @@ export class FlockClient {
     const send = () => s.emit("i", packed);
     if (this.lag > 0) setTimeout(send, this.lag);
     else send();
+  }
+
+  /** Швидка фраза: по мережі лише id (сервер перевіряє список і ліміт частоти). */
+  sendPhrase(id: number) {
+    const s = this.socket;
+    if (!s?.connected || this.status !== "playing") return;
+    s.emit("q", id);
   }
 
   /** Явний вихід (хрестик): сервер одразу прибирає овечку, без паузи; токен забуваємо. */

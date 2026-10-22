@@ -233,6 +233,101 @@
   }
 }
 
+/* Швидкі фрази: кругла кнопка зліва внизу (джойстик плаваючий і з'являється під пальцем, «Розділитися»/«Кинути» і мінікарта - праворуч). */
+.phrasesBtn {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  backdrop-filter: blur(6px);
+  font-size: 22px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:active {
+    transform: scale(0.94);
+  }
+}
+
+.phrasesBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.phrasesPanel {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 52px);
+  z-index: 3;
+  width: min(300px, calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  max-height: calc(100% - 140px);
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+
+.phrasesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.phraseItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-elevated));
+  color: var(--foreground);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.phraseEmoji {
+  font-size: 18px;
+  flex: none;
+}
+
+.phrasesToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 0 2px;
+  font-size: 11.5px;
+  opacity: 0.8;
+  cursor: pointer;
+
+  input {
+    margin: 0;
+  }
+}
+
 .keyHint {
   position: absolute;
   left: 50%;

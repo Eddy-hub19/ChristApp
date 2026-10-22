@@ -149,6 +149,8 @@ export interface Player {
   killed: string[];
   kills: number;
   killerPid: number;
+  /** Швидка фраза над овечкою (id з FLOCK_CONFIG.phrases.ids; until - мс світового часу). Скидається смертю й народженням. */
+  phrase: { id: number; until: number } | null;
   /** Довільні дані ШІ. */
   brain?: unknown;
 }
@@ -340,6 +342,7 @@ export class FlockWorld {
       killed: [],
       kills: 0,
       killerPid: 0,
+      phrase: null,
     };
     this.players.set(id, player);
     this.respawn(player);
@@ -365,6 +368,7 @@ export class FlockWorld {
     p.killed = [];
     p.kills = 0;
     p.killerPid = 0;
+    p.phrase = null;
     p.wantSplit = p.wantThrow = false;
     // коротка недоторканність після народження
     p.effects.shield = this.now + C.spawnShieldMs + this.crossShieldBonus(p);
@@ -903,6 +907,7 @@ export class FlockWorld {
       victim.alive = false;
       victim.diedAt = this.now;
       victim.killerPid = eater.id;
+      victim.phrase = null;
       eater.kills++;
       if (eater.killed.length < 8) eater.killed.push(victim.name);
       this.deaths.push({ pid: victim.id, killerPid: eater.id });

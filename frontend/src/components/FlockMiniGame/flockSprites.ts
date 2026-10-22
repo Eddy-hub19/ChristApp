@@ -583,3 +583,74 @@ export function clearSpriteCaches() {
   starShadowCv = null;
   tile = null;
 }
+
+// ---------- хмаринка швидкої фрази ----------
+export interface BubbleSprite {
+  cv: HTMLCanvasElement;
+  /** Піксельний розмір шрифту, під який намальовано (для перерахунку у CSS px). */
+  px: number;
+  /** Кінчик хвостика (низ, центр) - до нього кладемо овечку. */
+  tipX: number;
+  tipY: number;
+}
+const bubbles = new Lru<BubbleSprite>(64);
+
+/**
+ * Хмаринка з хвостиком одним спрайтом. Ключ - фраза + мова + тема + "відро" розміру шрифту (по dpr), тож вона
+ * малюється один раз, а не щокадру; далі лише drawImage.
+ */
+export function phraseBubbleSprite(phraseId: number, lang: string, text: string, fontPx: number, theme: Theme): BubbleSprite {
+  const px = Math.max(10, Math.round(fontPx / 2) * 2);
+  const key = `${phraseId}|${lang}|${px}|${theme.dark ? "d" : "l"}`;
+  let spr = bubbles.get(key);
+  if (spr) return spr;
+  const font = `700 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const probe = makeCanvas(4, 4).getContext("2d");
+  let tw = px * text.length * 0.6;
+  if (probe) {
+    probe.font = font;
+    tw = probe.measureText(text).width;
+  }
+  const padX = px * 0.7;
+  const padY = px * 0.5;
+  const bw = tw + padX * 2;
+  const bh = px * 1.25 + padY * 2;
+  const tail = px * 0.6;
+  const m = Math.ceil(px * 0.12) + 1; // поле під обводку
+  const cv = makeCanvas(bw + m * 2, bh + tail + m * 2);
+  const c = cv.getContext("2d");
+  if (c) {
+    const r = Math.min(bh / 2, px * 0.9);
+    const x0 = m;
+    const y0 = m;
+    const cx = x0 + bw / 2;
+    c.beginPath();
+    c.moveTo(x0 + r, y0);
+    c.lineTo(x0 + bw - r, y0);
+    c.arcTo(x0 + bw, y0, x0 + bw, y0 + r, r);
+    c.lineTo(x0 + bw, y0 + bh - r);
+    c.arcTo(x0 + bw, y0 + bh, x0 + bw - r, y0 + bh, r);
+    c.lineTo(cx + tail * 0.7, y0 + bh);
+    c.lineTo(cx, y0 + bh + tail);
+    c.lineTo(cx - tail * 0.7, y0 + bh);
+    c.lineTo(x0 + r, y0 + bh);
+    c.arcTo(x0, y0 + bh, x0, y0 + bh - r, r);
+    c.lineTo(x0, y0 + r);
+    c.arcTo(x0, y0, x0 + r, y0, r);
+    c.closePath();
+    c.fillStyle = theme.dark ? "rgba(28,44,34,0.96)" : "rgba(255,255,255,0.97)";
+    c.fill();
+    c.lineJoin = "round";
+    c.lineWidth = Math.max(1.5, px * 0.1);
+    c.strokeStyle = theme.dark ? "rgba(190,240,190,0.6)" : "rgba(40,70,30,0.55)";
+    c.stroke();
+    c.font = font;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = theme.dark ? "#f4fff0" : "#1f3a1f";
+    c.fillText(text, cx, y0 + bh / 2 + px * 0.04);
+  }
+  spr = { cv, px, tipX: cv.width / 2, tipY: cv.height - m };
+  bubbles.set(key, spr);
+  return spr;
+}

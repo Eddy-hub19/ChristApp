@@ -64,6 +64,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
         params: { merge: sec("mergeDelayMs"), throw: num("throwMass") },
       },
+      {
+        id: "phrases",
+        icon: "names",
+        title: { ua: "Швидкі фрази", ru: "Быстрые фразы", en: "Quick phrases" },
+        text: {
+          ua: "Кнопка 💬 зліва внизу (на ПК ще клавіша T) відкриває 8 готових фраз: обирай і над твоєю овечкою зʼявиться хмаринка. Її бачать ті, хто бачить тебе, вона висить до {sec} с і тане наприкінці. Не частіше однієї фрази за {cd} с. Чужі фрази можна сховати перемикачем у панелі.",
+          ru: "Кнопка 💬 слева внизу (на ПК ещё клавиша T) открывает 8 готовых фраз: выбери, и над твоей овечкой появится облачко. Его видят те, кто видит тебя, оно висит до {sec} с и тает в конце. Не чаще одной фразы за {cd} с. Чужие фразы можно скрыть переключателем в панели.",
+          en: "The 💬 button at the bottom left (or the T key on desktop) opens 8 ready-made phrases: pick one and a speech bubble appears over your sheep. Everyone who can see you sees it; it stays up to {sec} s and fades at the end. One phrase per {cd} s at most. You can hide others' phrases with the switch in the panel.",
+        },
+        params: { sec: sec("phrases.durationMs"), cd: sec("phrases.cooldownMs") },
+      },
     ],
   },
   {

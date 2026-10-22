@@ -241,6 +241,12 @@ export class FlockGateway
     );
   }
 
+  /** Швидка фраза: тіло - лише id (число). Невідомий id / частота / мертвий гравець - мовчки ігноруються. */
+  @SubscribeMessage('q')
+  phrase(@ConnectedSocket() client: FlockSocket, @MessageBody() body: unknown) {
+    this.manager.say(client.id, body);
+  }
+
   @SubscribeMessage('x')
   leave(@ConnectedSocket() client: FlockSocket) {
     this.manager.leave(client.id);

@@ -186,6 +186,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 9,
+    date: "2026-10-23",
+    items: [
+      {
+        icon: "names",
+        text: {
+          ua: "Швидкі фрази: кнопка 💬 зліва внизу (на ПК — клавіша T). Обери готову фразу, і над твоєю овечкою зʼявиться хмаринка. Чужі фрази можна сховати",
+          ru: "Быстрые фразы: кнопка 💬 слева внизу (на ПК — клавиша T). Выбери готовую фразу, и над твоей овечкой появится облачко. Чужие фразы можно скрыть",
+          en: "Quick phrases: the 💬 button at the bottom left (T key on desktop). Pick a ready-made phrase and a speech bubble appears over your sheep. You can hide others' phrases",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

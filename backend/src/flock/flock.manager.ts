@@ -6,6 +6,8 @@ import {
   FLOCK_MAPS,
   type ThornStyle,
   FREE_SKINS,
+  isPhraseId,
+  phraseDurationMs,
 } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
@@ -71,6 +73,10 @@ interface Session {
   /** Коли востаннє віддавали масу в «Рекорди дня» (годинник світу) і яку. */
   massReportedAt: number;
   massReported: number;
+  /** Коли гравець востаннє казав фразу (годинник менеджера) - ліміт частоти. */
+  lastPhraseAt: number;
+  /** pid -> фраза, яку цей клієнт уже отримав (null = знає, що її нема): шлемо лише зміни й лише для тих, кого бачить. */
+  phraseSent: Map<number, { id: number; until: number }>;
   /** Старий клієнт (до v2) не знає про кущі з `welcome` - йому кущі йдуть у кожному пакеті стану. */
   thornsInState: boolean;
 }
@@ -112,7 +118,9 @@ class Arena {
     fx: Map<number, number>;
     blobs: StateInput['blobs'];
     bonuses: StateInput['bonuses'];
-  } = { fx: new Map(), blobs: [], bonuses: [] };
+    /** Скільки гравців зараз мають активну фразу (0 - розсилку фраз пропускаємо). */
+    phrases: number;
+  } = { fx: new Map(), blobs: [], bonuses: [], phrases: 0 };
   /** Буфери buildState: Set-и очищаємо й переиспользуем, а не создаём на каждого игрока каждый тик. */
   private readonly tmpWant = new Set<number>();
   private readonly tmpFresh = new Set<number>();
@@ -575,6 +583,7 @@ class Arena {
       const buf = encodeState(this.buildState(s, p));
       this.bytesOut += buf.length;
       send(key, 's', buf);
+      this.sendPhrases(s, key, send);
       if (boardBuf) {
         this.bytesOut += boardBuf.length;
         send(key, 'l', boardBuf);
@@ -602,8 +611,10 @@ class Arena {
     const w = this.world;
     const sh = this.shared;
     sh.fx.clear();
+    sh.phrases = 0;
     for (const o of w.players.values()) {
       if (!o.alive) continue;
+      if (o.phrase && o.phrase.until > w.now) sh.phrases++;
       let fx = 0;
       if (w.isShielded(o)) fx |= FX_SHIELD;
       if (w.isGhost(o)) fx |= FX_GHOST;
@@ -624,6 +635,36 @@ class Arena {
         x: b.x,
         y: b.y,
       });
+  }
+
+  /**
+   * Фрази гравців, яких цей клієнт бачить (після buildState `tmpSeen` = видимі pid): нова або змінена - подією `q`,
+   * скинута - `q` з id 0. Хто вийшов із зони - забуваємо, тож при поверненні фраза прийде знову.
+   */
+  private sendPhrases(
+    s: Session,
+    key: string,
+    send: (key: string, ev: string, payload: object) => void,
+  ) {
+    const w = this.world;
+    const seen = this.tmpSeen;
+    if (this.shared.phrases === 0 && s.phraseSent.size === 0) return;
+    for (const pid of s.phraseSent.keys()) if (!seen.has(pid)) s.phraseSent.delete(pid);
+    for (const pid of seen) {
+      const o = w.players.get(pid);
+      if (!o) continue;
+      const cur = o.phrase && o.phrase.until > w.now ? o.phrase : null;
+      const prev = s.phraseSent.get(pid);
+      if (cur === (prev ?? null)) continue;
+      if (cur) {
+        s.phraseSent.set(pid, cur);
+        send(key, 'q', { p: pid, i: cur.id, t: Math.round(cur.until) });
+      } else {
+        s.phraseSent.delete(pid);
+        // сплила сама - клієнт погасить її за часом; шлемо скидання, лише якщо її зняли раніше строку (смерть / народження)
+        if (prev && prev.until > w.now) send(key, 'q', { p: pid, i: 0, t: 0 });
+      }
+    }
   }
 
   private buildState(s: Session, p: Player): StateInput {
@@ -862,6 +903,7 @@ export class FlockManager {
         sameConn.rewardedThisLife = false;
         sameConn.knownChunks.clear();
         sameConn.knownPlayers.clear();
+        sameConn.phraseSent.clear();
         sameConn.lastInputAt = this.now();
       }
       return this.joined(sameConn);
@@ -902,6 +944,8 @@ export class FlockManager {
       massReportedAt: 0,
       massReported: 0,
       thornsInState: opts.legacyThorns === true,
+      lastPhraseAt: -Infinity,
+      phraseSent: new Map(),
     };
     arena.sessions.set(userId, session);
     this.byConn.set(connKey, session);
@@ -960,6 +1004,7 @@ export class FlockManager {
     s.inputCount = 0;
     s.knownChunks.clear();
     s.knownPlayers.clear();
+    s.phraseSent.clear();
     const p = s.arena.world.players.get(s.pid);
     if (p && !p.alive) s.deadSent = false;
     s.arena.world.resumePlayer(s.pid, C.resumeShieldMs);
@@ -992,6 +1037,24 @@ export class FlockManager {
     w.setInput(s.pid, angle, power);
     if (split) w.queueSplit(s.pid);
     if (thr) w.queueThrow(s.pid);
+  }
+
+  /**
+   * Швидка фраза: лише id зі списку, не частіше за cooldownMs, лише живий гравець не на паузі.
+   * Решту (невідомий id, спам, мертвий) мовчки відкидаємо. Розсилка - у тіку, лише тим, хто бачить овечку.
+   */
+  say(connKey: string, phraseId: unknown): boolean {
+    if (!isPhraseId(phraseId)) return false;
+    const s = this.byConn.get(connKey);
+    if (!s) return false;
+    const t = this.now();
+    if (t - s.lastPhraseAt < C.phrases.cooldownMs) return false;
+    const w = s.arena.world;
+    const p = w.players.get(s.pid);
+    if (!p || p.bot || !p.alive || p.paused) return false;
+    s.lastPhraseAt = t;
+    p.phrase = { id: phraseId, until: w.now + phraseDurationMs() };
+    return true;
   }
 
   /**

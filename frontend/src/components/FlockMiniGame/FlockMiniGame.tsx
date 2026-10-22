@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "@/lib/rubies";
@@ -14,6 +14,7 @@ import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type R
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import FlockInvite from "./FlockInvite";
+import { loadHidePhrases, PHRASES, saveHidePhrases, toPhraseLang } from "./flockPhrases";
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
@@ -55,6 +56,8 @@ type Hud = {
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], selfPid: 0, effects: [], arenaId: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
+/** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
+const PHRASE_COOLDOWN_MS = 3000;
 
 function currentTheme(): Theme {
   if (typeof document === "undefined") return THEMES.dark;
@@ -124,6 +127,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   // Навбар і лампочка теми не потрібні на арені — ні на маршруті /games/flock, ні в модалці з чату.
   useFullscreenMode(open);
   const t = useTranslations("flock");
+  const locale = useLocale();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const miniRef = useRef<HTMLCanvasElement | null>(null);
   const stickBaseRef = useRef<HTMLDivElement | null>(null);
@@ -169,6 +173,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcedRef = useRef(false);
   /** Шторка «Про гру» (кнопка «i») и раздел «Артефакти» в лобби: оба каждый раз стартуют свёрнутыми / закрытыми. */
+  const [phrasesOpen, setPhrasesOpen] = useState(false);
+  /** Пауза між фразами (дзеркало серверного ліміту): кнопки сіріють, щоб не здавалось, що фраза "не пішла". */
+  const [phraseCooldown, setPhraseCooldown] = useState(false);
+  const [hideOthersPhrases, setHideOthersPhrases] = useState(false);
+  const hideOthersPhrasesRef = useRef(false);
+  const phraseLangRef = useRef(toPhraseLang(locale));
+  phraseLangRef.current = toPhraseLang(locale);
   const [infoOpen, setInfoOpen] = useState(false);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
   /** Версия «Що нового», просмотренная ДО этого открытия игры (для точки «Нове» во вкладке «Оновлення»). */
@@ -540,6 +551,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         selfAngle: dirRef.current.angle,
         showNames: true,
         botLabel: "",
+        phraseLang: phraseLangRef.current,
+        hideOthersPhrases: hideOthersPhrasesRef.current,
       });
       if (mctx && now - lastMini > 120) {
         lastMini = now;
@@ -596,6 +609,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         if (!e.repeat) splitQueuedRef.current = true;
       } else if (e.code === "KeyW") {
         throwHeldRef.current = true;
+      } else if (e.code === "KeyT" && playing && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const el = e.target as HTMLElement | null;
+        if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+        setPhrasesOpen((v) => !v);
+      } else if (e.code === "Escape" && playing) {
+        setPhrasesOpen(false);
       } else if (e.code === "Escape" && !playing) {
         handleClose();
       }
@@ -610,6 +629,33 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       window.removeEventListener("keyup", up);
     };
   }, [open, playing, handleClose]);
+
+  // збережена настройка «Ховати чужі фрази»
+  useEffect(() => {
+    if (!open) return;
+    const v = loadHidePhrases();
+    hideOthersPhrasesRef.current = v;
+    setHideOthersPhrases(v);
+  }, [open]);
+
+  // панель фраз живе лише під час гри
+  useEffect(() => {
+    if (!playing) setPhrasesOpen(false);
+  }, [playing]);
+
+  const sendPhrase = (id: number) => {
+    setPhrasesOpen(false);
+    if (phraseCooldown) return;
+    clientRef.current?.sendPhrase(id);
+    setPhraseCooldown(true);
+    setTimeout(() => setPhraseCooldown(false), PHRASE_COOLDOWN_MS);
+  };
+
+  const toggleHidePhrases = (v: boolean) => {
+    hideOthersPhrasesRef.current = v;
+    setHideOthersPhrases(v);
+    saveHidePhrases(v);
+  };
 
   // жести на канвасі
   const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -787,6 +833,46 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {t("controls.throw")}
             </button>
           </div>
+          {phrasesOpen ? <div className={styles.phrasesBackdrop} onPointerDown={() => setPhrasesOpen(false)} aria-hidden /> : null}
+          {phrasesOpen ? (
+            <div className={styles.phrasesPanel} role="menu" aria-label={t("phrases.title")}>
+              <div className={styles.phrasesGrid}>
+                {PHRASES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="menuitem"
+                    className={styles.phraseItem}
+                    disabled={phraseCooldown}
+                    onClick={() => sendPhrase(p.id)}
+                  >
+                    <span className={styles.phraseEmoji} aria-hidden>
+                      {p.emoji}
+                    </span>
+                    <span>{p.text[toPhraseLang(locale)]}</span>
+                  </button>
+                ))}
+              </div>
+              <label className={styles.phrasesToggle}>
+                <input type="checkbox" checked={hideOthersPhrases} onChange={(e) => toggleHidePhrases(e.target.checked)} />
+                <span>{t("phrases.hideOthers")}</span>
+              </label>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className={styles.phrasesBtn}
+            aria-haspopup="menu"
+            aria-expanded={phrasesOpen}
+            aria-label={t("phrases.open")}
+            title={`${t("phrases.open")} (T)`}
+            onClick={(e) => {
+              e.currentTarget.blur(); // щоб пробіл ("розділитися") не тиснув цю кнопку
+              setPhrasesOpen((v) => !v);
+            }}
+          >
+            <span aria-hidden>💬</span>
+          </button>
           {!isTouch ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
         </>
       ) : null}
