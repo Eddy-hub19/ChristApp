@@ -1,3 +1,4 @@
+import { PUBLIC_USER_SELECT } from 'src/common/public-user';
 import { Test, TestingModule } from '@nestjs/testing';
 import { MessagesService } from './messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -187,7 +188,7 @@ describe('MessagesService', () => {
       });
 
       expect(prisma.message.create.mock.calls[0][0]).toMatchObject({
-        include: { sender: { select: expect.objectContaining({ bubbleStyle: true }) } },
+        include: { sender: { select: PUBLIC_USER_SELECT } },
       });
       expect(result.sender).toEqual(sender);
     });

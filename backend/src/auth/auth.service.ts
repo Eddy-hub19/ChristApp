@@ -163,6 +163,8 @@ export class AuthService {
           password: hash,
           isActive: true,
         },
+        // наружу из строки нужны только id и username (лог); хеш пароля дальше не гуляет
+        select: { id: true, username: true },
       });
 
       this.logger.log(
@@ -224,6 +226,8 @@ export class AuthService {
       where: {
         OR: [{ email: asEmail }, { username: asHandle }],
       },
+      // пароль нужен только для сверки ниже; остальное из строки не берём
+      select: { id: true, username: true, password: true },
     });
 
     if (!user) {

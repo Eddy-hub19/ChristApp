@@ -10,6 +10,7 @@ import { WatchMemberStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import type { Server } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PUBLIC_USER_SELECT } from 'src/common/public-user';
 import { PushService } from 'src/push/push.service';
 import { CHAT_REACTIONS } from 'src/common/chat-reactions';
 import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
@@ -99,13 +100,7 @@ type RoomRuntime = WatchPlaybackState & {
   manualCountdownTimer: ReturnType<typeof setTimeout> | null;
 };
 
-const userPublicSelect = {
-  id: true,
-  username: true,
-  nickname: true,
-  avatarUrl: true,
-  bubbleStyle: true,
-} as const;
+const userPublicSelect = PUBLIC_USER_SELECT;
 
 const WATCH_MESSAGE_SELECT = {
   id: true,

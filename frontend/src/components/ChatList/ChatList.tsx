@@ -48,7 +48,6 @@ export type ChatCreateCandidate = {
   username: string;
   /** @username для пошуку. */
   handle: string;
-  email: string;
   isOnline: boolean;
   hasDirectChat: boolean;
   avatarUrl?: string | null;

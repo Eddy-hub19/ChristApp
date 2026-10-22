@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MessageType, Prisma, type User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PUBLIC_USER_SELECT } from 'src/common/public-user';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import {
@@ -87,15 +88,6 @@ const REPLY_PREVIEW_CONTENT_MAX = 300;
 /** @deprecated використовуйте DeleteOwnMessageResult */
 export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
-/** Публичные поля отправителя в сообщениях (без email, пароля и прочего): остальное клиент берёт из справочника. */
-const SENDER_SELECT = {
-  id: true,
-  username: true,
-  nickname: true,
-  avatarUrl: true,
-  bubbleStyle: true,
-} as const;
-
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -121,7 +113,7 @@ export class MessagesService {
         roomId: this.GLOBAL_ROOM,
       },
       include: {
-        sender: { select: SENDER_SELECT },
+        sender: { select: PUBLIC_USER_SELECT },
       },
     });
   }
@@ -205,7 +197,7 @@ export class MessagesService {
       : await this.prisma.message.create({
           data,
           include: {
-            sender: { select: SENDER_SELECT },
+            sender: { select: PUBLIC_USER_SELECT },
           },
         });
     const [withReply] = await this.attachReplies([created]);
@@ -216,7 +208,7 @@ export class MessagesService {
   async findByClientMessageId(senderId: string, clientMessageId: string) {
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
-      include: { sender: { select: SENDER_SELECT } },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
     });
     if (!existing) return null;
     const [withReply] = await this.attachReplies([existing]);
@@ -346,7 +338,7 @@ export class MessagesService {
         },
       },
       include: {
-        sender: { select: SENDER_SELECT },
+        sender: { select: PUBLIC_USER_SELECT },
         reactions: { orderBy: { createdAt: 'asc' } },
         voiceListens: { select: { userId: true } },
       },
@@ -367,7 +359,7 @@ export class MessagesService {
     const rows = await this.prisma.message.findMany({
       where: { roomId },
       include: {
-        sender: { select: SENDER_SELECT },
+        sender: { select: PUBLIC_USER_SELECT },
         reactions: {
           orderBy: { createdAt: 'asc' },
         },
@@ -382,7 +374,7 @@ export class MessagesService {
 
   async getAll(limit = 50, skip = 0) {
     return this.prisma.message.findMany({
-      include: { sender: { select: SENDER_SELECT } },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
       orderBy: { createdAt: 'asc' },
       take: limit,
       skip,
