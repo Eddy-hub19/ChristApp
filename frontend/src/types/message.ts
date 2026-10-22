@@ -21,6 +21,8 @@ export type Message = {
   /** Унікальний @username (латиниця, нижній регістр). */
   handle?: string;
   senderId?: string;
+  /** Стиль пузыря отправителя (id из lib/bubbleStyles.ts); без поля - стандартный. */
+  bubbleStyle?: string;
   content: string;
   type?: AppMessageType;
   fileUrl?: string | null;

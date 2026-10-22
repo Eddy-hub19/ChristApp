@@ -157,6 +157,7 @@ import {
   type AvatarLikesUserResponse,
 } from "@/lib/queries/avatarLikesQueries";
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
+import { attachBubbleStyleListener } from "@/lib/bubbleStyles";
 
 const CHAT_SOCKET_URL = getDirectApiOrigin();
 const CHAT_HTTP_API = getHttpApiBase();
@@ -179,10 +180,12 @@ type IncomingSocketMessage = {
   username?: string;
   handle?: string;
   senderId?: string;
+  bubbleStyle?: string;
   sender?: {
     id?: string;
     username?: string;
     nickname?: string;
+    bubbleStyle?: string;
   };
   reactions?: Array<{
     id?: string;
@@ -527,6 +530,7 @@ function normalizeIncomingMessage(
     username: displayName,
     handle,
     senderId,
+    bubbleStyle: raw?.bubbleStyle ?? raw?.sender?.bubbleStyle,
     sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
     reactions,
@@ -1877,6 +1881,7 @@ export default function ChatPageDetails() {
       }
     };
     socket.on("userPresenceChanged", onUserPresenceChanged);
+    const detachBubbleStyles = attachBubbleStyleListener(socket, queryClient);
 
     const onUserTyping = (payload: {
       roomId?: string;
@@ -2298,6 +2303,7 @@ export default function ChatPageDetails() {
       socket.off("onlineCount", onOnlineCount);
       socket.off("onlineUsers", onOnlineUsers);
       socket.off("userPresenceChanged", onUserPresenceChanged);
+      detachBubbleStyles();
       socket.off("userTyping", onUserTyping);
       socket.off("userJoinedRoom", onUserJoinedRoom);
       socket.off("roomReadUpdated", onRoomReadUpdated);

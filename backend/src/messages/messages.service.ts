@@ -87,6 +87,15 @@ const REPLY_PREVIEW_CONTENT_MAX = 300;
 /** @deprecated використовуйте DeleteOwnMessageResult */
 export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
+/** Публичные поля отправителя в сообщениях (без email, пароля и прочего): остальное клиент берёт из справочника. */
+const SENDER_SELECT = {
+  id: true,
+  username: true,
+  nickname: true,
+  avatarUrl: true,
+  bubbleStyle: true,
+} as const;
+
 @Injectable()
 export class MessagesService {
   private readonly logger = new Logger(MessagesService.name);
@@ -112,7 +121,7 @@ export class MessagesService {
         roomId: this.GLOBAL_ROOM,
       },
       include: {
-        sender: true,
+        sender: { select: SENDER_SELECT },
       },
     });
   }
@@ -125,7 +134,9 @@ export class MessagesService {
        * Уже известный автор (напр. из сокета): тогда insert идёт одним запросом, без `include`.
        * `create` с `include` Prisma выполняет транзакцией BEGIN/INSERT/SELECT/SELECT/COMMIT — это 5 обращений к БД до `emit`.
        */
-      sender?: Pick<User, 'username' | 'nickname'>;
+      sender?: Pick<User, 'username' | 'nickname'> & {
+        bubbleStyle?: string | null;
+      };
     } & (
       | {
           roomId: string;
@@ -194,7 +205,7 @@ export class MessagesService {
       : await this.prisma.message.create({
           data,
           include: {
-            sender: true,
+            sender: { select: SENDER_SELECT },
           },
         });
     const [withReply] = await this.attachReplies([created]);
@@ -205,7 +216,7 @@ export class MessagesService {
   async findByClientMessageId(senderId: string, clientMessageId: string) {
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
-      include: { sender: true },
+      include: { sender: { select: SENDER_SELECT } },
     });
     if (!existing) return null;
     const [withReply] = await this.attachReplies([existing]);
@@ -335,7 +346,7 @@ export class MessagesService {
         },
       },
       include: {
-        sender: true,
+        sender: { select: SENDER_SELECT },
         reactions: { orderBy: { createdAt: 'asc' } },
         voiceListens: { select: { userId: true } },
       },
@@ -356,7 +367,7 @@ export class MessagesService {
     const rows = await this.prisma.message.findMany({
       where: { roomId },
       include: {
-        sender: true,
+        sender: { select: SENDER_SELECT },
         reactions: {
           orderBy: { createdAt: 'asc' },
         },
@@ -371,7 +382,7 @@ export class MessagesService {
 
   async getAll(limit = 50, skip = 0) {
     return this.prisma.message.findMany({
-      include: { sender: true },
+      include: { sender: { select: SENDER_SELECT } },
       orderBy: { createdAt: 'asc' },
       take: limit,
       skip,

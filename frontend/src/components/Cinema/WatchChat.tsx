@@ -19,6 +19,16 @@ import { useMessageGestures } from "@/components/ChatShared/useMessageGestures";
 import sharedStyles from "@/components/ChatShared/ChatShared.module.scss";
 import { isSystemMessage, systemMessageText, systemMessageTime } from "@/lib/watchSystemMessage";
 import type { HallMember, HallMessage } from "./useWatchHall";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  BUBBLE_STYLES_WITH_CHARACTER,
+  DEFAULT_BUBBLE_STYLE,
+  canUseBubbleStyles,
+  resolveBubbleStyle,
+  useBubbleStylesVersion,
+  useShowOthersBubbleStyles,
+  type BubbleStyleId,
+} from "@/lib/bubbleStyles";
 import styles from "./CinemaHall.module.scss";
 
 const HIGHLIGHT_MS = 1_700;
@@ -30,6 +40,8 @@ const TYPING_STOP_DELAY_MS = 2_200;
 /** Не частіше цього — навіть якщо людина друкує безперервно. */
 const TYPING_RESEND_INTERVAL_MS = 2_000;
 const READ_AVATAR_LIMIT = 3;
+/** Сообщения одного человека дальше друг от друга во времени - уже новая группа (персонаж стиля рисуется снова). */
+const BUBBLE_GROUP_GAP_MS = 5 * 60_000;
 
 type WatchChatProps = {
   messages: HallMessage[];
@@ -96,6 +108,38 @@ export default function WatchChat({
   const stickToBottom = useRef(true);
   const suppressStickUntilRef = useRef(0);
   const stickSuppressed = () => Date.now() < suppressStickUntilRef.current;
+
+  // Стили пузырей: стиль каждого сообщения и «первое в группе» (персонаж один раз на группу одного автора).
+  const { user: viewer } = useAuth();
+  const bubbleStylesVersion = useBubbleStylesVersion();
+  const showOthersBubbleStyles = useShowOthersBubbleStyles();
+  const viewerBubbleStylesAllowed = canUseBubbleStyles(viewer?.username);
+  const bubbleInfoById = useMemo(() => {
+    const map = new Map<string, { style: BubbleStyleId; start: boolean }>();
+    if (!viewerBubbleStylesAllowed) return map;
+    void bubbleStylesVersion;
+    let prevAuthor: string | null = null;
+    let prevAt = 0;
+    for (const m of messages) {
+      if (isSystemMessage(m)) {
+        prevAuthor = null;
+        continue;
+      }
+      const at = new Date(m.createdAt).getTime();
+      const style = resolveBubbleStyle({
+        senderId: m.user.id,
+        isOwn: m.user.id === currentUserId,
+        fallback: m.user.bubbleStyle,
+        viewerAllowed: true,
+        showOthers: showOthersBubbleStyles,
+      });
+      const start = m.user.id !== prevAuthor || !(at - prevAt < BUBBLE_GROUP_GAP_MS);
+      if (style !== DEFAULT_BUBBLE_STYLE) map.set(m.id, { style, start });
+      prevAuthor = m.user.id;
+      prevAt = at;
+    }
+    return map;
+  }, [messages, currentUserId, viewerBubbleStylesAllowed, bubbleStylesVersion, showOthersBubbleStyles]);
 
   const membersById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const tShared = useTranslations("chatShared");
@@ -406,6 +450,8 @@ export default function WatchChat({
               visibleReaders={visibleReaders}
               onOpenReaders={() => setReadersMessageId(m.id)}
               extraReadersCount={extraReadersCount}
+              bubbleStyle={bubbleInfoById.get(m.id)?.style}
+              bubbleStart={bubbleInfoById.get(m.id)?.start}
               t={t}
             />
           );
@@ -532,6 +578,9 @@ type WatchChatMessageProps = {
   visibleReaders: HallMember[];
   onOpenReaders: () => void;
   extraReadersCount: number;
+  /** Стиль пузыря (с учётом доступа и настройки зрителя) и «первое в группе» - для персонажа. */
+  bubbleStyle?: BubbleStyleId;
+  bubbleStart?: boolean;
   t: ReturnType<typeof useTranslations>;
 };
 
@@ -551,6 +600,8 @@ function WatchChatMessage({
   visibleReaders,
   onOpenReaders,
   extraReadersCount,
+  bubbleStyle = DEFAULT_BUBBLE_STYLE,
+  bubbleStart = false,
   t,
 }: WatchChatMessageProps) {
   const tShared = useTranslations("chatShared");
@@ -584,7 +635,18 @@ function WatchChatMessage({
           {...gestures.handlers}
           role="button"
           tabIndex={-1}
+          {...(bubbleStyle !== DEFAULT_BUBBLE_STYLE
+            ? {
+                "data-bubble-style": bubbleStyle,
+                "data-bubble-tone": "dark", // кинозал всегда тёмный
+                "data-bubble-own": mine ? "" : undefined,
+                "data-bubble-start": bubbleStart && BUBBLE_STYLES_WITH_CHARACTER.has(bubbleStyle) ? "" : undefined,
+              }
+            : null)}
         >
+          {bubbleStart && bubbleStyle !== DEFAULT_BUBBLE_STYLE && BUBBLE_STYLES_WITH_CHARACTER.has(bubbleStyle) ? (
+            <span data-bs-char aria-hidden />
+          ) : null}
           {!mine ? (
             <span className={styles.chatAuthor}>
               {m.user.nickname || m.user.username}

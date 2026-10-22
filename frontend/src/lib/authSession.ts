@@ -24,6 +24,8 @@ export type AuthUser = {
   themeFontKey?: string | null;
   /** Короткий опис у профілі. */
   bio?: string | null;
+  /** Стиль пузырей сообщений (id из lib/bubbleStyles.ts). */
+  bubbleStyle?: string | null;
 };
 
 export type AuthSessionPayload = {

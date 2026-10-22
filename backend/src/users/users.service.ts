@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { authUserCache } from '../auth/auth-user-cache';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { normalizeUsernameHandle } from './username.util';
+import { canUseBubbleStyles } from '../config/bubble-styles';
 
 const ACTIVITY_CACHE_MS = 60_000;
 
@@ -30,6 +32,7 @@ const profileSelect = {
   themeBackgroundHex: true,
   themeFontKey: true,
   bio: true,
+  bubbleStyle: true,
 } as const;
 
 @Injectable()
@@ -50,6 +53,7 @@ export class UsersService {
           isActive: true,
           avatarUrl: true,
           bio: true,
+          bubbleStyle: true,
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -108,6 +112,7 @@ export class UsersService {
         isActive: true,
         avatarUrl: true,
         bio: true,
+        bubbleStyle: true,
       },
     });
 
@@ -124,8 +129,9 @@ export class UsersService {
       dto.themeBackgroundHex !== undefined ||
       dto.themeFontKey !== undefined;
     const hasBio = dto.bio !== undefined;
+    const hasBubbleStyle = dto.bubbleStyle !== undefined;
 
-    if (!hasIdentity && !hasAppearance && !hasBio) {
+    if (!hasIdentity && !hasAppearance && !hasBio && !hasBubbleStyle) {
       throw new BadRequestException('Нет данных для обновления');
     }
 
@@ -176,10 +182,22 @@ export class UsersService {
           ? null
           : dto.bio.trim();
 
+    if (hasBubbleStyle && dto.bubbleStyle !== 'default') {
+      // тестовый режим: пока BUBBLE_STYLES_ACCESS = 'admin', менять стиль может только админ
+      const me = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true },
+      });
+      if (!canUseBubbleStyles(me?.username)) {
+        throw new ForbiddenException('Стили пузырей пока недоступны');
+      }
+    }
+
     try {
       const updated = await this.prisma.user.update({
         where: { id: userId },
         data: {
+          ...(hasBubbleStyle ? { bubbleStyle: dto.bubbleStyle } : {}),
           ...(nextUsername !== undefined ? { username: nextUsername } : {}),
           ...(nextNickname !== undefined ? { nickname: nextNickname } : {}),
           ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),

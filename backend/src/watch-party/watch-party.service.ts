@@ -104,6 +104,7 @@ const userPublicSelect = {
   username: true,
   nickname: true,
   avatarUrl: true,
+  bubbleStyle: true,
 } as const;
 
 const WATCH_MESSAGE_SELECT = {

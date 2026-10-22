@@ -53,6 +53,8 @@ import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import ProfileChaptersCard from "@/components/ProfileChaptersCard/ProfileChaptersCard";
+import BubbleStyleSettings from "@/components/BubbleStyleSettings/BubbleStyleSettings";
+import { canUseBubbleStyles } from "@/lib/bubbleStyles";
 
 type SavedVerse = {
   id: string;
@@ -1015,6 +1017,9 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* «Вигляд повідомлень»: в тестовом режиме (BUBBLE_STYLES_ACCESS = "admin") виден только админу. */}
+      {canUseBubbleStyles(user?.username) ? <BubbleStyleSettings /> : null}
 
       {isNotificationsOpen ? (
         <div className={styles.notificationsPanel}>

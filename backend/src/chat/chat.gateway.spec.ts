@@ -306,6 +306,7 @@ describe('ChatGateway', () => {
       fileUrl: undefined,
       username: 'sender',
       handle: 'sender',
+      bubbleStyle: 'default',
       senderId: 'u1',
       createdAt: savedMessage.createdAt,
       roomId: 'room-1',

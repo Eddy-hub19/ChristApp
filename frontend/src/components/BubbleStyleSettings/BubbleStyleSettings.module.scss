@@ -1,0 +1,174 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 12px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.hint {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.cardActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.cardPreview {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  min-height: 96px;
+  padding: 0 6px 4px 14px;
+}
+
+.cardName {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Пример пузыря: размеры как у настоящего; цвета и персонаж - из styles/bubbleStyles.scss. */
+.sample {
+  position: relative;
+  display: inline-flex;
+  max-width: 85%;
+  padding: 9px 14px 8px;
+  border-radius: 18px 18px 18px 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface-elevated));
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.35;
+  align-self: flex-start;
+}
+
+.sampleOwn {
+  align-self: flex-end;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.sampleText {
+  overflow-wrap: anywhere;
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.exampleTitle {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.primary,
+.secondary {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #2b2418;
+}
+
+.secondary {
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--foreground);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ok {
+  margin: 0;
+  font-size: 12px;
+  color: #5fae5a;
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  color: #e5736a;
+}
+
+.toggle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+
+  input {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 14px;
+  }
+
+  small {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+}

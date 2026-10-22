@@ -666,3 +666,30 @@ html[data-theme="dark"] .senderCompact {
   min-width: 0;
   padding: 6px;
 }
+
+/* --- стили пузырей (styles/bubbleStyles.scss): внутренние тексты берут цвета стиля --- */
+.bubble[data-bubble-style] {
+  .messageContent,
+  .fileLink,
+  .fileMessageMeta,
+  .voiceMessageMeta,
+  .audioFileName,
+  .audioFileTime,
+  .linkPreviewTitle,
+  .verseShareText {
+    color: var(--bs-text) !important;
+  }
+
+  .date,
+  .senderCompact,
+  .readReceiptText,
+  .linkPreviewUrl,
+  .imageMessageMeta {
+    color: var(--bs-muted) !important;
+  }
+}
+
+/* У аватарки в Global chat свой верхний отступ, когда над пузырём стоит персонаж стиля. */
+.row:has([data-bubble-start]) .avatarBtn {
+  margin-top: 40px;
+}

@@ -27,6 +27,8 @@ model User {
   lastSeenAt        DateTime?
   /// Короткий опис у профілі (видно в чаті / списку).
   bio               String?   @db.VarChar(500)
+  /// Стиль пузырей сообщений отправителя (id из config/bubble-styles.ts), по умолчанию "default".
+  bubbleStyle       String    @default("default") @db.VarChar(24)
   messages          Message[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]
