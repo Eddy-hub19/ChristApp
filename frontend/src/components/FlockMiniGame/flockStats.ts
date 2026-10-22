@@ -31,21 +31,3 @@ export function clearLegacyFlockStats(userId: string) {
 }
 
 export const EMPTY_FLOCK_STATS = EMPTY;
-
-const CONTROLS_KEY = "christapp:flock:controls";
-export type ControlMode = "follow" | "joystick";
-
-export function loadControlMode(): ControlMode {
-  try {
-    return localStorage.getItem(CONTROLS_KEY) === "joystick" ? "joystick" : "follow";
-  } catch {
-    return "follow";
-  }
-}
-export function saveControlMode(mode: ControlMode) {
-  try {
-    localStorage.setItem(CONTROLS_KEY, mode);
-  } catch {
-    /* ignore */
-  }
-}

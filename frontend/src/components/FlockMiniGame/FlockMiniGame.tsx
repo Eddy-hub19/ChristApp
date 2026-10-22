@@ -27,10 +27,7 @@ import { subscribePreviewTick } from "./flockPreviewTicker";
 import {
   clearLegacyFlockStats,
   EMPTY_FLOCK_STATS,
-  loadControlMode,
   loadLegacyFlockStats,
-  saveControlMode,
-  type ControlMode,
   type FlockStats,
 } from "./flockStats";
 import styles from "./FlockMiniGame.module.scss";
@@ -134,7 +131,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const throwHeldRef = useRef(false);
   const splitQueuedRef = useRef(false);
   const lastSentRef = useRef<{ dir: Dir; at: number } | null>(null);
-  const controlRef = useRef<ControlMode>("follow");
   const themeRef = useRef<Theme>(currentTheme());
   const stickRef = useRef<{ id: number; bx: number; by: number } | null>(null);
   const maxTotalRef = useRef(0);
@@ -142,7 +138,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   const [status, setStatus] = useState<FlockStatus>("connecting");
   const [skin, setSkin] = useState(0);
-  const [control, setControl] = useState<ControlMode>("follow");
   const [stats, setStats] = useState<FlockStats>(EMPTY_FLOCK_STATS);
   const [me, setMe] = useState<FlockMe | null>(null);
   const [previewSkin, setPreviewSkin] = useState<number | null>(null);
@@ -223,9 +218,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   useEffect(() => {
     setSkin(loadSkin());
-    const mode = loadControlMode();
-    setControl(mode);
-    controlRef.current = mode;
     setIsTouch(window.matchMedia?.("(pointer: coarse)").matches ?? false);
   }, [userId]);
 
@@ -427,12 +419,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     }
   };
 
-  const changeControl = (mode: ControlMode) => {
-    setControl(mode);
-    controlRef.current = mode;
-    saveControlMode(mode);
-  };
-
   // скрытые скины (сервер: config.hiddenSkins) не показываем, пока профиль не загружен - тоже; купленные остаются
   const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : HIDDEN_SKIN_IDS;
   const ownedSkins = me?.ownedSkins ?? null;
@@ -625,7 +611,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const r = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - r.left;
     const py = e.clientY - r.top;
-    if (controlRef.current === "joystick" && e.pointerType !== "mouse") {
+    if (e.pointerType !== "mouse") {
       const st = stickRef.current;
       if (st && st.id === e.pointerId) {
         dirRef.current = joystickDir(px, py, st.bx, st.by);
@@ -640,15 +626,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       return;
     }
-    // мишка завжди слідує за курсором; палець - поки торкається
-    if (e.pointerType === "mouse" || e.pressure > 0 || e.type === "pointerdown") {
-      dirRef.current = pointerDir(px, py, r.width / 2, r.height / 2);
-    }
+    dirRef.current = pointerDir(px, py, r.width / 2, r.height / 2);
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    if (controlRef.current === "joystick" && e.pointerType !== "mouse") {
+    if (e.pointerType !== "mouse") {
       const r = e.currentTarget.getBoundingClientRect();
       const bx = e.clientX - r.left;
       const by = e.clientY - r.top;
@@ -669,9 +652,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (e.pointerType !== "mouse" && controlRef.current === "follow") {
-      dirRef.current = { angle: dirRef.current.angle, power: 0 }; // палець піднято - зупиняємось
-    }
     if (stickRef.current?.id === e.pointerId) {
       stickRef.current = null;
       dirRef.current = { angle: dirRef.current.angle, power: 0 };
@@ -1028,16 +1008,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             ) : null}
                 </div>
               </div>
-            </div>
-
-            <h3 className={styles.h3}>{t("controls.title")}</h3>
-            <div className={styles.segment} role="radiogroup" aria-label={t("controls.title")}>
-              <button type="button" role="radio" aria-checked={control === "follow"} className={control === "follow" ? styles.segActive : undefined} onClick={() => changeControl("follow")}>
-                {isTouch ? t("controls.follow") : t("controls.mouse")}
-              </button>
-              <button type="button" role="radio" aria-checked={control === "joystick"} className={control === "joystick" ? styles.segActive : undefined} onClick={() => changeControl("joystick")}>
-                {t("controls.joystick")}
-              </button>
             </div>
 
             <dl className={styles.stats}>
