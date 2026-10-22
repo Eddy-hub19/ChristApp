@@ -5,7 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useTranslations } from "next-intl";
 import { Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -18,7 +18,7 @@ import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
-import { animFrame, SKINS, skinOf } from "./flockSkins";
+import { animFrame, skinOf } from "./flockSkins";
 import { isSpecialDeco } from "./flockSpecialDeco";
 import { prefersReducedMotion } from "./flockSprites";
 import { subscribePreviewTick } from "./flockPreviewTicker";
@@ -63,7 +63,7 @@ function currentTheme(): Theme {
 function loadSkin() {
   try {
     const v = Number(localStorage.getItem(SKIN_KEY));
-    return Number.isInteger(v) && v >= 0 && v < SKINS.length ? v : 0;
+    return Number.isInteger(v) && v >= 0 && v < TOTAL_SKINS ? v : 0;
   } catch {
     return 0;
   }
@@ -149,6 +149,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
   const [zorepad, setZorepad] = useState<number | null>(null);
   const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number } | null>(null);
+  const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
@@ -265,6 +266,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onNotice: setNotice,
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
+        onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
         onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count }),
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
@@ -309,6 +311,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const id = setTimeout(() => setScissorsMsg(null), 2200);
     return () => clearTimeout(id);
   }, [scissorsMsg]);
+
+  useEffect(() => {
+    if (bossMsg === null) return;
+    const id = setTimeout(() => setBossMsg(null), 3200);
+    return () => clearTimeout(id);
+  }, [bossMsg]);
 
   // «+10»: підпис і анімація зникають самі
   useEffect(() => {
@@ -647,6 +655,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {scissorsMsg ? (
             <div key={scissorsMsg.id} className={styles.scissorsBanner} role="status">
               {scissorsMsg.taker ? t("events.scissorsTaker", { count: scissorsMsg.count }) : t("events.scissorsVictim")}
+            </div>
+          ) : null}
+          {bossMsg ? (
+            <div key={bossMsg.id} className={styles.bossBanner} role="status">
+              {bossMsg.kind === 1 ? t("events.bossSpawn") : t("events.bossDefeated", { name: bossMsg.name })}
             </div>
           ) : null}
           {reward ? (

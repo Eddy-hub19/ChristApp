@@ -136,6 +136,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 7,
+    date: "2026-10-22",
+    items: [
+      {
+        icon: "trophy",
+        text: {
+          ua: "Вожак: на арені з'являється сильний темний вовк із золотою короною. Він полює на великих, але його можна з'їсти!",
+          ru: "Вожак: на арене появляется сильный тёмный волк с золотой короной. Он охотится на крупных, но его можно съесть!",
+          en: "The Alpha: a strong dark wolf with a golden crown now roams the arena. It hunts big players, but it can be eaten!",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

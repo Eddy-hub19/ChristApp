@@ -744,3 +744,25 @@
     transform: translateX(-50%);
   }
 }
+
+.bossBanner {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  z-index: 6;
+  width: max-content;
+  max-width: 92vw;
+  text-align: center;
+  pointer-events: none;
+  font-size: 28px;
+  font-weight: 800;
+  color: #ffe27a;
+  text-shadow: 0 2px 14px rgba(200, 120, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8);
+  animation: zorepadPop 3.2s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bossBanner {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}

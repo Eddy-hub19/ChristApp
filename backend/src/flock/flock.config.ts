@@ -282,6 +282,42 @@ export const FLOCK_CONFIG = {
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
   },
+
+  // --- «Вожак»: один дуже сильний бот на арені (але переможний: можна з'їсти, маса тане і має стелю) ---
+  boss: {
+    enabled: true,
+    /** Ім'я фіксоване (не зі списку імен ботів). */
+    name: 'Вожак',
+    /** Перша поява після старту арени (світовий час, мс), лише коли є живі гравці. */
+    firstSpawnMinMs: 60_000,
+    firstSpawnMaxMs: 120_000,
+    /** Відродження після смерті (мс). */
+    respawnMinMs: 110_000,
+    respawnMaxMs: 130_000,
+    startMass: 260,
+    /** Стеля: понад це маса обрізається (з'їдене зверху пропадає), щоб не захопив арену. */
+    maxMass: 900,
+    /** Розпад швидший за звичайний (decayFromMass/decayPerSec) і з меншої маси. */
+    decayFromMass: 140,
+    decayPerSec: 0.012,
+    /** ШІ думає раз на N тіків (у звичайних ботів botThinkEvery = 5). */
+    thinkEvery: 3,
+    /** Радіуси: полювання, втеча, їжа, бонуси. */
+    huntRadius: 950,
+    fleeRadius: 620,
+    foodRadius: 420,
+    bonusRadius: 700,
+    /** Агресивність 0..1: множить шанс атаки з поділом і вагу великої здобичі. */
+    aggression: 0.8,
+    /** Шанс (за агресивністю) поділитись для атаки, коли здобич близько. */
+    splitAttackChance: 0.5,
+    /** Здобич менша за цю масу не варта полювання (краще їжа). */
+    preyMinMass: 45,
+    /** Вага маси здобичі в її оцінці: оцінка = відстань - маса * вага. */
+    preyMassWeight: 2.2,
+    /** Схованка: радіус пошуку куща, у який Вожак вміщується (радіус куща більший за його). */
+    hideRadius: 800,
+  },
 } as const;
 
 /** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
@@ -318,6 +354,8 @@ export const BONUS_KINDS = Object.keys(
 /** Звичайні платні скіни після особливих (34, 35): ціна як у 12..17 (skinPrice). */
 export const EXTRA_PAID_FROM = 34;
 export const NUM_SKINS = 36;
+/** Скін «Вожака»: поза NUM_SKINS (гравець обрати не може, у лобі його нема). */
+export const BOSS_SKIN = 36;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;

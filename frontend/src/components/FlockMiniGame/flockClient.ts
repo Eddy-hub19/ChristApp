@@ -59,6 +59,8 @@ export interface FlockClientOptions {
   /** Стартувала подія «Зорепад»: показати напис. */
   onZorepad?: () => void;
   /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
+  /** «Вожак»: 1 - вышел на охоту, 2 - побеждён (name - кто победил). */
+  onBoss?: (e: { kind: 1 | 2; name: string }) => void;
   onScissors?: (r: { taker: boolean; victim: boolean; count: number }) => void;
 }
 
@@ -227,6 +229,9 @@ export class FlockClient {
         const r = this.model.applyScissors(msg, performance.now());
         if (r && (r.taker || r.victim)) this.opts.onScissors?.(r);
       });
+    });
+    socket.on("bm", (msg: { k?: unknown; n?: unknown }) => {
+      if (msg?.k === 1 || msg?.k === 2) this.opts.onBoss?.({ kind: msg.k, name: typeof msg.n === "string" ? msg.n : "" });
     });
     socket.on("r", (r: RewardInfo) => {
       if (typeof r?.amount === "number" && typeof r?.balance === "number") this.opts.onReward?.(r);

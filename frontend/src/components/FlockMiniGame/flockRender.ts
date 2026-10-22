@@ -2,6 +2,7 @@ import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
 import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
+import { BOSS_SKIN } from "./flockSkins";
 import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite } from "./flockSprites";
 
 export { drawCreature };
@@ -362,7 +363,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       const meta = m.players.get(c.pid);
       if (!meta) continue;
       const size = Math.max(11 / scale, Math.min(r * 0.42, 26));
-      const spr = nameSprite(meta.name, meta.bot, size * scale * dpr, theme);
+      const spr = nameSprite(meta.skin === BOSS_SKIN ? `👑 ${meta.name}` : meta.name, meta.bot, size * scale * dpr, theme);
       const f = size / spr.px;
       const ty = c.y - r * 0.05;
       ctx.drawImage(spr.cv, c.x - spr.centerX * f, ty - (spr.cv.height * f) / 2, spr.cv.width * f, spr.cv.height * f);

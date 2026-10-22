@@ -3,6 +3,7 @@ import {
   FLOCK_CONFIG,
   FLOCK_MAPS,
   NUM_SKINS,
+  BOSS_SKIN,
   type MapLayout,
   type ThornCfg,
   type BonusKind,
@@ -113,6 +114,8 @@ export interface Player {
   name: string;
   skin: number;
   bot: boolean;
+  /** «Вожак»: свої розпад і стеля маси, старт із більшою масою. */
+  boss: boolean;
   alive: boolean;
   cells: Cell[];
   angle: number;
@@ -288,14 +291,22 @@ export class FlockWorld {
   }
 
   // ---------- гравці ----------
-  addPlayer(opts: { name: string; skin: number; bot?: boolean }): Player {
+  addPlayer(opts: {
+    name: string;
+    skin: number;
+    bot?: boolean;
+    boss?: boolean;
+  }): Player {
     const id = this.nextId(this.nextPid, (i) => this.players.has(i));
     this.nextPid = id + 1;
     const player: Player = {
       id,
       name: opts.name,
-      skin: Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(opts.skin) || 0)),
+      skin: opts.boss
+        ? BOSS_SKIN
+        : Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(opts.skin) || 0)),
       bot: !!opts.bot,
+      boss: !!opts.boss,
       alive: false,
       cells: [],
       angle: 0,
@@ -328,15 +339,16 @@ export class FlockWorld {
     for (const c of p.cells) this.cellsById.delete(c.id);
     p.cells = [];
     const spot = this.safeSpawn();
-    this.addCell(p, spot.x, spot.y, C.startMass);
+    this.addCell(p, spot.x, spot.y, p.boss ? C.boss.startMass : C.startMass);
     p.alive = true;
     p.effects = {};
     p.frozenUntil = 0;
     p.boostUntil = this.now + C.spawnBoost.durationMs;
     p.spawnedAt = this.now;
     p.paused = false;
-    p.maxMass = C.startMass;
-    p.total = C.startMass;
+    const start = p.boss ? C.boss.startMass : C.startMass;
+    p.maxMass = start;
+    p.total = start;
     p.topMs = 0;
     p.killed = [];
     p.kills = 0;
@@ -592,11 +604,19 @@ export class FlockWorld {
     for (const p of this.players.values()) {
       if (!p.alive) continue;
       let total = 0;
+      const from = p.boss ? C.boss.decayFromMass : C.decayFromMass;
+      const rate = p.boss ? C.boss.decayPerSec : C.decayPerSec;
       for (const c of p.cells) {
-        if (!p.paused && c.mass > C.decayFromMass) {
-          c.mass -= c.mass * C.decayPerSec * dt;
+        if (!p.paused && c.mass > from) {
+          c.mass -= c.mass * rate * dt;
         }
         total += c.mass;
+      }
+      // «Вожак»: стеля маси - зайве зникає, щоб не захопив арену
+      if (p.boss && total > C.boss.maxMass) {
+        const k = C.boss.maxMass / total;
+        for (const c of p.cells) c.mass *= k;
+        total = C.boss.maxMass;
       }
       p.total = total;
       if (total > p.maxMass) p.maxMass = total;

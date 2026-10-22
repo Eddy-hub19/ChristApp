@@ -5,7 +5,9 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   // «особливі» (24..33), статичні
   | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy"
   // платные обычные (34, 35), статичные
-  | "hearts" | "mint";
+  | "hearts" | "mint"
+  // «Вожак» (36): бот-босс, вне NUM_SKINS - игрок его выбрать не может
+  | "alpha";
 
 /** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
 export interface SkinAnim {
@@ -74,9 +76,13 @@ export const SKINS: Skin[] = [
   // --- платні звичайні (34, 35), по 20 рубінів, статичні; в лобі стоять у ряду з 12..17 ---
   { kind: "sheep", deco: "hearts", fur: "#2b2326", light: "#40343a", face: "#17110f", accent: "#f6a6b8" },
   { kind: "sheep", deco: "mint", fur: "#bfe6dc", light: "#e4f6f1", face: "#1f2c2b", accent: "#f6a6b8" },
+  // --- «Вожак» (36): тёмный волк с золотой короной, красные глаза ---
+  { kind: "wolf", deco: "alpha", fur: "#24262e", light: "#454958", face: "#6c707c", accent: "#ff3b3b" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
+/** Скин «Вожака» (бот-босс); в лобби его нет. */
+export const BOSS_SKIN = 36;
 
 export function skinOf(id: number): Skin {
   return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];

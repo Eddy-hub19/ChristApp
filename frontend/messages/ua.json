@@ -1118,7 +1118,9 @@
     "events": {
       "zorepad": "Зорепад!",
       "scissorsTaker": "Ножиці! Зачеплено: {count}",
-      "scissorsVictim": "Тебе підстригли!"
+      "scissorsVictim": "Тебе підстригли!",
+      "bossSpawn": "Вожак вийшов на полювання",
+      "bossDefeated": "{name} переміг Вожака!"
     },
     "status": {
       "full": "Арена заповнена, спробуй трохи пізніше",
