@@ -1,22 +1,14 @@
-.section {
-  /* при раскрытии не прячемся под нижним навбаром (высота 80px + отступ 12px + safe-area) */
-  scroll-margin-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--line-soft);
-  border-radius: 14px;
-  background: var(--surface-elevated);
-  color: var(--foreground);
-}
-
-.header {
+/* Строка в разделе «Налаштування» профиля. flex-shrink: 0 - flex-колонка профиля (фикс. высота + overflow) не сжимает её до нуля. */
+.row {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
   width: 100%;
   min-height: 52px;
-  padding: 10px 12px;
+  padding: 6px 0 8px;
   border: 0;
+  border-radius: 12px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -24,7 +16,7 @@
   cursor: pointer;
 }
 
-.title {
+.rowTitle {
   flex: 1;
   min-width: 0;
   font-size: 16px;
@@ -48,45 +40,63 @@
 
 .chevron {
   flex-shrink: 0;
-  transition: transform 0.2s ease;
+  color: var(--text-muted);
 }
 
-.chevronOpen {
-  transform: rotate(180deg);
+/* Экран настроек поверх приложения (выше нижнего навбара, z-index 150). */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* Сворачивание: grid-template-rows 0fr -> 1fr (высота без измерений в JS). */
-.collapse {
+.screenHead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.back {
   display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 0.2s ease,
-    opacity 0.2s ease;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 
-.collapseOpen {
-  grid-template-rows: 1fr;
-  opacity: 1;
+.screenTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
 }
 
-.collapseInner {
-  overflow: hidden;
+.screenBody {
+  flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 12px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 2px 12px 16px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collapse,
-  .chevron {
-    transition: none;
-  }
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .hint {

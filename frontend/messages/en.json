@@ -75,6 +75,8 @@
     "exampleTitle": "This is how your messages will look",
     "exampleOther": "Peace be with you! How was your day?",
     "exampleOwn": "Thank God, all good",
+    "settingsTitle": "Settings",
+    "back": "Back",
     "showOthers": "Show other people's styles",
     "showOthersHint": "Off - other people's messages look standard (only for you)",
     "styles": {
@@ -1123,7 +1125,8 @@
       "title": "Artifacts",
       "hint": "Worn on top of any skin, one at a time. Bought with rubies.",
       "none": "No artifact",
-      "notWorn": "not worn",
+      "open": "Open artifacts",
+      "close": "Close artifacts",
       "takeOff": "Take off",
       "worn": "Worn",
       "items": {

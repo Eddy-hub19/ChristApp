@@ -17,6 +17,7 @@ import FlockInvite from "./FlockInvite";
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
+import FlockSheet from "./FlockSheet";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
@@ -195,6 +196,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     [userId],
   );
   const closeInfo = useCallback(() => setInfoOpen(false), []);
+  const closeArtifacts = useCallback(() => setArtifactsOpen(false), []);
 
   // запоминаем «просмотрено» до того, как плашка ниже пометит версию как просмотренную
   useEffect(() => {
@@ -832,6 +834,100 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         />
       ) : null}
 
+      {artifactsOpen && showLobby ? (
+        <FlockSheet
+          title={t("artifacts.title")}
+          closeLabel={t("artifacts.close")}
+          onClose={closeArtifacts}
+          testId="flock-artifacts"
+          headExtra={
+            <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+              <RubyIcon size={18} />
+              <span>{me?.rubies ?? 0}</span>
+            </div>
+          }
+        >
+          {() => (
+            <>
+    <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
+    <div className={styles.artifactPreviewRow}>
+      <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
+      <span>{previewArtifact !== null ? t(`artifacts.items.${previewArtifact}.name`) : artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
+      {artifact > 0 ? (
+        <button type="button" className={styles.secondary} onClick={() => wearArtifact(0)}>
+          {t("artifacts.takeOff")}
+        </button>
+      ) : null}
+    </div>
+    <div className={styles.artifacts}>
+      {ARTIFACT_IDS.map((id) => {
+        const owned = ownedArtifacts.includes(id);
+        const worn = artifact === id;
+        const name = t(`artifacts.items.${id}.name`);
+        return (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={worn}
+            aria-label={owned ? `${name}${worn ? `: ${t("artifacts.worn")}` : ""}` : `${name}: ${t("rubies.locked")}, ${t("rubies.price", { price: artifactPrice })}`}
+            className={`${styles.artifact} ${worn ? styles.artifactWorn : ""} ${owned ? "" : styles.artifactLocked}`}
+            onClick={() => openArtifact(id)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
+            <strong>{name}</strong>
+            <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`)}</span>
+            {owned ? (
+              worn ? <span className={styles.artifactState}>{t("artifacts.worn")}</span> : null
+            ) : (
+              <span className={styles.priceTag}>
+                <Lock size={11} aria-hidden />
+                <RubyIcon size={11} />
+                {artifactPrice}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+    {previewArtifact !== null ? (
+      <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
+        <div className={styles.buyInfo}>
+          <strong>{t(`artifacts.items.${previewArtifact}.name`)}</strong>
+          <span>{t(`artifacts.items.${previewArtifact}.desc`)}</span>
+          {artifactConfirming ? (
+            <>
+              <span>{t("rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: artifactPrice })}</span>
+              <div className={styles.buyButtons}>
+                <button type="button" className={styles.primary} disabled={artifactBusy} onClick={() => void buyArtifact(previewArtifact)}>
+                  {artifactBusy ? t("rubies.buying") : t("rubies.confirm")}
+                </button>
+                <button type="button" className={styles.secondary} disabled={artifactBusy} onClick={() => setArtifactConfirming(false)}>
+                  {t("rubies.cancel")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.buyButtons}>
+                <button type="button" className={styles.primary} disabled={(me?.rubies ?? 0) < artifactPrice || !me} onClick={() => setArtifactConfirming(true)}>
+                  {t("rubies.buy", { price: artifactPrice })} <RubyIcon size={14} />
+                </button>
+                <button type="button" className={styles.secondary} onClick={() => setPreviewArtifact(null)}>
+                  {t("rubies.cancel")}
+                </button>
+              </div>
+              {me && me.rubies < artifactPrice ? <span className={styles.missing}>{t("rubies.missing", { count: artifactPrice - me.rubies })}</span> : null}
+            </>
+          )}
+          {artifactError ? <span className={styles.error}>{t(`rubies.errors.${artifactError}`)}</span> : null}
+        </div>
+      </div>
+    ) : null}
+            </>
+          )}
+        </FlockSheet>
+      ) : null}
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
       {showLobby ? (
@@ -842,6 +938,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <h2>{t("title")}</h2>
                 <button type="button" className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} aria-haspopup="dialog">
                   i
+                </button>
+                <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={artifactIconSrc(artifact > 0 ? artifact : ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
+                  {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
                 </button>
               </div>
               <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
@@ -917,101 +1018,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 </div>
               </div>
             ) : null}
-
-            <div className={styles.accordion}>
-              <button type="button" className={styles.accordionHead} aria-expanded={artifactsOpen} aria-controls="flock-artifacts-body" onClick={() => setArtifactsOpen((v) => !v)}>
-                <span className={`${styles.h3} ${styles.artifactTitle} ${styles.accordionTitle}`}>{t("artifacts.title")}</span>
-                <span className={styles.accordionCurrent}>
-                  {artifact > 0 ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={artifactIconSrc(artifact) ?? ""} alt="" width={22} height={22} decoding="async" />
-                  ) : null}
-                  <span className={styles.accordionCurrentName}>{artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.notWorn")}</span>
-                </span>
-                <svg className={`${styles.chevron} ${artifactsOpen ? styles.chevronOpen : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              <div className={`${styles.collapse} ${artifactsOpen ? styles.collapseOpen : ""}`}>
-                <div id="flock-artifacts-body" className={styles.collapseInner} inert={!artifactsOpen}>
-            <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
-            <div className={styles.artifactPreviewRow}>
-              <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
-              <span>{previewArtifact !== null ? t(`artifacts.items.${previewArtifact}.name`) : artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
-              {artifact > 0 ? (
-                <button type="button" className={styles.secondary} onClick={() => wearArtifact(0)}>
-                  {t("artifacts.takeOff")}
-                </button>
-              ) : null}
-            </div>
-            <div className={styles.artifacts}>
-              {ARTIFACT_IDS.map((id) => {
-                const owned = ownedArtifacts.includes(id);
-                const worn = artifact === id;
-                const name = t(`artifacts.items.${id}.name`);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={worn}
-                    aria-label={owned ? `${name}${worn ? `: ${t("artifacts.worn")}` : ""}` : `${name}: ${t("rubies.locked")}, ${t("rubies.price", { price: artifactPrice })}`}
-                    className={`${styles.artifact} ${worn ? styles.artifactWorn : ""} ${owned ? "" : styles.artifactLocked}`}
-                    onClick={() => openArtifact(id)}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
-                    <strong>{name}</strong>
-                    <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`)}</span>
-                    {owned ? (
-                      worn ? <span className={styles.artifactState}>{t("artifacts.worn")}</span> : null
-                    ) : (
-                      <span className={styles.priceTag}>
-                        <Lock size={11} aria-hidden />
-                        <RubyIcon size={11} />
-                        {artifactPrice}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {previewArtifact !== null ? (
-              <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
-                <div className={styles.buyInfo}>
-                  <strong>{t(`artifacts.items.${previewArtifact}.name`)}</strong>
-                  <span>{t(`artifacts.items.${previewArtifact}.desc`)}</span>
-                  {artifactConfirming ? (
-                    <>
-                      <span>{t("rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: artifactPrice })}</span>
-                      <div className={styles.buyButtons}>
-                        <button type="button" className={styles.primary} disabled={artifactBusy} onClick={() => void buyArtifact(previewArtifact)}>
-                          {artifactBusy ? t("rubies.buying") : t("rubies.confirm")}
-                        </button>
-                        <button type="button" className={styles.secondary} disabled={artifactBusy} onClick={() => setArtifactConfirming(false)}>
-                          {t("rubies.cancel")}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className={styles.buyButtons}>
-                        <button type="button" className={styles.primary} disabled={(me?.rubies ?? 0) < artifactPrice || !me} onClick={() => setArtifactConfirming(true)}>
-                          {t("rubies.buy", { price: artifactPrice })} <RubyIcon size={14} />
-                        </button>
-                        <button type="button" className={styles.secondary} onClick={() => setPreviewArtifact(null)}>
-                          {t("rubies.cancel")}
-                        </button>
-                      </div>
-                      {me && me.rubies < artifactPrice ? <span className={styles.missing}>{t("rubies.missing", { count: artifactPrice - me.rubies })}</span> : null}
-                    </>
-                  )}
-                  {artifactError ? <span className={styles.error}>{t(`rubies.errors.${artifactError}`)}</span> : null}
-                </div>
-              </div>
-            ) : null}
-                </div>
-              </div>
-            </div>
 
             <dl className={styles.stats}>
               <div>
