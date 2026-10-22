@@ -1,4 +1,5 @@
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
+import { ARTIFACT_EXTENT, anchorFor, drawArtifact, drawArtifactShape } from "./flockArtifacts";
 import { animFrame, skinOf } from "./flockSkins";
 import { specialExtent } from "./flockSpecialDeco";
 import type { Theme } from "./flockRender";
@@ -52,6 +53,29 @@ interface CreatureSprite {
 const creatures = new Lru<CreatureSprite>(500);
 
 const layerSprites = new Lru<CreatureSprite>(300);
+/** Артефакти: окремий слой-спрайт на (артефакт, вид істоти, розмір) - комбінація зі скіном не створюється наново. */
+const artifactSprites = new Lru<CreatureSprite>(200);
+/** Менший за цей екранний радіус (px) артефакт не малюємо: його не видно, а заливка коштує. */
+const ARTIFACT_MIN_PX = 9;
+
+/** Спрайт артефакта без кута (повертається при малюванні, як тіло - за відром кута). */
+function artifactSprite(artifact: number, skinId: number, b: number, rb: number): CreatureSprite {
+  const skin = skinOf(skinId);
+  const key = `${artifact}:${skin.kind}:${skin.deco ?? ""}:${b}`;
+  let spr = artifactSprites.get(key);
+  if (!spr) {
+    const size = Math.ceil(rb * 2 * ARTIFACT_EXTENT) + 2;
+    const cv = makeCanvas(size, size);
+    const c = cv.getContext("2d");
+    if (c) {
+      c.translate(size / 2, size / 2);
+      drawArtifactShape(c, artifact, rb, anchorFor(skin));
+    }
+    spr = { cv, rb };
+    artifactSprites.set(key, spr);
+  }
+  return spr;
+}
 
 /** «Зменшити рух»: читаємо один раз ліниво (на клієнті) і слухаємо зміни - анімації скінів тоді вимкнені. */
 let reduceMotion: boolean | null = null;
@@ -105,12 +129,23 @@ export function drawCreatureCached(
   scale: number,
   dpr: number,
   time = 0,
+  /** Надітий артефакт (0 - нічого); малюється шаром поверх скіна. */
+  artifact = 0,
 ) {
   const rPx = r * scale * dpr;
   const skin = skinOf(skinId);
   const frame = animFrame(skin, time, { reduceMotion: prefersReducedMotion(), rPx });
   if (rPx > 220 || rPx < 2.5) {
     drawCreature(ctx, skin, x, y, r, ang, phase, wobble, frame, rPx >= 2.5);
+    if (artifact > 0 && rPx >= ARTIFACT_MIN_PX) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.sin(phase) * 0.07 * wobble);
+      const sq = 1 + Math.sin(phase * 2) * 0.035 * wobble;
+      ctx.scale(sq, 2 - sq);
+      drawArtifact(ctx, artifact, skin, 0, 0, r, ang);
+      ctx.restore();
+    }
     return;
   }
   const b = Math.round(Math.log(rPx) / Math.log(BUCKET));
@@ -142,6 +177,12 @@ export function drawCreatureCached(
   if (mask & LAYER_BEHIND) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_BEHIND);
   ctx.drawImage(spr.cv, -w / 2, -w / 2, w, w);
   if (mask & LAYER_FRONT) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_FRONT);
+  if (artifact > 0 && rPx >= ARTIFACT_MIN_PX) {
+    const as = artifactSprite(artifact, skinId, b, spr.rb);
+    const aw = as.cv.width * f;
+    ctx.rotate((ab * TAU) / ANGLES);
+    ctx.drawImage(as.cv, -aw / 2, -aw / 2, aw, aw);
+  }
   ctx.restore();
 }
 

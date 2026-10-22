@@ -282,6 +282,25 @@ export const FLOCK_CONFIG = {
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
   },
+
+  // --- артефакти (надягаються поверх скіна, купуються за рубіни, 1 надітий; бонус рахує сервер за надітим) ---
+  artifacts: {
+    /** Ціна кожного артефакта в рубінах - окремо від цін скінів. */
+    price: 80,
+    /** 1 «Взуття»: +8% до швидкості (вище maxSpeedHard не піднімає). */
+    shoesSpeedBonus: 0.08,
+    /** 2 «Шапка священника»: маса не тане з часом (не діє розпад великої маси). */
+    /** 3 «Королівська корона»: +10% маси від з'їденої їжі. */
+    crownFoodBonus: 0.1,
+    /** 4 «Магніт»: постійне слабке притягання їжі, помітно слабше за бонус на карті (magnetRadius / magnetPull). */
+    magnetRadius: 140,
+    magnetPull: 70,
+    /** 5 «Пісочний годинник»: підібрані бонуси діють на 30% довше. */
+    hourglassDurationBonus: 0.3,
+    /** 6 «Хрест»: щит після входу й повернення довший на стільки мс. */
+    crossShieldBonusMs: 3000,
+    /** 7 «Кадило»: захист від «Ножиць» і заморожування (без чисел). */
+  },
 } as const;
 
 /** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
@@ -341,3 +360,18 @@ export const skinPriceOf = (id: number) =>
  */
 export const HIDDEN_SKINS: readonly number[] = [13, 16, 22, 26, 30];
 export const isHiddenSkin = (id: number) => HIDDEN_SKINS.includes(id);
+
+/** Артефакти: номер по мережі (u8) і в БД; 0 - нічого не надіто. Ціна - FLOCK_CONFIG.artifacts.price. */
+export const ARTIFACT = {
+  none: 0,
+  shoes: 1,
+  priestHat: 2,
+  crown: 3,
+  magnet: 4,
+  hourglass: 5,
+  cross: 6,
+  censer: 7,
+} as const;
+export const NUM_ARTIFACTS = 7;
+export const isArtifactId = (id: unknown): id is number =>
+  typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= NUM_ARTIFACTS;

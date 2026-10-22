@@ -44,6 +44,7 @@ model User {
   flockProfile        FlockProfile?
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
   flockSkinPurchases  FlockSkinPurchase[]
+  flockArtifactPurchases FlockArtifactPurchase[]
 }
 
 /// Лайк аватара: кто (liker) поставил кому (target).
@@ -316,6 +317,8 @@ model FlockProfile {
   /// Коли статистику з localStorage перенесли на сервер (один раз).
   statsImportedAt DateTime?
   selectedSkin    Int       @default(0)
+  /// Надітий артефакт (0 - нічого; 1..7). Бонус рахує сервер при вході на арену.
+  selectedArtifact Int      @default(0)
   /// Остання переглянута версія плашки «Що нового» (щоб не показувати повторно на іншому пристрої).
   whatsNewSeen    Int       @default(0)
   /// Коли гравець отримав разовий бонус за перший вхід у гру (null - ще ні).
@@ -328,6 +331,7 @@ enum RubyReason {
   SKIN_PURCHASE
   ADMIN_ADJUST
   ENTRY_BONUS
+  ARTIFACT_PURCHASE
 }
 
 /// Журнал рубінів: тільки додавання рядків.
@@ -340,6 +344,7 @@ model RubyTransaction {
   /// Причина від адміна.
   note         String?
   skinId       Int?
+  artifactId   Int?
   /// Хто ініціював (адмін), якщо не сама гра.
   actorId      String?
   createdAt    DateTime   @default(now())
@@ -357,4 +362,15 @@ model FlockSkinPurchase {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, skinId])
+}
+
+/// Куплені артефакти «Отари» (як FlockSkinPurchase).
+model FlockArtifactPurchase {
+  userId     String
+  artifactId Int
+  price      Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, artifactId])
 }

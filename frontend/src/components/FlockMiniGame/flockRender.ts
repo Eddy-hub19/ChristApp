@@ -30,6 +30,8 @@ const FOOD_MIN_PX = 7;
 /** З якої висоти (світові одиниці) падає зірка «Зорепаду». */
 const STAR_FALL_H = 1000;
 const VISIBLE: RCell[] = [];
+/** pid -> id самой большой видимой части игрока: артефакт рисуем только на ней (дешевле и без «каши» на мелких кусках). */
+const LARGEST = new Map<number, number>();
 const byMass = (a: RCell, b: RCell) => a.mass - b.mass;
 /** Клітини легші за цю масу ховаються під кущем (кущ малюється поверх них). */
 const HIDE_UNDER_THORN_MASS = 90;
@@ -317,6 +319,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     VISIBLE.push(c);
   }
   VISIBLE.sort(byMass);
+  LARGEST.clear();
+  for (let i = 0; i < VISIBLE.length; i++) LARGEST.set(VISIBLE[i].pid, VISIBLE[i].id); // по возрастанию массы: последняя - самая большая
   // клетка под кустом: легкая, либо целиком влезшая в более широкий куст
   const hidden = (c: RCell) => {
     if (c.mass < HIDE_UNDER_THORN_MASS) return true;
@@ -394,7 +398,8 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
       ctx.stroke();
     }
   }
-  drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr, o.time);
+  const artifact = meta?.artifact && LARGEST.get(c.pid) === c.id ? meta.artifact : 0;
+  drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr, o.time, artifact);
   if ((c.fx & FX_FROZEN) !== 0) {
     // лід: холодна заливка, світла кромка й зовнішнє «сяйво» - видно здалеку
     ctx.fillStyle = "rgba(150,222,255,0.58)";

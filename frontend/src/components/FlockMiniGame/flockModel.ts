@@ -112,6 +112,8 @@ export interface RDying {
 }
 export interface PlayerMeta {
   skin: number;
+  /** Надітий артефакт (0 - нічого; старий сервер не шле - 0). */
+  artifact?: number;
   bot: boolean;
   name: string;
 }
@@ -247,7 +249,7 @@ export class FlockModel {
       else this.foods.set(e.id, { id: e.id, x: e.x, y: e.y, kind: e.kind });
     }
 
-    for (const p of s.players) this.players.set(p.pid, { skin: p.skin, bot: p.bot, name: p.name });
+    for (const p of s.players) this.players.set(p.pid, { skin: p.skin, artifact: p.artifact ?? 0, bot: p.bot, name: p.name });
 
     const seen = new Set<number>();
     for (const c of s.cells) {

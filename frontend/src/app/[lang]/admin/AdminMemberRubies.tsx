@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { ARTIFACT_IDS } from "@/components/FlockMiniGame/flockArtifacts";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import {
   AdminHttpError,
   adjustAdminMemberRubies,
   adminMemberFlockQueryKey,
   fetchAdminMemberFlock,
+  grantAdminMemberArtifact,
 } from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
@@ -20,6 +22,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [grantId, setGrantId] = useState<number>(ARTIFACT_IDS[0]);
   const [error, setError] = useState<string | null>(null);
 
   const query = useQuery({
@@ -39,6 +42,18 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
     onError: (e) => {
       const code = e instanceof AdminHttpError ? e.message : "";
       setError(["reason_required", "invalid_amount", "insufficient_balance", "user_not_found"].includes(code) ? code : "generic");
+    },
+  });
+
+  const grant = useMutation({
+    mutationFn: (artifact: number) => grantAdminMemberArtifact(memberId, artifact),
+    onSuccess: async () => {
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: adminMemberFlockQueryKey(memberId) });
+    },
+    onError: (e) => {
+      const code = e instanceof AdminHttpError ? e.message : "";
+      setError(["already_owned", "invalid_artifact", "user_not_found"].includes(code) ? code : "generic");
     },
   });
 
@@ -72,7 +87,30 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 <br />
                 <strong>{t("skins")}</strong>{" "}
                 {data.ownedSkins.length ? data.ownedSkins.map((id) => tf(`skins.${id}`)).join(", ") : t("noSkins")}
+                <br />
+                <strong>{t("artifacts")}</strong>{" "}
+                {data.ownedArtifacts?.length
+                  ? data.ownedArtifacts.map((id) => `${tf(`artifacts.items.${id}.name`)}${id === data.selectedArtifact ? ` (${t("artifactWorn")})` : ""}`).join(", ")
+                  : t("noArtifacts")}
               </p>
+              <form
+                className={styles.rubiesForm}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  grant.mutate(grantId);
+                }}
+              >
+                <select value={grantId} onChange={(e) => setGrantId(Number(e.target.value))} aria-label={t("pickArtifact")}>
+                  {ARTIFACT_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {tf(`artifacts.items.${id}.name`)}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" disabled={grant.isPending}>
+                  {t("grantBtn")}
+                </button>
+              </form>
               <form className={styles.rubiesForm} onSubmit={submit}>
                 <input
                   type="number"
@@ -111,6 +149,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                       <span>
                         {t(`reasons.${tx.reason}`)}
                         {tx.skinId !== null ? `: ${tf(`skins.${tx.skinId}`)}` : ""}
+                        {tx.artifactId ? `: ${tf(`artifacts.items.${tx.artifactId}.name`)}` : ""}
                         {tx.note ? ` — ${tx.note}` : ""}
                         {tx.actorId ? ` (${t("by", { id: tx.actorId.slice(0, 8) })})` : ""}
                       </span>

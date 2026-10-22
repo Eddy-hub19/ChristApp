@@ -115,6 +115,8 @@ export class FlockGateway
     @MessageBody()
     body: {
       skin?: unknown;
+      /** Бажаний артефакт; сервер перевіряє покупку в БД (куплений - надіваємо, інакше `artifact_locked`). */
+      artifact?: unknown;
       resume?: unknown;
       arena?: unknown;
       resumeOnly?: unknown;
@@ -141,6 +143,15 @@ export class FlockGateway
       client.emit('e', { code: 'skin_locked' });
       return;
     }
+    // Артефакт: клієнт лише просить, бонус дає сервер за покупкою в БД (підміна неможлива). Без поля (старий клієнт) - береться надітий у профілі.
+    const artifact = await this.rubies.resolveArtifact(
+      userId,
+      typeof body?.artifact === 'number' ? Math.floor(body.artifact) : undefined,
+    );
+    if (artifact === null) {
+      client.emit('e', { code: 'artifact_locked' });
+      return;
+    }
     if (!client.connected) return;
     const res = this.manager.join(
       client.id,
@@ -148,6 +159,7 @@ export class FlockGateway
       client.data.name ?? 'Овечка',
       wanted,
       {
+        artifact,
         resume,
         arena,
         resumeOnly: body?.resumeOnly === true,
