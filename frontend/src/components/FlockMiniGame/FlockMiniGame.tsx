@@ -11,7 +11,8 @@ import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
-import { buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockSkin, type FlockMe } from "./flockApi";
+import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
+import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import FlockInvite from "./FlockInvite";
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockWhatsNew from "./FlockWhatsNew";
@@ -87,7 +88,7 @@ function formatDuration(ms: number) {
 }
 
 /** Прев'ю скіна; преміум анімується (кадри 8/с від одного спільного таймера), при «зменшити рух» - статичний кадр. */
-function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
+function SkinPreview({ skinId, artifactId = 0, size = 56 }: { skinId: number; artifactId?: number; size?: number }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     const cv = ref.current;
@@ -103,6 +104,7 @@ function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
     const draw = (frame: number) => {
       ctx.clearRect(0, 0, size, size);
       drawCreature(ctx, skin, size / 2, size / 2 + 1, radius, 0.5, 0, 0, frame);
+      if (artifactId > 0) drawArtifact(ctx, artifactId, skin, size / 2, size / 2 + 1, radius, 0.5);
     };
     draw(0);
     if (!skin.anim || prefersReducedMotion()) return;
@@ -114,7 +116,7 @@ function SkinPreview({ skinId, size = 56 }: { skinId: number; size?: number }) {
         draw(f);
       }
     });
-  }, [skinId, size]);
+  }, [skinId, artifactId, size]);
   return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden />;
 }
 
@@ -143,6 +145,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [stats, setStats] = useState<FlockStats>(EMPTY_FLOCK_STATS);
   const [me, setMe] = useState<FlockMe | null>(null);
   const [previewSkin, setPreviewSkin] = useState<number | null>(null);
+  /** Надетый артефакт (0 - нет): хранится на сервере, выбирается независимо от скина. */
+  const [artifact, setArtifact] = useState(0);
+  const [previewArtifact, setPreviewArtifact] = useState<number | null>(null);
+  const [artifactConfirming, setArtifactConfirming] = useState(false);
+  const [artifactBusy, setArtifactBusy] = useState(false);
+  const [artifactError, setArtifactError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -217,6 +225,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
       setSkin((cur) => (isPaidSkin(cur) && !data.ownedSkins.includes(cur) ? 0 : cur));
+      setArtifact(data.selectedArtifact ?? 0);
     } catch {
       /* офлайн: лобі працює з безкоштовними скінами */
     }
@@ -295,8 +304,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setDeath(null);
     setReward(null);
     if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
-    clientRef.current?.join(skin);
-  }, [skin]);
+    clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0);
+  }, [skin, artifact, me]);
 
   useEffect(() => {
     if (zorepad === null) return;
@@ -347,6 +356,45 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     }
   };
 
+  const ownedArtifacts = me?.ownedArtifacts ?? [];
+  const artifactPrice = me?.config.artifactPrice ?? 80;
+
+  /** Тап по плитке: купленный - надеть/снять, не купленный - панель покупки. */
+  const openArtifact = (id: number) => {
+    setArtifactError(null);
+    setArtifactConfirming(false);
+    if (!ownedArtifacts.includes(id)) {
+      setPreviewArtifact(id);
+      return;
+    }
+    setPreviewArtifact(null);
+    wearArtifact(artifact === id ? 0 : id);
+  };
+
+  const wearArtifact = (id: number) => {
+    setArtifact(id);
+    void selectFlockArtifact(id).catch(() => void refreshMe());
+  };
+
+  const buyArtifact = async (id: number) => {
+    setArtifactBusy(true);
+    setArtifactError(null);
+    try {
+      const res = await buyFlockArtifact(id);
+      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedArtifacts: [...(m.ownedArtifacts ?? []), id].sort((a, b) => a - b) } : m));
+      setPreviewArtifact(null);
+      setArtifactConfirming(false);
+      wearArtifact(id);
+    } catch (e) {
+      const code = e instanceof FlockApiError ? e.code : null;
+      setArtifactError(code === "not_enough" || code === "already_owned" ? code : "generic");
+      if (code === "already_owned" || code === "not_enough") void refreshMe();
+      setArtifactConfirming(false);
+    } finally {
+      setArtifactBusy(false);
+    }
+  };
+
   const changeControl = (mode: ControlMode) => {
     setControl(mode);
     controlRef.current = mode;
@@ -379,7 +427,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={() => openSkin(i)}
       >
-        <SkinPreview skinId={i} />
+        <SkinPreview skinId={i} artifactId={artifact} />
         {locked ? (
           <>
             <span className={styles.lockBadge}>
@@ -803,7 +851,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             ) : null}
             {previewSkin !== null ? (
               <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
-                <SkinPreview skinId={previewSkin} size={84} />
+                <SkinPreview skinId={previewSkin} artifactId={artifact} size={84} />
                 <div className={styles.buyInfo}>
                   <strong>{t(`skins.${previewSkin}`)}</strong>
                   {(() => {
@@ -843,6 +891,83 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             ) : null}
 
+            <h3 className={`${styles.h3} ${styles.artifactTitle}`}>{t("artifacts.title")}</h3>
+            <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
+            <div className={styles.artifactPreviewRow}>
+              <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
+              <span>{previewArtifact !== null ? t(`artifacts.items.${previewArtifact}.name`) : artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
+              {artifact > 0 ? (
+                <button type="button" className={styles.secondary} onClick={() => wearArtifact(0)}>
+                  {t("artifacts.takeOff")}
+                </button>
+              ) : null}
+            </div>
+            <div className={styles.artifacts}>
+              {ARTIFACT_IDS.map((id) => {
+                const owned = ownedArtifacts.includes(id);
+                const worn = artifact === id;
+                const name = t(`artifacts.items.${id}.name`);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={worn}
+                    aria-label={owned ? `${name}${worn ? `: ${t("artifacts.worn")}` : ""}` : `${name}: ${t("rubies.locked")}, ${t("rubies.price", { price: artifactPrice })}`}
+                    className={`${styles.artifact} ${worn ? styles.artifactWorn : ""} ${owned ? "" : styles.artifactLocked}`}
+                    onClick={() => openArtifact(id)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
+                    <strong>{name}</strong>
+                    <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`)}</span>
+                    {owned ? (
+                      worn ? <span className={styles.artifactState}>{t("artifacts.worn")}</span> : null
+                    ) : (
+                      <span className={styles.priceTag}>
+                        <Lock size={11} aria-hidden />
+                        <RubyIcon size={11} />
+                        {artifactPrice}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {previewArtifact !== null ? (
+              <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
+                <div className={styles.buyInfo}>
+                  <strong>{t(`artifacts.items.${previewArtifact}.name`)}</strong>
+                  <span>{t(`artifacts.items.${previewArtifact}.desc`)}</span>
+                  {artifactConfirming ? (
+                    <>
+                      <span>{t("rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: artifactPrice })}</span>
+                      <div className={styles.buyButtons}>
+                        <button type="button" className={styles.primary} disabled={artifactBusy} onClick={() => void buyArtifact(previewArtifact)}>
+                          {artifactBusy ? t("rubies.buying") : t("rubies.confirm")}
+                        </button>
+                        <button type="button" className={styles.secondary} disabled={artifactBusy} onClick={() => setArtifactConfirming(false)}>
+                          {t("rubies.cancel")}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className={styles.buyButtons}>
+                        <button type="button" className={styles.primary} disabled={(me?.rubies ?? 0) < artifactPrice || !me} onClick={() => setArtifactConfirming(true)}>
+                          {t("rubies.buy", { price: artifactPrice })} <RubyIcon size={14} />
+                        </button>
+                        <button type="button" className={styles.secondary} onClick={() => setPreviewArtifact(null)}>
+                          {t("rubies.cancel")}
+                        </button>
+                      </div>
+                      {me && me.rubies < artifactPrice ? <span className={styles.missing}>{t("rubies.missing", { count: artifactPrice - me.rubies })}</span> : null}
+                    </>
+                  )}
+                  {artifactError ? <span className={styles.error}>{t(`rubies.errors.${artifactError}`)}</span> : null}
+                </div>
+              </div>
+            ) : null}
+
             <h3 className={styles.h3}>{t("controls.title")}</h3>
             <div className={styles.segment} role="radiogroup" aria-label={t("controls.title")}>
               <button type="button" role="radio" aria-checked={control === "follow"} className={control === "follow" ? styles.segActive : undefined} onClick={() => changeControl("follow")}>
@@ -870,6 +995,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
+            {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
             {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
             {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
             {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}

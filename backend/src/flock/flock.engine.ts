@@ -3,6 +3,8 @@ import {
   FLOCK_CONFIG,
   FLOCK_MAPS,
   NUM_SKINS,
+  ARTIFACT,
+  isArtifactId,
   type MapLayout,
   type ThornCfg,
   type BonusKind,
@@ -112,6 +114,8 @@ export interface Player {
   id: number;
   name: string;
   skin: number;
+  /** Надітий артефакт (0 - нічого; ARTIFACT.*). Ставить сервер за БД при вході; ботам завжди 0. */
+  artifact: number;
   bot: boolean;
   alive: boolean;
   cells: Cell[];
@@ -288,13 +292,19 @@ export class FlockWorld {
   }
 
   // ---------- гравці ----------
-  addPlayer(opts: { name: string; skin: number; bot?: boolean }): Player {
+  addPlayer(opts: {
+    name: string;
+    skin: number;
+    artifact?: number;
+    bot?: boolean;
+  }): Player {
     const id = this.nextId(this.nextPid, (i) => this.players.has(i));
     this.nextPid = id + 1;
     const player: Player = {
       id,
       name: opts.name,
       skin: Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(opts.skin) || 0)),
+      artifact: !opts.bot && isArtifactId(opts.artifact) ? opts.artifact : 0,
       bot: !!opts.bot,
       alive: false,
       cells: [],
@@ -343,7 +353,7 @@ export class FlockWorld {
     p.killerPid = 0;
     p.wantSplit = p.wantThrow = false;
     // коротка недоторканність після народження
-    p.effects.shield = this.now + C.spawnShieldMs;
+    p.effects.shield = this.now + C.spawnShieldMs + this.crossShieldBonus(p);
   }
 
   removePlayer(pid: number) {
@@ -443,7 +453,27 @@ export class FlockWorld {
       p.spawnedAt += delta;
       p.paused = false;
     }
-    p.effects.shield = Math.max(p.effects.shield ?? 0, this.now + shieldMs);
+    p.effects.shield = Math.max(
+      p.effects.shield ?? 0,
+      this.now + shieldMs + this.crossShieldBonus(p),
+    );
+  }
+
+  /** Артефакт гравця (боти - завжди 0, навіть якщо поле підмінили). */
+  hasArtifact(p: Player, a: number) {
+    return !p.bot && p.artifact === a;
+  }
+
+  /** Новий артефакт при повторному вході (перерождення з того ж сокета). */
+  setArtifact(p: Player, artifact: number) {
+    p.artifact = !p.bot && isArtifactId(artifact) ? artifact : 0;
+  }
+
+  /** «Хрест»: щит після входу/повернення довший на crossShieldBonusMs. */
+  private crossShieldBonus(p: Player) {
+    return this.hasArtifact(p, ARTIFACT.cross)
+      ? C.artifacts.crossShieldBonusMs
+      : 0;
   }
 
   isShielded(p: Player) {
@@ -592,8 +622,10 @@ export class FlockWorld {
     for (const p of this.players.values()) {
       if (!p.alive) continue;
       let total = 0;
+      // «Шапка священника»: маса не тане з часом
+      const noDecay = this.hasArtifact(p, ARTIFACT.priestHat);
       for (const c of p.cells) {
-        if (!p.paused && c.mass > C.decayFromMass) {
+        if (!p.paused && c.mass > C.decayFromMass && !noDecay) {
           c.mass -= c.mass * C.decayPerSec * dt;
         }
         total += c.mass;
@@ -637,6 +669,7 @@ export class FlockWorld {
     if (this.now < p.frozenUntil) return 0;
     let s = speedOf(c.mass) * this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) s *= C.speedMultiplier;
+    if (this.hasArtifact(p, ARTIFACT.shoes)) s *= 1 + C.artifacts.shoesSpeedBonus;
     return Math.min(s, C.maxSpeedHard);
   }
 
@@ -750,14 +783,24 @@ export class FlockWorld {
 
   private stepMagnet(dt: number) {
     for (const p of this.players.values()) {
-      if (!p.alive || p.paused || !this.hasEffect(p, 'magnet')) continue;
+      if (!p.alive || p.paused) continue;
+      // бонус «Магніт» сильніший і не складається з артефактом: діє лише він
+      let radius: number;
+      let pull: number;
+      if (this.hasEffect(p, 'magnet')) {
+        radius = C.magnetRadius;
+        pull = C.magnetPull;
+      } else if (this.hasArtifact(p, ARTIFACT.magnet)) {
+        radius = C.artifacts.magnetRadius;
+        pull = C.artifacts.magnetPull;
+      } else continue;
       for (const c of p.cells) {
-        this.foodNear(c.x, c.y, C.magnetRadius, (f) => {
+        this.foodNear(c.x, c.y, radius, (f) => {
           const dx = c.x - f.x;
           const dy = c.y - f.y;
           const d = Math.hypot(dx, dy);
-          if (d > C.magnetRadius || d < 1) return;
-          const step = Math.min(d, C.magnetPull * dt);
+          if (d > radius || d < 1) return;
+          const step = Math.min(d, pull * dt);
           const oldChunk = chunkIndexOf(f.x, f.y);
           f.x += (dx / d) * step;
           f.y += (dy / d) * step;
@@ -845,7 +888,10 @@ export class FlockWorld {
   private stepFood() {
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || this.isGhost(p)) continue;
-      const base = C.foodMass * (this.hasEffect(p, 'double') ? 2 : 1);
+      const base =
+        C.foodMass *
+        (this.hasEffect(p, 'double') ? 2 : 1) *
+        (this.hasArtifact(p, ARTIFACT.crown) ? 1 + C.artifacts.crownFoodBonus : 1);
       for (const c of p.cells) {
         // підбір за візуальним дотиком: край клітини торкається спрайта їжі (foodReach), а не лише центр усередині
         const reach = radiusOf(c.mass) + FOOD_REACH;
@@ -941,17 +987,26 @@ export class FlockWorld {
       const near: { p: Player; d: number }[] = [];
       for (const o of this.players.values()) {
         if (o === p || !o.alive || o.paused) continue;
+        // «Кадило»: заморожування не діє
+        if (this.hasArtifact(o, ARTIFACT.censer)) continue;
         const cc = this.centroid(o);
         const d = Math.hypot(cc.x - cell.x, cc.y - cell.y);
         if (d <= C.freezeRadius) near.push({ p: o, d });
       }
       near.sort((a, b) => a.d - b.d);
       for (const n of near.slice(0, C.freezeMaxTargets)) {
-        n.p.frozenUntil = this.now + C.bonusDurations.freeze;
+        n.p.frozenUntil = this.now + this.bonusMs(p, C.bonusDurations.freeze);
       }
       return;
     }
-    p.effects[kind] = this.now + C.bonusDurations[kind];
+    p.effects[kind] = this.now + this.bonusMs(p, C.bonusDurations[kind]);
+  }
+
+  /** Тривалість підібраного бонуса з «Пісочним годинником» (+30%). */
+  private bonusMs(p: Player, ms: number) {
+    return this.hasArtifact(p, ARTIFACT.hourglass)
+      ? ms * (1 + C.artifacts.hourglassDurationBonus)
+      : ms;
   }
 
   /** «Ножиці»: хвиля навколо клітини, що підібрала бонус; подробиці правил - у C.scissors. */
@@ -963,6 +1018,8 @@ export class FlockWorld {
       if (o === taker || !o.alive) continue;
       if (S.immunePaused && o.paused) continue;
       if (S.immuneShield && this.isShielded(o)) continue;
+      // «Кадило»: захист від «Ножиць»
+      if (this.hasArtifact(o, ARTIFACT.censer)) continue;
       if (this.now - o.spawnedAt < S.newbieImmuneMs) continue;
       let total = 0;
       for (const c of o.cells) total += c.mass;

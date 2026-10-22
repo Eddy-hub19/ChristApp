@@ -146,6 +146,22 @@ export class AdminController {
     );
   }
 
+  /** Видати учаснику артефакт «Отари» безкоштовно (рубіни не списуються). */
+  @Post('members/:id/artifacts')
+  async grantArtifact(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { artifact?: unknown },
+  ) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    return this.flockRubies.adminGrantArtifact(
+      actor.id,
+      id,
+      typeof body?.artifact === 'number' ? body.artifact : NaN,
+    );
+  }
+
   @Delete('members/:id')
   async deleteMember(@Param('id') id: string, @Req() req: Request) {
     const actor = req.user as { id?: string; username?: string } | undefined;

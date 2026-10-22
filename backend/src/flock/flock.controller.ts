@@ -36,6 +36,23 @@ export class FlockController {
     return this.rubies.buySkin(this.uid(req), id);
   }
 
+  @Post('artifacts/:id/buy')
+  buyArtifact(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
+    return this.rubies.buyArtifact(this.uid(req), id);
+  }
+
+  @Put('artifact')
+  async selectArtifact(
+    @Req() req: Request,
+    @Body() body: { artifact?: unknown },
+  ) {
+    await this.rubies.setSelectedArtifact(
+      this.uid(req),
+      typeof body?.artifact === 'number' ? body.artifact : -1,
+    );
+    return { ok: true };
+  }
+
   @Put('skin')
   async select(@Req() req: Request, @Body() body: { skin?: unknown }) {
     await this.rubies.setSelectedSkin(

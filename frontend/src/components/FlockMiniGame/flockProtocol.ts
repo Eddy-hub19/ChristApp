@@ -49,7 +49,7 @@ export interface DecodedState {
   forgetChunks: number[];
   chunks: { idx: number; foods: DecodedFood[] }[];
   foodEvents: (DecodedFood & { op: number })[];
-  players: { pid: number; skin: number; bot: boolean; name: string }[];
+  players: { pid: number; skin: number; bot: boolean; name: string; artifact?: number }[];
   cells: {
     id: number;
     pid: number;
@@ -113,7 +113,7 @@ export interface StateInput {
   forgetChunks: number[];
   chunks: { idx: number; foods: DecodedFood[] }[];
   foodEvents: (DecodedFood & { op: number })[];
-  players: { pid: number; skin: number; bot: boolean; name: string }[];
+  players: { pid: number; skin: number; bot: boolean; name: string; artifact?: number }[];
   cells: {
     id: number;
     pid: number;
@@ -203,6 +203,16 @@ export function encodeState(s: StateInput): Uint8Array {
     w.u16(p.pid);
     w.u16(Math.min(65535, Math.round(p.remainingMs / 100)));
   }
+  // Хвіст (додано з артефактами): { pid, artifact } для щойно показаних гравців із артефактом. Старі декодери читають
+  // пакет по порядку й хвоста не торкаються; без хвоста (старий сервер) артефактів немає.
+  const arts = s.players.filter((p) => (p.artifact ?? 0) > 0);
+  if (arts.length) {
+    w.u16(arts.length);
+    for (const p of arts) {
+      w.u16(p.pid);
+      w.u8(p.artifact ?? 0);
+    }
+  }
   return w.out();
 }
 
@@ -214,6 +224,9 @@ class R {
     const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     this.b = u8;
     this.v = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  }
+  get left() {
+    return this.b.length - this.o;
   }
   u8() {
     return this.v.getUint8(this.o++);
@@ -272,7 +285,7 @@ export function decodeState(buf: ArrayBuffer | Uint8Array): DecodedState {
     y: r.pos(),
     kind: r.u8(),
   }));
-  const players = Array.from({ length: r.u16() }, () => ({
+  const players: DecodedState['players'] = Array.from({ length: r.u16() }, () => ({
     pid: r.u16(),
     skin: r.u8(),
     bot: r.u8() === 1,
@@ -307,6 +320,17 @@ export function decodeState(buf: ArrayBuffer | Uint8Array): DecodedState {
     pid: r.u16(),
     remainingMs: r.u16() * 100,
   }));
+  if (r.left >= 2) {
+    const n = r.u16();
+    if (r.left >= n * 3) {
+      const byPid = new Map<number, number>();
+      for (let i = 0; i < n; i++) byPid.set(r.u16(), r.u8());
+      for (const p of players) {
+        const a = byPid.get(p.pid);
+        if (a) p.artifact = a;
+      }
+    }
+  }
   return {
     tick,
     alive,
