@@ -22,10 +22,10 @@ export function normalizeBubbleStyle(value: unknown): BubbleStyleId {
 }
 
 /**
- * Тестовый режим: "admin" - раздел настроек и стили видит только админ, "all" - все.
+ * Доступ: "admin" - раздел настроек и стили видит только админ (тестовый режим), "all" - все.
  * Переключается одной правкой. Зеркало: backend/src/config/bubble-styles.ts (BUBBLE_STYLES_ACCESS).
  */
-export const BUBBLE_STYLES_ACCESS: "admin" | "all" = "admin";
+export const BUBBLE_STYLES_ACCESS: "admin" | "all" = "all";
 
 export function canUseBubbleStyles(username: string | null | undefined): boolean {
   return BUBBLE_STYLES_ACCESS === "all" || canSeeAdminPanelNav(username);

@@ -1018,7 +1018,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* «Вигляд повідомлень»: в тестовом режиме (BUBBLE_STYLES_ACCESS = "admin") виден только админу. */}
+      {/* «Вигляд повідомлень»: при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) виден только админу. */}
       {canUseBubbleStyles(user?.username) ? <BubbleStyleSettings /> : null}
 
       {isNotificationsOpen ? (

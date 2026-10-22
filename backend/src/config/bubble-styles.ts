@@ -18,10 +18,10 @@ export const isBubbleStyleId = (v: unknown): v is BubbleStyleId =>
   typeof v === 'string' && (BUBBLE_STYLE_IDS as readonly string[]).includes(v);
 
 /**
- * Тестовый режим: "admin" - стили (и их выбор) доступны только админу, "all" - всем. Переключается одной правкой.
+ * Доступ к стилям: "admin" - стили (и их выбор) только админу (тестовый режим), "all" - всем. Переключается одной правкой.
  * Дзеркало: frontend/src/lib/bubbleStyles.ts (BUBBLE_STYLES_ACCESS).
  */
-export const BUBBLE_STYLES_ACCESS: 'admin' | 'all' = 'admin';
+export const BUBBLE_STYLES_ACCESS: 'admin' | 'all' = 'all';
 
 export function canUseBubbleStyles(username: string | null | undefined) {
   return BUBBLE_STYLES_ACCESS === 'all' || isAdminDashboardUsername(username);
