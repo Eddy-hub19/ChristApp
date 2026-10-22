@@ -2815,3 +2815,14 @@
     transform: translateY(0);
   }
 }
+
+// Стили пузырей (styles/bubbleStyles.scss): тексты внутри берут цвета стиля.
+.chatBubble[data-bubble-style] {
+  .chatText {
+    color: var(--bs-text);
+  }
+  .chatAuthor,
+  .chatEdited {
+    color: var(--bs-muted);
+  }
+}

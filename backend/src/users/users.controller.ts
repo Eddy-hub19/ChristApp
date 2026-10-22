@@ -21,6 +21,7 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { uploadErrorMessage } from 'src/common/upload-error-message';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
+import { ChatGateway } from 'src/chat/chat.gateway';
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -31,6 +32,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -82,11 +84,15 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
-  updateMe(
+  async updateMe(
     @Req() req: { user: { id: string } },
     @Body() dto: UpdateProfileDto,
   ) {
-    return this.usersService.updateProfile(req.user.id, dto);
+    const updated = await this.usersService.updateProfile(req.user.id, dto);
+    if (dto.bubbleStyle !== undefined) {
+      this.chatGateway.notifyBubbleStyleChanged(req.user.id, updated.bubbleStyle);
+    }
+    return updated;
   }
 
   @UseGuards(JwtAuthGuard)

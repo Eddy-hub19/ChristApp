@@ -13,6 +13,8 @@ export type WatchUser = {
   username: string;
   nickname: string | null;
   avatarUrl: string | null;
+  /** Стиль пузырей (lib/bubbleStyles.ts); старый сервер не присылает. */
+  bubbleStyle?: string | null;
 };
 
 export type WatchRoomCard = {

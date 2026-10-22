@@ -23,7 +23,15 @@ import {
 import GameIcon from "@/lib/games/gameIcons";
 import { groupGameActivities, type GameActivity } from "@/lib/games/gameActivity";
 import type { GameId } from "@/lib/games/gameRegistry";
-import type { AppReactionType, Message } from "@/types/message";
+import { isMessageFromCurrentUser, type AppReactionType, type Message } from "@/types/message";
+import {
+  DEFAULT_BUBBLE_STYLE,
+  canUseBubbleStyles,
+  resolveBubbleStyle,
+  useBubbleStylesVersion,
+  useShowOthersBubbleStyles,
+  type BubbleStyleId,
+} from "@/lib/bubbleStyles";
 import styles from "@/components/ChatWindow/ChatWindow.module.scss";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
 
@@ -83,6 +91,8 @@ const DEFAULT_RECENT_MESSAGES_COUNT = 12;
 const SCROLL_DOWN_TRIGGER_MESSAGES = 20;
 const CHAT_VERTICAL_GAP_PX = 14;
 const AUTO_SCROLL_FOLLOW_DISTANCE_PX = 80;
+/** Сообщения одного человека дальше друг от друга во времени - уже новая группа (персонаж стиля рисуется снова). */
+const BUBBLE_GROUP_GAP_MS = 5 * 60_000;
 
 function ChatWindow({
   messages,
@@ -221,6 +231,35 @@ function ChatWindow({
     }
     return separators;
   }, [messages, lang, t]);
+
+  // Стили пузырей: стиль каждого сообщения и «первое в группе» (персонаж рисуем один раз на группу одного автора).
+  const bubbleStylesVersion = useBubbleStylesVersion();
+  const showOthersBubbleStyles = useShowOthersBubbleStyles();
+  const viewerBubbleStylesAllowed = canUseBubbleStyles(currentUser?.username);
+  const bubbleInfoById = useMemo(() => {
+    const map = new Map<string, { style: BubbleStyleId; start: boolean }>();
+    if (!viewerBubbleStylesAllowed) return map;
+    void bubbleStylesVersion; // пересчёт при смене стиля кем угодно
+    let prevKey: string | null = null;
+    let prevAt = 0;
+    for (const message of messages) {
+      const key = message.senderId ?? message.username;
+      const at = new Date(message.createdAt).getTime();
+      const style = resolveBubbleStyle({
+        senderId: message.senderId,
+        isOwn: currentUser ? isMessageFromCurrentUser(message, currentUser) : message.sender === "me",
+        fallback: message.bubbleStyle,
+        viewerAllowed: true,
+        showOthers: showOthersBubbleStyles,
+      });
+      const start =
+        key !== prevKey || dateSeparatorByMessageId.has(message.id) || !(at - prevAt < BUBBLE_GROUP_GAP_MS);
+      if (style !== DEFAULT_BUBBLE_STYLE) map.set(message.id, { style, start });
+      prevKey = key;
+      prevAt = at;
+    }
+    return map;
+  }, [messages, currentUser, viewerBubbleStylesAllowed, bubbleStylesVersion, showOthersBubbleStyles, dateSeparatorByMessageId]);
 
   const recentSplitIndex = useMemo(() => {
     const n = messages.length;
@@ -628,6 +667,8 @@ function ChatWindow({
             hideSenderName={hideSenderNames}
             hideOwnSenderName={hideOwnSenderName}
             senderNameMode={senderNameMode}
+            bubbleStyle={bubbleInfoById.get(message.id)?.style}
+            bubbleGroupStart={bubbleInfoById.get(message.id)?.start}
           />
         );
       })()}

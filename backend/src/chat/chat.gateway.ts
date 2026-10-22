@@ -56,6 +56,7 @@ interface SocketUser {
   id: string;
   username: string;
   nickname: string;
+  bubbleStyle?: string;
 }
 
 /** Збережене повідомлення, яке розсилається кімнаті подією `newMessage`. */
@@ -70,7 +71,11 @@ type NewChatMessageInput = {
       fileSize?: number | null;
       createdAt: Date;
       senderId: string;
-      sender: { username: string; nickname: string | null };
+      sender: {
+        username: string;
+        nickname: string | null;
+        bubbleStyle?: string | null;
+      };
       replyToId?: string | null;
       replyTo?: MessageReplyPreview | null;
       clientMessageId?: string | null;
@@ -306,6 +311,18 @@ export class ChatGateway
     this.puzzle.disposeAll();
     if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
     this.gameActivitySweeper = null;
+  }
+
+  /**
+   * Користувач змінив стиль пузирів: оновлюємо знімок у його відкритих сокетах (їхні нові повідомлення беруть стиль
+   * звідти) і повідомляємо всіх - клієнти перемальовують його повідомлення без перезавантаження.
+   */
+  notifyBubbleStyleChanged(userId: string, bubbleStyle: string) {
+    for (const socket of this.server.sockets.sockets.values()) {
+      const data = (socket as SocketWithUser).data;
+      if (data.user?.id === userId) data.user.bubbleStyle = bubbleStyle;
+    }
+    this.server.emit('userBubbleStyleChanged', { userId, bubbleStyle });
   }
 
   /** Зміна онлайну розсилається всім одразу: шапка чату, список чатів, учасники кінотеатру, панель учасників. */
@@ -2419,7 +2436,11 @@ export class ChatGateway
               type: 'VIDEO_NOTE',
               fileUrl: normalizedFileUrl,
               senderId: user.id,
-              sender: { username: user.username, nickname: user.nickname },
+              sender: {
+                username: user.username,
+                nickname: user.nickname,
+                bubbleStyle: user.bubbleStyle,
+              },
               roomId,
               replyToId: replyTarget?.id,
               clientMessageId,
@@ -2428,7 +2449,11 @@ export class ChatGateway
               type: 'TEXT',
               content: normalizedContent,
               senderId: user.id,
-              sender: { username: user.username, nickname: user.nickname },
+              sender: {
+                username: user.username,
+                nickname: user.nickname,
+                bubbleStyle: user.bubbleStyle,
+              },
               roomId,
               replyToId: replyTarget?.id,
               clientMessageId,
@@ -2782,6 +2807,7 @@ export class ChatGateway
       fileSize: message.fileSize ?? undefined,
       username: message.sender.nickname || message.sender.username,
       handle: message.sender.username,
+      bubbleStyle: message.sender.bubbleStyle ?? 'default',
       senderId: message.senderId,
       createdAt: message.createdAt,
       roomId,

@@ -13,6 +13,8 @@ export const PUBLIC_USER_SELECT = {
   username: true,
   nickname: true,
   avatarUrl: true,
+  /** Стиль пузырей виден всем, кто читает сообщения (config/bubble-styles.ts). */
+  bubbleStyle: true,
 } as const;
 
 export const PUBLIC_USER_PROFILE_SELECT = {
@@ -28,17 +30,19 @@ export interface PublicUser {
   username: string;
   nickname: string | null;
   avatarUrl: string | null;
+  bubbleStyle?: string | null;
 }
 
 /** Копия только с публичными полями (остальное отбрасывается, даже если оно есть в исходном объекте). */
 export function toPublicUser(
   user: Pick<PublicUser, 'id' | 'username'> &
-    Partial<Pick<PublicUser, 'nickname' | 'avatarUrl'>>,
+    Partial<Pick<PublicUser, 'nickname' | 'avatarUrl' | 'bubbleStyle'>>,
 ): PublicUser {
   return {
     id: user.id,
     username: user.username,
     nickname: user.nickname ?? null,
     avatarUrl: user.avatarUrl ?? null,
+    bubbleStyle: user.bubbleStyle ?? 'default',
   };
 }

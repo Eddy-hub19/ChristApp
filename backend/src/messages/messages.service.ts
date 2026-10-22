@@ -126,7 +126,9 @@ export class MessagesService {
        * Уже известный автор (напр. из сокета): тогда insert идёт одним запросом, без `include`.
        * `create` с `include` Prisma выполняет транзакцией BEGIN/INSERT/SELECT/SELECT/COMMIT — это 5 обращений к БД до `emit`.
        */
-      sender?: Pick<User, 'username' | 'nickname'>;
+      sender?: Pick<User, 'username' | 'nickname'> & {
+        bubbleStyle?: string | null;
+      };
     } & (
       | {
           roomId: string;
