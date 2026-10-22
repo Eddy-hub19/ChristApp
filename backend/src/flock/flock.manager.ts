@@ -3,6 +3,8 @@ import {
   FLOCK_CONFIG,
   BONUS_KINDS,
   BOSS_SKIN,
+  FLOCK_MAPS,
+  type ThornStyle,
   FREE_SKINS,
 } from './flock.config';
 import {
@@ -774,6 +776,8 @@ export interface JoinResult {
   thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Вид карти арени (FLOCK_MAPS). */
   mapId?: number;
+  /** Вигляд кущів карти (FLOCK_MAPS[].thornStyle). */
+  thornStyle?: ThornStyle;
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
@@ -887,6 +891,7 @@ export class FlockManager {
       token: s.token,
       thorns: s.arena.thornList,
       mapId: s.arena.mapId,
+      thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       stars: s.arena.world.starsSnapshot(),
     };
   }

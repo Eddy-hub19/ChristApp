@@ -3,7 +3,7 @@ import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProt
 import { circle, drawCreature } from "./flockCreature";
 import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
 import { BOSS_SKIN } from "./flockSkins";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite } from "./flockSprites";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -329,7 +329,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     for (const t of m.thorns) if (r < m.radiusOf(t.mass) && Math.hypot(c.x - t.x, c.y - t.y) < m.radiusOf(t.mass) - r * 0.5) return true;
     return false;
   };
-  const thornKind = m.cfg.map === AUTUMN_MAP_ID ? "autumn" : "green";
+  // вид берем у сервера (welcome.thornStyle); старый сервер без поля - по номеру карты
+  const style = m.cfg.thornStyle;
+  const thornKind: ThornKind = style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
   const drawnUnder: boolean[] = [];
   for (let i = 0; i < VISIBLE.length; i++) {
     drawnUnder[i] = hidden(VISIBLE[i]);

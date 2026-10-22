@@ -31,6 +31,8 @@ export interface FlockCfg {
   foodRadius?: number;
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
+  /** Вид кустов карты (bush | autumn | fir); без поля (старый сервер) - по номеру карты. */
+  thornStyle?: "bush" | "autumn" | "fir";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
 }

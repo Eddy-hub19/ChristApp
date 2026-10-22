@@ -125,13 +125,14 @@ describe('Карта: случайные кусты', () => {
       }
   });
 
-  it('ширина кустов сильно различается; самые широкие вмещают игрока с 500+ массой', () => {
+  it('ширина кустов сильно различается (радиус / sizeDivisor); самые широкие вмещают игрока с 250+ массой', () => {
     const masses = layouts.flat().map((t) => t.mass);
-    expect(Math.min(...masses)).toBeGreaterThanOrEqual(T.massMin);
-    expect(Math.max(...masses)).toBeLessThanOrEqual(T.massMax);
+    const k = T.sizeDivisor ** 2;
+    expect(Math.min(...masses)).toBeGreaterThanOrEqual(T.massMin / k - 1e-9);
+    expect(Math.max(...masses)).toBeLessThanOrEqual(T.massMax / k + 1e-9);
     expect(new Set(masses.map((m) => Math.round(m))).size).toBeGreaterThan(5);
     const widest = Math.max(...masses.map((m) => radiusOf(m)));
-    expect(widest).toBeGreaterThan(radiusOf(500));
+    expect(widest).toBeGreaterThan(radiusOf(250));
   });
 
   it('при каждом создании арены раскладка другая, а при том же rng - та же (детерминизм)', () => {

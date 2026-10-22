@@ -171,9 +171,9 @@ describe('FlockWorld: поїдання', () => {
     const w = new FlockWorld(seeded());
     const p = player(w, 1000, 1000, 40);
     const q = player(w, 2000, 2000, 40);
-    for (const pl of [p, q]) {
-      w.foodNear(pl.cells[0].x, pl.cells[0].y, 300, () => {});
-    }
+    // убираем случайную еду, чтобы под клетками была только положенная вручную
+    for (const m of w.foodChunks) m.clear();
+    w.foodById.clear();
     // кладемо їжу рівно під клітини вручну
     const put = (x: number, y: number) => {
       const before = w.foodById.size;
