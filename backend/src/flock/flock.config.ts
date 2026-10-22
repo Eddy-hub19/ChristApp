@@ -78,10 +78,15 @@ export const FLOCK_CONFIG = {
   foodRegrowPerTick: 14,
   /** Кущі: випадкова кількість і розкладка при кожному створенні арени. */
   thorns: {
-    min: 7,
-    max: 13,
-    /** Мінімальна відстань між центрами кущів. */
-    minGap: 380,
+    /** Кущів на арені (було 7-13): мало й рівномірно по карті. */
+    min: 4,
+    max: 7,
+    /** Мінімальна відстань між центрами кущів (щоб не слипались; з 4-7 кущами на 3400² пустих зон не лишає). */
+    minGap: 700,
+    /** Скільки випадкових точок пробуємо на кожен кущ: беремо найвіддаленішу від уже поставлених (рівномірний розсип). */
+    candidates: 60,
+    /** Розмір кущів зменшено в стільки разів (радіус; маса й радіус = / sizeDivisor, спрайт малюється за радіусом). */
+    sizeDivisor: 1.5,
     /** Мінімальна відстань від краю світу до центру куща. */
     edgeMargin: 260,
     /** Ніяких кущів у центрі світу: це запасна точка появи гравця. */
@@ -232,7 +237,7 @@ export const FLOCK_CONFIG = {
     /** Скільки зірок на арені максимум. */
     maxStars: 30,
     /** Маса за зірку. */
-    starMass: 500,
+    starMass: 250,
     /** Підбір: центр зірки ближче за радіус клітини + pickupReach. */
     pickupReach: 40,
     /** Мінімум живих гравців на арені (разом із ботами), щоб подія стартувала. */
@@ -343,6 +348,9 @@ export const FLOCK_CONFIG = {
 /** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
 
+/** Вигляд кущів карти: `bush` - зелений, `autumn` - жовте осіннє листя, `fir` - ялинка зі сніговими шапками. */
+export type ThornStyle = 'bush' | 'autumn' | 'fir';
+
 export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
 export interface FlockMapDef {
@@ -350,6 +358,8 @@ export interface FlockMapDef {
   id: number;
   name: string;
   layout: MapLayout;
+  /** Вигляд «кущів» на карті (клієнт малює спрайт за цим значенням; поведінка однакова): зелений кущ, осінній (жовтий), ялинка. */
+  thornStyle: ThornStyle;
   /** Перекриття C.thorns для цієї карти. */
   thorns: Partial<ThornCfg>;
 }
@@ -359,9 +369,9 @@ export interface FlockMapDef {
  * + палітра з таким id на клієнті (flockMaps.ts).
  */
 export const FLOCK_MAPS: readonly FlockMapDef[] = [
-  { id: 0, name: 'meadow', layout: 'scatter', thorns: {} },
-  { id: 1, name: 'grove', layout: 'clusters', thorns: { min: 8, max: 12, minGap: 300 } },
-  { id: 2, name: 'frost', layout: 'ring', thorns: { min: 8, max: 11, minGap: 340, massMin: 66, massMax: 1275 } },
+  { id: 0, name: 'meadow', layout: 'scatter', thornStyle: 'bush', thorns: {} },
+  { id: 1, name: 'grove', layout: 'scatter', thornStyle: 'autumn', thorns: {} },
+  { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {} },
 ];
 
 export type BonusKind = keyof typeof FLOCK_CONFIG.bonusDurations;

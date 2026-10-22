@@ -301,19 +301,77 @@ export function starShadowSprite() {
 // ---------- кущі ----------
 const thornCvs: Record<string, HTMLCanvasElement> = {};
 const THORN_PX = 256;
-/** Цвета куста: [шипы, основа, блик, ягоды]. Осенняя карта - листва рыже-красная. */
+/** Цвета куста: [шипы, основа, блик, ягоды]. Осенняя карта - желтая листва (см. drawAutumnLeaves). */
 const THORN_COLORS = {
   green: ["#2f7a3a", "#47a357", "#5fbf6e", "#e9577f"],
-  autumn: ["#a8421a", "#d9731f", "#f0a63a", "#7a1f1f"],
+  autumn: ["#c48a14", "#f0c230", "#ffe27a", "#9a4a1c"],
+  fir: ["#16402b", "#1f5a3a", "#2a7a4c", "#ffffff"],
 } as const;
+/** Вид «куста» карты: bush - зеленый, autumn - желтая осенняя листва, fir - елочка со снежными шапками. */
 export type ThornKind = keyof typeof THORN_COLORS;
+
+/** Осенний куст: поверх тела - мелкие листочки (желтые, золотисто-оранжевые, редкие красно-коричневые). */
+function drawAutumnLeaves(c: CanvasRenderingContext2D, r: number) {
+  const colors = ["#f7d54a", "#e8a72a", "#ffe27a", "#f0b33a", "#f7d54a", "#e39a22", "#9a4a1c"];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 26; i++) {
+    const a = rnd() * TAU;
+    const d = Math.sqrt(rnd()) * r * 0.7;
+    c.fillStyle = colors[i % colors.length];
+    c.beginPath();
+    c.ellipse(Math.cos(a) * d, Math.sin(a) * d, r * 0.13, r * 0.07, rnd() * TAU, 0, TAU);
+    c.fill();
+  }
+}
+
+/** Елочка сверху: три яруса лучей (темно-зеленые, чем выше - светлее), на концах лучей снег и снежная макушка. */
+function drawFir(c: CanvasRenderingContext2D, r: number) {
+  const tiers: [number, string][] = [
+    [1, "#16402b"],
+    [0.72, "#1f5a3a"],
+    [0.46, "#2a7a4c"],
+  ];
+  const rays = 8;
+  tiers.forEach(([k, color], ti) => {
+    const rot = ti * (Math.PI / rays);
+    c.fillStyle = color;
+    c.beginPath();
+    for (let i = 0; i < rays * 2; i++) {
+      const a = rot + (i / (rays * 2)) * TAU;
+      const rr = i % 2 === 0 ? r * k : r * k * 0.5;
+      c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    c.closePath();
+    c.fill();
+    // снег на концах лучей
+    c.fillStyle = "#f4f9ff";
+    for (let i = 0; i < rays; i++) {
+      const a = rot + (i / rays) * TAU;
+      c.beginPath();
+      c.ellipse(Math.cos(a) * r * k * 0.8, Math.sin(a) * r * k * 0.8, r * k * 0.13, r * k * 0.09, a, 0, TAU);
+      c.fill();
+    }
+  });
+  // снежная макушка
+  c.fillStyle = "#ffffff";
+  circle(c, 0, 0, r * 0.17);
+  c.fill();
+  c.fillStyle = "#d6e6f5";
+  circle(c, r * 0.04, r * 0.04, r * 0.08);
+  c.fill();
+}
+
 export function thornSprite(kind: ThornKind = "green") {
   const cached = thornCvs[kind];
   if (cached) return cached;
   const [cSpike, cBody, cShine, cBerry] = THORN_COLORS[kind];
   const cv = makeCanvas(THORN_PX, THORN_PX);
   const c = cv.getContext("2d");
-  if (c) {
+  if (c && kind === "fir") {
+    c.translate(THORN_PX / 2, THORN_PX / 2);
+    drawFir(c, THORN_PX * 0.47);
+  } else if (c) {
     const r = THORN_PX * 0.47;
     c.translate(THORN_PX / 2, THORN_PX / 2);
     const spikes = 16;
@@ -332,14 +390,18 @@ export function thornSprite(kind: ThornKind = "green") {
     c.fillStyle = cShine;
     circle(c, -r * 0.2, -r * 0.22, r * 0.38);
     c.fill();
-    c.fillStyle = cBerry;
-    for (const [dx, dy] of [
-      [0.25, 0.2],
-      [-0.3, 0.3],
-      [0.05, -0.35],
-    ]) {
-      circle(c, dx * r, dy * r, r * 0.07);
-      c.fill();
+    if (kind === "autumn") {
+      drawAutumnLeaves(c, r);
+    } else {
+      c.fillStyle = cBerry;
+      for (const [dx, dy] of [
+        [0.25, 0.2],
+        [-0.3, 0.3],
+        [0.05, -0.35],
+      ]) {
+        circle(c, dx * r, dy * r, r * 0.07);
+        c.fill();
+      }
     }
   }
   thornCvs[kind] = cv;

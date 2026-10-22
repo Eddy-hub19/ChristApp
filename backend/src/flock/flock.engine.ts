@@ -29,7 +29,7 @@ export type ThornSpec = { x: number; y: number; mass: number };
 function randomThornMass(rng: Rng, cfg: ThornCfg): number {
   const lo = Math.sqrt(cfg.massMin);
   const hi = Math.sqrt(cfg.massMax);
-  const k = lo + rng() * (hi - lo);
+  const k = (lo + rng() * (hi - lo)) / cfg.sizeDivisor;
   return k * k;
 }
 
@@ -69,25 +69,31 @@ export function generateThorns(
     }
     return { x: cfg.edgeMargin + rng() * span, y: cfg.edgeMargin + rng() * span };
   };
+  const valid = (x: number, y: number) =>
+    x >= cfg.edgeMargin &&
+    y >= cfg.edgeMargin &&
+    x <= world - cfg.edgeMargin &&
+    y <= world - cfg.edgeMargin &&
+    Math.hypot(x - mid, y - mid) >= cfg.centerClear;
   for (let n = 0; n < count; n++) {
-    for (let attempt = 0; attempt < 60; attempt++) {
+    // «найкращий кандидат»: з кількох випадкових точок беремо ту, що найдалі від уже поставлених, -
+    // розсип випадковий, але рівномірний (без злиплих кущів і великих порожніх зон)
+    let best: { x: number; y: number } | null = null;
+    let bestD = -1;
+    let tries = cfg.candidates;
+    for (let attempt = 0; attempt < cfg.candidates * 4; attempt++) {
       const { x, y } = candidate(n);
-      if (
-        x < cfg.edgeMargin ||
-        y < cfg.edgeMargin ||
-        x > world - cfg.edgeMargin ||
-        y > world - cfg.edgeMargin
-      )
-        continue;
-      if (Math.hypot(x - mid, y - mid) < cfg.centerClear) continue;
-      if (out.some((t) => Math.hypot(t.x - x, t.y - y) < cfg.minGap)) continue;
-      out.push({
-        x,
-        y,
-        mass: randomThornMass(rng, cfg),
-      });
-      break;
+      if (!valid(x, y)) continue;
+      let d = Infinity;
+      for (const t of out) d = Math.min(d, Math.hypot(t.x - x, t.y - y));
+      if (d < cfg.minGap) continue;
+      if (d > bestD) {
+        bestD = d;
+        best = { x, y };
+      }
+      if (--tries <= 0) break;
     }
+    if (best) out.push({ ...best, mass: randomThornMass(rng, cfg) });
   }
   return out;
 }
