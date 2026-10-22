@@ -1137,10 +1137,6 @@
     "premium": "Premium",
     "special": "Special",
     "controls": {
-      "title": "Controls",
-      "follow": "Follow finger",
-      "mouse": "Follow mouse",
-      "joystick": "Joystick",
       "split": "Split",
       "throw": "Throw",
       "keys": "Mouse — move · Space — split · W — throw"

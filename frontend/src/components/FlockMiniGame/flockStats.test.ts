@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearLegacyFlockStats, loadControlMode, loadLegacyFlockStats, saveControlMode } from "./flockStats";
+import { clearLegacyFlockStats, loadLegacyFlockStats } from "./flockStats";
 
 function memoryStorage() {
   const m = new Map<string, string>();
@@ -36,9 +36,4 @@ describe("flockStats", () => {
     expect(loadLegacyFlockStats("u1")).toBeNull();
   });
 
-  it("режим керування запам'ятовується", () => {
-    expect(loadControlMode()).toBe("follow");
-    saveControlMode("joystick");
-    expect(loadControlMode()).toBe("joystick");
-  });
 });

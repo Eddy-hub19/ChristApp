@@ -58,9 +58,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "boost",
         title: { ua: "Керування", ru: "Управление", en: "Controls" },
         text: {
-          ua: "Овечка біжить за пальцем або мишею, а можна обрати джойстик (у лобі). «Розділитися» ділить овечку навпіл для різкого ривка; частини зливаються назад через {merge} с. «Кинути» викидає шматок маси ({throw}).",
-          ru: "Овечка бежит за пальцем или мышью, а можно выбрать джойстик (в лобби). «Разделиться» делит овечку пополам для рывка; части сливаются обратно через {merge} с. «Бросить» выбрасывает кусок массы ({throw}).",
-          en: "Your sheep follows your finger or mouse, or pick the joystick in the lobby. “Split” halves your sheep for a quick dash; the parts merge back after {merge} s. “Throw” tosses a chunk of mass ({throw}).",
+          ua: "На ПК овечка біжить за мишею, на телефоні керуй джойстиком. «Розділитися» ділить овечку навпіл для різкого ривка; частини зливаються назад через {merge} с. «Кинути» викидає шматок маси ({throw}).",
+          ru: "На ПК овечка бежит за мышью, на телефоне управляй джойстиком. «Разделиться» делит овечку пополам для рывка; части сливаются обратно через {merge} с. «Бросить» выбрасывает кусок массы ({throw}).",
+          en: "On desktop your sheep follows the mouse; on phone use the joystick. “Split” halves your sheep for a quick dash; the parts merge back after {merge} s. “Throw” tosses a chunk of mass ({throw}).",
         },
         params: { merge: sec("mergeDelayMs"), throw: num("throwMass") },
       },
