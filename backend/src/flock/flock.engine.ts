@@ -642,7 +642,8 @@ export class FlockWorld {
       const rate = p.boss ? C.boss.decayPerSec : C.decayPerSec;
       for (const c of p.cells) {
         if (!p.paused && c.mass > from && !noDecay) {
-          c.mass -= c.mass * rate * dt;
+          // «Вожак» тане лише від надлишку над порогом (м'яко, без обвалу); решта - від усієї маси
+          c.mass -= (p.boss ? c.mass - from : c.mass) * rate * dt;
         }
         total += c.mass;
       }
@@ -654,7 +655,8 @@ export class FlockWorld {
       }
       p.total = total;
       if (total > p.maxMass) p.maxMass = total;
-      if (!leader || total > leader.total) leader = p;
+      // «Вожак» не лідер: від нього не відганяємо зірки «Зорепаду» і йому не йде час першого місця
+      if (!p.boss && (!leader || total > leader.total)) leader = p;
     }
     this.leaderPid = leader?.id ?? 0;
     if (leader && !leader.paused) leader.topMs += dt * 1000;
@@ -895,7 +897,7 @@ export class FlockWorld {
   }
 
   private eatCell(eater: Player, a: Cell, victim: Player, b: Cell) {
-    a.mass += b.mass;
+    a.mass += victim.boss ? b.mass * C.boss.eatMassGain : b.mass;
     this.dropCell(victim, b);
     if (victim.cells.length === 0) {
       victim.alive = false;
@@ -1053,7 +1055,10 @@ export class FlockWorld {
       // нижче minMassAfter не опускаємо: якщо половини забагато, зменшуємо зріз пропорційно
       let want = 0;
       for (const c of hit) want += c.mass * S.cutFraction;
-      const allowed = Math.max(0, total - S.minMassAfter);
+      const minAfter = o.boss
+        ? Math.max(S.minMassAfter, C.boss.scissorsMinMassAfter)
+        : S.minMassAfter;
+      const allowed = Math.max(0, total - minAfter);
       const k = want > allowed ? allowed / want : 1;
       if (k <= 0) continue;
       for (const c of hit) {

@@ -491,11 +491,15 @@ class Arena {
     let boardBuf: Uint8Array | null = null;
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
-      this.checkTop1(ranked[0]);
+      // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
+      this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
       boardBuf = encodeBoard({
-        top: ranked
-          .slice(0, 10)
-          .map((t) => ({ pid: t.id, mass: t.total, name: t.name })),
+        top: ranked.slice(0, 10).map((t) => ({
+          pid: t.id,
+          mass: t.total,
+          // Вожак лишається в Топ-10 з короною
+          name: t.boss ? `👑 ${t.name}` : t.name,
+        })),
         alive: ranked.length,
         // відсортована за масою: місце гравця = індекс його pid (клієнт рахує сам)
         map: ranked.map((r) => {
