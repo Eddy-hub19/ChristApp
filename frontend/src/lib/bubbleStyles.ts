@@ -8,12 +8,12 @@ import { usersDirectoryQueryKey } from "@/lib/queries/usersQueries";
  * блок переменных в styles/bubbleStyles.scss и id в backend/src/config/bubble-styles.ts.
  * "default" - обычный пузырь (без атрибута data-bubble-style).
  */
-export const BUBBLE_STYLE_IDS = ["default", "lamb", "dove", "lion", "vine"] as const;
+export const BUBBLE_STYLE_IDS = ["default", "lamb", "dove", "lion", "vine", "thorns", "ichthys"] as const;
 export type BubbleStyleId = (typeof BUBBLE_STYLE_IDS)[number];
 export const DEFAULT_BUBBLE_STYLE: BubbleStyleId = "default";
 
 /** Стили, у которых в углу первого сообщения группы рисуется персонаж. */
-export const BUBBLE_STYLES_WITH_CHARACTER: ReadonlySet<BubbleStyleId> = new Set(["lamb", "dove", "lion"]);
+export const BUBBLE_STYLES_WITH_CHARACTER: ReadonlySet<BubbleStyleId> = new Set(["lamb", "dove", "lion", "thorns", "ichthys"]);
 
 export function normalizeBubbleStyle(value: unknown): BubbleStyleId {
   return typeof value === "string" && (BUBBLE_STYLE_IDS as readonly string[]).includes(value)
