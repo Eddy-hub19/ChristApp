@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MessageType, Prisma, type User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PUBLIC_USER_SELECT } from 'src/common/public-user';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import {
@@ -112,7 +113,7 @@ export class MessagesService {
         roomId: this.GLOBAL_ROOM,
       },
       include: {
-        sender: true,
+        sender: { select: PUBLIC_USER_SELECT },
       },
     });
   }
@@ -194,7 +195,7 @@ export class MessagesService {
       : await this.prisma.message.create({
           data,
           include: {
-            sender: true,
+            sender: { select: PUBLIC_USER_SELECT },
           },
         });
     const [withReply] = await this.attachReplies([created]);
@@ -205,7 +206,7 @@ export class MessagesService {
   async findByClientMessageId(senderId: string, clientMessageId: string) {
     const existing = await this.prisma.message.findUnique({
       where: { senderId_clientMessageId: { senderId, clientMessageId } },
-      include: { sender: true },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
     });
     if (!existing) return null;
     const [withReply] = await this.attachReplies([existing]);
@@ -335,7 +336,7 @@ export class MessagesService {
         },
       },
       include: {
-        sender: true,
+        sender: { select: PUBLIC_USER_SELECT },
         reactions: { orderBy: { createdAt: 'asc' } },
         voiceListens: { select: { userId: true } },
       },
@@ -356,7 +357,7 @@ export class MessagesService {
     const rows = await this.prisma.message.findMany({
       where: { roomId },
       include: {
-        sender: true,
+        sender: { select: PUBLIC_USER_SELECT },
         reactions: {
           orderBy: { createdAt: 'asc' },
         },
@@ -371,7 +372,7 @@ export class MessagesService {
 
   async getAll(limit = 50, skip = 0) {
     return this.prisma.message.findMany({
-      include: { sender: true },
+      include: { sender: { select: PUBLIC_USER_SELECT } },
       orderBy: { createdAt: 'asc' },
       take: limit,
       skip,

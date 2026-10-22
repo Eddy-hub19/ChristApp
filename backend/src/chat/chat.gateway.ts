@@ -43,12 +43,19 @@ import {
 } from 'src/chat/user-may-post-to-room';
 import { MessageType } from '@prisma/client';
 import { ACCEPTED_CHAT_REACTIONS } from 'src/common/chat-reactions';
+import { PUBLIC_USER_SELECT } from 'src/common/public-user';
+
+const SOCKET_USER_SELECT = {
+  ...PUBLIC_USER_SELECT,
+  bio: true,
+  createdAt: true,
+  isActive: true,
+} as const;
 
 interface SocketUser {
   id: string;
   username: string;
   nickname: string;
-  email?: string;
 }
 
 /** Збережене повідомлення, яке розсилається кімнаті подією `newMessage`. */
@@ -216,7 +223,11 @@ export class ChatGateway
 
   /** `User.lastSeenAt`: лише при переході в офлайн, з тротлінгом на користувача. */
   private readonly lastSeen = new LastSeenWriter((userId, lastSeenAt) =>
-    this.prisma.user.update({ where: { id: userId }, data: { lastSeenAt } }),
+    this.prisma.user.update({
+      where: { id: userId },
+      data: { lastSeenAt },
+      select: { id: true },
+    }),
   );
 
   /** «Грає в …» у чаті: лише в пам'яті, без БД і пушів (heartbeat + TTL). */
@@ -463,8 +474,10 @@ export class ChatGateway
 
     try {
       const payload = this.jwt.verify(token);
+      // явный select: в снимок сокета (живёт всё соединение) не должны попадать пароль и email
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
+        select: SOCKET_USER_SELECT,
       });
 
       if (!user) return undefined;
@@ -2838,13 +2851,7 @@ export class ChatGateway
             },
             select: {
               user: {
-                select: {
-                  id: true,
-                  username: true,
-                  nickname: true,
-                  avatarUrl: true,
-                  lastSeenAt: true,
-                },
+                select: { ...PUBLIC_USER_SELECT, lastSeenAt: true },
               },
             },
             take: 1,

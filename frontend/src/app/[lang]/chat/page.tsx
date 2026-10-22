@@ -702,7 +702,6 @@ export default function ChatPage() {
         id: existingUser.id,
         username: existingUser.nickname ?? existingUser.username,
         handle: existingUser.username,
-        email: existingUser.email,
         isOnline: onlineUserIds.has(existingUser.id),
         hasDirectChat: directChatUserIds.has(
           canonicalChatUuidKey(existingUser.id),

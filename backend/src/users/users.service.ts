@@ -9,6 +9,7 @@ import { authUserCache } from '../auth/auth-user-cache';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { normalizeUsernameHandle } from './username.util';
+import { PUBLIC_USER_PROFILE_SELECT } from '../common/public-user';
 
 const ACTIVITY_CACHE_MS = 60_000;
 
@@ -40,17 +41,8 @@ export class UsersService {
   async getAllUsers() {
     const [users, activity] = await Promise.all([
       this.prisma.user.findMany({
-        select: {
-          id: true,
-          username: true,
-          nickname: true,
-          email: true,
-          createdAt: true,
-          lastSeenAt: true,
-          isActive: true,
-          avatarUrl: true,
-          bio: true,
-        },
+        // справочник виден всем: без email и прочего приватного
+        select: PUBLIC_USER_PROFILE_SELECT,
         orderBy: { createdAt: 'asc' },
       }),
       this.getLastActivityByUser(),
@@ -98,17 +90,7 @@ export class UsersService {
   async getUserById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        username: true,
-        nickname: true,
-        email: true,
-        createdAt: true,
-        lastSeenAt: true,
-        isActive: true,
-        avatarUrl: true,
-        bio: true,
-      },
+      select: PUBLIC_USER_PROFILE_SELECT,
     });
 
     if (!user) throw new NotFoundException('Пользователь не найден');
