@@ -36,7 +36,8 @@ describe("рубіни: множина (ICU plural)", () => {
 
 describe("скіни: платні 12..17, преміум 18..23 і особливі 24..33", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
-    expect(SKINS).toHaveLength(TOTAL_SKINS);
+    // + скин «Вожака» (36), которого нет среди выбираемых
+    expect(SKINS).toHaveLength(TOTAL_SKINS + 1);
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17, 34, 35]);
     expect(isPaidSkin(FREE_SKINS - 1)).toBe(false);
     expect(isPaidSkin(FREE_SKINS)).toBe(true);

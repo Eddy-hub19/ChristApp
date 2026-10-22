@@ -268,6 +268,37 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
       }
       break;
     }
+    case "alpha": {
+      // «Вожак»: золотое кольцо по краю (заметен издалека) и корона на макушке
+      c.strokeStyle = "#f2b61c";
+      c.lineWidth = Math.max(1.5, r * 0.09);
+      circle(c, 0, 0, r * 0.96);
+      c.stroke();
+      const cx = -fwdX * r * 0.3;
+      const cy = -fwdY * r * 0.3;
+      c.fillStyle = "#f2b61c";
+      c.strokeStyle = "rgba(60,30,0,0.55)";
+      c.lineWidth = Math.max(1, r * 0.04);
+      c.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = ang + (i * Math.PI) / 5;
+        const rr = r * (i % 2 === 0 ? 0.36 : 0.23);
+        const px = cx + Math.cos(a) * rr;
+        const py = cy + Math.sin(a) * rr;
+        if (i === 0) c.moveTo(px, py);
+        else c.lineTo(px, py);
+      }
+      c.closePath();
+      c.fill();
+      c.stroke();
+      c.fillStyle = "#e0142f";
+      circle(c, cx, cy, r * 0.1);
+      c.fill();
+      c.fillStyle = "#ffe27a";
+      circle(c, cx - r * 0.03, cy - r * 0.03, r * 0.03);
+      c.fill();
+      break;
+    }
     case "stars": {
       c.fillStyle = skin.accent;
       for (const [dx, dy, rr] of [

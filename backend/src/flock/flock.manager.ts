@@ -1,5 +1,10 @@
 import { randomBytes } from 'crypto';
-import { FLOCK_CONFIG, BONUS_KINDS, FREE_SKINS } from './flock.config';
+import {
+  FLOCK_CONFIG,
+  BONUS_KINDS,
+  BOSS_SKIN,
+  FREE_SKINS,
+} from './flock.config';
 import {
   CHUNKS_PER_SIDE,
   FlockWorld,
@@ -9,6 +14,7 @@ import {
   type Rng,
 } from './flock.engine';
 import { initBot, pickBotName, thinkBot } from './flock.bots';
+import { initBoss, thinkBoss } from './flock.boss';
 import { AdaptiveRate } from './flock.adaptive';
 import {
   BotGovernor,
@@ -114,6 +120,12 @@ class Arena {
   /** Боти, що йдуть: тікають до краю й зникають, коли їх ніхто не бачить (pid -> світовий час початку). */
   readonly retiring = new Map<number, number>();
   readonly decisions: GovernorDecision[] = [];
+  /** «Вожак» (не більше одного): pid, коли з'явиться наступного разу (світовий час, null - ще не призначено), початок відходу. */
+  private bossId: number | null = null;
+  private bossNextAt: number | null = null;
+  private bossRetiringAt: number | null = null;
+  /** Події «Вожака» цього тіку для всіх гравців: { k: 1 } вийшов, { k: 2, n } переможений. */
+  private bossMsgs: { k: number; n?: string }[] = [];
   lastSample: LoadSample | null = null;
   private lastLoadEval = -Infinity;
   private lateSnap = { sum: 0, n: 0 };
@@ -215,6 +227,11 @@ class Arena {
   }
 
   private removeBot(id: number) {
+    if (id === this.bossId) {
+      this.bossId = null;
+      this.bossRetiringAt = null;
+      this.bossNextAt = this.world.now + this.bossDelay();
+    }
     this.world.removePlayer(id);
     this.bots.delete(id);
     this.retiring.delete(id);
@@ -284,6 +301,79 @@ class Arena {
     }
   }
 
+  private bossDelay() {
+    const B = C.boss;
+    return B.respawnMinMs + this.rng() * (B.respawnMaxMs - B.respawnMinMs);
+  }
+
+  /**
+   * Вожака дозволено, доки регулятор навантаження не прибрав усіх звичайних ботів: він іде останнім
+   * (високе навантаження, ліміт ботів 0 і жодного бота на арені).
+   */
+  private bossAllowed() {
+    return !(this.governor.loadCap === 0 && this.bots.size === 0);
+  }
+
+  private hasLiveHuman() {
+    for (const s of this.sessions.values()) {
+      const p = this.world.players.get(s.pid);
+      if (p && p.alive && !p.paused && s.connKey) return true;
+    }
+    return false;
+  }
+
+  /** До тіку: поява Вожака, його думки, відхід під навантаженням. */
+  private stepBossPre() {
+    const B = C.boss;
+    if (!B.enabled) return;
+    const w = this.world;
+    if (this.bossNextAt === null)
+      this.bossNextAt =
+        w.now +
+        B.firstSpawnMinMs +
+        this.rng() * (B.firstSpawnMaxMs - B.firstSpawnMinMs);
+    if (this.bossId === null) {
+      if (
+        w.now >= this.bossNextAt &&
+        this.bossAllowed() &&
+        this.hasLiveHuman()
+      ) {
+        const p = w.addPlayer({
+          name: B.name,
+          skin: BOSS_SKIN,
+          bot: true,
+          boss: true,
+        });
+        initBoss(p, this.rng);
+        this.bossId = p.id;
+        this.bossMsgs.push({ k: 1 });
+      }
+      return;
+    }
+    const p = w.players.get(this.bossId);
+    if (!p) {
+      this.bossId = null;
+      return;
+    }
+    if (!p.alive) return; // загибель обробляє stepBossPost
+    if (this.bossRetiringAt === null && !this.bossAllowed())
+      this.bossRetiringAt = w.now;
+    if (this.bossRetiringAt !== null) this.retireStep(p.id, p);
+    else thinkBoss(w, p, this.rng);
+  }
+
+  /** Після тіку: Вожака з'їли - повідомлення, прибрати тіло, відродження через boss.respawn*. */
+  private stepBossPost() {
+    if (this.bossId === null) return;
+    const w = this.world;
+    for (const d of w.deaths) {
+      if (d.pid !== this.bossId) continue;
+      this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
+      this.removeBot(this.bossId);
+      return;
+    }
+  }
+
   /** Бот, що йде: тікає до найдальшого від людей кута; прибираємо, коли його не видно жодній людині. */
   private retireStep(id: number, p: Player) {
     const w = this.world;
@@ -296,7 +386,7 @@ class Arena {
         Math.abs(me.x - v.x) > v.hx * C.botLoad.retireHideFactor + r ||
         Math.abs(me.y - v.y) > v.hy * C.botLoad.retireHideFactor + r,
     );
-    const since = w.now - (this.retiring.get(id) ?? w.now);
+    const since = w.now - (this.retiring.get(id) ?? this.bossRetiringAt ?? w.now);
     if (hidden || since > C.botLoad.retireMaxMs) return this.removeBot(id);
     if ((w.tickNo + id) % C.botThinkEvery !== 0) return;
     let best = { x: C.worldSize / 2, y: C.worldSize / 2, d: -1 };
@@ -370,8 +460,10 @@ class Arena {
       }
       thinkBot(w, p, this.rng);
     }
+    this.stepBossPre();
     const tB = performance.now();
     w.tick(1 / this.rate.hz);
+    this.stepBossPost();
     const tC = performance.now();
     this.phase.think += tB - tA;
     this.phase.world += tC - tB;
@@ -425,6 +517,7 @@ class Arena {
       t: e.taker,
       v: e.victims,
     }));
+    const bossMsgs = this.bossMsgs;
     for (const s of this.sessions.values()) {
       const key = s.connKey;
       if (!key) continue; // у паузі: нікуди слати
@@ -432,6 +525,7 @@ class Arena {
       if (!p) continue;
       if (starMsg) send(key, 'z', starMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
+      for (const m of bossMsgs) send(key, 'bm', m);
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
         send(key, 'd', {
@@ -457,6 +551,7 @@ class Arena {
         send(key, 'l', boardBuf);
       }
     }
+    this.bossMsgs = [];
     this.phase.send += sentMs;
     this.phase.encode += performance.now() - t0 - sentMs;
   }
