@@ -1,6 +1,6 @@
 /*
  * Стили пузырей сообщений. Подключается в globals.scss; пузырь получает атрибуты:
- *   data-bubble-style="lamb|dove|lion|vine"  - сам стиль (default - атрибута нет)
+ *   data-bubble-style="lamb|dove|lion|vine|thorns|ichthys"  - сам стиль (default - атрибута нет)
  *   data-bubble-own                           - свой пузырь (хвостик справа, персонаж справа)
  *   data-bubble-start                         - первое сообщение группы подряд идущих сообщений одного человека (рисуем персонажа)
  *   data-bubble-tone="dark"                   - принудительно тёмный вариант (кинозал всегда тёмный)
@@ -53,9 +53,16 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
 [data-bubble-style="lion"] > [data-bs-char] {
   background-image: url("/bubbles/lion.svg");
 }
+[data-bubble-style="thorns"] > [data-bs-char] {
+  background-image: url("/bubbles/thorns.svg");
+}
+[data-bubble-style="ichthys"] > [data-bs-char] {
+  background-image: url("/bubbles/ichthys.svg");
+}
 
 /* Лёгкие края: по одному фону-SVG на псевдоэлемент (за текстом, поверх фона пузыря). */
 [data-bubble-style="lamb"]::after,
+[data-bubble-style="ichthys"]::after,
 [data-bubble-style="dove"]::before,
 [data-bubble-style="dove"]::after,
 [data-bubble-style="vine"]::before,
@@ -67,6 +74,13 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   background: no-repeat center / contain;
 }
 [data-bubble-style="lamb"]::after {
+  top: -9px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  background-image: url("/bubbles/spark.svg");
+}
+[data-bubble-style="ichthys"]::after {
   top: -9px;
   right: 10px;
   width: 20px;
@@ -133,6 +147,21 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   --bs-radius: 16px;
 }
 
+[data-bubble-style="thorns"] {
+  --bs-bg: linear-gradient(165deg, #ecd4c8, #dfc0b0);
+  --bs-border: #6b4630;
+  --bs-text: #3a2418;
+  --bs-muted: #6b4a3a;
+  --bs-radius: 18px;
+}
+[data-bubble-style="ichthys"] {
+  --bs-bg: linear-gradient(165deg, #fbf1df, #f4e2c4);
+  --bs-border: #d0a24e;
+  --bs-text: #44321a;
+  --bs-muted: #7a6238;
+  --bs-radius: 18px;
+}
+
 /* ---------- тёмная тема (и кинозал) ---------- */
 html[data-theme="dark"] [data-bubble-style="lamb"],
 [data-bubble-style="lamb"][data-bubble-tone="dark"] {
@@ -161,4 +190,18 @@ html[data-theme="dark"] [data-bubble-style="vine"],
   --bs-border: #5d8a3e;
   --bs-text: #e5f2d6;
   --bs-muted: #a9c48f;
+}
+html[data-theme="dark"] [data-bubble-style="thorns"],
+[data-bubble-style="thorns"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #4a3229, #3d2a22);
+  --bs-border: #9a6f55;
+  --bs-text: #f6e6dc;
+  --bs-muted: #cfae9c;
+}
+html[data-theme="dark"] [data-bubble-style="ichthys"],
+[data-bubble-style="ichthys"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #403420, #352b1a);
+  --bs-border: #a98638;
+  --bs-text: #f7ecd5;
+  --bs-muted: #cdb98c;
 }
