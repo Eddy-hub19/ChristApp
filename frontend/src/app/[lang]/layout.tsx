@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain";
 import CinemaProvider from "@/components/Cinema/CinemaProvider";
+import AppWhatsNew from "@/components/AppWhatsNew/AppWhatsNew";
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync";
 import HtmlLang from "@/components/HtmlLang/HtmlLang";
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket";
@@ -64,6 +65,7 @@ export default async function LangLayout({
         <PwaRegistration />
         <PwaInstallPrompt />
         <PushAutoSync />
+        <AppWhatsNew />
         <PresenceSocket>
           <CinemaProvider>
             <ThemeToggle />

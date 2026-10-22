@@ -163,7 +163,7 @@ export class UsersService {
           : dto.bio.trim();
 
     if (hasBubbleStyle && dto.bubbleStyle !== 'default') {
-      // тестовый режим: пока BUBBLE_STYLES_ACCESS = 'admin', менять стиль может только админ
+      // при BUBBLE_STYLES_ACCESS = 'admin' (тестовый режим) менять стиль может только админ; при 'all' - любой
       const me = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { username: true },
