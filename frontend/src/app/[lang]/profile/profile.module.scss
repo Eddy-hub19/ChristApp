@@ -7,6 +7,11 @@
   overflow: auto;
   height: calc(100vh - 50px - 96px);
 
+  /* Высота контейнера фиксирована, а блоки - flex-элементы колонки: без этого блоки с overflow:hidden сжимались до нуля и пропадали. */
+  > * {
+    flex-shrink: 0;
+  }
+
   .header {
     position: relative;
 
@@ -774,6 +779,24 @@
       .rewardStatePlaceholder {
         min-height: 18px;
       }
+    }
+  }
+
+  .settingsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 12px 6px;
+    border: 1px solid var(--line-soft);
+    border-radius: 14px;
+    background: var(--surface-elevated);
+    color: var(--foreground);
+
+    .settingsSectionTitle {
+      margin: 0;
+      color: var(--foreground);
+      font-weight: 600;
+      font-size: 14px;
     }
   }
 

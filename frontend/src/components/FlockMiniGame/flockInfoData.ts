@@ -306,9 +306,9 @@ export const INFO_SECTIONS: InfoSection[] = [
     artifacts: true,
     intro: {
       text: {
-        ua: "Надягаються поверх скіна, діє один. Купуються за {price} рубінів.",
-        ru: "Надеваются поверх скина, действует один. Покупаются за {price} рубинов.",
-        en: "Worn over a skin, one at a time. Cost {price} rubies each.",
+        ua: "Надягаються поверх скіна, діє один. Купуються за {price} рубінів. Знайти їх можна в лобі: кнопка з іконкою артефакта поруч із «i».",
+        ru: "Надеваются поверх скина, действует один. Покупаются за {price} рубинов. Найти их можно в лобби: кнопка с иконкой артефакта рядом с «i».",
+        en: "Worn over a skin, one at a time. Cost {price} rubies each. Find them in the lobby: the artifact button next to “i”.",
       },
       params: { price: num("artifactPrice") },
     },

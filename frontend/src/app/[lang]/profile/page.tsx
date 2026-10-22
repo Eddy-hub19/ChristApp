@@ -53,7 +53,7 @@ import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import ProfileChaptersCard from "@/components/ProfileChaptersCard/ProfileChaptersCard";
-import BubbleStyleSettings from "@/components/BubbleStyleSettings/BubbleStyleSettings";
+import BubbleStyleSettings, { BubbleStyleRow } from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { canUseBubbleStyles } from "@/lib/bubbleStyles";
 
 type SavedVerse = {
@@ -87,6 +87,7 @@ function effectiveThemeForegroundHex(
 
 export default function ProfilePage() {
   const t = useTranslations("profile");
+  const tBubbles = useTranslations("bubbleStyles");
   const lang = useLocale();
   const dateLangTag =
     lang === "ua" ? "uk-UA" : lang === "en" ? "en-US" : "ru-RU";
@@ -96,6 +97,7 @@ export default function ProfilePage() {
     redirectIfUnauthenticated: "/",
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [bubbleSettingsOpen, setBubbleSettingsOpen] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [pushPermission, setPushPermission] =
@@ -1018,8 +1020,14 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* «Вигляд повідомлень»: при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) виден только админу. */}
-      {canUseBubbleStyles(user?.username) ? <BubbleStyleSettings /> : null}
+      {/* «Налаштування»: строка «Вигляд повідомлень» всегда видна; при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) - только админу. */}
+      {canUseBubbleStyles(user?.username) ? (
+        <section className={styles.settingsSection} aria-label={tBubbles("settingsTitle")}>
+          <h2 className={styles.settingsSectionTitle}>{tBubbles("settingsTitle")}</h2>
+          <BubbleStyleRow onOpen={() => setBubbleSettingsOpen(true)} />
+        </section>
+      ) : null}
+      {bubbleSettingsOpen ? <BubbleStyleSettings onClose={() => setBubbleSettingsOpen(false)} /> : null}
 
       {isNotificationsOpen ? (
         <div className={styles.notificationsPanel}>

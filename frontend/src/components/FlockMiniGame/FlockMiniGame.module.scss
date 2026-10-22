@@ -768,9 +768,6 @@
 }
 
 /* --- артефакты --- */
-.artifactTitle {
-  color: color-mix(in srgb, #c98a00 85%, var(--foreground));
-}
 .artifactHint {
   margin: 0 0 6px;
   font-size: 12px;
@@ -859,75 +856,27 @@
   padding: 0;
 }
 
-/* --- аккордеон «Артефакти» --- */
-.accordion {
-  margin-top: 6px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
-  overflow: hidden;
-}
-.accordionHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 48px;
-  padding: 8px 12px;
-  border: 0;
-  background: color-mix(in srgb, var(--foreground) 4%, transparent);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.accordionTitle {
-  flex: 1;
-  margin: 0;
-}
-.accordionCurrent {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 13px;
-  opacity: 0.8;
-}
-.accordionCurrentName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chevron {
+/* Кнопка «Артефакти» рядом с «i»: та же круглая форма, не сжимается; точка - артефакт надет. */
+.artifactsBtn {
+  position: relative;
   flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-.chevronOpen {
-  transform: rotate(180deg);
-}
-/* Сворачивание: grid-template-rows 0fr -> 1fr (высота без измерений в JS). */
-.collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 0.2s ease,
-    opacity 0.2s ease;
-}
-.collapseOpen {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.collapseInner {
-  overflow: hidden;
-  min-height: 0;
-  padding: 0 10px;
-}
-.collapseOpen .collapseInner {
-  padding: 8px 10px 10px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .collapse,
-  .chevron {
-    transition: none;
+  font: inherit;
+  border-color: color-mix(in srgb, #c98a00 70%, transparent);
+  background: color-mix(in srgb, #f2b61c 14%, transparent);
+
+  img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
   }
+}
+.wornDot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface-elevated);
+  background: var(--accent);
 }
