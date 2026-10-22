@@ -31,3 +31,25 @@ export function dayStartInZone(now: Date, timeZone: string): Date {
   const guess = midnightLocal - off;
   return new Date(midnightLocal - zoneOffsetMs(guess, timeZone));
 }
+
+/** Ключ доби "YYYY-MM-DD" у заданому часовому поясі. */
+export function dayKeyInZone(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
+/** Ключ сусідньої доби (delta = ±1) за ключем "YYYY-MM-DD" (календарна арифметика, без часових поясів). */
+export function shiftDayKey(key: string, delta: number): string {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
+
+/** Початок наступної доби в поясі (+36 год від початку поточної завжди потрапляє в наступну добу, навіть при переході на літній час). */
+export function nextDayStartInZone(now: Date, timeZone: string): Date {
+  const start = dayStartInZone(now, timeZone);
+  return dayStartInZone(new Date(start.getTime() + 36 * 3_600_000), timeZone);
+}

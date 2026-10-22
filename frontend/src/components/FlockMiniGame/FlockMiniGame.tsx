@@ -15,6 +15,7 @@ import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFloc
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import FlockInvite from "./FlockInvite";
 import { isResumable, loadFlockSession } from "./flockSession";
+import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
@@ -162,6 +163,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [notice, setNotice] = useState<FlockNotice>(null);
   /** Разовый бонус за первый вход (показывается один раз в лобби). */
   const [entryBonus, setEntryBonus] = useState(0);
+  const [streakAward, setStreakAward] = useState(0);
   const [reconnectLeft, setReconnectLeft] = useState(0);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcedRef = useRef(false);
@@ -239,6 +241,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       setMe(data);
       if (data.entryBonus) setEntryBonus(data.entryBonus);
+      if (data.streakAward) setStreakAward(data.streakAward);
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
       setSkin((cur) => (isPaidSkin(cur) && !data.ownedSkins.includes(cur) ? 0 : cur));
@@ -1025,6 +1028,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             </dl>
 
+            <FlockDailyBoard initial={me?.daily} />
+
+            {streakAward > 0 ? <p className={styles.notice}>{t("status.streakAward", { days: me?.daily?.config.streakDays ?? 3, count: streakAward })}</p> : null}
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}

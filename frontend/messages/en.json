@@ -1141,6 +1141,17 @@
       "throw": "Throw",
       "keys": "Mouse — move · Space — split · W — throw"
     },
+    "daily": {
+      "title": "Daily records",
+      "resets": "Resets in {time}",
+      "hours": "{count} h",
+      "minutes": "{count} min",
+      "empty": "Be the first!",
+      "emptyHint": "Nobody has played today yet — become the record holder",
+      "yourBest": "Your best today",
+      "streak": "Streak at #1: {days} of {total} days",
+      "hint": "{days} days in a row at #1 = {reward} rubies (mass {mass}+)"
+    },
     "stats": {
       "best": "Biggest size",
       "eaten": "Eaten",
@@ -1174,7 +1185,8 @@
       "taken": "The game is open in another window",
       "skinLocked": "This skin hasn't been bought yet",
       "artifactLocked": "This artifact hasn't been bought yet",
-      "entryBonus": "Entry bonus: +{count} 💎"
+      "entryBonus": "Entry bonus: +{count} 💎",
+      "streakAward": "You were #1 for {days} days in a row! +{count} rubies"
     },
     "bonuses": {
       "speed": "Speed boost",

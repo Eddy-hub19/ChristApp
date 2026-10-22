@@ -6,7 +6,20 @@ import type { FlockStats } from "./flockStats";
 /** Числа из flock.config.ts для экрана «Про гру» (приходят в /flock/me, config.game): путь вида `bonusDurations.speed`. */
 export type FlockGameConfig = { [key: string]: number | FlockGameConfig };
 
+export interface FlockDailyBoard {
+  top: { rank: number; name: string; avatarUrl: string | null; mass: number; me: boolean }[];
+  /** Лучший результат игрока за сегодня и место (null - сегодня не играл). */
+  me: { rank: number; mass: number } | null;
+  /** Заполнено только у текущего лидера дня: сколько дней подряд (с сегодняшним). */
+  streak: { days: number } | null;
+  resetsInMs: number;
+  config: { streakDays: number; streakReward: number; minMass: number };
+}
+
 export interface FlockMe {
+  daily?: FlockDailyBoard;
+  /** Рубины за серию дней на 1-м месте, выданные сервером, пока игрока не было (приходят один раз). */
+  streakAward?: number;
   rubies: number;
   ownedSkins: number[];
   selectedSkin: number;
@@ -48,6 +61,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const fetchFlockMe = () => call<FlockMe>("/me");
+export const fetchFlockDaily = () => call<FlockDailyBoard>("/daily");
 export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: number }>(`/skins/${skinId}/buy`, { method: "POST" });
 export const selectFlockSkin = (skin: number) => call<{ ok: true }>("/skin", { method: "PUT", body: JSON.stringify({ skin }) });
 export const buyFlockArtifact = (artifactId: number) => call<{ rubies: number; artifactId: number }>(`/artifacts/${artifactId}/buy`, { method: "POST" });

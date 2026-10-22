@@ -233,6 +233,15 @@ export class FlockRubiesService {
     });
   }
 
+  /** Нагорода за серію днів на 1-му місці: у транзакції закриття доби, поза добовим лімітом арени. */
+  async grantStreakInTx(tx: Tx, userId: string, amount: number) {
+    const balance = await this.lockProfile(tx, userId);
+    return this.apply(tx, userId, balance, {
+      delta: amount,
+      reason: RubyReason.ARENA_STREAK,
+    });
+  }
+
   /** Нагорода за перемогу над «Вожаком»: фіксована, не входить у добовий ліміт. */
   async awardBossKill(userId: string): Promise<AwardResult | null> {
     if (R.bossKillReward <= 0) return null;

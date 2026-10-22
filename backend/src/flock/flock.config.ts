@@ -290,6 +290,24 @@ export const FLOCK_CONFIG = {
     specialFrom: 24,
   },
 
+  // --- «Рекорди дня» і нагорода за серію днів на 1-му місці (доба за rubies.dailyTimeZone) ---
+  dailyRecords: {
+    /** Скільки днів поспіль треба бути №1 за день. */
+    streakDays: 3,
+    /** Нагорода за серію (поза rubies.dailyLimit). */
+    streakReward: 20,
+    /** Мінімальна маса, з якою день зараховується переможцю (щоб не виграти день порожньою грою). */
+    minMass: 1000,
+    /** Не частіше ніж раз на стільки мс пишемо рекорд одного гравця в БД. */
+    writeThrottleMs: 10_000,
+    /** Кеш таблиці на сервері (мс). */
+    cacheMs: 45_000,
+    /** Скільки днів зберігати рекорди. */
+    keepDays: 30,
+    /** Скільки рядків у таблиці. */
+    topSize: 3,
+  },
+
   // --- «Вожак»: один дуже сильний бот на арені (але переможний: можна з'їсти, маса тане і має стелю) ---
   boss: {
     enabled: true,
@@ -469,6 +487,12 @@ export function clientGameConfig() {
       skinPrice: c.rubies.skinPrice,
       premiumSkinPrice: c.rubies.premiumSkinPrice,
       specialSkinPrice: c.rubies.specialSkinPrice,
+    },
+    dailyRecords: {
+      streakDays: c.dailyRecords.streakDays,
+      streakReward: c.dailyRecords.streakReward,
+      minMass: c.dailyRecords.minMass,
+      topSize: c.dailyRecords.topSize,
     },
     artifactPrice: c.artifacts.price,
   };
