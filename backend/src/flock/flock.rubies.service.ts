@@ -231,6 +231,19 @@ export class FlockRubiesService {
     });
   }
 
+  /** Нагорода за перемогу над «Вожаком»: фіксована, не входить у добовий ліміт. */
+  async awardBossKill(userId: string): Promise<AwardResult | null> {
+    if (R.bossKillReward <= 0) return null;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const next = await this.apply(tx, userId, balance, {
+        delta: R.bossKillReward,
+        reason: RubyReason.ARENA_BOSS,
+      });
+      return { amount: R.bossKillReward, balance: next };
+    });
+  }
+
   /**
    * Разовий бонус за перший вхід у гру: +entryBonus рубінів, один раз на гравця (під блокуванням профілю,
    * тож паралельні запити не нарахують двічі). Повертає null, якщо бонус уже отримано.

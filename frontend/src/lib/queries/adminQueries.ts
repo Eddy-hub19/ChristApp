@@ -249,7 +249,7 @@ export type AdminRubyTransaction = {
   id: string;
   delta: number;
   balanceAfter: number;
-  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ARTIFACT_PURCHASE" | "ADMIN_ADJUST" | "ENTRY_BONUS";
+  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ARTIFACT_PURCHASE" | "ADMIN_ADJUST" | "ENTRY_BONUS" | "ARENA_BOSS";
   note: string | null;
   skinId: number | null;
   artifactId?: number | null;

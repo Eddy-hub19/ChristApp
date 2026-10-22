@@ -75,6 +75,8 @@ interface Session {
 export interface FlockHooks {
   /** Гравець посів 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
   onTop1?: (userId: string, connKey: string | null) => void;
+  /** Гравець з'їв «Вожака» (лише людина з сесією). */
+  onBossKill?: (userId: string, connKey: string | null) => void;
   /** Овечка гравця загинула: підсумки життя (для статистики). */
   onDeath?: (
     userId: string,
@@ -371,6 +373,12 @@ class Arena {
     for (const d of w.deaths) {
       if (d.pid !== this.bossId) continue;
       this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
+      for (const s of this.sessions.values()) {
+        if (s.pid === d.killerPid && s.userId) {
+          this.hooks.onBossKill?.(s.userId, s.connKey);
+          break;
+        }
+      }
       this.removeBot(this.bossId);
       return;
     }
@@ -491,11 +499,15 @@ class Arena {
     let boardBuf: Uint8Array | null = null;
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
-      this.checkTop1(ranked[0]);
+      // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
+      this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
       boardBuf = encodeBoard({
-        top: ranked
-          .slice(0, 10)
-          .map((t) => ({ pid: t.id, mass: t.total, name: t.name })),
+        top: ranked.slice(0, 10).map((t) => ({
+          pid: t.id,
+          mass: t.total,
+          // Вожак лишається в Топ-10 з короною
+          name: t.boss ? `👑 ${t.name}` : t.name,
+        })),
         alive: ranked.length,
         // відсортована за масою: місце гравця = індекс його pid (клієнт рахує сам)
         map: ranked.map((r) => {

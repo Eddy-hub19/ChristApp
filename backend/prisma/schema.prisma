@@ -334,6 +334,7 @@ enum RubyReason {
   ADMIN_ADJUST
   ENTRY_BONUS
   ARTIFACT_PURCHASE
+  ARENA_BOSS
 }
 
 /// Журнал рубінів: тільки додавання рядків.
