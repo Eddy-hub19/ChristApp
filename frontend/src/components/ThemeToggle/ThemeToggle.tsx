@@ -63,7 +63,10 @@ export default function ThemeToggle() {
   /** Повноекранна гра: лампочка налізала на HUD («Топ-10»). */
   const isFullscreen = fullscreenActive || isFullscreenPath(pathname);
 
-  if (isProfilePage || isOfflinePage || isCinemaHall || isFullscreen) {
+  /** Екрани чатів (особисті, Global chat, «Поділися з Ісусом»): лампочка не займає місце в шапці; тема - на головному й у профілі. */
+  const isChatRoom = /^\/chat\/[^/]+/.test(pathname);
+
+  if (isProfilePage || isOfflinePage || isCinemaHall || isFullscreen || isChatRoom) {
     return null;
   }
 
