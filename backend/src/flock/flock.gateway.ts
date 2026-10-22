@@ -47,6 +47,7 @@ export class FlockGateway
       Date.now,
       {
         onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
+        onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onDeath: (userId, run) =>
           void this.rubies
             .recordRun(userId, run)
@@ -62,6 +63,16 @@ export class FlockGateway
       if (res && connKey) this.ns?.sockets.get(connKey)?.emit('r', res);
     } catch (e) {
       this.log.error(`awardTop1: ${String(e)}`);
+    }
+  }
+
+  /** Нагорода за Вожака: так само пише в БД, а потім шле клієнту подію `r`. */
+  private async rewardBossKill(userId: string, connKey: string | null) {
+    try {
+      const res = await this.rubies.awardBossKill(userId);
+      if (res && connKey) this.ns?.sockets.get(connKey)?.emit('r', res);
+    } catch (e) {
+      this.log.error(`awardBossKill: ${String(e)}`);
     }
   }
 

@@ -75,6 +75,8 @@ interface Session {
 export interface FlockHooks {
   /** Гравець посів 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
   onTop1?: (userId: string, connKey: string | null) => void;
+  /** Гравець з'їв «Вожака» (лише людина з сесією). */
+  onBossKill?: (userId: string, connKey: string | null) => void;
   /** Овечка гравця загинула: підсумки життя (для статистики). */
   onDeath?: (
     userId: string,
@@ -371,6 +373,12 @@ class Arena {
     for (const d of w.deaths) {
       if (d.pid !== this.bossId) continue;
       this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
+      for (const s of this.sessions.values()) {
+        if (s.pid === d.killerPid && s.userId) {
+          this.hooks.onBossKill?.(s.userId, s.connKey);
+          break;
+        }
+      }
       this.removeBot(this.bossId);
       return;
     }
