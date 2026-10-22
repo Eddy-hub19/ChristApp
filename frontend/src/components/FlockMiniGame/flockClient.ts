@@ -26,7 +26,7 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | null;
+export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | null;
 
 /** Нагорода від сервера: «Ти перший! +10 рубінів». */
 export interface RewardInfo {
@@ -79,6 +79,7 @@ export class FlockClient {
   status: FlockStatus = "connecting";
   private socket: Sock | null = null;
   private skin = 0;
+  private artifact = 0;
   private wantPlay = false;
   private disposed = false;
   private arenaId: number | null;
@@ -138,7 +139,7 @@ export class FlockClient {
         // розрив посеред гри: той самий токен, нову овечку не створюємо
         const have = this.stored ?? saved;
         if (have) this.emitResume(have);
-        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, ...(this.arenaId ? { arena: this.arenaId } : {}) }); // ще не встигли отримати welcome
+        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, artifact: this.artifact, ...(this.arenaId ? { arena: this.arenaId } : {}) }); // ще не встигли отримати welcome
       } else if (this.opts.autoResume !== false && saved && isResumable(saved)) {
         this.skin = saved.skin;
         this.wantPlay = true;
@@ -242,6 +243,11 @@ export class FlockClient {
         this.wantPlay = false;
         this.opts.onNotice?.("skinLocked");
         this.setStatus("ready");
+      } else if (e?.code === "artifact_locked") {
+        // артефакт не куплений (или отозван): сервер на арену не пустил, возвращаемся в лобби
+        this.wantPlay = false;
+        this.opts.onNotice?.("artifactLocked");
+        this.setStatus("ready");
       } else if (e?.code === "full") {
         this.wantPlay = false;
         this.setStatus("full");
@@ -303,13 +309,14 @@ export class FlockClient {
   }
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
-  join(skin: number) {
+  join(skin: number, artifact = 0) {
     this.skin = skin;
+    this.artifact = artifact;
     this.wantPlay = true;
     this.opts.onNotice?.(null);
     if (this.model) this.model.resetCamera();
     if (this.socket?.connected) {
-      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, ...(this.arenaId ? { arena: this.arenaId } : {}) });
+      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, artifact, ...(this.arenaId ? { arena: this.arenaId } : {}) });
     }
   }
 

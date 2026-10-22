@@ -249,9 +249,10 @@ export type AdminRubyTransaction = {
   id: string;
   delta: number;
   balanceAfter: number;
-  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ADMIN_ADJUST" | "ENTRY_BONUS";
+  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ARTIFACT_PURCHASE" | "ADMIN_ADJUST" | "ENTRY_BONUS";
   note: string | null;
   skinId: number | null;
+  artifactId?: number | null;
   actorId: string | null;
   createdAt: string;
 };
@@ -259,6 +260,8 @@ export type AdminRubyTransaction = {
 export type AdminMemberFlock = {
   rubies: number;
   ownedSkins: number[];
+  ownedArtifacts?: number[];
+  selectedArtifact?: number;
   stats: { bestMass: number; eaten: number; topMs: number; games: number };
   transactions: AdminRubyTransaction[];
 };
@@ -280,6 +283,13 @@ async function adminJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchAdminMemberFlock = (memberId: string) => adminJson<AdminMemberFlock>(`/members/${memberId}/flock`);
+
+/** Выдать артефакт «Отары» бесплатно (рубины не списываются). */
+export const grantAdminMemberArtifact = (memberId: string, artifact: number) =>
+  adminJson<{ artifactId: number }>(`/members/${memberId}/artifacts`, {
+    method: "POST",
+    body: JSON.stringify({ artifact }),
+  });
 
 /** amount > 0 нараховує, amount < 0 списує; причина обов'язкова (сервер перевіряє теж). */
 export const adjustAdminMemberRubies = (memberId: string, amount: number, reason: string) =>

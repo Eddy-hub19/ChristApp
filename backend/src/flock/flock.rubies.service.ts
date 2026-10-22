@@ -10,7 +10,9 @@ import {
   FLOCK_CONFIG,
   FREE_SKINS,
   NUM_SKINS,
+  NUM_ARTIFACTS,
   HIDDEN_SKINS,
+  isArtifactId,
   PREMIUM_FROM,
   SPECIAL_FROM,
   isHiddenSkin,
@@ -25,6 +27,7 @@ export type FlockErrorCode =
   | 'invalid_version'
   | 'skin_hidden'
   | 'invalid_skin'
+  | 'invalid_artifact'
   | 'skin_free'
   | 'already_owned'
   | 'not_enough'
@@ -75,6 +78,7 @@ export class FlockRubiesService {
       reason: RubyReason;
       note?: string;
       skinId?: number;
+      artifactId?: number;
       actorId?: string;
     },
   ): Promise<number> {
@@ -107,14 +111,58 @@ export class FlockRubiesService {
     return !!row;
   }
 
+  async ownedArtifacts(userId: string): Promise<number[]> {
+    const rows = await this.prisma.flockArtifactPurchase.findMany({
+      where: { userId },
+      select: { artifactId: true },
+    });
+    return rows.map((r) => r.artifactId).sort((a, b) => a - b);
+  }
+
+  /** Чи може користувач надіти артефакт (куплений); 0 - «нічого» - завжди можна. */
+  async canUseArtifact(userId: string, artifact: number): Promise<boolean> {
+    if (artifact === 0) return true;
+    if (!isArtifactId(artifact)) return false;
+    const row = await this.prisma.flockArtifactPurchase.findUnique({
+      where: { userId_artifactId: { userId, artifactId: artifact } },
+    });
+    return !!row;
+  }
+
+  /**
+   * Артефакт для входу на арену: запитаний клієнтом (0 - без нього) має бути куплений, інакше null (відмова).
+   * Без запиту (старий клієнт) беремо надітий у профілі, якщо він ще куплений.
+   */
+  async resolveArtifact(
+    userId: string,
+    requested: number | undefined,
+  ): Promise<number | null> {
+    if (requested === undefined) {
+      const profile = await this.prisma.flockProfile.findUnique({
+        where: { userId },
+        select: { selectedArtifact: true },
+      });
+      const sel = profile?.selectedArtifact ?? 0;
+      return (await this.canUseArtifact(userId, sel)) ? sel : 0;
+    }
+    return (await this.canUseArtifact(userId, requested)) ? requested : null;
+  }
+
   async getMe(userId: string) {
-    const [profile, skins] = await Promise.all([
+    const [profile, skins, artifacts] = await Promise.all([
       this.prisma.flockProfile.findUnique({ where: { userId } }),
       this.ownedSkins(userId),
+      this.ownedArtifacts(userId),
     ]);
+    // надітий артефакт без покупки (напр. відкликано адміном) не показуємо як надітий
+    const selectedArtifact = artifacts.includes(profile?.selectedArtifact ?? 0)
+      ? (profile?.selectedArtifact ?? 0)
+      : 0;
     return {
       rubies: profile?.rubies ?? 0,
       ownedSkins: skins,
+      ownedArtifacts: artifacts,
+      selectedArtifact,
       selectedSkin: profile?.selectedSkin ?? 0,
       whatsNewSeen: profile?.whatsNewSeen ?? 0,
       statsImported: !!profile?.statsImportedAt,
@@ -123,6 +171,8 @@ export class FlockRubiesService {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
         specialSkinPrice: R.specialSkinPrice,
+        artifactPrice: FLOCK_CONFIG.artifacts.price,
+        totalArtifacts: NUM_ARTIFACTS,
         freeSkins: FREE_SKINS,
         premiumFrom: PREMIUM_FROM,
         specialFrom: SPECIAL_FROM,
@@ -236,6 +286,66 @@ export class FlockRubiesService {
     });
   }
 
+  /** Покупка артефакта: перевірка балансу, списання, запис покупки й журналу - атомарно (як у скінів). */
+  async buyArtifact(userId: string, artifactId: number) {
+    if (!isArtifactId(artifactId))
+      throw fail(BadRequestException, 'invalid_artifact');
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const owned = await tx.flockArtifactPurchase.findUnique({
+        where: { userId_artifactId: { userId, artifactId } },
+      });
+      if (owned) throw fail(ConflictException, 'already_owned');
+      const price = FLOCK_CONFIG.artifacts.price;
+      if (balance < price)
+        throw fail(BadRequestException, 'not_enough', {
+          missing: price - balance,
+        });
+      await tx.flockArtifactPurchase.create({
+        data: { userId, artifactId, price },
+      });
+      const next = await this.apply(tx, userId, balance, {
+        delta: -price,
+        reason: RubyReason.ARTIFACT_PURCHASE,
+        artifactId,
+      });
+      return { rubies: next, artifactId };
+    });
+  }
+
+  /** Адмін: видати артефакт безкоштовно (запис у журналі з delta 0, щоб лишився слід). */
+  async adminGrantArtifact(
+    actorId: string,
+    userId: string,
+    artifactId: number,
+  ) {
+    if (!isArtifactId(artifactId))
+      throw fail(BadRequestException, 'invalid_artifact');
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) throw fail(NotFoundException, 'user_not_found');
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const owned = await tx.flockArtifactPurchase.findUnique({
+        where: { userId_artifactId: { userId, artifactId } },
+      });
+      if (owned) throw fail(ConflictException, 'already_owned');
+      await tx.flockArtifactPurchase.create({
+        data: { userId, artifactId, price: 0 },
+      });
+      await this.apply(tx, userId, balance, {
+        delta: 0,
+        reason: RubyReason.ARTIFACT_PURCHASE,
+        artifactId,
+        note: 'admin grant',
+        actorId,
+      });
+      return { artifactId };
+    });
+  }
+
   /** Адмін: нарахувати або списати (delta ≠ 0), причина обов'язкова, баланс не йде нижче нуля. */
   async adminAdjust(
     actorId: string,
@@ -324,6 +434,17 @@ export class FlockRubiesService {
         },
       });
       return { imported: true, stats: toStats(updated) };
+    });
+  }
+
+  /** Надіти (1..7) або зняти (0) артефакт: лише куплений, зберігається в профілі (усі пристрої). */
+  async setSelectedArtifact(userId: string, artifact: number) {
+    if (!(await this.canUseArtifact(userId, artifact)))
+      throw fail(BadRequestException, 'invalid_artifact');
+    await this.prisma.flockProfile.upsert({
+      where: { userId },
+      create: { userId, selectedArtifact: artifact },
+      update: { selectedArtifact: artifact },
     });
   }
 

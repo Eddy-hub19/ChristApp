@@ -766,3 +766,73 @@
     transform: translateX(-50%);
   }
 }
+
+/* --- артефакты --- */
+.artifactTitle {
+  color: color-mix(in srgb, #c98a00 85%, var(--foreground));
+}
+.artifactHint {
+  margin: 0 0 6px;
+  font-size: 12px;
+  opacity: 0.72;
+}
+.artifactPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.artifactPreviewRow > span {
+  flex: 1;
+}
+.artifacts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.artifact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px 10px;
+  border-radius: 12px;
+  border: 2px solid color-mix(in srgb, #c98a00 35%, transparent);
+  background: color-mix(in srgb, #f2b61c 9%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.artifact img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.artifact strong {
+  font-size: 13px;
+}
+.artifactDesc {
+  font-size: 11px;
+  line-height: 1.25;
+  opacity: 0.75;
+}
+.artifactLocked img {
+  opacity: 0.85;
+}
+.artifactWorn {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.artifactState {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.artifact .priceTag {
+  position: static;
+  transform: none;
+  margin-top: 2px;
+}

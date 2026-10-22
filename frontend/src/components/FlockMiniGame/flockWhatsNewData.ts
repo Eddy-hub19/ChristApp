@@ -137,6 +137,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     ],
   },
   {
+    version: 6,
+    date: "2026-10-22",
+    items: [
+      {
+        icon: "skins",
+        text: {
+          ua: "Артефакти: 7 предметів поверх скіна по 80 рубінів. Шапка священника, корона, магніт, взуття, годинник, хрест і кадило дають невеликі бонуси",
+          ru: "Артефакты: 7 предметов поверх скина по 80 рубинов. Шапка священника, корона, магнит, обувь, часы, крест и кадило дают небольшие бонусы",
+          en: "Artifacts: 7 items worn over any skin for 80 rubies each. Priest's hat, crown, magnet, sandals, hourglass, cross and censer give small bonuses",
+        },
+      },
+    ],
+  },
+  {
     version: 7,
     date: "2026-10-22",
     items: [

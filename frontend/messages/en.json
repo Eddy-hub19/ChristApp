@@ -98,6 +98,12 @@
       "balance": "Balance:",
       "skins": "Owned skins:",
       "noSkins": "none",
+      "artifacts": "Owned artifacts:",
+      "noArtifacts": "none",
+      "grantArtifact": "Grant an artifact",
+      "artifactWorn": "worn",
+      "grantBtn": "Grant",
+      "pickArtifact": "Pick an artifact",
       "amountLabel": "Ruby amount",
       "amountPlaceholder": "± amount",
       "reasonLabel": "Reason",
@@ -110,6 +116,7 @@
       "reasons": {
         "ARENA_TOP1": "Arena first place",
         "SKIN_PURCHASE": "Skin purchase",
+        "ARTIFACT_PURCHASE": "Artifact purchase",
         "ENTRY_BONUS": "Game entry bonus",
         "ADMIN_ADJUST": "Admin adjustment"
       },
@@ -118,6 +125,8 @@
         "invalid_amount": "Enter a non-zero whole number",
         "insufficient_balance": "Can't deduct more than the current balance",
         "user_not_found": "User not found",
+        "already_owned": "The player already owns this artifact",
+        "invalid_artifact": "Unknown artifact",
         "generic": "The operation failed"
       }
     },
@@ -1087,6 +1096,22 @@
     "retry": "Try again",
     "connecting": "Connecting…",
     "chooseSkin": "Pick your look",
+    "artifacts": {
+      "title": "Artifacts",
+      "hint": "Worn on top of any skin, one at a time. Bought with rubies.",
+      "none": "No artifact",
+      "takeOff": "Take off",
+      "worn": "Worn",
+      "items": {
+        "1": { "name": "Winged Sandals", "desc": "+8% speed" },
+        "2": { "name": "Priest's Hat", "desc": "Mass doesn't fade over time" },
+        "3": { "name": "Royal Crown", "desc": "+10% mass from food" },
+        "4": { "name": "Magnet", "desc": "Gently pulls nearby food" },
+        "5": { "name": "Hourglass", "desc": "Pickups last 30% longer" },
+        "6": { "name": "Cross", "desc": "Spawn and respawn shield lasts 3 s longer" },
+        "7": { "name": "Censer", "desc": "Protects from Scissors and freeze" }
+      }
+    },
     "premium": "Premium",
     "special": "Special",
     "controls": {
@@ -1130,6 +1155,7 @@
       "resuming": "Getting you back into the game…",
       "taken": "The game is open in another window",
       "skinLocked": "This skin hasn't been bought yet",
+      "artifactLocked": "This artifact hasn't been bought yet",
       "entryBonus": "Entry bonus: +{count} 💎"
     },
     "bonuses": {

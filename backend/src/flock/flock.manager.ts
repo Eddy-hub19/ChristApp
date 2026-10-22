@@ -685,7 +685,13 @@ class Arena {
       const o = w.players.get(pid);
       if (!o) continue;
       s.knownPlayers.add(pid);
-      players.push({ pid, skin: o.skin, bot: o.bot, name: o.name });
+      players.push({
+        pid,
+        skin: o.skin,
+        artifact: o.artifact,
+        bot: o.bot,
+        name: o.name,
+      });
     }
 
     const inView = (x: number, y: number) =>
@@ -744,6 +750,8 @@ class Arena {
 }
 
 export interface JoinOptions {
+  /** Надітий артефакт (перевірений сервером за БД; 0/немає - нічого). */
+  artifact?: number;
   /** Токен відновлення з попереднього `welcome`. */
   resume?: string;
   /** Лише відновлення: якщо сесії вже нема - не створювати нову овечку, а повернути `expired` (клієнт покаже лобі). */
@@ -817,6 +825,7 @@ export class FlockManager {
       // повторний вхід з того ж сокета = переродження
       const p = sameConn.arena.world.players.get(sameConn.pid);
       if (p && !p.alive) {
+        sameConn.arena.world.setArtifact(p, opts.artifact ?? 0);
         sameConn.arena.world.respawn(p);
         sameConn.deadSent = false;
         sameConn.rewardedThisLife = false;
@@ -842,6 +851,7 @@ export class FlockManager {
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
       skin,
+      artifact: opts.artifact,
     });
     const session: Session = {
       connKey,

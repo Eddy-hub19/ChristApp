@@ -7,13 +7,16 @@ export interface FlockMe {
   rubies: number;
   ownedSkins: number[];
   selectedSkin: number;
+  ownedArtifacts?: number[];
+  /** Надетый артефакт (0 - ничего). */
+  selectedArtifact?: number;
   /** Последняя просмотренная версия плашки «Що нового». */
   whatsNewSeen?: number;
   /** Приходить лише в тій відповіді, що нарахувала разовий бонус за перший вхід. */
   entryBonus?: number;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */
@@ -44,6 +47,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const fetchFlockMe = () => call<FlockMe>("/me");
 export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: number }>(`/skins/${skinId}/buy`, { method: "POST" });
 export const selectFlockSkin = (skin: number) => call<{ ok: true }>("/skin", { method: "PUT", body: JSON.stringify({ skin }) });
+export const buyFlockArtifact = (artifactId: number) => call<{ rubies: number; artifactId: number }>(`/artifacts/${artifactId}/buy`, { method: "POST" });
+export const selectFlockArtifact = (artifact: number) => call<{ ok: true }>("/artifact", { method: "PUT", body: JSON.stringify({ artifact }) });
 export const importFlockStats = (stats: FlockStats) =>
   call<{ imported: boolean; stats: FlockStats }>("/stats/import", { method: "POST", body: JSON.stringify(stats) });
 export const markWhatsNewSeen = (version: number) =>
