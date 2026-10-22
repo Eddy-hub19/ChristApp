@@ -190,14 +190,6 @@
       display: flex;
       align-items: center;
       gap: 16px;
-      /* Кнопка дзвінка не під лампочкою теми (body 10 + картка 16 + шапка 16 = 42px до краю). */
-      padding-right: max(0px, calc(var(--theme-toggle-inset) - 42px));
-
-      /* Картка тепер без бічних відступів: до краю екрана 8 + 16 = 24px. */
-      @media (max-width: 767px) {
-        padding-right: max(0px, calc(var(--theme-toggle-inset) - 24px));
-      }
-
       /* Вузькі екрани (iPhone SE): менше повітря між елементами — більше місця під назву й статус. */
       @media (max-width: 400px) {
         gap: 10px;
