@@ -1,22 +1,96 @@
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 12px 16px;
+  /* при раскрытии не прячемся под нижним навбаром (высота 80px + отступ 12px + safe-area) */
+  scroll-margin-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
   background: var(--surface-elevated);
   color: var(--foreground);
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .title {
-  margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: 16px;
   font-weight: 700;
 }
 
+.current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.currentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Сворачивание: grid-template-rows 0fr -> 1fr (высота без измерений в JS). */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.collapseOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.collapseInner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 12px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse,
+  .chevron {
+    transition: none;
+  }
+}
+
 .hint {
-  margin: -6px 0 0;
+  margin: 0;
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -79,6 +153,14 @@
 .sampleOwn {
   align-self: flex-end;
   border-radius: 18px 18px 4px 18px;
+}
+
+/* Миниатюра в заголовке: компактный пузырь без персонажа. */
+.sampleMini {
+  max-width: none;
+  padding: 3px 10px 2px;
+  border-radius: 12px 12px 3px 12px;
+  font-size: 12px;
 }
 
 .sampleText {
