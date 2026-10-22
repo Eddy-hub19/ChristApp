@@ -8,7 +8,7 @@ import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang 
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
 
-const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
+export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   ruby: (p) => <RubyIcon {...p} />,
   star: (p) => (
     <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true">

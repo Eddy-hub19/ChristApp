@@ -8,6 +8,7 @@ import { Prisma, RubyReason } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   FLOCK_CONFIG,
+  clientGameConfig,
   FREE_SKINS,
   NUM_SKINS,
   NUM_ARTIFACTS,
@@ -180,6 +181,7 @@ export class FlockRubiesService {
         totalSkins: NUM_SKINS,
         top1Reward: R.top1Reward,
         top1MassThreshold: R.top1MassThreshold,
+        game: clientGameConfig(),
       },
     };
   }

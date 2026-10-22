@@ -3,6 +3,9 @@ import { apiFetch } from "@/lib/apiFetch";
 import { getAuthToken } from "@/lib/auth";
 import type { FlockStats } from "./flockStats";
 
+/** Числа из flock.config.ts для экрана «Про гру» (приходят в /flock/me, config.game): путь вида `bonusDurations.speed`. */
+export type FlockGameConfig = { [key: string]: number | FlockGameConfig };
+
 export interface FlockMe {
   rubies: number;
   ownedSkins: number[];
@@ -16,7 +19,7 @@ export interface FlockMe {
   entryBonus?: number;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */

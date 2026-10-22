@@ -836,3 +836,98 @@
   transform: none;
   margin-top: 2px;
 }
+
+/* --- кнопка «i» рядом с названием --- */
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.infoBtn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font: italic 700 15px/1 Georgia, "Times New Roman", serif;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+/* --- аккордеон «Артефакти» --- */
+.accordion {
+  margin-top: 6px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  overflow: hidden;
+}
+.accordionHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.accordionTitle {
+  flex: 1;
+  margin: 0;
+}
+.accordionCurrent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.accordionCurrentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.chevronOpen {
+  transform: rotate(180deg);
+}
+/* Сворачивание: grid-template-rows 0fr -> 1fr (высота без измерений в JS). */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.2s ease,
+    opacity 0.2s ease;
+}
+.collapseOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.collapseInner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 10px;
+}
+.collapseOpen .collapseInner {
+  padding: 8px 10px 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .collapse,
+  .chevron {
+    transition: none;
+  }
+}
