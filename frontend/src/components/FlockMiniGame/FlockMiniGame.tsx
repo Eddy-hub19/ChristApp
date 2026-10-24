@@ -5,7 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "@/lib/rubies";
+import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -70,7 +70,7 @@ function currentTheme(): Theme {
 function loadSkin() {
   try {
     const v = Number(localStorage.getItem(SKIN_KEY));
-    return Number.isInteger(v) && v >= 0 && v < TOTAL_SKINS ? v : 0;
+    return isSelectableSkin(v) ? v : 0;
   } catch {
     return 0;
   }
@@ -450,9 +450,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   // скрытые скины (сервер: config.hiddenSkins) не показываем, пока профиль не загружен - тоже; купленные остаются
   const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : HIDDEN_SKIN_IDS;
   const ownedSkins = me?.ownedSkins ?? null;
-  const freeIds = Array.from({ length: FREE_SKINS }, (_, i) => i);
   const paidIds = visibleSkinIds(PAID_SKIN_IDS, hiddenSkins, ownedSkins);
-  const premiumIds = visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins);
+  const premiumRows = PREMIUM_SKIN_ROWS.map((row) => visibleSkinIds(row, hiddenSkins, ownedSkins)).filter((row) => row.length > 0);
   const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
@@ -1062,20 +1061,24 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <p className={styles.sub}>{t("tagline")}</p>
 
             <h3 className={styles.h3}>{t("chooseSkin")}</h3>
-            <div className={styles.skins} role="radiogroup" aria-label={t("chooseSkin")}>
-              {freeIds.map((i) => skinButton(i))}
-            </div>
+            {FREE_SKIN_ROWS.map((row, n) => (
+              <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("chooseSkin")}>
+                {row.map((i) => skinButton(i))}
+              </div>
+            ))}
             {paidIds.length > 0 ? (
               <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
                 {paidIds.map((i) => skinButton(i))}
               </div>
             ) : null}
-            {premiumIds.length > 0 ? (
+            {premiumRows.length > 0 ? (
               <>
                 <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
-                <div className={styles.skins} style={rowCols(premiumIds)} role="radiogroup" aria-label={t("premium")}>
-                  {premiumIds.map((i) => skinButton(i))}
-                </div>
+                {premiumRows.map((row, n) => (
+                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("premium")}>
+                    {row.map((i) => skinButton(i))}
+                  </div>
+                ))}
               </>
             ) : null}
             {specialIds.length > 0 ? (

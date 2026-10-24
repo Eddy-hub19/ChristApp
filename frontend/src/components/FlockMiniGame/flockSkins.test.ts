@@ -3,16 +3,16 @@ import { ANIM_MIN_PX, animFrame, SKINS, skinOf } from "./flockSkins";
 import { animLayers, LAYER_BEHIND, LAYER_FRONT } from "./flockCreature";
 
 describe("анімація преміум-скінів", () => {
-  const premium = SKINS.slice(18, 24);
+  const premium = [...SKINS.slice(18, 24), ...SKINS.slice(41, 47)];
 
-  it("шість преміум-скінів: розмаїття (вівці, баран, вовк) і 2-6 кадрів на скін", () => {
-    expect(premium).toHaveLength(6);
+  it("дванадцять преміум-скінів: розмаїття (вівці, баран, вовк) і 2-8 кадрів на скін (веселкова - 8)", () => {
+    expect(premium).toHaveLength(12);
     const kinds = new Set(premium.map((s) => s.kind));
     expect(kinds.has("sheep") && kinds.has("ram") && kinds.has("wolf") && kinds.has("lamb")).toBe(true);
     for (const s of premium) {
       expect(s.anim).toBeDefined();
       expect(s.anim!.frames).toBeGreaterThanOrEqual(2);
-      expect(s.anim!.frames).toBeLessThanOrEqual(6);
+      expect(s.anim!.frames).toBeLessThanOrEqual(8);
       expect(s.anim!.fps).toBeGreaterThan(0);
       // кожен анімований скін має хоча б один шар
       expect(animLayers(s) & (LAYER_BEHIND | LAYER_FRONT)).not.toBe(0);
@@ -20,7 +20,7 @@ describe("анімація преміум-скінів", () => {
   });
 
   it("безкоштовні, звичайні платні й особливі скіни не анімовані", () => {
-    for (const s of [...SKINS.slice(0, 18), ...SKINS.slice(24)]) {
+    for (const s of [...SKINS.slice(0, 18), ...SKINS.slice(24, 41)]) {
       expect(s.anim).toBeUndefined();
       expect(animLayers(s)).toBe(0);
     }

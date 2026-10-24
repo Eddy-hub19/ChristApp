@@ -159,7 +159,7 @@ export function drawCreatureCached(
     const c = cv.getContext("2d");
     if (c) {
       c.translate(size / 2, size / 2);
-      drawCreature(c, skin, 0, 0, rb, (ab * TAU) / ANGLES, 0, 0, 0, false);
+      drawCreature(c, skin, 0, 0, rb, (ab * TAU) / ANGLES, 0, 0, 0, false, true);
     }
     spr = { cv, rb };
     creatures.set(key, spr);
@@ -173,7 +173,8 @@ export function drawCreatureCached(
   const sq = 1 + Math.sin(phase * 2) * 0.035 * wobble;
   ctx.scale(sq, 2 - sq);
   // Дрібним (< 8 px) шари анімації не потрібні - їх не видно, а заливка коштує.
-  const mask = rPx >= LAYER_MIN_PX ? animLayers(skin) : 0;
+  // у «Веселкової» вовна - це шар, тож він потрібен на будь-якому розмірі (тіло в кеші без вовни)
+  const mask = rPx >= LAYER_MIN_PX || skin.deco === "rainbow" ? animLayers(skin) : 0;
   if (mask & LAYER_BEHIND) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_BEHIND);
   ctx.drawImage(spr.cv, -w / 2, -w / 2, w, w);
   if (mask & LAYER_FRONT) drawLayer(ctx, skinId, b, spr.rb, f, ang, frame, LAYER_FRONT);

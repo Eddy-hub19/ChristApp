@@ -1,4 +1,4 @@
-import { FLOCK_CONFIG as C, FREE_SKINS, NUM_SKINS } from './flock.config';
+import { FLOCK_CONFIG as C, FREE_SKIN_IDS } from './flock.config';
 import { FlockManager } from './flock.manager';
 import {
   decodeBoard,
@@ -44,13 +44,12 @@ describe('FlockManager', () => {
     expect(ctx.mgr._arena(1)).toBeUndefined();
   });
 
-  it('боти беруть лише безкоштовні скіни, навіть коли платних уже 36', () => {
-    expect(NUM_SKINS).toBe(36);
+  it('боти беруть лише безкоштовні скіни зі списку FREE_SKIN_IDS', () => {
     ctx.mgr.join('c1', 'u1', 'Аня', 1);
     const seen = new Set<number>();
     for (const p of ctx.mgr._arena(1)!.world.players.values()) {
       if (p.bot) {
-        expect(p.skin).toBeLessThan(FREE_SKINS);
+        expect(FREE_SKIN_IDS).toContain(p.skin);
         seen.add(p.skin);
       }
     }

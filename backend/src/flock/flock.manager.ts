@@ -5,7 +5,7 @@ import {
   BOSS_SKIN,
   FLOCK_MAPS,
   type ThornStyle,
-  FREE_SKINS,
+  FREE_SKIN_IDS,
   isPhraseId,
   phraseDurationMs,
 } from './flock.config';
@@ -238,7 +238,7 @@ class Arena {
     );
     const p = this.world.addPlayer({
       name,
-      skin: Math.floor(this.rng() * FREE_SKINS),
+      skin: FREE_SKIN_IDS[Math.floor(this.rng() * FREE_SKIN_IDS.length)],
       bot: true,
     });
     initBot(p, this.rng);

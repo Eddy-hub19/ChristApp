@@ -9,15 +9,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import {
   FLOCK_CONFIG,
   clientGameConfig,
-  FREE_SKINS,
+  FREE_SKIN_IDS,
   NUM_SKINS,
   NUM_ARTIFACTS,
   HIDDEN_SKINS,
   isArtifactId,
-  PREMIUM_FROM,
+  PREMIUM_SKIN_IDS,
   SPECIAL_FROM,
   isHiddenSkin,
   isPaidSkin,
+  isSelectableSkin,
   skinPriceOf,
 } from './flock.config';
 import { dayStartInZone } from './flock.time';
@@ -104,7 +105,7 @@ export class FlockRubiesService {
 
   /** Чи може користувач грати цим скіном (безкоштовний або куплений). */
   async canUseSkin(userId: string, skin: number): Promise<boolean> {
-    if (!Number.isInteger(skin) || skin < 0 || skin >= NUM_SKINS) return false;
+    if (!isSelectableSkin(skin)) return false;
     if (!isPaidSkin(skin)) return true;
     const row = await this.prisma.flockSkinPurchase.findUnique({
       where: { userId_skinId: { userId, skinId: skin } },
@@ -174,8 +175,8 @@ export class FlockRubiesService {
         specialSkinPrice: R.specialSkinPrice,
         artifactPrice: FLOCK_CONFIG.artifacts.price,
         totalArtifacts: NUM_ARTIFACTS,
-        freeSkins: FREE_SKINS,
-        premiumFrom: PREMIUM_FROM,
+        freeSkinIds: [...FREE_SKIN_IDS],
+        premiumSkinIds: [...PREMIUM_SKIN_IDS],
         specialFrom: SPECIAL_FROM,
         hiddenSkins: [...HIDDEN_SKINS],
         totalSkins: NUM_SKINS,
@@ -282,7 +283,7 @@ export class FlockRubiesService {
 
   /** Покупка: перевірка балансу, списання, запис покупки й журналу - атомарно. */
   async buySkin(userId: string, skinId: number) {
-    if (!Number.isInteger(skinId) || skinId < 0 || skinId >= NUM_SKINS)
+    if (!isSelectableSkin(skinId))
       throw fail(BadRequestException, 'invalid_skin');
     if (!isPaidSkin(skinId)) throw fail(BadRequestException, 'skin_free');
     // скриті скіни купити не можна (вже куплені лишаються доступними, див. canUseSkin)

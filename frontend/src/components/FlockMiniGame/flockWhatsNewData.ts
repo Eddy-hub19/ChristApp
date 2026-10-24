@@ -262,6 +262,36 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 11,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "skins",
+        text: {
+          ua: "4 нові безкоштовні вовки: бурий, білий, рудий і блакитно-сірий. Безкоштовні скіни тепер у трьох рядах: овечки, вовки й решта",
+          ru: "4 новых бесплатных волка: бурый, белый, рыжий и сине-серый. Бесплатные скины теперь в трёх рядах: овечки, волки и остальные",
+          en: "4 new free wolves: brown, white, red and blue-gray. Free skins now sit in three rows: sheep, wolves and the rest",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "Новий ряд преміум-скінів з анімацією по 60 рубінів: вівця-фенікс, місячна, квітуча, новорічна, вівця-метелик і грозовий баран",
+          ru: "Новый ряд премиум-скинов с анимацией по 60 рубинов: овца-феникс, лунная, цветущая, новогодняя, овечка-бабочка и грозовый баран",
+          en: "A new row of animated premium skins for 60 rubies each: phoenix, moon, blooming, New Year, butterfly sheep and thunder ram",
+        },
+      },
+      {
+        icon: "star",
+        text: {
+          ua: "Веселкова вівця: уся вовна тепер переливається м'якими кольорами веселки",
+          ru: "Радужная овечка: вся шерсть теперь переливается мягкими цветами радуги",
+          en: "Rainbow Sheep: all of its wool now shimmers in soft rainbow colors",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

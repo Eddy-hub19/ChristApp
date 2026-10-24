@@ -7,7 +7,9 @@ import {
   FREE_SKINS,
   NUM_SKINS,
   PREMIUM_FROM,
+  PREMIUM_SKIN_IDS,
   SPECIAL_FROM,
+  isPaidSkin,
 } from './flock.config';
 import { FlockRubiesService } from './flock.rubies.service';
 import { dayStartInZone } from './flock.time';
@@ -229,7 +231,7 @@ d('FlockRubiesService (БД)', () => {
     expect(me.config).toMatchObject({
       skinPrice: 20,
       premiumSkinPrice: 60,
-      premiumFrom: PREMIUM_FROM,
+      premiumSkinIds: [...PREMIUM_SKIN_IDS],
       totalSkins: NUM_SKINS,
     });
   });
@@ -260,6 +262,7 @@ d('FlockRubiesService (БД)', () => {
     openSkins();
     const u = await makeUser();
     for (let id = PREMIUM_FROM; id < NUM_SKINS; id++) {
+      if (!isPaidSkin(id)) continue; // безкоштовні вовки й зарезервований «Вожак» не рахуємо
       expect(await svc.canUseSkin(u.id, id)).toBe(false);
     }
     expect(await svc.canUseSkin(u.id, NUM_SKINS)).toBe(false);
@@ -435,7 +438,7 @@ d('FlockRubiesService (БД)', () => {
     expect((await svc.getMe(u.id)).config).toMatchObject({
       specialSkinPrice: 40,
       specialFrom: SPECIAL_FROM,
-      totalSkins: 32,
+      totalSkins: NUM_SKINS,
     });
   });
 
@@ -457,6 +460,7 @@ d('FlockRubiesService (БД)', () => {
   it('особливий скін: перевірка при вході - без покупки недоступний, куплений - доступний, поза діапазоном - ні', async () => {
     const u = await makeUser();
     for (let id = SPECIAL_FROM; id < NUM_SKINS; id++) {
+      if (!isPaidSkin(id)) continue; // безкоштовні вовки й зарезервований «Вожак» не рахуємо
       expect(await svc.canUseSkin(u.id, id)).toBe(false);
     }
     expect(await svc.canUseSkin(u.id, NUM_SKINS)).toBe(false);
