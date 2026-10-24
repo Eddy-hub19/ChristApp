@@ -36,7 +36,7 @@ export interface Skin {
   accent: string;
 }
 
-/** Порядок = номер скіна на сервері (NUM_SKINS = 41: 0-11 безкоштовні (+ 37-40 нові вовки), 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні, у тому ж ряду лобі, що й 12-17)). Назви - у перекладах flock.skins.<id>. */
+/** Порядок = номер скіна на сервері (NUM_SKINS = 47: 41-46 преміум-ряд 2, 0-11 безкоштовні (+ 37-40 нові вовки), 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні, у тому ж ряду лобі, що й 12-17)). Назви - у перекладах flock.skins.<id>. */
 export const SKINS: Skin[] = [
   { kind: "sheep", fur: "#f6f1e7", light: "#ffffff", face: "#3b3532", accent: "#f2a7b3" },
   { kind: "sheep", fur: "#f7c6d3", light: "#ffe4ec", face: "#4a3440", accent: "#f08aa4" },
@@ -85,13 +85,7 @@ export const SKINS: Skin[] = [
   { kind: "wolf", fur: "#eceff3", light: "#ffffff", face: "#d4dae2", accent: "#8fc9f2" },
   { kind: "wolf", fur: "#c4642b", light: "#e68b50", face: "#f1d9bd", accent: "#f3d65c" },
   { kind: "wolf", fur: "#6f8aa8", light: "#9fb6cf", face: "#cfdbe8", accent: "#f3d65c" },
-];
-
-/**
- * Преміум-ряд 2 (6 скінів з анімацією, 2-6 кадрів): намальовано, але НЕ підключено до SKINS/лобі/сервера,
- * доки не схвалено контактний лист (docs/img/flock-premium-row2.png).
- */
-export const NEW_PREMIUM_SKINS: Skin[] = [
+  // --- преміум-ряд 2 (41..46), по 60 рубінів, з анімацією ---
   { kind: "sheep", deco: "phoenix", anim: { frames: 4, fps: 6 }, fur: "#ffe7c4", light: "#fff6e3", face: "#4a2616", accent: "#ff8a3d" },
   { kind: "sheep", deco: "moon", anim: { frames: 4, fps: 3 }, fur: "#dfe6fb", light: "#ffffff", face: "#2b2f55", accent: "#ffe27a" },
   { kind: "sheep", deco: "bloom", anim: { frames: 6, fps: 4 }, fur: "#fff3f7", light: "#ffffff", face: "#4a3140", accent: "#f48fb1" },

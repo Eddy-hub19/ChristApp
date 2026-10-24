@@ -3,10 +3,10 @@ import { ANIM_MIN_PX, animFrame, SKINS, skinOf } from "./flockSkins";
 import { animLayers, LAYER_BEHIND, LAYER_FRONT } from "./flockCreature";
 
 describe("анімація преміум-скінів", () => {
-  const premium = SKINS.slice(18, 24);
+  const premium = [...SKINS.slice(18, 24), ...SKINS.slice(41, 47)];
 
-  it("шість преміум-скінів: розмаїття (вівці, баран, вовк) і 2-8 кадрів на скін (веселкова - 8)", () => {
-    expect(premium).toHaveLength(6);
+  it("дванадцять преміум-скінів: розмаїття (вівці, баран, вовк) і 2-8 кадрів на скін (веселкова - 8)", () => {
+    expect(premium).toHaveLength(12);
     const kinds = new Set(premium.map((s) => s.kind));
     expect(kinds.has("sheep") && kinds.has("ram") && kinds.has("wolf") && kinds.has("lamb")).toBe(true);
     for (const s of premium) {
@@ -20,7 +20,7 @@ describe("анімація преміум-скінів", () => {
   });
 
   it("безкоштовні, звичайні платні й особливі скіни не анімовані", () => {
-    for (const s of [...SKINS.slice(0, 18), ...SKINS.slice(24)]) {
+    for (const s of [...SKINS.slice(0, 18), ...SKINS.slice(24, 41)]) {
       expect(s.anim).toBeUndefined();
       expect(animLayers(s)).toBe(0);
     }

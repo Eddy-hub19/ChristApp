@@ -57,7 +57,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("преміум 18..23: окремий діапазон, у кожного є назва в трьох мовах і анімація", () => {
     expect(PREMIUM_FROM).toBe(18);
-    expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23]);
+    expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46]);
     expect(isPremiumSkin(17)).toBe(false);
     expect(isPremiumSkin(18)).toBe(true);
     expect(isPremiumSkin(SPECIAL_FROM)).toBe(false);
@@ -74,7 +74,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("особливі 24..33: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
     expect(SPECIAL_FROM).toBe(24);
-    expect(TOTAL_SKINS).toBe(41);
+    expect(TOTAL_SKINS).toBe(47);
     expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
     expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
     expect(isSpecialSkin(23)).toBe(false);

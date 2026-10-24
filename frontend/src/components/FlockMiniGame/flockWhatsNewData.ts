@@ -275,6 +275,14 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         },
       },
       {
+        icon: "skins",
+        text: {
+          ua: "Новий ряд преміум-скінів з анімацією по 60 рубінів: вівця-фенікс, місячна, квітуча, новорічна, вівця-метелик і грозовий баран",
+          ru: "Новый ряд премиум-скинов с анимацией по 60 рубинов: овца-феникс, лунная, цветущая, новогодняя, овечка-бабочка и грозовый баран",
+          en: "A new row of animated premium skins for 60 rubies each: phoenix, moon, blooming, New Year, butterfly sheep and thunder ram",
+        },
+      },
+      {
         icon: "star",
         text: {
           ua: "Веселкова вівця: уся вовна тепер переливається м'якими кольорами веселки",

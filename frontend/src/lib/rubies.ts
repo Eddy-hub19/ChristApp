@@ -10,7 +10,7 @@ export const EXTRA_PAID_FROM = 34;
 /** Скін «Вожака» (36): зарезервований, не продається й не обирається. */
 export const BOSS_SKIN_ID = 36;
 /** Усього номерів (у межах - і зарезервований «Вожак»). */
-export const TOTAL_SKINS = 41;
+export const TOTAL_SKINS = 47;
 /** Безкоштовні скіни рядами лобі: 6 овечок, вовки (старі 8, 9 і нові 37-40), решта (ягня, баран, собака, вівця). Явний список. */
 export const FREE_SKIN_ROWS: readonly (readonly number[])[] = [
   [0, 1, 2, 3, 4, 5],
@@ -22,7 +22,10 @@ export const FREE_SKIN_IDS: readonly number[] = FREE_SKIN_ROWS.flat();
 export const isSelectableSkin = (id: number) => Number.isInteger(id) && id >= 0 && id < TOTAL_SKINS && id !== BOSS_SKIN_ID;
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !FREE_SKIN_IDS.includes(id);
 /** Преміум-скіни рядами лобі (ряд = шість скінів з анімацією). */
-export const PREMIUM_SKIN_ROWS: readonly (readonly number[])[] = [[18, 19, 20, 21, 22, 23]];
+export const PREMIUM_SKIN_ROWS: readonly (readonly number[])[] = [
+  [18, 19, 20, 21, 22, 23],
+  [41, 42, 43, 44, 45, 46],
+];
 export const PREMIUM_SKIN_IDS: readonly number[] = PREMIUM_SKIN_ROWS.flat();
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < EXTRA_PAID_FROM;

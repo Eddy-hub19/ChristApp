@@ -537,10 +537,10 @@ export const BONUS_KINDS = Object.keys(
 /**
  * Номери скінів (u8 по мережі). Нумерація існуючих НЕ міняється, нові додаються в кінець:
  * 0-11 безкоштовні (старі), 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні),
- * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки. Групи задано явними списками.
+ * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки, 41-46 другий ряд преміум (анімовані). Групи задано явними списками.
  */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 41;
+export const NUM_SKINS = 47;
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
 /** Перший номер платних скінів у старій нумерації (лише для зворотної сумісності; безкоштовні - FREE_SKIN_IDS). */
@@ -558,7 +558,9 @@ export const isSelectableSkin = (id: number) =>
   Number.isInteger(id) && id >= 0 && id < NUM_SKINS && id !== BOSS_SKIN;
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
 /** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
-export const PREMIUM_SKIN_IDS: readonly number[] = [18, 19, 20, 21, 22, 23];
+export const PREMIUM_SKIN_IDS: readonly number[] = [
+  18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46,
+];
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);

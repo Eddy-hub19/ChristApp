@@ -21,7 +21,12 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(41);
+    expect(NUM_SKINS).toBe(47);
+    for (let id = 41; id < NUM_SKINS; id++) {
+      expect(isPremiumSkin(id)).toBe(true);
+      expect(isPaidSkin(id)).toBe(true);
+      expect(skinPriceOf(id)).toBe(C.rubies.premiumSkinPrice);
+    }
     expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 37, 38, 39, 40,
     ]);
