@@ -344,6 +344,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 14,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "lava",
+        text: {
+          ua: "Нова карта «Вулкан»: темна земля з жаром, обгорілі кущі й річка лави з мостами. Хто потрапив у лаву, згорає!",
+          ru: "Новая карта «Вулкан»: тёмная земля с жаром, обгорелые кусты и река лавы с мостами. Кто попал в лаву, сгорает!",
+          en: "New map “Volcano”: dark ground with embers, charred bushes and a lava river with bridges. Fall into the lava and you burn!",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "Сніжна карта справді вкрита снігом, а на осінній замість трави тепер золоте листя",
+          ru: "Снежная карта теперь по-настоящему покрыта снегом, а на осенней вместо травы золотая листва",
+          en: "The snow map is now really covered in snow, and the autumn map has golden leaves instead of grass",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

@@ -430,7 +430,8 @@ class Arena {
     }
     for (const d of w.deaths) {
       if (d.pid !== this.bossId) continue;
-      this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
+      // Вожак згорів у лаві - переможця немає, тож без повідомлення «переміг»
+      if (d.killerPid !== 0) this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
       for (const s of this.sessions.values()) {
         if (s.pid === d.killerPid && s.userId) {
           this.hooks.onBossKill?.(s.userId, s.connKey);
@@ -591,6 +592,8 @@ class Arena {
       v: e.victims,
       g: e.gain,
     }));
+    // лава: клітини, що згоріли (одне мале повідомлення всім; клієнт малює «згоріла» лише у видимому)
+    const lavaMsg = w.lavaEvents.length ? { e: w.lavaEvents } : null;
     const revived = new Set(w.reviveEvents);
     const bossMsgs = this.bossMsgs;
     for (const s of this.sessions.values()) {
@@ -608,6 +611,7 @@ class Arena {
         this.hooks.onMass?.(s.userId, mm);
       }
       if (starMsg) send(key, 'z', starMsg);
+      if (lavaMsg) send(key, 'lv', lavaMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       // «Хрест»: «Друге життя» - лише самому гравцеві
       if (revived.has(s.pid)) send(key, 'rv', {});
@@ -621,6 +625,7 @@ class Arena {
           killed: p.killed,
           topMs: Math.round(p.topMs),
           killer: w.players.get(p.killerPid)?.name ?? null,
+          burned: p.burned || undefined,
         });
         this.hooks.onMass?.(s.userId, p.maxMass);
         this.hooks.onDeath?.(s.userId, {
@@ -896,6 +901,8 @@ export interface JoinResult {
   mapId?: number;
   /** Вигляд кущів карти (FLOCK_MAPS[].thornStyle). */
   thornStyle?: ThornStyle;
+  /** Річка лави карти «Вулкан» (y0, y1 і мости по x). */
+  lava?: { y0: number; y1: number; bridges: { x0: number; x1: number }[] };
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
@@ -1018,6 +1025,7 @@ export class FlockManager {
       thorns: s.arena.thornList,
       mapId: s.arena.mapId,
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
+      lava: s.arena.world.lava ?? undefined,
       stars: s.arena.world.starsSnapshot(),
       streak: this.streakInfo(s.arena) ?? undefined,
     };

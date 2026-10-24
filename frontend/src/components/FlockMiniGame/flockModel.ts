@@ -7,6 +7,7 @@ import {
   type DecodedState,
 } from "./flockProtocol";
 import { PHRASE_MAX_MS } from "./flockPhrases";
+import type { LavaBurn, LavaGeom } from "./flockLava";
 
 export interface FlockCfg {
   pid: number;
@@ -28,6 +29,8 @@ export interface FlockCfg {
   view: { base: number; perSqrtMass: number; max: number };
   /** Відсування камери при бонусі «Орлиний зір» (1 - немає; без поля - старий сервер). */
   eagleZoom?: number;
+  /** Річка лави карти «Вулкан» (серверна геометрія); без поля - лави нема. */
+  lava?: LavaGeom;
   /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
   thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Піврозмір спрайта їжі (світові одиниці). Без поля - 8.5 (старий сервер). */
@@ -35,7 +38,7 @@ export interface FlockCfg {
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
   /** Вид кустов карты (bush | autumn | fir); без поля (старый сервер) - по номеру карты. */
-  thornStyle?: "bush" | "autumn" | "fir";
+  thornStyle?: "bush" | "autumn" | "fir" | "charred";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
@@ -145,6 +148,8 @@ export class FlockModel {
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
   /** Активні хвилі «Ножиць» (анімація ~SCISSORS_WAVE_MS, потім прибираються при малюванні). */
   readonly scissorsWaves: RScissorsWave[] = [];
+  /** Клітини, що згоріли в лаві (анімація «згоріла»). */
+  readonly lavaBurns: LavaBurn[] = [];
   effects: ActiveEffect[] = [];
   /** pid -> активна швидка фраза: id і локальний час (годинник кадру) її кінця. Прибирається, коли гравець зник із зони. */
   readonly phrases = new Map<number, { id: number; end: number }>();
@@ -372,6 +377,17 @@ export class FlockModel {
     this.scissorsWaves.push({ x: e.x, y: e.y, r: e.r, t0: recvMs });
     const victims = Array.isArray(e.v) ? e.v : [];
     return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length, gain: typeof e.g === "number" ? e.g : 0 };
+  }
+
+  /** Клітини, що згоріли в лаві: [[x, y, r], ...] - короткий спалах на їхньому місці (не більше 24 одночасно). */
+  applyLava(msg: unknown, recvMs: number = this.localNow) {
+    const list = (msg as { e?: unknown } | null)?.e;
+    if (!Array.isArray(list)) return;
+    for (const e of list) {
+      if (!Array.isArray(e) || typeof e[0] !== "number" || typeof e[1] !== "number") continue;
+      if (this.lavaBurns.length >= 24) this.lavaBurns.shift();
+      this.lavaBurns.push({ x: e[0], y: e[1], r: Number(e[2]) || 20, t0: recvMs });
+    }
   }
 
   /** Серія днів на 1-му місці ({p: pid держателя, d: днів}); d <= 0 - серії нема. */

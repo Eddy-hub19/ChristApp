@@ -1,5 +1,5 @@
 import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
-import { inHazard, navPush, navRoute } from './flock.nav';
+import { inHazard, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
 import {
   radiusOf,
   speedOf,
@@ -470,7 +470,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         let chance = 1 - Math.max(0, gapEff) / reach;
         if (trapped) chance += 0.1;
         if (corner) chance += 0.15;
-        if (chance >= B.splitMinCatch) {
+        if (chance >= B.splitMinCatch && !navRayHits(world, me.x, me.y, Math.atan2(target.ey - me.y, target.ex - me.x), 320)) {
           split = true;
           brain.lastSplitAt = now;
         }
@@ -508,7 +508,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         let ty = 0;
         world.foodNear(me.x, me.y, B.foodRadius, (f) => {
           const d = Math.hypot(f.x - me.x, f.y - me.y);
-          if (d < best && !inHazard(world, f.x, f.y, 4)) {
+          if (d < best && !inHazard(world, f.x, f.y, 60)) {
             best = d;
             tx = f.x;
             ty = f.y;
@@ -516,7 +516,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         });
         for (const b of world.bonuses) {
           const d = Math.hypot(b.x - me.x, b.y - me.y);
-          if (d < B.bonusRadius && d * 0.35 < best && !inHazard(world, b.x, b.y, 4)) {
+          if (d < B.bonusRadius && d * 0.35 < best && !inHazard(world, b.x, b.y, 60)) {
             best = d * 0.35;
             tx = b.x;
             ty = b.y;
@@ -567,6 +567,9 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
     mx += ox;
     my += oy;
   }
+  navSlide(world, me.x, me.y, myR, mx, my, navTmp);
+  mx = navTmp.x;
+  my = navTmp.y;
   let desired = mx === 0 && my === 0 ? p.angle : Math.atan2(my, mx);
 
   // ---- застрягання: рухаємось, а на місці ----
@@ -578,8 +581,9 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
   } else if (now - brain.stuckAt >= B.stuckCheckMs) {
     if (Math.hypot(me.x - brain.stuckX, me.y - brain.stuckY) < B.stuckMinMove) {
       brain.unstuckUntil = now + B.unstuckMs;
+      navCenter(world, me.x, me.y, routeTmp);
       brain.unstuckAngle =
-        Math.atan2(W / 2 - me.y, W / 2 - me.x) + (rng() - 0.5) * 1.2;
+        Math.atan2(routeTmp.y - me.y, routeTmp.x - me.x) + (rng() - 0.5) * 1.2;
     }
     brain.stuckX = me.x;
     brain.stuckY = me.y;

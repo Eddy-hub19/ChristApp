@@ -1236,6 +1236,8 @@
     "dead": {
       "title": "You got eaten",
       "by": "Eaten by {name}",
+      "burnedTitle": "You burned",
+      "burned": "You fell into the lava. Use the bridges to cross the river.",
       "maxSize": "Max size",
       "time": "Time",
       "ate": "Eaten",

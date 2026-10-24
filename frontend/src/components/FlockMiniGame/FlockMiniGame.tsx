@@ -930,7 +930,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {status === "dead" && death ? (
         <div className={styles.cardWrap}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
-            <h2>{t("dead.title")}</h2>
+            <h2>{death.burned ? t("dead.burnedTitle") : t("dead.title")}</h2>
+            {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
             <dl className={styles.summary}>
               <div>
