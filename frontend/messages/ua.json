@@ -1247,7 +1247,8 @@
       "revived": "Друге життя!",
       "scissorsVictim": "Тебе підстригли!",
       "bossSpawn": "Вожак вийшов на полювання",
-      "bossDefeated": "{name} переміг Вожака!"
+      "bossDefeated": "{name} переміг Вожака!",
+      "bossAteLeader": "Вожак з'їв лідера {name}!"
     },
     "status": {
       "full": "Арена заповнена, спробуй трохи пізніше",

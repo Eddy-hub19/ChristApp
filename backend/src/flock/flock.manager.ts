@@ -142,6 +142,9 @@ class Arena {
   /** «Вожак» (не більше одного): pid, коли з'явиться наступного разу (світовий час, null - ще не призначено), початок відходу. */
   private bossId: number | null = null;
   private bossNextAt: number | null = null;
+  private bossCeilAt = 0;
+  /** Лідер (pid) на початок тіку: вмирає в цьому ж тіку - у момент загибелі місце №1 ще його. */
+  private leaderBeforeTick = 0;
   private bossRetiringAt: number | null = null;
   /** Події «Вожака» цього тіку для всіх гравців: { k: 1 } вийшов, { k: 2, n } переможений. */
   private bossMsgs: { k: number; n?: string }[] = [];
@@ -333,6 +336,30 @@ class Arena {
     return !(this.governor.loadCap === 0 && this.bots.size === 0);
   }
 
+  /** Маса найкращого ЖИВОГО гравця-людини (0, якщо таких немає). Вожак і боти не рахуються. */
+  private bestHumanMass() {
+    let best = 0;
+    for (const s of this.sessions.values()) {
+      const p = this.world.players.get(s.pid);
+      if (p && p.alive && !p.boss && p.total > best) best = p.total;
+    }
+    return best;
+  }
+
+  /** Маса появи й стеля Вожака за масою лідера (див. C.boss.leader*Multiplier); лідера нема або він малий - мінімум. */
+  private bossMasses(leader: number) {
+    const B = C.boss;
+    const spawn = Math.min(
+      B.maxMass,
+      Math.max(B.startMass, leader * B.leaderSpawnMultiplier),
+    );
+    const ceil = Math.min(
+      B.maxMass,
+      Math.max(spawn, leader * B.leaderCeilMultiplier),
+    );
+    return { spawn, ceil };
+  }
+
   private hasLiveHuman() {
     for (const s of this.sessions.values()) {
       const p = this.world.players.get(s.pid);
@@ -357,11 +384,15 @@ class Arena {
         this.bossAllowed() &&
         this.hasLiveHuman()
       ) {
+        const m = this.bossMasses(this.bestHumanMass());
+        this.bossCeilAt = w.now + B.ceilRefreshMs;
         const p = w.addPlayer({
           name: B.name,
           skin: BOSS_SKIN,
           bot: true,
           boss: true,
+          bossMass: m.spawn,
+          bossCeil: m.ceil,
         });
         initBoss(p, this.rng);
         this.bossId = p.id;
@@ -375,6 +406,10 @@ class Arena {
       return;
     }
     if (!p.alive) return; // загибель обробляє stepBossPost
+    if (w.now >= this.bossCeilAt) {
+      this.bossCeilAt = w.now + B.ceilRefreshMs;
+      p.bossCeil = this.bossMasses(this.bestHumanMass()).ceil;
+    }
     if (this.bossRetiringAt === null && !this.bossAllowed())
       this.bossRetiringAt = w.now;
     if (this.bossRetiringAt !== null) this.retireStep(p.id, p);
@@ -385,6 +420,14 @@ class Arena {
   private stepBossPost() {
     if (this.bossId === null) return;
     const w = this.world;
+    if (C.boss.leaderEatMessage.enabled) {
+      for (const d of w.deaths) {
+        if (d.killerPid === this.bossId && d.pid === this.leaderBeforeTick && d.pid !== 0) {
+          this.bossMsgs.push({ k: 3, n: w.players.get(d.pid)?.name ?? '' });
+          break;
+        }
+      }
+    }
     for (const d of w.deaths) {
       if (d.pid !== this.bossId) continue;
       this.bossMsgs.push({ k: 2, n: w.players.get(d.killerPid)?.name ?? '' });
@@ -486,6 +529,7 @@ class Arena {
       thinkBot(w, p, this.rng);
     }
     this.stepBossPre();
+    this.leaderBeforeTick = w.leaderPid;
     const tB = performance.now();
     w.tick(1 / this.rate.hz);
     this.stepBossPost();

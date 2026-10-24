@@ -1,3 +1,4 @@
+import type { NavHazard } from './flock.nav';
 import {
   BONUS_KINDS,
   FLOCK_CONFIG,
@@ -126,6 +127,10 @@ export interface Player {
   bot: boolean;
   /** «Вожак»: свої розпад і стеля маси, старт із більшою масою. */
   boss: boolean;
+  /** Лише Вожак: маса появи, поріг таяння й поточна стеля маси (залежать від лідера на мить появи). */
+  bossStart: number;
+  bossDecayFrom: number;
+  bossCeil: number;
   alive: boolean;
   cells: Cell[];
   angle: number;
@@ -272,6 +277,8 @@ export class FlockWorld {
   readonly deaths: DeathEvent[] = [];
   /** Хто зараз перший за масою (для "часу в топ-1"). */
   leaderPid = 0;
+  /** Заборонені для ШІ смуги (див. flock.nav.ts); лавова карта заповнює. */
+  hazards: NavHazard[] = [];
 
   private readonly cellGrid = new SpatialGrid<Cell>(220);
   private nextPid = 1;
@@ -321,6 +328,9 @@ export class FlockWorld {
     artifact?: number;
     bot?: boolean;
     boss?: boolean;
+    /** Маса появи Вожака (за лідером); без неї - boss.startMass. */
+    bossMass?: number;
+    bossCeil?: number;
   }): Player {
     const id = this.nextId(this.nextPid, (i) => this.players.has(i));
     this.nextPid = id + 1;
@@ -333,6 +343,9 @@ export class FlockWorld {
       artifact: !opts.bot && isArtifactId(opts.artifact) ? opts.artifact : 0,
       bot: !!opts.bot,
       boss: !!opts.boss,
+      bossStart: opts.bossMass ?? C.boss.startMass,
+      bossDecayFrom: (opts.bossMass ?? C.boss.startMass) * C.boss.decayFromFraction,
+      bossCeil: opts.bossCeil ?? C.boss.maxMass,
       alive: false,
       cells: [],
       angle: 0,
@@ -368,14 +381,14 @@ export class FlockWorld {
     for (const c of p.cells) this.cellsById.delete(c.id);
     p.cells = [];
     const spot = this.safeSpawn();
-    this.addCell(p, spot.x, spot.y, p.boss ? C.boss.startMass : C.startMass);
+    this.addCell(p, spot.x, spot.y, p.boss ? p.bossStart : C.startMass);
     p.alive = true;
     p.effects = {};
     p.frozenUntil = 0;
     p.boostUntil = this.now + C.spawnBoost.durationMs;
     p.spawnedAt = this.now;
     p.paused = false;
-    const start = p.boss ? C.boss.startMass : C.startMass;
+    const start = p.boss ? p.bossStart : C.startMass;
     p.maxMass = start;
     p.total = start;
     p.topMs = 0;
@@ -652,7 +665,7 @@ export class FlockWorld {
       let total = 0;
       // «Шапка священника»: у свої вікна маса не тане
       const noDecay = this.priestHatActive(p);
-      const from = p.boss ? C.boss.decayFromMass : C.decayFromMass;
+      const from = p.boss ? p.bossDecayFrom : C.decayFromMass;
       const rate = p.boss ? C.boss.decayPerSec : C.decayPerSec;
       for (const c of p.cells) {
         if (!p.paused && c.mass > from && !noDecay) {
@@ -662,10 +675,10 @@ export class FlockWorld {
         total += c.mass;
       }
       // «Вожак»: стеля маси - зайве зникає, щоб не захопив арену
-      if (p.boss && total > C.boss.maxMass) {
-        const k = C.boss.maxMass / total;
+      if (p.boss && total > p.bossCeil) {
+        const k = p.bossCeil / total;
         for (const c of p.cells) c.mass *= k;
-        total = C.boss.maxMass;
+        total = p.bossCeil;
       }
       p.total = total;
       if (total > p.maxMass) p.maxMass = total;

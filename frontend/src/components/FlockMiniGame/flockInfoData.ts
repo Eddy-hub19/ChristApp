@@ -146,11 +146,16 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "trophy",
         title: { ua: "Хто це", ru: "Кто это", en: "Who is it" },
         text: {
-          ua: "Сильний темний вовк із золотою короною. Починає з масою {start}, росте до {max}, полює на великих гравців, заганяє їх до краю карти, ховається в кущах і тікає від груп.",
-          ru: "Сильный тёмный волк с золотой короной. Начинает с массой {start}, растёт до {max}, охотится на крупных игроков, загоняет их к краю карты, прячется в кустах и убегает от групп.",
-          en: "A strong dark wolf with a golden crown. It starts at {start} mass, grows up to {max}, hunts big players, herds them to the edge of the map, hides in bushes and runs from groups.",
+          ua: "Сильний темний вовк із золотою короною. З'являється з масою лідера ×{mult} (не менше {start}), завжди більший за найкращого живого гравця, але не росте понад лідер ×{ceil} і понад {max}. Полює на великих гравців, заганяє їх до краю карти, ховається в кущах і тікає від груп. Якщо він з'їв лідера таблиці, усі на арені бачать повідомлення.",
+          ru: "Сильный тёмный волк с золотой короной. Появляется с массой лидера ×{mult} (не меньше {start}), всегда больше лучшего живого игрока, но не растёт выше лидер ×{ceil} и выше {max}. Охотится на крупных игроков, загоняет их к краю карты, прячется в кустах и убегает от групп. Если он съел лидера таблицы, все на арене видят сообщение.",
+          en: "A strong dark wolf with a golden crown. It appears at the leader's mass ×{mult} (at least {start}), always bigger than the best live player, but never grows past leader ×{ceil} or {max}. It hunts big players, herds them to the edge of the map, hides in bushes and runs from groups. If it eats the table leader, everyone on the arena sees a message.",
         },
-        params: { start: num("boss.startMass"), max: num("boss.maxMass") },
+        params: {
+          start: num("boss.startMass"),
+          max: num("boss.maxMass"),
+          mult: num("boss.leaderSpawnMultiplier"),
+          ceil: num("boss.leaderCeilMultiplier"),
+        },
       },
       {
         id: "spawn",

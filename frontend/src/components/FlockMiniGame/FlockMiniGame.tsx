@@ -163,7 +163,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [zorepad, setZorepad] = useState<number | null>(null);
   const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number; gain: number } | null>(null);
   const [reviveMsg, setReviveMsg] = useState<number | null>(null);
-  const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2; name: string } | null>(null);
+  const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2 | 3; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
@@ -778,8 +778,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </div>
           ) : null}
           {bossMsg ? (
-            <div key={bossMsg.id} className={styles.bossBanner} role="status">
-              {bossMsg.kind === 1 ? t("events.bossSpawn") : t("events.bossDefeated", { name: bossMsg.name })}
+            <div key={bossMsg.id} className={`${styles.bossBanner} ${bossMsg.kind === 3 ? styles.bossBannerEat : ""}`} role="status">
+              {bossMsg.kind === 1
+                ? t("events.bossSpawn")
+                : bossMsg.kind === 2
+                  ? t("events.bossDefeated", { name: bossMsg.name })
+                  : t("events.bossAteLeader", { name: bossMsg.name })}
             </div>
           ) : null}
           {reward ? (

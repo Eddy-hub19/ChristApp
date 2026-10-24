@@ -1247,7 +1247,8 @@
       "revived": "Second life!",
       "scissorsVictim": "You got a haircut!",
       "bossSpawn": "The Alpha has come out to hunt",
-      "bossDefeated": "{name} defeated the Alpha!"
+      "bossDefeated": "{name} defeated the Alpha!",
+      "bossAteLeader": "The Alpha ate the leader {name}!"
     },
     "status": {
       "full": "The arena is full, try again in a bit",

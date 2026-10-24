@@ -32,8 +32,11 @@ function bot(
 
 function think(w: FlockWorld, p: Player, rng: () => number) {
   // доводимо тік до моменту, коли бот "думає" (offset 0)
-  while (w.tickNo % C.botThinkEvery !== 0) w.tickNo++;
-  thinkBot(w, p, rng);
+  // поворот плавний (ліміт кута за думку): кілька думок поспіль доводять курс до бажаного
+  for (let i = 0; i < 4; i++) {
+    while (w.tickNo % C.botThinkEvery !== 0) w.tickNo++;
+    thinkBot(w, p, rng);
+  }
 }
 
 /** Бот бачить сусідів через сітку, а вона будується в tick(): робимо порожній тік. */
@@ -82,6 +85,7 @@ describe('ШІ ботів', () => {
     think(w, b, rng);
     expect(Math.sin(b.angle)).toBeLessThan(0.8); // не женеться вниз до новачка
     w.now += C.botGraceMs + 100;
+    (b.brain as any).stuckAt = 0; // скачок часу без руху - не «застрягання»
     prime(w);
     think(w, b, rng);
     expect(Math.sin(b.angle)).toBeGreaterThan(0.8);
@@ -121,14 +125,14 @@ describe('ШІ ботів', () => {
     expect(Math.sin(b.angle)).toBeLessThan(-0.8);
   });
 
-  it('агресивний іноді ділиться для атаки', () => {
+  it('агресивний ділиться для атаки лише при високому шансі', () => {
     const { w, rng } = world();
     const b = bot(w, rng, 1500, 1500, 400, 'aggressive');
     const prey = w.addPlayer({ name: 'prey', skin: 1 });
     prey.spawnedAt = -1e9; // давно на арені: пільговий час новачка минув
     prey.effects = {};
     prey.cells[0].x = 1500;
-    prey.cells[0].y = 1700;
+    prey.cells[0].y = 1640; // близько: шанс спіймати високий (дроблення лише тоді)
     prey.cells[0].mass = 60;
     prime(w);
     let split = false;
