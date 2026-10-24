@@ -31,6 +31,43 @@
   }
 }
 
+/*
+ * Корневой слой (data-fixed, components/ChatBackground AppBackground): fixed на всё окно за содержимым всего приложения.
+ * На широких экранах он занимает окно целиком (колонки экранов остаются ограниченными по ширине), узоры повторяются плиткой,
+ * сцены - cover с обрезкой по центру. Не рисуется в зале кинотеатра и под игрой «Отара».
+ */
+[data-chat-bg-layer][data-fixed] {
+  position: fixed;
+  z-index: -1;
+  border-radius: 0;
+  contain: strict;
+}
+body.cinemaHallOpen [data-chat-bg-layer][data-fixed],
+:root:has([data-no-app-bg]) [data-chat-bg-layer][data-fixed] {
+  display: none;
+}
+
+/*
+ * Пока включён фон (html[data-app-bg]), поверхности карточек, шапок и навбара полупрозрачные: фон мягко просвечивает,
+ * текст остаётся читаемым. Без backdrop-filter. В зале кинотеатра и в «Отаре» остаются исходные цвета.
+ */
+html[data-app-bg]:not(:has(body.cinemaHallOpen, [data-no-app-bg])) {
+  --surface: color-mix(in srgb, #2f2e31 80%, transparent);
+  --surface-elevated: color-mix(in srgb, #343336 84%, transparent);
+}
+html[data-app-bg][data-theme="light"]:not(:has(body.cinemaHallOpen, [data-no-app-bg])) {
+  --surface: color-mix(in srgb, #f6efe4 82%, transparent);
+  --surface-elevated: color-mix(in srgb, #fff8ee 86%, transparent);
+}
+
+/* ПК: колонка открытого чата стоит на более плотной подложке поверх фона на всё окно. */
+@media (min-width: 1024px) {
+  section[data-has-chat-bg] {
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    border-radius: 18px;
+  }
+}
+
 html[data-theme="dark"] [data-chat-bg-layer] > i[data-v="light"],
 html:not([data-theme="dark"]) [data-chat-bg-layer] > i[data-v="dark"] {
   opacity: 0;

@@ -11,16 +11,7 @@ $fonts: (
   "nunito": (var(--font-nunito), sans-serif),
   "rubik": (var(--font-rubik), sans-serif),
   "comfortaa": (var(--font-comfortaa), sans-serif),
-  "montserrat-alternates": (var(--font-montserrat-alternates), sans-serif),
-  "exo-2": (var(--font-exo-2), sans-serif),
-  "russo-one": (var(--font-russo-one), sans-serif),
-  "jura": (var(--font-jura), sans-serif),
-  "pacifico": (var(--font-pacifico), cursive),
-  "lobster": (var(--font-lobster), cursive),
-  "marck-script": (var(--font-marck-script), cursive),
   "caveat": (var(--font-caveat), cursive),
-  "press-start-2p": (var(--font-press-start-2p), monospace),
-  "pangolin": (var(--font-pangolin), cursive),
 );
 
 @each $id, $stack in $fonts {

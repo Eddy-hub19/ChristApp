@@ -28,16 +28,7 @@ export const CHAT_FONT_IDS = [
   'nunito',
   'rubik',
   'comfortaa',
-  'montserrat-alternates',
-  'exo-2',
-  'russo-one',
-  'jura',
-  'pacifico',
-  'lobster',
-  'marck-script',
   'caveat',
-  'press-start-2p',
-  'pangolin',
 ] as const;
 
 export const CHAT_TEXT_SIZES = ['sm', 'md', 'lg'] as const;

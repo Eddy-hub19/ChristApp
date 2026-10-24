@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
+import AppBackground from "@/components/ChatBackground/ChatBackground";
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain";
 import CinemaProvider from "@/components/Cinema/CinemaProvider";
 import AppWhatsNew from "@/components/AppWhatsNew/AppWhatsNew";
@@ -68,6 +69,7 @@ export default async function LangLayout({
         <AppWhatsNew />
         <PresenceSocket>
           <CinemaProvider>
+            <AppBackground />
             <ThemeToggle />
             <AdaptiveMain>{children}</AdaptiveMain>
             <TabBar />

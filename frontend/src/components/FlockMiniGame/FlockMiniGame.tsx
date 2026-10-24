@@ -806,7 +806,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     status === "taken";
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" data-app-overlay aria-label={t("title")}>
+    <div className={styles.overlay} role="dialog" aria-modal="true" data-app-overlay data-no-app-bg aria-label={t("title")}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}
