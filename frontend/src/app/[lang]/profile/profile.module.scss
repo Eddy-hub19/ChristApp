@@ -292,7 +292,7 @@
     border: 1px solid var(--line-soft);
     background: var(--surface-elevated);
     /* Achiko часто без кирилиці — форма редагування лишається на Inter. */
-    font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+    font-family: var(--ui-font);
   }
 
   .profileLabel {
@@ -453,7 +453,7 @@
 
       span {
         color: var(--book-title-color);
-        font-family: "Inter";
+        font-family: var(--ui-font);
         font-size: 19px;
         font-style: normal;
         font-weight: 800;
@@ -472,7 +472,7 @@
 
       p {
         color: var(--text-muted);
-        font-family: "Inter";
+        font-family: var(--ui-font);
         font-size: 10px;
         font-style: normal;
         font-weight: 700;

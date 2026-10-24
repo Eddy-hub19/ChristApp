@@ -37,7 +37,7 @@
 
         .chatName {
           color: var(--foreground);
-          font-family: "Inter", sans-serif;
+          font-family: var(--ui-font);
           font-size: 15px;
           font-style: normal;
           font-weight: 700;
@@ -49,7 +49,7 @@
           min-width: 65px;
           flex-shrink: 0;
           color: var(--text-muted);
-          font-family: "Inter", sans-serif;
+          font-family: var(--ui-font);
           font-size: 10px;
           font-style: normal;
           font-weight: 500;

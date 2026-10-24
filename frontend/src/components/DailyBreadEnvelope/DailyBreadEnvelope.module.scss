@@ -116,7 +116,7 @@
 }
 
 .reference {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -136,7 +136,7 @@
 
 .loading,
 .error {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   color: var(--text-muted);
   text-align: center;

@@ -81,7 +81,7 @@
 
   .label {
     color: var(--login-label);
-    font-family: Inter, sans-serif;
+    font-family: var(--ui-font);
     font-size: 10px;
     font-style: normal;
     font-weight: 600;

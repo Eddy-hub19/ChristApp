@@ -1,5 +1,6 @@
 import {
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -59,4 +60,14 @@ export class UpdateProfileDto {
   @IsString()
   @IsIn([...BUBBLE_STYLE_IDS], { message: 'Неизвестный стиль пузыря' })
   bubbleStyle?: string;
+
+  /** Личные фоны чата (объект; null сбрасывает). Чистится на сервере: config/chat-prefs.ts. */
+  @IsOptional()
+  @IsObject()
+  chatBackgrounds?: Record<string, unknown> | null;
+
+  /** Личные шрифты (объект; null сбрасывает). Чистится на сервере: config/chat-prefs.ts. */
+  @IsOptional()
+  @IsObject()
+  fontPrefs?: Record<string, unknown> | null;
 }

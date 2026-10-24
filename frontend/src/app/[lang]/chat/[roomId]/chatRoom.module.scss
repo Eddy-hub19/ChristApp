@@ -271,7 +271,7 @@
 
         .chatName {
           color: var(--foreground);
-          font-family: "Inter", sans-serif;
+          font-family: var(--ui-font);
           font-size: 15px;
           font-style: normal;
           font-weight: 700;
@@ -290,7 +290,7 @@
           border-radius: 9999px;
           height: 24px;
           padding: 0 10px;
-          font-family: "Inter", sans-serif;
+          font-family: var(--ui-font);
           font-size: 11px;
           font-weight: 700;
           line-height: 1;
@@ -321,7 +321,7 @@
           text-overflow: ellipsis;
           white-space: nowrap;
           color: var(--text-muted);
-          font-family: "Inter", sans-serif;
+          font-family: var(--ui-font);
           font-size: 10px;
           font-style: normal;
           font-weight: 600;
@@ -438,7 +438,7 @@
         text-align: left;
         background: transparent;
         color: var(--foreground);
-        font-family: "Inter", sans-serif;
+        font-family: var(--ui-font);
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
@@ -505,7 +505,7 @@
     border: 1px solid color-mix(in srgb, var(--line-soft) 74%, var(--accent) 26%);
     background: color-mix(in srgb, var(--surface-elevated) 90%, var(--accent-soft) 10%);
     color: color-mix(in srgb, var(--text-muted) 86%, var(--foreground) 14%);
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 12px;
     font-weight: 500;
     line-height: 1.35;
@@ -668,7 +668,7 @@
   .profilePreviewTitle {
     margin: 0;
     color: var(--foreground);
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 18px;
     font-weight: 700;
     line-height: 1.2;
@@ -677,7 +677,7 @@
   .profilePreviewHandle {
     margin: 0;
     color: var(--text-muted);
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 13px;
     font-weight: 600;
     line-height: 1.3;
@@ -687,7 +687,7 @@
     margin: 10px 0 0;
     max-width: 100%;
     text-align: center;
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.45;
@@ -714,7 +714,7 @@
 
   .profilePreviewFactLabel {
     color: var(--text-muted);
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 11px;
     font-weight: 700;
     line-height: 1.2;
@@ -724,7 +724,7 @@
 
   .profilePreviewFactValue,
   .profilePreviewFactValueMuted {
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -746,7 +746,7 @@
     border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
     background: color-mix(in srgb, var(--accent) 18%, var(--surface-elevated));
     color: var(--foreground);
-    font-family: "Inter", sans-serif;
+    font-family: var(--ui-font);
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
@@ -948,7 +948,7 @@ html[data-theme="dark"] .chat {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;

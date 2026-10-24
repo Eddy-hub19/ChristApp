@@ -44,7 +44,7 @@
     env(safe-area-inset-left, 0px);
   overflow: hidden;
   overscroll-behavior: contain;
-  font-family: var(--font-inter), "Inter", Arial, sans-serif;
+  font-family: var(--ui-font);
   transition:
     height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
     top 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -2825,4 +2825,13 @@
   .chatEdited {
     color: var(--bs-muted);
   }
+}
+
+/* Личный шрифт и размер текста сообщений (lib/chatFonts.ts); фон чата кинозала остаётся тёмным залом */
+:global(html[data-msg-font]) .chatBubble {
+  --ui-font: var(--msg-font);
+  font-family: var(--ui-font);
+}
+.chatText {
+  font-size: calc(14px * var(--msg-scale, 1));
 }

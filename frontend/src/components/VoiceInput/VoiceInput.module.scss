@@ -26,7 +26,7 @@
 
 .timeElapsed {
   flex-shrink: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -35,7 +35,7 @@
 
 .timeRemaining {
   flex-shrink: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -56,7 +56,7 @@
 
 .slideHint {
   flex-shrink: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -76,7 +76,7 @@
   border: 0;
   border-radius: 999px;
   padding: 7px 14px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;

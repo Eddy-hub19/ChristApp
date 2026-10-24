@@ -20,7 +20,7 @@
 }
 
 .backLink {
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 14px;
   font-weight: 600;
   color: color-mix(in srgb, var(--accent) 85%, var(--foreground));
@@ -33,7 +33,7 @@
 
 .title {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 18px;
   font-weight: 700;
 }
@@ -137,7 +137,7 @@
 }
 
 .deleteBtn {
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 600;
   padding: 8px 14px;
@@ -174,7 +174,7 @@
 
 .tab {
   flex: 1;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 14px;
   font-weight: 600;
   padding: 9px 12px;
@@ -238,7 +238,7 @@
 
 .procHeading {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -342,7 +342,7 @@
 }
 
 .benchBtn {
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   padding: 9px 14px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));

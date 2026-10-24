@@ -1,4 +1,6 @@
 @use "./bubbleStyles";
+@use "./chatFonts";
+@use "./chatBackgrounds";
 
 /* Achiko — локальний файл у public/fonts/. */
 @font-face {
@@ -96,7 +98,9 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-inter), "Inter", Arial, Helvetica, sans-serif;
+  /* Шрифт интерфейса: определяется на body (там живут переменные next/font); пользователь может переопределить (lib/chatFonts.ts). */
+  --ui-font: var(--font-inter), "Inter", Arial, Helvetica, sans-serif;
+  font-family: var(--ui-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /*

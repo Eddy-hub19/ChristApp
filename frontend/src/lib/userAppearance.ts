@@ -1,3 +1,5 @@
+import { isDefaultFontPrefs, normalizeFontPrefs } from "@/lib/chatFonts";
+
 /** Приклади з налаштувань (можна зберегти в профілі). */
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF";
 export const SUGGESTED_THEME_BACKGROUND = "#2E2D2D";
@@ -20,7 +22,32 @@ export type UserAppearanceFields = {
   themeForegroundHex?: string | null;
   themeBackgroundHex?: string | null;
   themeFontKey?: string | null;
+  /** Личные шрифты (lib/chatFonts.ts): атрибуты на <html>, значения - styles/chatFonts.scss. */
+  fontPrefs?: unknown;
 };
+
+/** Ключ localStorage: блокирующий скрипт в layout читает его и ставит атрибуты на <html> до первого paint. */
+export const FONT_PREFS_STORAGE_KEY = "christapp:fontPrefs";
+
+/** Личные шрифты и размер текста -> атрибуты на <html> (null - всё как в приложении по умолчанию). */
+export function applyFontPrefsToDocument(raw: unknown): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  const p = normalizeFontPrefs(raw);
+  const set = (name: string, value: string | null) => {
+    if (value) root.setAttribute(name, value);
+    else root.removeAttribute(name);
+  };
+  set("data-ui-font", p.ui === "as-is" ? null : p.ui);
+  set("data-msg-font", p.msg === "as-is" ? null : p.msg);
+  set("data-text-size", p.size === "md" ? null : p.size);
+  try {
+    if (isDefaultFontPrefs(p)) window.localStorage.removeItem(FONT_PREFS_STORAGE_KEY);
+    else window.localStorage.setItem(FONT_PREFS_STORAGE_KEY, JSON.stringify({ ui: p.ui, msg: p.msg, size: p.size }));
+  } catch {
+    /* приватный режим */
+  }
+}
 
 /** Останній стан для повторного застосування при зміні light/dark (див. ThemeToggle). */
 let cachedAppearanceUser: UserAppearanceFields | null | undefined;
@@ -55,6 +82,7 @@ export function applyUserAppearanceToDocument(
 
   const root = document.documentElement;
   cachedAppearanceUser = user ?? null;
+  applyFontPrefsToDocument(user?.fontPrefs);
 
   if (!user) {
     root.style.removeProperty("--foreground");
@@ -93,7 +121,10 @@ export function applyUserAppearanceToDocument(
   }
 
   const fontKey = normalizeThemeFontKey(user.themeFontKey);
-  if (fontKey === "achiko") {
+  // выбранный в «Налаштування -> Шрифт» шрифт интерфейса важнее старого ключа шрифта профиля
+  if (root.hasAttribute("data-ui-font")) {
+    document.body.style.removeProperty("font-family");
+  } else if (fontKey === "achiko") {
     document.body.style.fontFamily =
       '"Achiko", "Inter", ui-sans-serif, system-ui, sans-serif';
   } else if (fontKey === "bodoni-moda") {

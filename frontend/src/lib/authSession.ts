@@ -26,6 +26,10 @@ export type AuthUser = {
   bio?: string | null;
   /** Стиль пузырей сообщений (id из lib/bubbleStyles.ts). */
   bubbleStyle?: string | null;
+  /** Личные фоны чата (только владельцу): lib/chatBackgrounds.ts. */
+  chatBackgrounds?: unknown;
+  /** Личные шрифты (только владельцу): lib/chatFonts.ts. */
+  fontPrefs?: unknown;
 };
 
 export type AuthSessionPayload = {

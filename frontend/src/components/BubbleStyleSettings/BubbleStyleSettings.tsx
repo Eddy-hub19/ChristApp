@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { apiFetch } from "@/lib/apiFetch";
@@ -17,6 +17,7 @@ import {
   useShowOthersBubbleStyles,
   type BubbleStyleId,
 } from "@/lib/bubbleStyles";
+import { RECOMMENDED_BACKGROUND } from "@/lib/chatBackgrounds";
 import styles from "./BubbleStyleSettings.module.scss";
 
 /** Пример пузыря в выбранном стиле: те же data-атрибуты, что у настоящих пузырей (styles/bubbleStyles.scss). */
@@ -25,11 +26,14 @@ export function SampleBubble({
   own = false,
   text,
   mini = false,
+  textStyle,
 }: {
   style: BubbleStyleId;
   own?: boolean;
   text: string;
   mini?: boolean;
+  /** Шрифт/размер текста примера (экран «Шрифт»). */
+  textStyle?: CSSProperties;
 }) {
   const styled = style !== "default";
   const character = !mini && styled && BUBBLE_STYLES_WITH_CHARACTER.has(style);
@@ -39,6 +43,7 @@ export function SampleBubble({
       data-bubble-style={styled ? style : undefined}
       data-bubble-own={styled && own ? "" : undefined}
       data-bubble-start={character ? "" : undefined}
+      style={textStyle}
     >
       {character ? <span data-bs-char aria-hidden /> : null}
       <span className={styles.sampleText}>{text}</span>
@@ -68,6 +73,7 @@ export function BubbleStyleRow({ onOpen }: { onOpen: () => void }) {
 /** Экран настроек «Вигляд повідомлень»: сетка стилей, живой пример, «Зберегти» / «Скасувати», чужие стили вкл/выкл. «Назад» и Esc закрывают. */
 export default function BubbleStyleSettings({ onClose }: { onClose: () => void }) {
   const t = useTranslations("bubbleStyles");
+  const tBg = useTranslations("chatBackground");
   const { user, patchUser } = useAuth();
   const showOthers = useShowOthersBubbleStyles();
   const saved = normalizeBubbleStyle(user?.bubbleStyle);
@@ -155,6 +161,9 @@ export default function BubbleStyleSettings({ onClose }: { onClose: () => void }
           <p className={styles.exampleTitle}>{t("exampleTitle")}</p>
           <SampleBubble style={current} text={t("exampleOther")} />
           <SampleBubble style={current} own text={t("exampleOwn")} />
+          {RECOMMENDED_BACKGROUND[current] ? (
+            <p className={styles.hint}>{tBg("recommendedBg", { name: tBg(`items.${RECOMMENDED_BACKGROUND[current]}`) })}</p>
+          ) : null}
         </div>
 
         <div className={styles.actions}>

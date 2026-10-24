@@ -64,7 +64,7 @@
 
 .title {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 18px;
   font-weight: 700;
   line-height: 1.3;
@@ -73,7 +73,7 @@
 
 .body {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--login-muted);
@@ -81,7 +81,7 @@
 
 .timer {
   margin: 2px 0 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   color: var(--login-label);
   font-variant-numeric: tabular-nums;
@@ -115,7 +115,7 @@
 
 .footer {
   margin: 4px 0 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12px;
   line-height: 1.4;
   color: var(--login-footer);
@@ -128,7 +128,7 @@
   border: 1px solid var(--login-input-border);
   background: transparent;
   color: var(--login-link);
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;

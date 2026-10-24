@@ -105,7 +105,10 @@ import { useVideoRecorder } from "@/hooks/useVideoRecorder";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { focusChatComposer } from "@/lib/chatComposerFocus";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
-import { Gamepad2, Phone } from "lucide-react";
+import { Gamepad2, MoreVertical, Phone } from "lucide-react";
+import { ChatBackgroundLayer, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
+import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
+import { chatRoomBackgroundKey } from "@/lib/chatBackgrounds";
 import dynamic from "next/dynamic";
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame";
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
@@ -3947,6 +3950,59 @@ export default function ChatPageDetails() {
     ],
   );
 
+  // Личный фон чата (виден только мне): меню «⋮» -> «Фон чату»; хранится в профиле, приходит вместе с ним
+  const tChatBg = useTranslations("chatBackground");
+  const chatBgKey = chatRoomBackgroundKey({ routeRoomId, directUserId: directChatTargetUserId });
+  const chatBg = useResolvedChatBackground(chatBgKey);
+  const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
+  const [isChatBgOpen, setIsChatBgOpen] = useState(false);
+  useEffect(() => {
+    if (!isChatMenuOpen) return;
+    const close = () => setIsChatMenuOpen(false);
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsChatMenuOpen(false);
+    };
+    document.addEventListener("click", close);
+    window.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("click", close);
+      window.removeEventListener("keydown", onEscape);
+    };
+  }, [isChatMenuOpen]);
+  const chatMenu = chatBgKey ? (
+    <div className={styles.gameMenuWrap}>
+      <button
+        type="button"
+        className={styles.gameButton}
+        onClick={(event) => {
+          event.stopPropagation();
+          setIsChatMenuOpen((prev) => !prev);
+        }}
+        aria-label={tChatBg("menu")}
+        aria-haspopup="menu"
+        aria-expanded={isChatMenuOpen}
+        title={tChatBg("menu")}
+      >
+        <MoreVertical size={18} strokeWidth={2.1} aria-hidden />
+      </button>
+      {isChatMenuOpen ? (
+        <div className={styles.gameMenu} role="menu" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            className={styles.gameMenuItem}
+            role="menuitem"
+            onClick={() => {
+              setIsChatMenuOpen(false);
+              setIsChatBgOpen(true);
+            }}
+          >
+            <span>{tChatBg("roomTitle")}</span>
+          </button>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
   const wideChatLayout = useMediaQuery("(min-width: 1024px)", false);
   /** Оверлей учасників лише на вузькому екрані; у глобальному чаті на десктопі — колонка `inline`. */
   const participantsOverlayOpen =
@@ -4008,7 +4064,8 @@ export default function ChatPageDetails() {
 
   return (
     <div className={styles.chatScene}>
-      <section className={`${styles.chat} container`}>
+      <section className={`${styles.chat} container`} data-has-chat-bg={chatBg.id !== "default" ? "" : undefined}>
+        <ChatBackgroundLayer id={chatBg.id} dim={chatBg.dim} />
         <div className={styles.headerGlass}>
           <div className={styles.header}>
             <div
@@ -4097,6 +4154,7 @@ export default function ChatPageDetails() {
                       aria-hidden
                     />
                   </button>
+                  {chatMenu}
                 </div>
               ) : null}
               {directChatTargetUser ? (
@@ -4188,7 +4246,11 @@ export default function ChatPageDetails() {
                   >
                     <Phone size={17} strokeWidth={2.1} aria-hidden />
                   </button>
+                  {chatMenu}
                 </div>
+              ) : null}
+              {roomId !== GLOBAL_ROOM_ID && !directChatTargetUser && chatMenu ? (
+                <div className={styles.headerActions}>{chatMenu}</div>
               ) : null}
             </div>
           </div>
@@ -4282,6 +4344,9 @@ export default function ChatPageDetails() {
             ) : null}
           </div>
         </div>
+        {isChatBgOpen && chatBgKey ? (
+          <ChatBackgroundSettings scope={{ kind: "room", roomKey: chatBgKey }} onClose={() => setIsChatBgOpen(false)} />
+        ) : null}
         <VideoNoteScene
           open={isVideoSceneOpen}
           isRecording={isVideoRecording}

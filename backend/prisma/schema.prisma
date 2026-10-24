@@ -29,6 +29,10 @@ model User {
   bio               String?   @db.VarChar(500)
   /// Стиль пузырей сообщений отправителя (id из config/bubble-styles.ts), по умолчанию "default".
   bubbleStyle       String    @default("default") @db.VarChar(24)
+  /// Личные фоны чата: { v, def: {id, dim}, rooms: { [roomKey]: {id, dim} } } (config/chat-prefs.ts). Видны только владельцу.
+  chatBackgrounds   Json?
+  /// Личные шрифты: { v, ui, msg, size } (config/chat-prefs.ts). Видны только владельцу.
+  fontPrefs         Json?
   messages          Message[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]

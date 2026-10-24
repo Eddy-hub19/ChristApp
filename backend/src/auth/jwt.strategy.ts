@@ -47,6 +47,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         themeFontKey: true,
         bio: true,
         bubbleStyle: true,
+        chatBackgrounds: true,
+        fontPrefs: true,
       },
     });
 

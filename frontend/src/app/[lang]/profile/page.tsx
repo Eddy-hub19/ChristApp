@@ -55,6 +55,9 @@ import { useLocale, useTranslations } from "next-intl";
 import ProfileChaptersCard from "@/components/ProfileChaptersCard/ProfileChaptersCard";
 import BubbleStyleSettings, { BubbleStyleRow } from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { canUseBubbleStyles } from "@/lib/bubbleStyles";
+import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
+import FontSettings from "@/components/ChatPrefs/FontSettings";
+import { ChatBackgroundRow, FontRow } from "@/components/ChatPrefs/ChatPrefsRows";
 
 type SavedVerse = {
   id: string;
@@ -98,6 +101,8 @@ export default function ProfilePage() {
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [bubbleSettingsOpen, setBubbleSettingsOpen] = useState(false);
+  const [bgSettingsOpen, setBgSettingsOpen] = useState(false);
+  const [fontSettingsOpen, setFontSettingsOpen] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [pushPermission, setPushPermission] =
@@ -1020,14 +1025,17 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* «Налаштування»: строка «Вигляд повідомлень» всегда видна; при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) - только админу. */}
-      {canUseBubbleStyles(user?.username) ? (
-        <section className={styles.settingsSection} aria-label={tBubbles("settingsTitle")}>
-          <h2 className={styles.settingsSectionTitle}>{tBubbles("settingsTitle")}</h2>
-          <BubbleStyleRow onOpen={() => setBubbleSettingsOpen(true)} />
-        </section>
-      ) : null}
+      {/* «Налаштування»: строки всегда видны (без аккордеонов). «Вигляд повідомлень» при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) - только админу;
+          «Фон чату» и «Шрифт» - всем. Каждая строка открывает свой экран с кнопкой «Назад». */}
+      <section className={styles.settingsSection} aria-label={tBubbles("settingsTitle")}>
+        <h2 className={styles.settingsSectionTitle}>{tBubbles("settingsTitle")}</h2>
+        {canUseBubbleStyles(user?.username) ? <BubbleStyleRow onOpen={() => setBubbleSettingsOpen(true)} /> : null}
+        <ChatBackgroundRow onOpen={() => setBgSettingsOpen(true)} />
+        <FontRow onOpen={() => setFontSettingsOpen(true)} />
+      </section>
       {bubbleSettingsOpen ? <BubbleStyleSettings onClose={() => setBubbleSettingsOpen(false)} /> : null}
+      {bgSettingsOpen ? <ChatBackgroundSettings scope={{ kind: "default" }} onClose={() => setBgSettingsOpen(false)} /> : null}
+      {fontSettingsOpen ? <FontSettings onClose={() => setFontSettingsOpen(false)} /> : null}
 
       {isNotificationsOpen ? (
         <div className={styles.notificationsPanel}>
