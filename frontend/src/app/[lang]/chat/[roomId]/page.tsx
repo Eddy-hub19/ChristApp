@@ -106,7 +106,7 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { focusChatComposer } from "@/lib/chatComposerFocus";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
 import { Gamepad2, MoreVertical, Phone } from "lucide-react";
-import { ChatBackgroundLayer, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
+import { usePublishChatBackgroundKey, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
 import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
 import { chatRoomBackgroundKey } from "@/lib/chatBackgrounds";
 import dynamic from "next/dynamic";
@@ -3954,6 +3954,8 @@ export default function ChatPageDetails() {
   const tChatBg = useTranslations("chatBackground");
   const chatBgKey = chatRoomBackgroundKey({ routeRoomId, directUserId: directChatTargetUserId });
   const chatBg = useResolvedChatBackground(chatBgKey);
+  // фон чата рисует корневой слой (AppBackground) на всё окно; здесь только сообщаем ему ключ
+  usePublishChatBackgroundKey(chatBgKey);
   const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
   const [isChatBgOpen, setIsChatBgOpen] = useState(false);
   useEffect(() => {
@@ -4065,7 +4067,6 @@ export default function ChatPageDetails() {
   return (
     <div className={styles.chatScene}>
       <section className={`${styles.chat} container`} data-has-chat-bg={chatBg.id !== "default" ? "" : undefined}>
-        <ChatBackgroundLayer id={chatBg.id} dim={chatBg.dim} />
         <div className={styles.headerGlass}>
           <div className={styles.header}>
             <div

@@ -3,8 +3,9 @@
  * Профиль хранит `{ v: 1, ui, msg, size }`. Новый шрифт = запись в CHAT_FONTS (подпись/пример в переводах не нужны:
  * название - это сам шрифт), подключение в styles/fonts.ts (next/font, subset latin + cyrillic) и id в backend/src/config/chat-prefs.ts.
  *
- * "as-is" - «Як зараз» (как в приложении сейчас), "system" - системный шрифт. Остальные - Google Fonts с лицензией OFL
- * и кириллицей (проверено: є, і, ї, ґ есть в subset cyrillic каждого файла).
+ * "as-is" - «Як зараз» (как в приложении сейчас), "system" - системный шрифт. Остальные (Nunito, Rubik, Comfortaa, Caveat) - Google Fonts с лицензией OFL
+ * и кириллицей (проверено: є, і, ї, ґ есть в subset cyrillic каждого файла). Убранные раньше шрифты (Pacifico, Lobster и др.)
+ * в сохранённых настройках читаются как «Як зараз» (normalizeFontPrefs), сервер заменяет их при следующем сохранении.
  */
 export const CHAT_FONTS = [
   { id: "as-is", label: null, css: null },
@@ -12,16 +13,7 @@ export const CHAT_FONTS = [
   { id: "nunito", label: "Nunito", css: "var(--font-nunito)", fallback: "sans-serif" },
   { id: "rubik", label: "Rubik", css: "var(--font-rubik)", fallback: "sans-serif" },
   { id: "comfortaa", label: "Comfortaa", css: "var(--font-comfortaa)", fallback: "sans-serif" },
-  { id: "montserrat-alternates", label: "Montserrat Alternates", css: "var(--font-montserrat-alternates)", fallback: "sans-serif" },
-  { id: "exo-2", label: "Exo 2", css: "var(--font-exo-2)", fallback: "sans-serif" },
-  { id: "russo-one", label: "Russo One", css: "var(--font-russo-one)", fallback: "sans-serif" },
-  { id: "jura", label: "Jura", css: "var(--font-jura)", fallback: "sans-serif" },
-  { id: "pacifico", label: "Pacifico", css: "var(--font-pacifico)", fallback: "cursive" },
-  { id: "lobster", label: "Lobster", css: "var(--font-lobster)", fallback: "cursive" },
-  { id: "marck-script", label: "Marck Script", css: "var(--font-marck-script)", fallback: "cursive" },
   { id: "caveat", label: "Caveat", css: "var(--font-caveat)", fallback: "cursive" },
-  { id: "press-start-2p", label: "Press Start 2P", css: "var(--font-press-start-2p)", fallback: "monospace" },
-  { id: "pangolin", label: "Pangolin", css: "var(--font-pangolin)", fallback: "cursive" },
 ] as const;
 
 export type ChatFontId = (typeof CHAT_FONTS)[number]["id"];
