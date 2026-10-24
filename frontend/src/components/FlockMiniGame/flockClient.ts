@@ -61,7 +61,9 @@ export interface FlockClientOptions {
   /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
   /** «Вожак»: 1 - вышел на охоту, 2 - побеждён (name - кто победил). */
   onBoss?: (e: { kind: 1 | 2; name: string }) => void;
-  onScissors?: (r: { taker: boolean; victim: boolean; count: number }) => void;
+  onScissors?: (r: { taker: boolean; victim: boolean; count: number; gain: number }) => void;
+  /** «Хрест»: нас з'їли, але «Друге життя» одразу повернуло овечку. */
+  onRevive?: () => void;
 }
 
 type Sock = ReturnType<typeof createSocket>;
@@ -127,7 +129,7 @@ export class FlockClient {
       auth: { token: this.opts.token },
       transports: ["websocket"],
       reconnection: true,
-      // Пауза на сервері триває ~20 с; перепідключаємось, поки є сенс, а далі сервер скаже "expired".
+      // Пауза на сервері триває resumePauseMs (зараз 30 с, приходить у welcome як pauseMs); перепідключаємось, поки є сенс, а далі сервер скаже "expired".
       reconnectionAttempts: Infinity,
       reconnectionDelay: 400,
       reconnectionDelayMax: 2000,
@@ -229,6 +231,14 @@ export class FlockClient {
         if (!this.model) return;
         const r = this.model.applyScissors(msg, performance.now());
         if (r && (r.taker || r.victim)) this.opts.onScissors?.(r);
+      });
+    });
+    socket.on("sk", (msg: unknown) => {
+      this.later(() => this.model?.applyStreak(msg));
+    });
+    socket.on("rv", () => {
+      this.later(() => {
+        if (this.model) this.opts.onRevive?.();
       });
     });
     socket.on("q", (msg: unknown) => {

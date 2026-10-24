@@ -32,13 +32,39 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
   /** Що вже записано в БД цього дня: щоб не писати той самий або менший результат. */
   private written = new Map<string, { day: string; mass: number }>();
   private topCache: { at: number; day: string; rows: TopRow[] } | null = null;
+  /** Хто тримає серію днів на 1-му місці (FlockStreak.days > 0); оновлюється при старті й після закриття доби. */
+  streakHolder: { userId: string; days: number } | null = null;
+  private streakListeners: (() => void)[] = [];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly rubies: FlockRubiesService,
   ) {}
 
+  /** Підписка на зміну держателя серії (арена розсилає її гравцям). */
+  onStreakChange(fn: () => void) {
+    this.streakListeners.push(fn);
+  }
+
+  /** Перечитує держателя серії з БД; слухачів кличе лише при зміні. */
+  async refreshStreak() {
+    try {
+      const row = await this.prisma.flockStreak.findFirst({
+        where: { days: { gt: 0 } },
+        orderBy: { days: 'desc' },
+        select: { userId: true, days: true },
+      });
+      const prev = this.streakHolder;
+      if (prev?.userId === row?.userId && prev?.days === row?.days) return;
+      this.streakHolder = row ? { userId: row.userId, days: row.days } : null;
+      for (const fn of this.streakListeners) fn();
+    } catch (e) {
+      this.log.error(`refreshStreak: ${String(e)}`);
+    }
+  }
+
   onModuleInit() {
+    void this.refreshStreak();
     void this.closePendingDays();
     this.timer = setInterval(() => void this.closePendingDays(), SWEEP_MS);
     this.timer.unref?.();
@@ -123,6 +149,11 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
         avatarUrl: r.avatarUrl,
         mass: r.mass,
         me: r.userId === userId,
+        // дні серії - лише в №1, якщо він і є держатель серії (завершені доби, FlockStreak.days)
+        streakDays:
+          i === 0 && this.streakHolder?.userId === r.userId
+            ? this.streakHolder.days
+            : 0,
       })),
       me,
       streak,
@@ -166,13 +197,16 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
         select: { day: true },
       });
       let day = last ? shiftDayKey(last.day, 1) : yesterday;
+      let closed = 0;
       for (let i = 0; day <= yesterday && i < MAX_CATCH_UP; i++) {
         await this.closeDay(day);
         day = shiftDayKey(day, 1);
+        closed++;
       }
       await this.prisma.flockDailyRecord.deleteMany({
         where: { day: { lt: shiftDayKey(dayKeyInZone(now, TZ), -D.keepDays) } },
       });
+      if (closed > 0) await this.refreshStreak();
     } catch (e) {
       this.log.error(`closePendingDays: ${String(e)}`);
     } finally {

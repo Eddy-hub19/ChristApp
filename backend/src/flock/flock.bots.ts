@@ -1,5 +1,5 @@
 import { BOT_NAMES } from './flock.bot-names';
-import { FLOCK_CONFIG } from './flock.config';
+import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
 import {
   radiusOf,
   type FlockWorld,
@@ -107,6 +107,16 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
     if (!o || !o.alive || o.paused) return; // гравців у паузі боти не помічають
     if (world.isGhost(o) || world.isGhost(p)) return;
     const d = Math.hypot(c.x - me.x, c.y - me.y) || 1;
+    // «Кадило»: носія бот не переслідує, а в радіусі дії відхиляється від нього
+    if (world.hasArtifact(o, ARTIFACT.censer)) {
+      if (d < C.artifacts.censerRadius + radiusOf(c.mass)) {
+        const w = 1 / (d * d);
+        fx += ((me.x - c.x) / d) * w * 1e5;
+        fy += ((me.y - c.y) / d) * w * 1e5;
+        threatened = true;
+      }
+      return;
+    }
     if (
       c.mass >= myMax * C.eatRatio &&
       !world.isShielded(p) &&

@@ -200,6 +200,68 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 10,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "scissors",
+        text: {
+          ua: "Ножиці забирають 50% маси в усіх, у кого її понад 500, і віддають тому, хто їх узяв",
+          ru: "Ножницы забирают 50% массы у всех, у кого её больше 500, и отдают тому, кто их взял",
+          en: "Scissors take 50% of the mass of everyone above 500 and give it to whoever picked them up",
+        },
+      },
+      {
+        icon: "boost",
+        text: {
+          ua: "Магніт, прискорення й щит тепер діють по 10 секунд",
+          ru: "Магнит, ускорение и щит теперь действуют по 10 секунд",
+          en: "Magnet, speed and shield now last 10 seconds",
+        },
+      },
+      {
+        icon: "star",
+        text: {
+          ua: "Зорепад: кожна зірка дає 200 маси, а один гравець може запустити його не більше 2 разів за життя",
+          ru: "Звездопад: каждая звезда даёт 200 массы, а один игрок может запустить его не больше 2 раз за жизнь",
+          en: "Starfall: each star gives 200 mass, and one player can trigger it at most 2 times per life",
+        },
+      },
+      {
+        icon: "ruby",
+        text: {
+          ua: "Рубіни за 1-ше місце тепер від 3000 маси",
+          ru: "Рубины за 1-е место теперь от 3000 массы",
+          en: "Rubies for 1st place now require 3000 mass",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "Оновлені артефакти по 100 рубінів: шапка священника, магніт і кадило працюють по-новому, а хрест дає друге життя",
+          ru: "Обновлённые артефакты по 100 рубинов: шапка священника, магнит и кадило работают по-новому, а крест даёт вторую жизнь",
+          en: "Updated artifacts for 100 rubies: the priest's hat, magnet and censer work differently, and the cross gives a second life",
+        },
+      },
+      {
+        icon: "shield",
+        text: {
+          ua: "«Овечка чекає» після вильоту тепер 30 секунд",
+          ru: "«Овечка ждёт» после вылета теперь 30 секунд",
+          en: "“Sheep is waiting” after a disconnect now lasts 30 seconds",
+        },
+      },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Серія першого місця: у «Топ-10» біля гравця з серією з'явилась корона й кількість днів",
+          ru: "Серия первого места: в «Топ-10» рядом с игроком с серией появилась корона и число дней",
+          en: "1st-place streak: the Top 10 now shows a crown and the number of days next to the streak holder",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

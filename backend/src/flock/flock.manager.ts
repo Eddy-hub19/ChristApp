@@ -93,6 +93,8 @@ export interface FlockHooks {
     userId: string,
     run: { maxMass: number; kills: number; topMs: number },
   ) => void;
+  /** Держатель серії днів на 1-му місці (FlockStreak.days > 0) або null; читається при вході на арену. */
+  getStreak?: () => { userId: string; days: number } | null;
 }
 
 class Arena {
@@ -543,7 +545,9 @@ class Arena {
       r: e.r,
       t: e.taker,
       v: e.victims,
+      g: e.gain,
     }));
+    const revived = new Set(w.reviveEvents);
     const bossMsgs = this.bossMsgs;
     for (const s of this.sessions.values()) {
       const key = s.connKey;
@@ -561,6 +565,8 @@ class Arena {
       }
       if (starMsg) send(key, 'z', starMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
+      // «Хрест»: «Друге життя» - лише самому гравцеві
+      if (revived.has(s.pid)) send(key, 'rv', {});
       for (const m of bossMsgs) send(key, 'bm', m);
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
@@ -848,6 +854,8 @@ export interface JoinResult {
   thornStyle?: ThornStyle;
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
+  /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
+  streak?: { p: number; d: number };
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
   resumed?: boolean;
   /** Клієнт прислав токен, але сесія вже завершилась: звичайний вхід. */
@@ -952,6 +960,7 @@ export class FlockManager {
     this.byUser.set(userId, session);
     arena.syncBots();
     arena.start();
+    if (this.hooks.getStreak?.()?.userId === userId) this.pushStreak(arena);
     return { ...this.joined(session), resumeFailed };
   }
 
@@ -966,7 +975,28 @@ export class FlockManager {
       mapId: s.arena.mapId,
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       stars: s.arena.world.starsSnapshot(),
+      streak: this.streakInfo(s.arena) ?? undefined,
     };
+  }
+
+  /** Серія днів на 1-му місці для арени (null - ніхто не має серії). */
+  private streakInfo(arena: Arena): { p: number; d: number } | null {
+    const h = this.hooks.getStreak?.();
+    if (!h || h.days <= 0) return null;
+    return { p: arena.sessions.get(h.userId)?.pid ?? 0, d: h.days };
+  }
+
+  /** Подія `sk` усім на арені (не в кожному пакеті таблиці): серія змінилась або її держатель зайшов / вийшов. */
+  private pushStreak(arena: Arena) {
+    const m = this.streakInfo(arena) ?? { p: 0, d: 0 };
+    for (const s of arena.sessions.values()) {
+      if (s.connKey) this.send(s.connKey, 'sk', m);
+    }
+  }
+
+  /** Викликає шлюз, коли серія змінилась (закрито день): розсилаємо на всі арени. */
+  streakChanged() {
+    for (const a of this.arenas.values()) this.pushStreak(a);
   }
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
@@ -1094,6 +1124,7 @@ export class FlockManager {
       this.arenas.delete(arena.id);
     } else {
       arena.syncBots();
+      if (this.hooks.getStreak?.()?.userId === s.userId) this.pushStreak(arena);
     }
   }
 

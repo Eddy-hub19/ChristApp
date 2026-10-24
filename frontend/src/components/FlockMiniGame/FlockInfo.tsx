@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { artifactIconSrc } from "./flockArtifacts";
 import { BONUS_ICON } from "./flockRender";
 import type { FlockGameConfig } from "./flockApi";
-import { fillInfoText, INFO_SECTIONS, type InfoEntry, type InfoLang } from "./flockInfoData";
+import { artifactDescParams, fillInfoText, INFO_SECTIONS, type InfoEntry, type InfoLang } from "./flockInfoData";
 import { ICONS } from "./FlockWhatsNew";
 import { WHATS_NEW } from "./flockWhatsNewData";
 import { latestVersion } from "./flockWhatsNewLogic";
@@ -96,7 +96,7 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
                           </span>
                           <span className={styles.entryText}>
                             <strong>{s.artifacts ? t(`artifacts.items.${n}.name`) : e.title[lang]}</strong>
-                            <span>{s.artifacts ? t(`artifacts.items.${n}.desc`) : fillInfoText(e.text[lang], e.params, game)}</span>
+                            <span>{s.artifacts ? t(`artifacts.items.${n}.desc`, artifactDescParams(game)) : fillInfoText(e.text[lang], e.params, game)}</span>
                           </span>
                         </li>
                       );

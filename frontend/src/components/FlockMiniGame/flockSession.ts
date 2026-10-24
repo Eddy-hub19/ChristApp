@@ -18,6 +18,8 @@ export interface StoredFlockSession {
 const KEY = "christapp:flock:session";
 /** Запас на розбіжність годинників і дорогу: сервер усе одно вирішує сам. */
 const GRACE_MS = 1500;
+/** Запасне значення, лише якщо в збереженій сесії немає pauseMs (його шле сервер із resumePauseMs). */
+const DEFAULT_PAUSE_MS = 30_000;
 /** Банер не показуємо, поки гра сама оновлює `savedAt` (вона робить це раз на ~2 с). */
 const ACTIVE_WINDOW_MS = 3500;
 
@@ -33,7 +35,7 @@ function read(storage: Storage | undefined): StoredFlockSession | null {
       arenaId: typeof p.arenaId === "number" && p.arenaId > 0 ? p.arenaId : null,
       skin: typeof p.skin === "number" ? p.skin : 0,
       savedAt: p.savedAt,
-      pauseMs: typeof p.pauseMs === "number" && p.pauseMs > 0 ? p.pauseMs : 20_000,
+      pauseMs: typeof p.pauseMs === "number" && p.pauseMs > 0 ? p.pauseMs : DEFAULT_PAUSE_MS,
       connected: p.connected === true,
     };
   } catch {

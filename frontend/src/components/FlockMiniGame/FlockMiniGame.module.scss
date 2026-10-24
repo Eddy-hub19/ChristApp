@@ -123,6 +123,16 @@
     font-variant-numeric: tabular-nums;
     opacity: 0.85;
   }
+  .boardStreak {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: #e0a41f;
+    white-space: nowrap;
+  }
   .me {
     font-weight: 800;
     color: var(--accent);

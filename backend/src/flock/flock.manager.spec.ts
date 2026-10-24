@@ -335,11 +335,11 @@ describe('FlockManager', () => {
       );
     });
 
-    it('повернення через 25 с: сесії вже нема, звичайний вхід із resumeFailed', () => {
+    it('повернення після спливу паузи: сесії вже нема, звичайний вхід із resumeFailed', () => {
       const r = joinAs('c1', 'u1');
       const oldPid = me().player.id;
       ctx.mgr.disconnect('c1');
-      ctx.advance(25_000);
+      ctx.advance(C.resumePauseMs + 5_000);
       ctx.mgr.sweep();
       expect(ctx.mgr.isActive()).toBe(false); // овечка зникла, арена заснула
       const back = joinAs('c2', 'u1', { resume: r.token });
@@ -356,7 +356,7 @@ describe('FlockManager', () => {
     it('resumeOnly: сесії нема - нічого не створюємо, повертаємо expired (клієнт покаже лобі)', () => {
       const r = joinAs('c1', 'u1');
       ctx.mgr.disconnect('c1');
-      ctx.advance(25_000);
+      ctx.advance(C.resumePauseMs + 5_000);
       ctx.mgr.sweep();
       const back = joinAs('c2', 'u1', { resume: r.token, resumeOnly: true });
       expect(back).toMatchObject({

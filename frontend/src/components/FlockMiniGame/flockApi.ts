@@ -7,7 +7,7 @@ import type { FlockStats } from "./flockStats";
 export type FlockGameConfig = { [key: string]: number | FlockGameConfig };
 
 export interface FlockDailyBoard {
-  top: { rank: number; name: string; avatarUrl: string | null; mass: number; me: boolean }[];
+  top: { rank: number; name: string; avatarUrl: string | null; mass: number; me: boolean; /** Дні серії №1 у держателя серії (0/немає - не держатель). */ streakDays?: number }[];
   /** Лучший результат игрока за сегодня и место (null - сегодня не играл). */
   me: { rank: number; mass: number } | null;
   /** Заполнено только у текущего лидера дня: сколько дней подряд (с сегодняшним). */

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
-import { Lock, X } from "lucide-react";
+import { Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { FREE_SKINS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
@@ -13,6 +13,7 @@ import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
+import { artifactDescParams } from "./flockInfoData";
 import FlockInvite from "./FlockInvite";
 import { loadHidePhrases, PHRASES, saveHidePhrases, toPhraseLang } from "./flockPhrases";
 import { isResumable, loadFlockSession } from "./flockSession";
@@ -48,12 +49,14 @@ type Hud = {
   rank: number;
   alive: number;
   top: { pid: number; mass: number; name: string }[];
+  /** Держатель серії днів на 1-му місці (pid на арені) і скільки днів. */
+  streak: { pid: number; days: number } | null;
   selfPid: number;
   effects: { kind: string; remainingMs: number; totalMs: number }[];
   arenaId: number | null;
 };
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], selfPid: 0, effects: [], arenaId: null };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -158,7 +161,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [buyError, setBuyError] = useState<string | null>(null);
   /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
   const [zorepad, setZorepad] = useState<number | null>(null);
-  const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number } | null>(null);
+  const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number; gain: number } | null>(null);
+  const [reviveMsg, setReviveMsg] = useState<number | null>(null);
   const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
@@ -308,7 +312,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
         onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
-        onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count }),
+        onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count, gain: r.gain }),
+        onRevive: () => setReviveMsg(Date.now()),
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
           setMe((m) => (m ? { ...m, rubies: r.balance } : m));
@@ -354,6 +359,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, [scissorsMsg]);
 
   useEffect(() => {
+    if (reviveMsg === null) return;
+    const id = setTimeout(() => setReviveMsg(null), 2600);
+    return () => clearTimeout(id);
+  }, [reviveMsg]);
+
+  useEffect(() => {
     if (bossMsg === null) return;
     const id = setTimeout(() => setBossMsg(null), 3200);
     return () => clearTimeout(id);
@@ -397,7 +408,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const ownedArtifacts = me?.ownedArtifacts ?? [];
-  const artifactPrice = me?.config.artifactPrice ?? 80;
+  const artifactPrice = me?.config.artifactPrice ?? 100;
+  const artifactParams = artifactDescParams(me?.config.game);
 
   /** Тап по плитке: купленный - надеть/снять, не купленный - панель покупки. */
   const openArtifact = (id: number) => {
@@ -570,6 +582,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         rank: model.rank(),
         alive: model.board.alive,
         top: model.board.top,
+        streak: model.streak,
         selfPid: model.cfg.pid,
         arenaId: model.cfg.arenaId,
         effects: model.effects.map((e) => ({ ...e })),
@@ -757,7 +770,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : null}
           {scissorsMsg ? (
             <div key={scissorsMsg.id} className={styles.scissorsBanner} role="status">
-              {scissorsMsg.taker ? t("events.scissorsTaker", { count: scissorsMsg.count }) : t("events.scissorsVictim")}
+              {scissorsMsg.taker ? t("events.scissorsTaker", { count: scissorsMsg.count, gain: scissorsMsg.gain }) : t("events.scissorsVictim")}
+            </div>
+          ) : null}
+          {reviveMsg ? (
+            <div key={reviveMsg} className={styles.scissorsBanner} role="status">
+              {t("events.revived")}
             </div>
           ) : null}
           {bossMsg ? (
@@ -785,6 +803,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {hud.top.map((p) => (
                 <li key={p.pid} className={p.pid === hud.selfPid ? styles.me : undefined}>
                   <span className={styles.boardName}>{p.name}</span>
+                  {hud.streak && hud.streak.pid === p.pid ? (
+                    <span className={styles.boardStreak} title={t("hud.streakTitle", { days: hud.streak.days })}>
+                      <Crown size={11} aria-hidden /> {t("hud.streakDays", { days: hud.streak.days })}
+                    </span>
+                  ) : null}
                   <span className={styles.boardMass}>{Math.round(p.mass)}</span>
                 </li>
               ))}
@@ -962,7 +985,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
             <strong>{name}</strong>
-            <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`)}</span>
+            <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`, artifactParams)}</span>
             {owned ? (
               worn ? <span className={styles.artifactState}>{t("artifacts.worn")}</span> : null
             ) : (
@@ -980,7 +1003,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
         <div className={styles.buyInfo}>
           <strong>{t(`artifacts.items.${previewArtifact}.name`)}</strong>
-          <span>{t(`artifacts.items.${previewArtifact}.desc`)}</span>
+          <span>{t(`artifacts.items.${previewArtifact}.desc`, artifactParams)}</span>
           {artifactConfirming ? (
             <>
               <span>{t("rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: artifactPrice })}</span>
