@@ -6,6 +6,7 @@ import {
   FLOCK_MAPS,
   NUM_SKINS,
   BOSS_SKIN,
+  isRemovedSkin,
   ARTIFACT,
   isArtifactId,
   type MapLayout,
@@ -354,7 +355,7 @@ export class FlockWorld {
   /** Номер скіна не-боса: у межах нумерації, без зарезервованого скіна «Вожака». */
   private humanSkin(skin: number) {
     const id = Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(skin) || 0));
-    return id === BOSS_SKIN ? 0 : id;
+    return id === BOSS_SKIN || isRemovedSkin(id) ? 0 : id;
   }
 
   addPlayer(opts: {

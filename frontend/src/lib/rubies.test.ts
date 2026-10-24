@@ -39,8 +39,8 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
     // номер 36 - зарезервований скін «Вожака», нові вовки йдуть після нього (37-40)
     expect(SKINS).toHaveLength(TOTAL_SKINS);
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17, 34, 35]);
-    expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 37, 38, 39, 40]);
-    expect(FREE_SKIN_ROWS.map((r) => r.length)).toEqual([6, 6, 4]);
+    expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 8, 9, 37, 38, 39, 40]);
+    expect(FREE_SKIN_ROWS.map((r) => r.length)).toEqual([6, 6]);
     expect(isPaidSkin(36)).toBe(false);
     expect(isPaidSkin(FREE_SKINS - 1)).toBe(false);
     expect(isPaidSkin(FREE_SKINS)).toBe(true);

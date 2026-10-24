@@ -136,9 +136,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "skins",
         title: { ua: "Скіни", ru: "Скины", en: "Skins" },
         text: {
-          ua: "Безкоштовних скінів кілька: шість овечок, окремий ряд вовків (сірий, чорний, бурий, білий, рудий і блакитно-сірий) та ще кілька друзів. За рубіни відкриваються звичайні, «Преміум» (з анімацією) й «Особливі» скіни. Куплений скін лишається в тебе назавжди.",
-          ru: "Бесплатных скинов несколько: шесть овечек, отдельный ряд волков (серый, чёрный, бурый, белый, рыжий и сине-серый) и ещё несколько друзей. За рубины открываются обычные, «Премиум» (с анимацией) и «Особенные» скины. Купленный скин остаётся у тебя навсегда.",
-          en: "There are several free skins: six sheep, a separate row of wolves (gray, black, brown, white, red and blue-gray) and a few more friends. Rubies unlock regular, Premium (animated) and Special skins. A skin you bought is yours for good.",
+          ua: "Безкоштовних скінів кілька: шість овечок, окремий ряд вовків (сірий, чорний, бурий, білий, рудий і блакитно-сірий). За рубіни відкриваються звичайні, «Преміум» (з анімацією) й «Особливі» скіни. Куплений скін лишається в тебе назавжди.",
+          ru: "Бесплатных скинов несколько: шесть овечек, отдельный ряд волков (серый, чёрный, бурый, белый, рыжий и сине-серый). За рубины открываются обычные, «Премиум» (с анимацией) и «Особенные» скины. Купленный скин остаётся у тебя навсегда.",
+          en: "There are several free skins: six sheep, a separate row of wolves (gray, black, brown, white, red and blue-gray). Rubies unlock regular, Premium (animated) and Special skins. A skin you bought is yours for good.",
         },
       },
     ],

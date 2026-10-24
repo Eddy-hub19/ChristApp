@@ -165,7 +165,8 @@ export class FlockRubiesService {
       ownedSkins: skins,
       ownedArtifacts: artifacts,
       selectedArtifact,
-      selectedSkin: profile?.selectedSkin ?? 0,
+      // збережений знятий скін віддаємо як 0 (біла овечка); у БД він замінюється при наступному виборі скіна
+      selectedSkin: isSelectableSkin(profile?.selectedSkin ?? 0) ? (profile?.selectedSkin ?? 0) : 0,
       whatsNewSeen: profile?.whatsNewSeen ?? 0,
       statsImported: !!profile?.statsImportedAt,
       stats: toStats(profile),

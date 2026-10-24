@@ -611,15 +611,22 @@ export const BOSS_SKIN = 36;
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 /**
  * Безкоштовні скіни: явний список. Ботам дістаються лише вони (випадковий з цього списку).
- * Порядок = розкладка лобі: 6 овечок (0-5), ряд вовків (8, 9 і нові 37-40), решта (ягня 6, баран 7, собака 10, вівця 11).
+ * Порядок = розкладка лобі: 6 овечок (0-5), ряд вовків (8, 9 і нові 37-40).
  */
 export const FREE_SKIN_IDS: readonly number[] = [
-  0, 1, 2, 3, 4, 5, 8, 9, 37, 38, 39, 40, 6, 7, 10, 11,
+  0, 1, 2, 3, 4, 5, 8, 9, 37, 38, 39, 40,
 ];
+/**
+ * Зняті безкоштовні скіни (третій ряд лобі): 6 «Ягня», 7 «Баран», 10 «Собака», 11 «Персикова вівця». Нумерація не змінюється,
+ * спрайти лишаються в коді, id зарезервовані: не обираються, не купуються й не потрапляють на арену (замість них - скін 0).
+ * Дзеркало для клієнта - REMOVED_SKIN_IDS у frontend/src/lib/rubies.ts.
+ */
+export const REMOVED_SKINS: readonly number[] = [6, 7, 10, 11];
+export const isRemovedSkin = (id: number) => REMOVED_SKINS.includes(id);
 export const isFreeSkin = (id: number) => FREE_SKIN_IDS.includes(id);
 /** Скін, який гравець узагалі може обрати (не «Вожак», у межах нумерації). */
 export const isSelectableSkin = (id: number) =>
-  Number.isInteger(id) && id >= 0 && id < NUM_SKINS && id !== BOSS_SKIN;
+  Number.isInteger(id) && id >= 0 && id < NUM_SKINS && id !== BOSS_SKIN && !isRemovedSkin(id);
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
 /** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
 export const PREMIUM_SKIN_IDS: readonly number[] = [
