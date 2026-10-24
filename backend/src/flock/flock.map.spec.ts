@@ -209,14 +209,15 @@ describe('Кусты передаются один раз', () => {
 
 describe('Карта: виды карт', () => {
   it('три вида: обычная + 2 новых, id подряд с нуля', () => {
-    expect(FLOCK_MAPS.map((m) => m.id)).toEqual([0, 1, 2]);
+    expect(FLOCK_MAPS.map((m) => m.id)).toEqual([0, 1, 2, 3]);
   });
 
   it('pickMapId выбирает все виды с равной вероятностью', () => {
     const rng = lcg(11);
-    const n = [0, 0, 0];
-    for (let i = 0; i < 6000; i++) n[pickMapId(rng)]++;
-    for (const k of n) expect(Math.abs(k - 2000)).toBeLessThan(200);
+    const n = FLOCK_MAPS.map(() => 0);
+    const N = 6000;
+    for (let i = 0; i < N; i++) n[pickMapId(rng)]++;
+    for (const k of n) expect(Math.abs(k - N / FLOCK_MAPS.length)).toBeLessThan(200);
   });
 
   it.each(FLOCK_MAPS.map((m) => [m.name, m] as const))(

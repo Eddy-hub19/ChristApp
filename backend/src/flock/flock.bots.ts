@@ -1,6 +1,6 @@
 import { BOT_NAMES } from './flock.bot-names';
 import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
-import { inHazard, navPush, navRoute } from './flock.nav';
+import { inHazard, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
 import {
   radiusOf,
   speedOf,
@@ -93,6 +93,8 @@ const AI = {
   maxPrey: 16,
 } as const;
 
+/** Їжу/бонус ближче за стільки до краю мосту (чи до лави) бот не обирає ціллю. */
+const FOOD_EDGE = 60;
 const TWO_PI = Math.PI * 2;
 const wrapAngle = (a: number) => {
   while (a > Math.PI) a -= TWO_PI;
@@ -292,7 +294,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
         const room = Math.min(px, py, W - px, W - py);
         if (room < 300) score -= (300 - room) / 150;
       }
-      if (inHazard(world, px, py, myR) || inHazard(world, (me.x + px) / 2, (me.y + py) / 2, myR)) score -= 6;
+      if (inHazard(world, px, py, myR) || inHazard(world, (me.x + px) / 2, (me.y + py) / 2, myR) || navRayHits(world, me.x, me.y, a, AI.fleeLook)) score -= 8;
       // відстань від загроз у кінці кроку
       let near = Infinity;
       for (let j = 0; j < nTh; j++) {
@@ -352,7 +354,8 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       p.cells.length < C.maxCellsPerPlayer / 2 &&
       myMax / 2 >= prM[pi] * C.eatRatio &&
       myMax >= C.minSplitMass &&
-      now - brain.lastSplitAt >= AI.splitGapMs
+      now - brain.lastSplitAt >= AI.splitGapMs &&
+      !navRayHits(world, me.x, me.y, Math.atan2(dy, dx), 320)
     ) {
       const rr = radiusOf(prM[pi]);
       const vr = ((prVx[pi] * (px0 - me.x) + prVy[pi] * (py0 - me.y)) / (dist || 1));
@@ -391,7 +394,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       let ty = 0;
       world.foodNear(me.x, me.y, prof.foodRadius, (f) => {
         const d = Math.hypot(f.x - me.x, f.y - me.y);
-        if (d < best && !inHazard(world, f.x, f.y, 4)) {
+        if (d < best && !inHazard(world, f.x, f.y, FOOD_EDGE)) {
           best = d;
           tx = f.x;
           ty = f.y;
@@ -399,7 +402,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       });
       for (const b of world.bonuses) {
         const d = Math.hypot(b.x - me.x, b.y - me.y);
-        if (d < 450 && d * 0.5 < best && !inHazard(world, b.x, b.y, 4)) {
+        if (d < 450 && d * 0.5 < best && !inHazard(world, b.x, b.y, FOOD_EDGE)) {
           best = d * 0.5;
           tx = b.x;
           ty = b.y;
@@ -437,6 +440,9 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
     mx += ox;
     my += oy;
   }
+  navSlide(world, me.x, me.y, myR, mx, my, route);
+  mx = route.x;
+  my = route.y;
   let desired = mx === 0 && my === 0 ? p.angle : Math.atan2(my, mx);
 
   // застрягання: їде, а на місці (край, кущ) - розвертається до центру
@@ -447,7 +453,8 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
   } else if (now - brain.stuckAt >= AI.stuckCheckMs) {
     if (Math.hypot(me.x - brain.stuckX, me.y - brain.stuckY) < AI.stuckMinMove) {
       brain.unstuckUntil = now + AI.unstuckMs;
-      brain.unstuckAngle = Math.atan2(C.worldSize / 2 - me.y, C.worldSize / 2 - me.x) + (rng() - 0.5) * 1.2;
+      navCenter(world, me.x, me.y, route);
+      brain.unstuckAngle = Math.atan2(route.y - me.y, route.x - me.x) + (rng() - 0.5) * 1.2;
     }
     brain.stuckX = me.x;
     brain.stuckY = me.y;

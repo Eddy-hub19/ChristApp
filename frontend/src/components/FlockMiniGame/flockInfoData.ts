@@ -355,10 +355,21 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "leaf",
         title: { ua: "Карти", ru: "Карты", en: "Maps" },
         text: {
-          ua: "Арена випадково отримує одну з карт: звичайна (зелені кущі), «Роща» (осіннє листя) або «Сніг» (ялинки). Відрізняється лише вигляд.",
-          ru: "Арена случайно получает одну из карт: обычная (зелёные кусты), «Роща» (осенняя листва) или «Снег» (ёлки). Отличается только вид.",
-          en: "Each arena gets a random map: regular (green bushes), Grove (autumn leaves) or Snow (fir trees). Only the look differs.",
+          ua: "Арена випадково отримує одну з карт з рівною ймовірністю: звичайний луг, «Гай» (золоте листя на бурій землі), «Мороз» (сніг, ялинки, ягоди горобини й шишки) або «Вулкан» (темна земля з жаром, обгорілі кущі й іскри замість трави). Усюди їжа має ту саму цінність, а вигляд карти однаковий в усіх гравців арени. Лише «Вулкан» змінює правила: на ньому є лава.",
+          ru: "Арена случайно получает одну из карт с равной вероятностью: обычный луг, «Роща» (золотая листва на бурой земле), «Мороз» (снег, ёлки, ягоды рябины и шишки) или «Вулкан» (тёмная земля с жаром, обгорелые кусты и искры вместо травы). Везде еда имеет ту же ценность, а вид карты одинаков у всех игроков арены. Только «Вулкан» меняет правила: на нём есть лава.",
+          en: "Each arena gets a random map with equal probability: the regular meadow, Grove (golden leaves on brown soil), Frost (snow, firs, rowan berries and cones) or Volcano (dark ground with embers, charred bushes and sparks instead of grass). Food is worth the same everywhere, and the map looks the same to everyone on the arena. Only Volcano changes the rules: it has lava.",
         },
+      },
+      {
+        id: "lava",
+        icon: "lava",
+        title: { ua: "Лава («Вулкан»)", ru: "Лава («Вулкан»)", en: "Lava (Volcano)" },
+        text: {
+          ua: "Посеред карти тече річка лави на всю ширину (близько {pct}% висоти), через неї є {bmin}–{bmax} мостів. Клітина, чий центр опинився в лаві поза мостом, згорає: її маса нікому не дістається, кожна частина гине окремо, а коли згоріла остання, ти програв. Новачка на стартовому щиті й гравця на паузі лава не вбиває, їх виштовхує на берег. «Привид» і бонус «Щит» від лави не рятують. Боти й Вожак лаву обходять мостами. Коли підпливаєш близько, навколо клітини мигає червоне кільце, а край екрана червоніє.",
+          ru: "Посреди карты течёт река лавы на всю ширину (около {pct}% высоты), через неё есть {bmin}–{bmax} мостов. Клетка, чей центр оказался в лаве вне моста, сгорает: её масса никому не достаётся, каждая часть гибнет отдельно, а когда сгорела последняя, ты проиграл. Новичка на стартовом щите и игрока на паузе лава не убивает, их выталкивает на берег. «Привидение» и бонус «Щит» от лавы не спасают. Боты и Вожак лаву обходят по мостам. Когда подходишь близко, вокруг клетки мигает красное кольцо, а край экрана краснеет.",
+          en: "A river of lava runs across the middle of the map (about {pct}% of its height) with {bmin}–{bmax} bridges. A cell whose center ends up in the lava off a bridge burns: its mass goes to nobody, each part dies separately, and when the last one burns you lose. A newcomer on the start shield and a paused player are not killed, they are pushed to the shore. The Ghost and the Shield bonus do not save you from lava. Bots and the Alpha use the bridges. When you get close, a red ring flashes around your cell and the screen edge turns red.",
+        },
+        params: { pct: pct("lava.riverFraction"), bmin: num("lava.bridgesMin"), bmax: num("lava.bridgesMax") },
       },
       {
         id: "fence",

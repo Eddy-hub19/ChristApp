@@ -1,4 +1,5 @@
 import type { NavHazard } from './flock.nav';
+import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
 import {
   BONUS_KINDS,
   FLOCK_CONFIG,
@@ -43,6 +44,8 @@ export function generateThorns(
   cfg: ThornCfg = C.thorns,
   world: number = C.worldSize,
   layout: MapLayout = 'scatter',
+  /** Заборонена точка (лава з відступом): кущі там не ставляться. */
+  avoid?: (x: number, y: number, mass: number) => boolean,
 ): ThornSpec[] {
   const count = cfg.min + Math.floor(rng() * (cfg.max - cfg.min + 1));
   const out: ThornSpec[] = [];
@@ -85,6 +88,7 @@ export function generateThorns(
     for (let attempt = 0; attempt < cfg.candidates * 4; attempt++) {
       const { x, y } = candidate(n);
       if (!valid(x, y)) continue;
+      if (avoid && avoid(x, y, cfg.massMax)) continue;
       let d = Infinity;
       for (const t of out) d = Math.min(d, Math.hypot(t.x - x, t.y - y));
       if (d < cfg.minGap) continue;
@@ -99,9 +103,16 @@ export function generateThorns(
   return out;
 }
 
-/** Номер випадкової карти (рівноймовірно). */
+/** Номер випадкової карти (за вагами FLOCK_MAPS[].weight; рівні ваги - рівна ймовірність). */
 export function pickMapId(rng: Rng): number {
-  return FLOCK_MAPS[Math.min(FLOCK_MAPS.length - 1, Math.floor(rng() * FLOCK_MAPS.length))].id;
+  let total = 0;
+  for (const m of FLOCK_MAPS) total += m.weight;
+  let r = rng() * total;
+  for (const m of FLOCK_MAPS) {
+    r -= m.weight;
+    if (r < 0) return m.id;
+  }
+  return FLOCK_MAPS[FLOCK_MAPS.length - 1].id;
 }
 
 export interface Cell {
@@ -131,6 +142,10 @@ export interface Player {
   bossStart: number;
   bossDecayFrom: number;
   bossCeil: number;
+  /** Лава не вбиває до цього моменту (старт, повернення з паузи, «Хрест»); гравець на паузі захищений завжди. */
+  lavaSafeUntil: number;
+  /** Загинув у лаві (екран смерті: «згорів»). */
+  burned: boolean;
   alive: boolean;
   cells: Cell[];
   angle: number;
@@ -277,6 +292,10 @@ export class FlockWorld {
   private zNextStartAt = 0;
   private nextStarId = 1;
   readonly deaths: DeathEvent[] = [];
+  /** Клітини, що цього тіку згоріли в лаві: [x, y, радіус] (очищається щотіку). */
+  readonly lavaEvents: [number, number, number][] = [];
+  /** Річка лави (лише карта «Вулкан»). */
+  readonly lava: LavaLayout | null = null;
   /** Хто зараз перший за масою (для "часу в топ-1"). */
   leaderPid = 0;
   /** Заборонені для ШІ смуги (див. flock.nav.ts); лавова карта заповнює. */
@@ -297,7 +316,21 @@ export class FlockWorld {
     readonly mapId: number = 0,
   ) {
     const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
-    for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout))
+    if (map.lava) {
+      this.lava = generateLava(rng, C.worldSize);
+      this.hazards = [
+        {
+          y0: this.lava.y0,
+          y1: this.lava.y1,
+          gaps: this.lava.bridges.map((b) => ({ x0: b.x0, x1: b.x1 })),
+        },
+      ];
+    }
+    const lava = this.lava;
+    const avoid = lava
+      ? (x: number, y: number, mass: number) => lavaBlocked(lava, x, y, C.lava.clearMargin + radiusOf(mass))
+      : undefined;
+    for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout, avoid))
       this.thorns.push({ id: this.nextThornId++, ...t });
     for (let i = 0; i < C.maxFood; i++) this.spawnFood();
   }
@@ -348,6 +381,8 @@ export class FlockWorld {
       bossStart: opts.bossMass ?? C.boss.startMass,
       bossDecayFrom: (opts.bossMass ?? C.boss.startMass) * C.boss.decayFromFraction,
       bossCeil: opts.bossCeil ?? C.boss.maxMass,
+      lavaSafeUntil: 0,
+      burned: false,
       alive: false,
       cells: [],
       angle: 0,
@@ -403,6 +438,8 @@ export class FlockWorld {
     p.wantSplit = p.wantThrow = false;
     // коротка недоторканність після народження
     p.effects.shield = this.now + C.spawnShieldMs;
+    p.lavaSafeUntil = this.now + C.spawnShieldMs;
+    p.burned = false;
   }
 
   removePlayer(pid: number) {
@@ -413,11 +450,15 @@ export class FlockWorld {
   }
 
   private safeSpawn() {
-    let best = { x: C.worldSize / 2, y: C.worldSize / 2 };
+    // запасна точка - центр світу; на карті з лавою центр у річці, тож береться ділянка над нею
+    let best = this.lava
+      ? { x: C.worldSize / 2, y: this.lava.y0 - 300 }
+      : { x: C.worldSize / 2, y: C.worldSize / 2 };
     let bestD = -1;
     for (let i = 0; i < 8; i++) {
       const x = this.rand(150, C.worldSize - 150);
       const y = this.rand(150, C.worldSize - 150);
+      if (this.lavaBlockedAt(x, y, C.lava.clearMargin + 160)) continue;
       let d = Infinity;
       for (const c of this.cellsById.values()) {
         const dd = Math.hypot(c.x - x, c.y - y) - radiusOf(c.mass);
@@ -506,6 +547,7 @@ export class FlockWorld {
       p.effects.shield ?? 0,
       this.now + shieldMs,
     );
+    p.lavaSafeUntil = Math.max(p.lavaSafeUntil, this.now + shieldMs);
   }
 
   /** Артефакт гравця (боти - завжди 0, навіть якщо поле підмінили). */
@@ -539,17 +581,25 @@ export class FlockWorld {
     return (p.effects[k] ?? 0) > this.now;
   }
 
+  /** Точка в забороненій для об'єктів зоні лави (з відступом). Без лави - завжди false. */
+  private lavaBlockedAt(x: number, y: number, margin: number = C.lava.clearMargin) {
+    return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
+  }
+
   // ---------- спавн ----------
   private spawnFood() {
     if (this.foodById.size >= C.maxFood) return;
     const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
     this.nextFoodId = id + 1;
-    const food: Food = {
-      id,
-      x: this.rand(20, C.worldSize - 20),
-      y: this.rand(20, C.worldSize - 20),
-      kind: Math.floor(this.rng() * 3),
-    };
+    let x = this.rand(20, C.worldSize - 20);
+    let y = this.rand(20, C.worldSize - 20);
+    // не в лаві й не впритул до неї (кілька спроб; лава - вузька смуга, тож майже завжди вистачає однієї)
+    for (let t = 0; t < 6 && this.lavaBlockedAt(x, y, C.lava.clearMargin + C.foodRadius); t++) {
+      x = this.rand(20, C.worldSize - 20);
+      y = this.rand(20, C.worldSize - 20);
+    }
+    if (this.lavaBlockedAt(x, y, C.lava.clearMargin + C.foodRadius)) return;
+    const food: Food = { id, x, y, kind: Math.floor(this.rng() * 3) };
     this.foodById.set(id, food);
     const chunk = chunkIndexOf(food.x, food.y);
     this.foodChunks[chunk].set(id, food);
@@ -579,12 +629,14 @@ export class FlockWorld {
       : eagle
         ? 'eagle'
         : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
-    this.bonuses.push({
-      id,
-      x: this.rand(120, C.worldSize - 120),
-      y: this.rand(120, C.worldSize - 120),
-      kind,
-    });
+    let bx = this.rand(120, C.worldSize - 120);
+    let by = this.rand(120, C.worldSize - 120);
+    for (let t = 0; t < 6 && this.lavaBlockedAt(bx, by, C.lava.clearMargin + 40); t++) {
+      bx = this.rand(120, C.worldSize - 120);
+      by = this.rand(120, C.worldSize - 120);
+    }
+    if (this.lavaBlockedAt(bx, by, C.lava.clearMargin + 40)) return;
+    this.bonuses.push({ id, x: bx, y: by, kind });
   }
 
   // ---------- публічні запити (боти, протокол) ----------
@@ -637,6 +689,7 @@ export class FlockWorld {
     this.scissorsEvents.length = 0;
     this.reviveEvents.length = 0;
     this.deaths.length = 0;
+    this.lavaEvents.length = 0;
     const nowMs = this.now;
 
     for (const p of this.players.values()) {
@@ -665,6 +718,7 @@ export class FlockWorld {
     this.stepCellVsCell();
     this.stepFood();
     this.stepThorns();
+    this.stepLava(dt);
     this.stepBonuses();
 
     // total, decay, статистика
@@ -862,8 +916,12 @@ export class FlockWorld {
           if (d > radius || d < 1) return;
           const step = Math.min(d, pull * dt);
           const oldChunk = chunkIndexOf(f.x, f.y);
-          f.x += (dx / d) * step;
-          f.y += (dy / d) * step;
+          // їжа, що тягнеться магнітом, не заходить у лаву: стоїть на березі
+          const nx = f.x + (dx / d) * step;
+          const ny = f.y + (dy / d) * step;
+          if (this.lava && inLava(this.lava, nx, ny)) return;
+          f.x = nx;
+          f.y = ny;
           const chunk = chunkIndexOf(f.x, f.y);
           if (chunk !== oldChunk) {
             this.foodChunks[oldChunk].delete(f.id);
@@ -895,6 +953,8 @@ export class FlockWorld {
           eaten = true;
         }
       });
+      // кинута маса, що приземлилась у лаву, згорає
+      if (!eaten && this.lava && inLava(this.lava, b.x, b.y)) eaten = true;
       if (eaten) this.blobs.splice(i, 1);
     }
   }
@@ -963,6 +1023,7 @@ export class FlockWorld {
       victim.effects.shield ?? 0,
       this.now + A.reviveShieldMs,
     );
+    victim.lavaSafeUntil = Math.max(victim.lavaSafeUntil, this.now + A.reviveShieldMs);
     this.reviveEvents.push(victim.id);
     return true;
   }
@@ -989,6 +1050,43 @@ export class FlockWorld {
         }
       }
     }
+  }
+
+  /**
+   * Лава: клітина, чий центр у лаві поза мостом, згоряє (маса нікому, кожна клітина окремо; остання - смерть гравця).
+   * Не вбиває новачка на стартовому щиті, гравця на паузі й після «Хреста»: їх м'яко виштовхує на найближчий берег.
+   * «Привид» і бонус «Щит» від лави не рятують.
+   */
+  private stepLava(dt: number) {
+    const lava = this.lava;
+    if (!lava) return;
+    const mid = (lava.y0 + lava.y1) / 2;
+    for (const p of this.players.values()) {
+      if (!p.alive) continue;
+      const safe = p.paused || this.now < p.lavaSafeUntil;
+      for (const c of [...p.cells]) {
+        if (!inLava(lava, c.x, c.y)) continue;
+        if (safe) {
+          const step = C.lava.pushOutSpeed * dt;
+          if (c.y < mid) c.y = Math.max(lava.y0 - 1, c.y - step);
+          else c.y = Math.min(lava.y1 + 1, c.y + step);
+          continue;
+        }
+        this.burnCell(p, c);
+      }
+    }
+  }
+
+  private burnCell(p: Player, c: Cell) {
+    this.lavaEvents.push([Math.round(c.x), Math.round(c.y), Math.round(radiusOf(c.mass))]);
+    this.dropCell(p, c);
+    if (p.cells.length > 0) return;
+    p.alive = false;
+    p.burned = true;
+    p.diedAt = this.now;
+    p.killerPid = 0;
+    p.phrase = null;
+    this.deaths.push({ pid: p.id, killerPid: 0 });
   }
 
   private stepThorns() {
@@ -1278,6 +1376,7 @@ export class FlockWorld {
       }
       x = Math.min(hi, Math.max(lo, x));
       y = Math.min(hi, Math.max(lo, y));
+      if (this.lavaBlockedAt(x, y, C.lava.clearMargin + 60)) continue;
       if (lc) {
         const dl = Math.hypot(x - lc.x, y - lc.y);
         if (dl < Z.leaderClearRadius) continue;

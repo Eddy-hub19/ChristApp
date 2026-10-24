@@ -41,6 +41,8 @@ export interface DeathInfo {
   killed: string[];
   topMs: number;
   killer: string | null;
+  /** Згорів у лаві (карта «Вулкан»). */
+  burned?: boolean;
 }
 
 export interface FlockClientOptions {
@@ -225,6 +227,9 @@ export class FlockClient {
         if (!this.model) return;
         if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
       });
+    });
+    socket.on("lv", (msg: unknown) => {
+      this.later(() => this.model?.applyLava(msg, performance.now()));
     });
     socket.on("sc", (msg: unknown) => {
       this.later(() => {

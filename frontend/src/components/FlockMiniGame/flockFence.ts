@@ -36,7 +36,7 @@ const COLORS: Record<FenceStyle, FenceColors> = {
   wood: { post: ["#c58a4c", "#8f5a2b"], rail: ["#d79d5c", "#a46b34"], edge: "#4a2c14", light: "rgba(255,230,190,0.55)", shadow: "rgba(30,20,10,0.32)", mini: "#a46b34" },
   dry: { post: ["#a58a66", "#6e5a42"], rail: ["#b49a76", "#7c664b"], edge: "#3d2f21", light: "rgba(255,240,210,0.4)", shadow: "rgba(40,28,14,0.32)", mini: "#8a7254" },
   snow: { post: ["#eef1f5", "#b7bfca"], rail: ["#f6f8fb", "#c4ccd6"], edge: "#6c7686", light: "rgba(255,255,255,0.9)", shadow: "rgba(60,80,120,0.28)", cap: "#ffffff", mini: "#c4ccd6" },
-  charred: { post: ["#3b3033", "#1c1517"], rail: ["#463a3d", "#241b1d"], edge: "#0c0809", light: "rgba(255,150,70,0.35)", shadow: "rgba(0,0,0,0.5)", glow: "#ff7a2e", mini: "#5a4a4d" },
+  charred: { post: ["#7a6468", "#443438"], rail: ["#8a7176", "#50403f"], edge: "#000000", light: "rgba(255,180,100,0.55)", shadow: "rgba(0,0,0,0.55)", glow: "#ff7a2e", mini: "#8a7176" },
 };
 
 export const fenceMiniColor = (style: FenceStyle) => COLORS[style].mini;

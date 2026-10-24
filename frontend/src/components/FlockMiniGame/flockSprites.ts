@@ -1,4 +1,5 @@
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
+import { GROUND_SPAN, paintGround, type Ground } from "./flockGround";
 import { ARTIFACT_EXTENT, anchorFor, drawArtifact, drawArtifactShape } from "./flockArtifacts";
 import { animFrame, skinOf } from "./flockSkins";
 import { specialExtent } from "./flockSpecialDeco";
@@ -384,6 +385,8 @@ const THORN_COLORS = {
   green: ["#2f7a3a", "#47a357", "#5fbf6e", "#e9577f"],
   autumn: ["#c48a14", "#f0c230", "#ffe27a", "#9a4a1c"],
   fir: ["#16402b", "#1f5a3a", "#2a7a4c", "#ffffff"],
+  /** Обгорілий кущ вулканічної карти: чорне вугілля із жаринками. */
+  charred: ["#140d0f", "#2a1f22", "#4c3b3f", "#ff8a2a"],
 } as const;
 /** Вид «куста» карты: bush - зеленый, autumn - желтая осенняя листва, fir - елочка со снежными шапками. */
 export type ThornKind = keyof typeof THORN_COLORS;
@@ -399,6 +402,32 @@ function drawAutumnLeaves(c: CanvasRenderingContext2D, r: number) {
     c.fillStyle = colors[i % colors.length];
     c.beginPath();
     c.ellipse(Math.cos(a) * d, Math.sin(a) * d, r * 0.13, r * 0.07, rnd() * TAU, 0, TAU);
+    c.fill();
+  }
+}
+
+/** Жарини на обгорілому кущі: тьмяні жилки й яскраві цятки. */
+function drawEmbers(c: CanvasRenderingContext2D, r: number) {
+  let seed = 13;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  c.lineCap = "round";
+  for (let i = 0; i < 7; i++) {
+    const a = rnd() * TAU;
+    const d1 = r * (0.1 + rnd() * 0.2);
+    const d2 = r * (0.45 + rnd() * 0.25);
+    c.strokeStyle = "rgba(255,110,30,0.75)";
+    c.lineWidth = r * 0.04;
+    c.beginPath();
+    c.moveTo(Math.cos(a) * d1, Math.sin(a) * d1);
+    c.lineTo(Math.cos(a + 0.25) * (d1 + d2) * 0.6, Math.sin(a + 0.25) * (d1 + d2) * 0.6);
+    c.lineTo(Math.cos(a) * d2, Math.sin(a) * d2);
+    c.stroke();
+  }
+  for (let i = 0; i < 10; i++) {
+    const a = rnd() * TAU;
+    const d = Math.sqrt(rnd()) * r * 0.65;
+    c.fillStyle = i % 2 ? "#ffcc4a" : "#ff8a2a";
+    circle(c, Math.cos(a) * d, Math.sin(a) * d, r * 0.035);
     c.fill();
   }
 }
@@ -470,6 +499,8 @@ export function thornSprite(kind: ThornKind = "green") {
     c.fill();
     if (kind === "autumn") {
       drawAutumnLeaves(c, r);
+    } else if (kind === "charred") {
+      drawEmbers(c, r);
     } else {
       c.fillStyle = cBerry;
       for (const [dx, dy] of [
@@ -601,15 +632,18 @@ function hash(a: number, b: number) {
  * Патерн пасовища (колір + сітка + рідкі пучки). Розмір тайла підбирається під px/одиницю (бакети по 25%),
  * патерн повторюється у СВІТОВИХ координатах (setTransform перед fill).
  */
-export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUnit: number): CanvasPattern | null {
+export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUnit: number, ground: Ground = "meadow"): CanvasPattern | null {
   const q = Math.max(0.25, Math.round(pxPerUnit * 4) / 4);
-  const key = `${theme.dark ? "d" : "l"}|${theme.bg}|${q}`;
+  const key = `${theme.dark ? "d" : "l"}|${theme.bg}|${q}|${ground}`;
   if (tile && tile.key === key) return tile.pattern;
-  const span = GRID * TILE_CELLS;
+  const span = ground === "meadow" ? GRID * TILE_CELLS : GROUND_SPAN;
   const size = Math.round(span * q);
   const cv = makeCanvas(size, size);
   const c = cv.getContext("2d");
-  if (c) {
+  if (c && ground !== "meadow") {
+    c.scale(size / span, size / span);
+    paintGround(c, span, ground, theme.bg, theme.grid, GRID);
+  } else if (c) {
     c.scale(size / span, size / span);
     c.fillStyle = theme.bg;
     c.fillRect(0, 0, span, span);

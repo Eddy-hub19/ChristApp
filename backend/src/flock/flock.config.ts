@@ -331,6 +331,27 @@ export const FLOCK_CONFIG = {
     topSize: 3,
   },
 
+  /**
+   * Карта «Вулкан»: горизонтальна річка лави посередині на всю ширину й кілька мостів (випадково при створенні арени).
+   * Клітина, чий центр у лаві поза мостом, гине («згоріла»; маса нікому). Новачок на стартовому щиті, гравець на паузі й
+   * після «Хреста» в лаві не гинуть (їх виштовхує до берега); «Привид» і бонус «Щит» від лави не рятують.
+   */
+  lava: {
+    /** Товщина річки: частка висоти світу. */
+    riverFraction: 0.09,
+    /** Кількість мостів (випадково від min до max) і ширина (світові одиниці; пройде й велика овечка). */
+    bridgesMin: 4,
+    bridgesMax: 6,
+    bridgeWidth: 440,
+    /** Мінімальний проміжок між мостами й від країв світу. */
+    bridgeGap: 260,
+    edgeMargin: 180,
+    /** Відступ від лави (від краю), у який не потрапляють їжа, кущі, бонуси, зірки й точки появи. */
+    clearMargin: 40,
+    /** Швидкість виштовхування захищеної клітини на берег (світових одиниць за с). */
+    pushOutSpeed: 420,
+  },
+
   // --- «Вожак»: один дуже сильний бот на арені (але переможний: можна з'їсти, маса тане і має стелю) ---
   boss: {
     enabled: true,
@@ -454,7 +475,7 @@ export const FLOCK_CONFIG = {
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
 
 /** Вигляд кущів карти: `bush` - зелений, `autumn` - жовте осіннє листя, `fir` - ялинка зі сніговими шапками. */
-export type ThornStyle = 'bush' | 'autumn' | 'fir';
+export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred';
 
 export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
@@ -467,6 +488,10 @@ export interface FlockMapDef {
   thornStyle: ThornStyle;
   /** Перекриття C.thorns для цієї карти. */
   thorns: Partial<ThornCfg>;
+  /** Вага при випадковому виборі карти арени (рівні ваги - рівна ймовірність). */
+  weight: number;
+  /** На карті є річка лави (C.lava): геометрія й мости створюються разом з ареною. */
+  lava?: boolean;
 }
 
 /**
@@ -474,9 +499,10 @@ export interface FlockMapDef {
  * + палітра з таким id на клієнті (flockMaps.ts).
  */
 export const FLOCK_MAPS: readonly FlockMapDef[] = [
-  { id: 0, name: 'meadow', layout: 'scatter', thornStyle: 'bush', thorns: {} },
-  { id: 1, name: 'grove', layout: 'scatter', thornStyle: 'autumn', thorns: {} },
-  { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {} },
+  { id: 0, name: 'meadow', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1 },
+  { id: 1, name: 'grove', layout: 'scatter', thornStyle: 'autumn', thorns: {}, weight: 1 },
+  { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {}, weight: 1 },
+  { id: 3, name: 'volcano', layout: 'scatter', thornStyle: 'charred', thorns: {}, weight: 1, lava: true },
 ];
 
 /**
@@ -487,6 +513,7 @@ export function clientGameConfig() {
   const c = FLOCK_CONFIG;
   return {
     bonusDurations: { ...c.bonusDurations },
+    lava: { riverFraction: c.lava.riverFraction, bridgesMin: c.lava.bridgesMin, bridgesMax: c.lava.bridgesMax, bridgeWidth: c.lava.bridgeWidth },
     eagle: { zoom: c.eagle.zoom, zoomPct: Math.round((c.eagle.zoom - 1) * 100), viewMultiplier: c.eagle.viewMultiplier, spawnChance: c.eagle.spawnChance },
     speedMultiplier: c.speedMultiplier,
     goldenMassFraction: c.goldenMassFraction,
