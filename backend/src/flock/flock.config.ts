@@ -330,14 +330,25 @@ export const FLOCK_CONFIG = {
     /** Відродження після смерті (мс). */
     respawnMinMs: 110_000,
     respawnMaxMs: 130_000,
+    /** Мінімальна маса появи (коли живих гравців немає або лідер менший). */
     startMass: 2000,
-    /** Стеля: понад це маса обрізається (з'їдене зверху пропадає), щоб не захопив арену. */
-    maxMass: 2600,
+    /** Поява: маса = маса найкращого ЖИВОГО гравця * leaderSpawnMultiplier (не менше startMass і не більше maxMass). */
+    leaderSpawnMultiplier: 1.2,
+    /** Стеля маси: лідер * leaderCeilMultiplier, але не вище maxMass (з'їдене зверху пропадає), щоб не захопив арену. */
+    leaderCeilMultiplier: 1.6,
+    /** Абсолютна стеля маси Вожака (раніше 2600; піднято, щоб він лишався більшим за лідера й коли той виріс). */
+    maxMass: 8000,
+    /** Як часто (мс) перераховується стеля за поточним лідером. */
+    ceilRefreshMs: 1000,
+    /** Повідомлення «Вожак з'їв лідера» (один раз усім на арені). */
+    leaderEatMessage: { enabled: true },
     /**
      * Розпад: тане лише маса клітини ВИЩЕ decayFromMass і пропорційно цьому надлишку (decayPerSec за секунду),
      * тож маса м'яко сповзає до ~decayFromMass і не обвалюється миттєво; тримається в межах decayFromMass..maxMass.
      */
     decayFromMass: 1800,
+    /** Таяння рахується від маси появи: поріг = маса появи * decayFromFraction (замість абсолютного decayFromMass). */
+    decayFromFraction: 0.9,
     decayPerSec: 0.01,
     /** «Ножиці» різають його як усіх, але нижче цієї загальної маси не опускають (звичайним гравцям - scissors.minMassAfter). */
     scissorsMinMassAfter: 1000,
@@ -492,6 +503,8 @@ export function clientGameConfig() {
     },
     boss: {
       startMass: c.boss.startMass,
+      leaderSpawnMultiplier: c.boss.leaderSpawnMultiplier,
+      leaderCeilMultiplier: c.boss.leaderCeilMultiplier,
       maxMass: c.boss.maxMass,
       firstSpawnMinMs: c.boss.firstSpawnMinMs,
       firstSpawnMaxMs: c.boss.firstSpawnMaxMs,

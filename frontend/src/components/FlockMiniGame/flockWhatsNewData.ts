@@ -292,6 +292,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 12,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "trophy",
+        text: {
+          ua: "Вожак тепер завжди більший за лідера: з'являється з масою лідера ×1,2, а коли з'їдає лідера, усі бачать повідомлення",
+          ru: "Вожак теперь всегда больше лидера: появляется с массой лидера ×1,2, а когда съедает лидера, все видят сообщение",
+          en: "The Alpha is now always bigger than the leader: it appears at the leader's mass ×1.2, and when it eats the leader everyone sees a message",
+        },
+      },
+      {
+        icon: "shield",
+        text: {
+          ua: "Розумніші боти: випереджають рух цілі, тікають у відкритий простір чи до куща, не лізуть до цілей під охороною і діляться лише коли певні, що наздоженуть",
+          ru: "Умнее боты: упреждают движение цели, убегают в открытое место или к кусту, не лезут к целям под охраной и делятся, только когда уверены, что догонят",
+          en: "Smarter bots: they lead their targets, flee to open space or a bush, avoid guarded targets and split only when sure to catch",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

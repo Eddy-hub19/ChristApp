@@ -1,4 +1,5 @@
 import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
+import { inHazard, navPush, navRoute } from './flock.nav';
 import {
   radiusOf,
   speedOf,
@@ -79,6 +80,8 @@ export function initBoss(p: Player, rng: Rng) {
 }
 
 const TWO_PI = Math.PI * 2;
+const navTmp = { x: 0, y: 0 };
+const routeTmp = { x: 0, y: 0 };
 const wrap = (a: number) => {
   while (a > Math.PI) a -= TWO_PI;
   while (a < -Math.PI) a += TWO_PI;
@@ -296,11 +299,10 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
       }
     }
   }
-  const margin = B.wallMargin;
-  if (me.x < margin) ox += (margin - me.x) / margin;
-  if (me.x > W - margin) ox -= (me.x - (W - margin)) / margin;
-  if (me.y < margin) oy += (margin - me.y) / margin;
-  if (me.y > W - margin) oy -= (me.y - (W - margin)) / margin;
+  // краї світу й заборонені зони (шар flock.nav.ts: лавова річка)
+  navPush(world, me.x, me.y, myR, B.wallMargin, navTmp);
+  ox += navTmp.x;
+  oy += navTmp.y;
 
   // ---- рішення ----
   // dirX/dirY - бажаний напрямок (одиничний, 0 - немає); hold - стояти; split - поділитись
@@ -344,6 +346,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
       if (s.edible < B.preyMinMass) continue;
       const o = s.p;
       if (world.isShielded(o)) continue;
+      if (inHazard(world, s.ex, s.ey)) continue;
       // «Кадило»: носій не стає ціллю Вожака
       if (world.hasArtifact(o, ARTIFACT.censer)) continue;
       // новачків-людей не чіпаємо (див. botGraceMs; рушій теж не дасть їх з'їсти)
@@ -443,8 +446,9 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         dirY = a.y - me.y;
         hold = Math.hypot(dirX, dirY) < a.r - myR * 0.2;
       } else {
-        dirX = ax - me.x;
-        dirY = ay - me.y;
+        navRoute(world, me.x, me.y, ax, ay, myR, routeTmp);
+        dirX = routeTmp.x - me.x;
+        dirY = routeTmp.y - me.y;
       }
 
       // поділ для нападу: лише коли шанс спіймати високий
@@ -504,7 +508,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         let ty = 0;
         world.foodNear(me.x, me.y, B.foodRadius, (f) => {
           const d = Math.hypot(f.x - me.x, f.y - me.y);
-          if (d < best) {
+          if (d < best && !inHazard(world, f.x, f.y, 4)) {
             best = d;
             tx = f.x;
             ty = f.y;
@@ -512,15 +516,16 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         });
         for (const b of world.bonuses) {
           const d = Math.hypot(b.x - me.x, b.y - me.y);
-          if (d < B.bonusRadius && d * 0.35 < best) {
+          if (d < B.bonusRadius && d * 0.35 < best && !inHazard(world, b.x, b.y, 4)) {
             best = d * 0.35;
             tx = b.x;
             ty = b.y;
           }
         }
         if (best < Infinity) {
-          dirX = tx - me.x;
-          dirY = ty - me.y;
+          navRoute(world, me.x, me.y, tx, ty, myR, routeTmp);
+          dirX = routeTmp.x - me.x;
+          dirY = routeTmp.y - me.y;
         } else if (crowd) {
           // «натовп»: на окраїну, подалі від центру скупчення, вздовж стіни
           const cx = crowdX / humansNear;
