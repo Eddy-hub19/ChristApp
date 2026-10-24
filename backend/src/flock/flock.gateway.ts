@@ -51,12 +51,14 @@ export class FlockGateway
         onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
+        getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
           void this.rubies
             .recordRun(userId, run)
             .catch((e) => this.log.error(`recordRun: ${String(e)}`)),
       },
     );
+    this.daily.onStreakChange(() => this.manager.streakChanged());
   }
 
   /** Нагорода за 1-ше місце: сервер пише в БД і лише потім повідомляє клієнта (подія `r`). */
@@ -200,6 +202,8 @@ export class FlockGateway
       thornStyle: res.thornStyle,
       /** Зірки «Зорепаду» на момент входу: { id, x, y, fall - мс до приземлення }. */
       stars: res.stars,
+      /** Серія днів на 1-му місці: { p - pid держателя тут (0 - нема), d - днів }; далі приходить подією `sk`. */
+      streak: res.streak,
       /** Піврозмір спрайта їжі (світові одиниці). */
       foodRadius: FLOCK_CONFIG.foodRadius,
       chunk: FLOCK_CONFIG.chunkSize,

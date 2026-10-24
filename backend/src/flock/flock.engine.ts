@@ -149,13 +149,17 @@ export interface Player {
   killed: string[];
   kills: number;
   killerPid: number;
+  /** Скільки разів цей гравець за поточне життя запускав «Зорепад» (ліміт C.zorepad.maxPerPlayerLife). */
+  zorepadCount: number;
+  /** «Хрест»: «Друге життя» у цьому житті вже використане. */
+  reviveUsed: boolean;
   /** Швидка фраза над овечкою (id з FLOCK_CONFIG.phrases.ids; until - мс світового часу). Скидається смертю й народженням. */
   phrase: { id: number; until: number } | null;
   /** Довільні дані ШІ. */
   brain?: unknown;
 }
 
-/** Вид їжі-шерсті (клаптики після «Ножиць»): малюється окремим спрайтом. */
+/** Вид їжі-шерсті: малюється окремим спрайтом (ножиці її більше не залишають, вид лишається для старих клієнтів). */
 export const FOOD_KIND_WOOL = 3;
 export interface Food {
   id: number;
@@ -218,6 +222,8 @@ export interface ScissorsEvent {
   r: number;
   taker: number;
   victims: number[];
+  /** Скільки маси отримав той, хто взяв ножиці. */
+  gain: number;
 }
 
 export interface DeathEvent {
@@ -256,12 +262,12 @@ export class FlockWorld {
   readonly stars: Star[] = [];
   readonly starEvents: StarEvent[] = [];
   readonly scissorsEvents: ScissorsEvent[] = [];
+  /** pid гравців, що цього тіку ожили від «Хреста» (очищається щотіку). */
+  readonly reviveEvents: number[] = [];
   private zActive = false;
   private zUntil = 0;
   private zNextSpawnAt = 0;
   private zNextStartAt = 0;
-  /** Скільки разів «Зорепад» уже був на цій арені (максимум C.zorepad.maxPerGame). */
-  private zCount = 0;
   private nextStarId = 1;
   readonly deaths: DeathEvent[] = [];
   /** Хто зараз перший за масою (для "часу в топ-1"). */
@@ -343,6 +349,8 @@ export class FlockWorld {
       kills: 0,
       killerPid: 0,
       phrase: null,
+      zorepadCount: 0,
+      reviveUsed: false,
     };
     this.players.set(id, player);
     this.respawn(player);
@@ -369,9 +377,11 @@ export class FlockWorld {
     p.kills = 0;
     p.killerPid = 0;
     p.phrase = null;
+    p.zorepadCount = 0;
+    p.reviveUsed = false;
     p.wantSplit = p.wantThrow = false;
     // коротка недоторканність після народження
-    p.effects.shield = this.now + C.spawnShieldMs + this.crossShieldBonus(p);
+    p.effects.shield = this.now + C.spawnShieldMs;
   }
 
   removePlayer(pid: number) {
@@ -473,7 +483,7 @@ export class FlockWorld {
     }
     p.effects.shield = Math.max(
       p.effects.shield ?? 0,
-      this.now + shieldMs + this.crossShieldBonus(p),
+      this.now + shieldMs,
     );
   }
 
@@ -487,11 +497,15 @@ export class FlockWorld {
     p.artifact = !p.bot && isArtifactId(artifact) ? artifact : 0;
   }
 
-  /** «Хрест»: щит після входу/повернення довший на crossShieldBonusMs. */
-  private crossShieldBonus(p: Player) {
-    return this.hasArtifact(p, ARTIFACT.cross)
-      ? C.artifacts.crossShieldBonusMs
-      : 0;
+  /**
+   * «Шапка священника»: маса не тане перші priestHatFreeMs життя й перші priestHatFreeMs кожного
+   * priestHatPeriodMs від початку життя (spawnedAt зсувається на тривалість паузи, тож пауза не рахується).
+   */
+  private priestHatActive(p: Player) {
+    if (!this.hasArtifact(p, ARTIFACT.priestHat)) return false;
+    const A = C.artifacts;
+    const age = Math.max(0, this.now - p.spawnedAt);
+    return age % A.priestHatPeriodMs < A.priestHatFreeMs;
   }
 
   isShielded(p: Player) {
@@ -517,17 +531,6 @@ export class FlockWorld {
     };
     this.foodById.set(id, food);
     const chunk = chunkIndexOf(food.x, food.y);
-    this.foodChunks[chunk].set(id, food);
-    this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
-  }
-
-  /** Додає їжу в задану точку (шерсть після «Ножиць»): ті самі події, що й у звичайної їжі. */
-  private addFoodAt(x: number, y: number, kind: number, mass?: number) {
-    const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
-    this.nextFoodId = id + 1;
-    const food: Food = { id, x, y, kind, mass };
-    this.foodById.set(id, food);
-    const chunk = chunkIndexOf(x, y);
     this.foodChunks[chunk].set(id, food);
     this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
   }
@@ -604,6 +607,7 @@ export class FlockWorld {
     this.foodEvents.length = 0;
     this.starEvents.length = 0;
     this.scissorsEvents.length = 0;
+    this.reviveEvents.length = 0;
     this.deaths.length = 0;
     const nowMs = this.now;
 
@@ -640,8 +644,8 @@ export class FlockWorld {
     for (const p of this.players.values()) {
       if (!p.alive) continue;
       let total = 0;
-      // «Шапка священника»: маса не тане з часом
-      const noDecay = this.hasArtifact(p, ARTIFACT.priestHat);
+      // «Шапка священника»: у свої вікна маса не тане
+      const noDecay = this.priestHatActive(p);
       const from = p.boss ? C.boss.decayFromMass : C.decayFromMass;
       const rate = p.boss ? C.boss.decayPerSec : C.decayPerSec;
       for (const c of p.cells) {
@@ -820,7 +824,7 @@ export class FlockWorld {
         pull = C.magnetPull;
       } else if (this.hasArtifact(p, ARTIFACT.magnet)) {
         radius = C.artifacts.magnetRadius;
-        pull = C.artifacts.magnetPull;
+        pull = C.artifacts.magnetPull * (1 + C.artifacts.magnetPullBonus);
       } else continue;
       for (const c of p.cells) {
         this.foodNear(c.x, c.y, radius, (f) => {
@@ -903,6 +907,7 @@ export class FlockWorld {
   private eatCell(eater: Player, a: Cell, victim: Player, b: Cell) {
     a.mass += victim.boss ? b.mass * C.boss.eatMassGain : b.mass;
     this.dropCell(victim, b);
+    if (victim.cells.length === 0 && this.tryRevive(victim, b)) return;
     if (victim.cells.length === 0) {
       victim.alive = false;
       victim.diedAt = this.now;
@@ -912,6 +917,26 @@ export class FlockWorld {
       if (eater.killed.length < 8) eater.killed.push(victim.name);
       this.deaths.push({ pid: victim.id, killerPid: eater.id });
     }
+  }
+
+  /**
+   * «Хрест» - «Друге життя»: раз за життя, коли з'їли останню клітину, гравець одразу оживає на тому ж місці
+   * з reviveMassFraction маси (за останнім відомим totalом) і коротким щитом, щоб його не з'їли знову в ту ж мить.
+   */
+  private tryRevive(victim: Player, last: Cell): boolean {
+    if (victim.reviveUsed || !this.hasArtifact(victim, ARTIFACT.cross)) return false;
+    const A = C.artifacts;
+    victim.reviveUsed = true;
+    const mass = Math.max(C.startMass, victim.total * A.reviveMassFraction);
+    const cell = this.addCell(victim, last.x, last.y, mass);
+    cell.thornImmuneUntil = this.now + A.reviveShieldMs;
+    victim.total = mass;
+    victim.effects.shield = Math.max(
+      victim.effects.shield ?? 0,
+      this.now + A.reviveShieldMs,
+    );
+    this.reviveEvents.push(victim.id);
+    return true;
   }
 
   private stepFood() {
@@ -1016,8 +1041,6 @@ export class FlockWorld {
       const near: { p: Player; d: number }[] = [];
       for (const o of this.players.values()) {
         if (o === p || !o.alive || o.paused) continue;
-        // «Кадило»: заморожування не діє
-        if (this.hasArtifact(o, ARTIFACT.censer)) continue;
         const cc = this.centroid(o);
         const d = Math.hypot(cc.x - cell.x, cc.y - cell.y);
         if (d <= C.freezeRadius) near.push({ p: o, d });
@@ -1038,17 +1061,16 @@ export class FlockWorld {
       : ms;
   }
 
-  /** «Ножиці»: хвиля навколо клітини, що підібрала бонус; подробиці правил - у C.scissors. */
+  /** «Ножиці»: хвиля навколо клітини, що підібрала бонус; зрізана маса йде тому, хто взяв (правила - у C.scissors). */
   private applyScissors(taker: Player, cell: Cell) {
     const S = C.scissors;
     const R = Math.max(S.minRadius, radiusOf(cell.mass) * S.radiusMul);
     const victims: number[] = [];
+    let cutTotal = 0;
     for (const o of this.players.values()) {
       if (o === taker || !o.alive) continue;
       if (S.immunePaused && o.paused) continue;
       if (S.immuneShield && this.isShielded(o)) continue;
-      // «Кадило»: захист від «Ножиць»
-      if (this.hasArtifact(o, ARTIFACT.censer)) continue;
       if (this.now - o.spawnedAt < S.newbieImmuneMs) continue;
       let total = 0;
       for (const c of o.cells) total += c.mass;
@@ -1069,31 +1091,26 @@ export class FlockWorld {
       for (const c of hit) {
         const cut = c.mass * S.cutFraction * k;
         c.mass -= cut;
-        this.scatterWool(c.x, c.y, radiusOf(c.mass + cut) * S.woolScatter, cut);
+        cutTotal += cut;
       }
       victims.push(o.id);
     }
+    // виграш того, хто взяв: частка зрізаного, але не більше maxGainOfOwnMass його поточної маси
+    let ownMass = 0;
+    for (const c of taker.cells) ownMass += c.mass;
+    const gain = Math.min(
+      cutTotal * S.takerShare,
+      ownMass * S.maxGainOfOwnMass,
+    );
+    if (gain > 0) cell.mass += gain;
     this.scissorsEvents.push({
       x: Math.round(cell.x),
       y: Math.round(cell.y),
       r: Math.round(R),
       taker: taker.id,
       victims,
+      gain: Math.round(gain),
     });
-  }
-
-  /** Розсипає зрізану масу жмутами шерсті навколо точки (маса зберігається повністю). */
-  private scatterWool(x: number, y: number, spread: number, mass: number) {
-    const S = C.scissors;
-    const n = Math.max(1, Math.min(S.woolMaxPieces, Math.ceil(mass / S.woolPieceMass)));
-    const each = mass / n;
-    for (let i = 0; i < n; i++) {
-      const a = this.rng() * TWO_PI;
-      const d = Math.sqrt(this.rng()) * spread;
-      const fx = Math.min(C.worldSize - 20, Math.max(20, x + Math.cos(a) * d));
-      const fy = Math.min(C.worldSize - 20, Math.max(20, y + Math.sin(a) * d));
-      this.addFoodAt(fx, fy, FOOD_KIND_WOOL, each);
-    }
   }
 
   // ---------- «Зорепад» ----------
@@ -1136,8 +1153,9 @@ export class FlockWorld {
     }
 
     if (!this.zActive) {
-      if (this.zCount < Z.maxPerGame && this.now >= this.zNextStartAt && this.canStartZorepad()) {
-        this.zCount++;
+      const starter = this.now >= this.zNextStartAt ? this.zorepadStarter() : null;
+      if (starter) {
+        starter.zorepadCount++;
         this.zActive = true;
         this.zUntil = this.now + Z.durationMs;
         this.zNextSpawnAt = this.now;
@@ -1159,17 +1177,22 @@ export class FlockWorld {
     }
   }
 
-  /** Подія стартує, коли жива людина досягла triggerMass і на арені є хоча б minAlive живих гравців. */
-  private canStartZorepad() {
+  /**
+   * Хто запускає подію: найбільша жива людина (не на паузі) з масою від triggerMass, яка ще не вичерпала
+   * maxPerPlayerLife запусків у цьому житті; на арені має бути хоча б minAlive живих гравців.
+   */
+  private zorepadStarter(): Player | null {
     const Z = C.zorepad;
     let alive = 0;
-    let big = false;
+    let starter: Player | null = null;
     for (const p of this.players.values()) {
       if (!p.alive) continue;
       alive++;
-      if (!p.bot && p.total >= Z.triggerMass) big = true;
+      if (p.bot || p.paused || p.total < Z.triggerMass) continue;
+      if (p.zorepadCount >= Z.maxPerPlayerLife) continue;
+      if (!starter || p.total > starter.total) starter = p;
     }
-    return big && alive >= Z.minAlive;
+    return alive >= Z.minAlive ? starter : null;
   }
 
   private spawnStar() {

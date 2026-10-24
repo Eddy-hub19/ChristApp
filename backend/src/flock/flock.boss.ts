@@ -1,4 +1,4 @@
-import { FLOCK_CONFIG } from './flock.config';
+import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
 import {
   radiusOf,
   speedOf,
@@ -344,6 +344,8 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
       if (s.edible < B.preyMinMass) continue;
       const o = s.p;
       if (world.isShielded(o)) continue;
+      // «Кадило»: носій не стає ціллю Вожака
+      if (world.hasArtifact(o, ARTIFACT.censer)) continue;
       // новачків-людей не чіпаємо (див. botGraceMs; рушій теж не дасть їх з'їсти)
       if (!o.bot && now - o.spawnedAt < C.botGraceMs) continue;
       const dist = Math.hypot(s.ex - me.x, s.ey - me.y);

@@ -1131,12 +1131,12 @@
       "worn": "Worn",
       "items": {
         "1": { "name": "Winged Sandals", "desc": "+8% speed" },
-        "2": { "name": "Priest's Hat", "desc": "Mass doesn't fade over time" },
+        "2": { "name": "Priest's Hat", "desc": "Mass doesn't fade for the first minute of life and the first minute of every {hatPeriod} min" },
         "3": { "name": "Royal Crown", "desc": "+10% mass from food" },
-        "4": { "name": "Magnet", "desc": "Gently pulls nearby food" },
+        "4": { "name": "Magnet", "desc": "Food is pulled in {magnetPct}% faster" },
         "5": { "name": "Hourglass", "desc": "Pickups last 30% longer" },
-        "6": { "name": "Cross", "desc": "Spawn and respawn shield lasts 3 s longer" },
-        "7": { "name": "Censer", "desc": "Protects from Scissors and freeze" }
+        "6": { "name": "Cross", "desc": "Second life: once per life you revive on the spot with {revivePct}% mass" },
+        "7": { "name": "Censer", "desc": "Bots and the Alpha keep away from you" }
       }
     },
     "premium": "Premium",
@@ -1158,6 +1158,7 @@
       "minutes": "{count} min",
       "empty": "Be the first!",
       "emptyHint": "Nobody has played today yet — become the record holder",
+      "streakShort": "Streak: {days} d",
       "yourBest": "Your best today",
       "streak": "Streak at #1: {days} of {total} days",
       "hint": "{days} days in a row at #1 = {reward} rubies (mass {mass}+)"
@@ -1169,7 +1170,9 @@
     },
     "hud": {
       "mass": "Mass",
-      "leaderboard": "Top 10"
+      "leaderboard": "Top 10",
+      "streakDays": "{days} d",
+      "streakTitle": "1st-place streak: {days} days in a row"
     },
     "dead": {
       "title": "You got eaten",
@@ -1181,7 +1184,8 @@
     },
     "events": {
       "zorepad": "Starfall!",
-      "scissorsTaker": "Scissors! Sheared: {count}",
+      "scissorsTaker": "Scissors! +{gain} mass, sheared: {count}",
+      "revived": "Second life!",
       "scissorsVictim": "You got a haircut!",
       "bossSpawn": "The Alpha has come out to hunt",
       "bossDefeated": "{name} defeated the Alpha!"

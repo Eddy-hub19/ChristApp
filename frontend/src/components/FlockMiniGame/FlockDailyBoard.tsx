@@ -69,7 +69,10 @@ export default function FlockDailyBoard({ initial }: Props) {
             <li key={r.rank} className={r.me ? `${styles.row} ${styles.me}` : styles.row}>
               <span className={`${styles.place} ${styles[MEDALS[r.rank - 1]]}`}>{r.rank}</span>
               <AvatarWithFallback src={r.avatarUrl} initials={(r.name[0] ?? "?").toUpperCase()} colorSeed={r.name} width={28} height={28} imageClassName={styles.avatar} fallbackClassName={styles.avatar} />
-              <span className={styles.name}>{r.name}</span>
+              <span className={styles.name}>
+                {r.name}
+                {r.rank === 1 && r.streakDays ? <span className={styles.streakBadge}>{t("streakShort", { days: r.streakDays })}</span> : null}
+              </span>
               <span className={styles.mass}>{r.mass}</span>
             </li>
           ))}

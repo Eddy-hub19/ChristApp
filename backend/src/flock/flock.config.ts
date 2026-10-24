@@ -103,7 +103,7 @@ export const FLOCK_CONFIG = {
 
   // --- сесія: відновлення після вильоту ---
   /** Скільки овечка чекає на арені (пауза), якщо гравець відключився не сам. Явний вихід - без паузи. */
-  resumePauseMs: 20_000,
+  resumePauseMs: 30_000,
   /** Щит одразу після повернення. */
   resumeShieldMs: 2000,
 
@@ -163,9 +163,9 @@ export const FLOCK_CONFIG = {
   /** Бонус підбирається, коли центр бонуса ближче за радіус клітини + bonusReach (було 14, бонуси на екрані x1.2 -> 17). */
   bonusReach: 17,
   bonusDurations: {
-    speed: 7000,
-    magnet: 8000,
-    shield: 6000,
+    speed: 10_000,
+    magnet: 10_000,
+    shield: 10_000,
     ghost: 6000,
     double: 9000,
     freeze: 4000,
@@ -175,15 +175,17 @@ export const FLOCK_CONFIG = {
   /**
    * Бонус «Ножиці»: миттєва хвиля навколо того, хто підібрав. Усі (крім нього), у кого загальна маса більша за
    * massThreshold, втрачають cutFraction маси кожної частини в радіусі; маса не падає нижче minMassAfter.
-   * Зрізана маса розсипається їжею-шерстю навколо постраждалих (її їсть будь-хто).
+   * Зрізана маса переходить тому, хто взяв ножиці (takerShare, не більше maxGainOfOwnMass його поточної маси);
+   * решта, що не влізла в ліміт, пропадає (їжею не розсипається).
    */
   scissors: {
     /** Шанс, що черговий бонус на полі - «Ножиці» (одночасно на полі не більше одних). */
     spawnChance: 0.05,
     /** Радіус хвилі у радіусах клітини, що підібрала бонус. */
-    radiusMul: 2.5,
+    /** Було 2.5; +25% (takerShare / maxGainOfOwnMass - нижче). */
+    radiusMul: 3.125,
     /** Не менше цього радіуса (світові одиниці), щоб хвиля була помітна й для малої клітини. */
-    minRadius: 120,
+    minRadius: 150,
     cutFraction: 0.5,
     /** Різати можна лише гравця із загальною масою БІЛЬШЕ цього порогу. */
     massThreshold: 500,
@@ -193,11 +195,10 @@ export const FLOCK_CONFIG = {
     immuneShield: true,
     immunePaused: true,
     newbieImmuneMs: 15_000,
-    /** Скільки маси в одному жмуті шерсті та максимум жмутів на одну постраждалу частину. */
-    woolPieceMass: 10,
-    woolMaxPieces: 14,
-    /** Жмути розсипаються в колі такого розміру від радіуса клітини. */
-    woolScatter: 1.5,
+    /** Яка частка зрізаної маси дістається тому, хто взяв ножиці (1 - уся). */
+    takerShare: 1,
+    /** Виграш за одне використання не більший за цю частку власної поточної маси того, хто взяв (проти різких стрибків). */
+    maxGainOfOwnMass: 1,
   },
   speedMultiplier: 1.5,
 
@@ -237,13 +238,13 @@ export const FLOCK_CONFIG = {
     /** Скільки зірок на арені максимум. */
     maxStars: 30,
     /** Маса за зірку. */
-    starMass: 250,
+    starMass: 200,
     /** Підбір: центр зірки ближче за радіус клітини + pickupReach. */
     pickupReach: 40,
     /** Мінімум живих гравців на арені (разом із ботами), щоб подія стартувала. */
     minAlive: 2,
-    /** Скільки разів «Зорепад» може статися за одну гру (арену). */
-    maxPerGame: 3,
+    /** Скільки разів «Зорепад» може запустити один гравець за своє життя (від входу/відродження до смерті). */
+    maxPerPlayerLife: 2,
     cooldownMinMs: 60_000,
     cooldownMaxMs: 90_000,
     /** Навколо лідера зірок немає; до leaderSparseRadius вони рідкі (ймовірність росте лінійно). */
@@ -268,7 +269,7 @@ export const FLOCK_CONFIG = {
   rubies: {
     /** Нагорода за 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
     top1Reward: 10,
-    top1MassThreshold: 1500,
+    top1MassThreshold: 3000,
     /** Нагорода тому, хто з'їв «Вожака» (поза dailyLimit). */
     bossKillReward: 5,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
@@ -400,20 +401,28 @@ export const FLOCK_CONFIG = {
   // --- артефакти (надягаються поверх скіна, купуються за рубіни, 1 надітий; бонус рахує сервер за надітим) ---
   artifacts: {
     /** Ціна кожного артефакта в рубінах - окремо від цін скінів. */
-    price: 80,
+    price: 100,
     /** 1 «Взуття»: +8% до швидкості (вище maxSpeedHard не піднімає). */
     shoesSpeedBonus: 0.08,
-    /** 2 «Шапка священника»: маса не тане з часом (не діє розпад великої маси). */
+    /**
+     * 2 «Шапка священника»: перші priestHatFreeMs життя (від входу чи відродження) маса не тане, далі тане як
+     * звичайно; на початку кожного priestHatPeriodMs від початку життя знову priestHatFreeMs без розпаду.
+     */
+    priestHatFreeMs: 60_000,
+    priestHatPeriodMs: 300_000,
     /** 3 «Королівська корона»: +10% маси від з'їденої їжі. */
     crownFoodBonus: 0.1,
-    /** 4 «Магніт»: постійне слабке притягання їжі, помітно слабше за бонус на карті (magnetRadius / magnetPull). */
+    /** 4 «Магніт»: слабке постійне притягання їжі (радіус не змінюється), швидкість притягання +magnetPullBonus. */
     magnetRadius: 140,
     magnetPull: 70,
+    magnetPullBonus: 0.25,
     /** 5 «Пісочний годинник»: підібрані бонуси діють на 30% довше. */
     hourglassDurationBonus: 0.3,
-    /** 6 «Хрест»: щит після входу й повернення довший на стільки мс. */
-    crossShieldBonusMs: 3000,
-    /** 7 «Кадило»: захист від «Ножиць» і заморожування (без чисел). */
+    /** 6 «Хрест»: «Друге життя» - раз за життя оживає на місці з цією часткою маси, зі щитом на reviveShieldMs. */
+    reviveMassFraction: 0.4,
+    reviveShieldMs: 3000,
+    /** 7 «Кадило»: боти й «Вожак» тримаються подалі від носія в цьому радіусі (на людей не діє). */
+    censerRadius: 500,
   },
 } as const;
 
@@ -463,6 +472,7 @@ export function clientGameConfig() {
       cutFraction: c.scissors.cutFraction,
       massThreshold: c.scissors.massThreshold,
       minMassAfter: c.scissors.minMassAfter,
+      takerShare: c.scissors.takerShare,
     },
     spawnBoost: { ...c.spawnBoost },
     spawnShieldMs: c.spawnShieldMs,
@@ -478,7 +488,7 @@ export function clientGameConfig() {
       triggerMass: c.zorepad.triggerMass,
       durationMs: c.zorepad.durationMs,
       starMass: c.zorepad.starMass,
-      maxPerGame: c.zorepad.maxPerGame,
+      maxPerPlayerLife: c.zorepad.maxPerPlayerLife,
     },
     boss: {
       startMass: c.boss.startMass,
@@ -505,6 +515,13 @@ export function clientGameConfig() {
       topSize: c.dailyRecords.topSize,
     },
     artifactPrice: c.artifacts.price,
+    artifacts: {
+      priestHatFreeMs: c.artifacts.priestHatFreeMs,
+      priestHatPeriodMs: c.artifacts.priestHatPeriodMs,
+      magnetPullBonus: c.artifacts.magnetPullBonus,
+      reviveMassFraction: c.artifacts.reviveMassFraction,
+      censerRadius: c.artifacts.censerRadius,
+    },
     phrases: {
       durationMs: phraseDurationMs(),
       cooldownMs: c.phrases.cooldownMs,

@@ -36,6 +36,8 @@ export interface FlockCfg {
   thornStyle?: "bush" | "autumn" | "fir";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
+  /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
+  streak?: { p: number; d: number };
 }
 
 /** Зірка «Зорепаду»: падає fall мс від t0 (локальний час, мс), потім лежить, поки її не з'їдять. */
@@ -147,6 +149,8 @@ export class FlockModel {
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
   readonly pausedUntil = new Map<number, number>();
   board: DecodedBoard = { top: [], alive: 0, map: [] };
+  /** Серія днів на 1-му місці в Топ-10: шлеться один раз у welcome й подією `sk` при зміні (не в пакеті таблиці). */
+  streak: { pid: number; days: number } | null = null;
   total = 0;
   alive = false;
   tick = 0;
@@ -174,6 +178,7 @@ export class FlockModel {
   constructor(cfg: FlockCfg) {
     this.cfg = cfg;
     this.thorns = cfg.thorns ?? [];
+    this.applyStreak(cfg.streak);
   }
 
   chunkOf(x: number, y: number) {
@@ -358,13 +363,20 @@ export class FlockModel {
    * Подія «Ножиць» ({x, y, r, t: хто підібрав, v: кого підстригло}): додає хвилю для анімації.
    * Повертає, чи ми той, хто підібрав, чи нас підстригли, і скільки гравців зачепило.
    */
-  applyScissors(msg: unknown, recvMs: number = this.localNow): { taker: boolean; victim: boolean; count: number } | null {
-    const e = msg as { x?: number; y?: number; r?: number; t?: number; v?: number[] } | null;
+  applyScissors(msg: unknown, recvMs: number = this.localNow): { taker: boolean; victim: boolean; count: number; gain: number } | null {
+    const e = msg as { x?: number; y?: number; r?: number; t?: number; v?: number[]; g?: number } | null;
     if (!e || typeof e.x !== "number" || typeof e.y !== "number" || typeof e.r !== "number") return null;
     if (this.scissorsWaves.length >= 8) this.scissorsWaves.shift();
     this.scissorsWaves.push({ x: e.x, y: e.y, r: e.r, t0: recvMs });
     const victims = Array.isArray(e.v) ? e.v : [];
-    return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length };
+    return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length, gain: typeof e.g === "number" ? e.g : 0 };
+  }
+
+  /** Серія днів на 1-му місці ({p: pid держателя, d: днів}); d <= 0 - серії нема. */
+  applyStreak(msg: unknown) {
+    const e = msg as { p?: unknown; d?: unknown } | null;
+    if (!e || typeof e.d !== "number" || typeof e.p !== "number") return;
+    this.streak = e.d > 0 && e.p > 0 ? { pid: e.p, days: e.d } : null;
   }
 
   /**

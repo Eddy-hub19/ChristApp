@@ -103,9 +103,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "trophy",
         title: { ua: "Рекорди дня й серія", ru: "Рекорды дня и серия", en: "Daily records & streak" },
         text: {
-          ua: "У лобі — таблиця «Рекорди дня»: топ-{top} за найбільшою масою за добу (за часом Києва), скидається опівночі. Боти й Вожак не рахуються. Хто {days} дні поспіль посідає 1-ше місце за день (з масою від {mass}), отримує {reward} рубінів — поза добовим лімітом арени. Після нагороди серія починається заново; якщо наступного дня 1-ше місце візьме хтось інший, серія обривається.",
-          ru: "В лобби — таблица «Рекорды дня»: топ-{top} по наибольшей массе за сутки (по времени Киева), сбрасывается в полночь. Боты и Вожак не считаются. Кто {days} дня подряд занимает 1-е место за день (с массой от {mass}), получает {reward} рубинов — вне суточного лимита арены. После награды серия начинается заново; если на следующий день 1-е место займёт кто-то другой, серия обрывается.",
-          en: "The lobby shows a “Daily records” table: top {top} by biggest mass of the day (Kyiv time), reset at midnight. Bots and the Alpha don't count. Finish 1st of the day (with a mass of {mass}+) {days} days in a row to earn {reward} rubies — outside the arena's daily limit. After the reward the streak starts over; if someone else takes 1st the next day, the streak breaks.",
+          ua: "У лобі — таблиця «Рекорди дня»: топ-{top} за найбільшою масою за добу (за часом Києва), скидається опівночі. Боти й Вожак не рахуються. Хто {days} дні поспіль посідає 1-ше місце за день (з масою від {mass}), отримує {reward} рубінів — поза добовим лімітом арени. Після нагороди серія починається заново; якщо наступного дня 1-ше місце візьме хтось інший, серія обривається. Хто тримає серію, у «Топ-10» на арені має корону й число днів, а в лобі біля №1 написано «Серія: N дн.».",
+          ru: "В лобби — таблица «Рекорды дня»: топ-{top} по наибольшей массе за сутки (по времени Киева), сбрасывается в полночь. Боты и Вожак не считаются. Кто {days} дня подряд занимает 1-е место за день (с массой от {mass}), получает {reward} рубинов — вне суточного лимита арены. После награды серия начинается заново; если на следующий день 1-е место займёт кто-то другой, серия обрывается. У того, кто держит серию, в «Топ-10» на арене есть корона и число дней, а в лобби рядом с №1 написано «Серия: N дн.».",
+          en: "The lobby shows a “Daily records” table: top {top} by biggest mass of the day (Kyiv time), reset at midnight. Bots and the Alpha don't count. Finish 1st of the day (with a mass of {mass}+) {days} days in a row to earn {reward} rubies — outside the arena's daily limit. After the reward the streak starts over; if someone else takes 1st the next day, the streak breaks. Whoever holds the streak gets a crown and the number of days in the arena's Top 10, and the lobby shows “Streak: N d” next to #1.",
         },
         params: { top: num("dailyRecords.topSize"), days: num("dailyRecords.streakDays"), mass: num("dailyRecords.minMass"), reward: num("dailyRecords.streakReward") },
       },
@@ -241,9 +241,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "scissors",
         title: { ua: "Ножиці", ru: "Ножницы", en: "Scissors" },
         text: {
-          ua: "Рідкісний. Стрижуть навколо всіх, у кого маса понад {mass}, на {pct}% (нижче {min} не опускають). Зрізане розсипається шерстю, яку може з'їсти будь-хто.",
-          ru: "Редкий. Стригут вокруг всех, у кого масса больше {mass}, на {pct}% (ниже {min} не опускают). Срезанное рассыпается шерстью, которую может съесть любой.",
-          en: "Rare. Shears everyone around with more than {mass} mass by {pct}% (never below {min}). The wool scatters as food anyone can eat.",
+          ua: "Рідкісний. Стрижуть усіх навколо, у кого маса понад {mass}: кожен втрачає {pct}% маси (нижче {min} не опускають). Уся зрізана маса переходить тому, хто взяв ножиці, але за раз він отримує не більше, ніж має сам. Новачків, гравців під щитом і на паузі не чіпають.",
+          ru: "Редкий. Стригут всех вокруг, у кого масса больше {mass}: каждый теряет {pct}% массы (ниже {min} не опускают). Вся срезанная масса переходит тому, кто взял ножницы, но за раз он получает не больше, чем имеет сам. Новичков, игроков под щитом и на паузе не трогают.",
+          en: "Rare. Shears everyone around with more than {mass} mass: each loses {pct}% of their mass (never below {min}). All the sheared mass goes to whoever took the scissors, but they gain at most as much as they already have. Newcomers, shielded and paused players are safe.",
         },
         params: { mass: num("scissors.massThreshold"), pct: pct("scissors.cutFraction"), min: num("scissors.minMassAfter") },
       },
@@ -258,14 +258,14 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "star",
         title: { ua: "Зорепад", ru: "Зорепад", en: "Starfall" },
         text: {
-          ua: "Коли жива людина досягає маси {mass}, приблизно {sec} с з неба падають зірки (до {times} разів за гру). Кожна зірка дає {star} маси. Падають подалі від лідера (найкращого живого гравця) і ближче до менших.",
-          ru: "Когда живой человек достигает массы {mass}, примерно {sec} с с неба падают звёзды (до {times} раз за игру). Каждая звезда даёт {star} массы. Падают подальше от лидера (лучшего живого игрока) и ближе к меньшим.",
-          en: "When a live player reaches {mass} mass, stars fall from the sky for about {sec} s (up to {times} times per game). Each star gives {star} mass. They land away from the leader (the best live player) and closer to smaller ones.",
+          ua: "Коли жива людина досягає маси {mass}, приблизно {sec} с з неба падають зірки (один гравець може запустити зорепад не більше {times} разів за життя). Кожна зірка дає {star} маси. Падають подалі від лідера (найкращого живого гравця) і ближче до менших.",
+          ru: "Когда живой человек достигает массы {mass}, примерно {sec} с с неба падают звёзды (один игрок может запустить звездопад не больше {times} раз за жизнь). Каждая звезда даёт {star} массы. Падают подальше от лидера (лучшего живого игрока) и ближе к меньшим.",
+          en: "When a live player reaches {mass} mass, stars fall from the sky for about {sec} s (one player can trigger it at most {times} times per life). Each star gives {star} mass. They land away from the leader (the best live player) and closer to smaller ones.",
         },
         params: {
           mass: num("zorepad.triggerMass"),
           sec: sec("zorepad.durationMs"),
-          times: num("zorepad.maxPerGame"),
+          times: num("zorepad.maxPerPlayerLife"),
           star: num("zorepad.starMass"),
         },
       },
@@ -281,16 +281,6 @@ export const INFO_SECTIONS: InfoSection[] = [
         title: { ua: "Трава", ru: "Трава", en: "Grass" },
         text: { ua: "Звичайна їжа: {mass} маси за пучок.", ru: "Обычная еда: {mass} массы за пучок.", en: "Regular food: {mass} mass per tuft." },
         params: { mass: num("foodMass") },
-      },
-      {
-        id: "wool",
-        icon: "scissors",
-        title: { ua: "Шерсть", ru: "Шерсть", en: "Wool" },
-        text: {
-          ua: "Клаптики після «Ножиць»: маса дорівнює тому, що зрізали.",
-          ru: "Клочки после «Ножниц»: масса равна тому, что срезали.",
-          en: "Tufts left after Scissors: worth exactly what was sheared off.",
-        },
       },
       {
         id: "thrown",
@@ -420,6 +410,24 @@ function format(value: number, as: ParamFormat | undefined): string {
     default:
       return round(value);
   }
+}
+
+/** Числа для описаний артефактов (flock.artifacts.items.N.desc): из config.game, пока профиль не загружен - «…». */
+export function artifactDescParams(game: Record<string, unknown> | undefined): Record<string, string> {
+  const get = (path: string, as?: ParamFormat) => {
+    const v = configValue(game, path);
+    return v === undefined ? "…" : format(v, as);
+  };
+  return {
+    hatFree: get("artifacts.priestHatFreeMs", "sec"),
+    hatPeriod: (() => {
+      const v = configValue(game, "artifacts.priestHatPeriodMs");
+      return v === undefined ? "…" : String(Math.round((v / 60_000) * 100) / 100);
+    })(),
+    magnetPct: get("artifacts.magnetPullBonus", "pct"),
+    revivePct: get("artifacts.reviveMassFraction", "pct"),
+    censerRadius: get("artifacts.censerRadius"),
+  };
 }
 
 /** Подставляет числа в текст; если клиенту число не прислали (ещё грузится профиль) - «…». */
