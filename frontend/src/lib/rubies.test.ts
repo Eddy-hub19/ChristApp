@@ -3,7 +3,7 @@ import { IntlMessageFormat } from "intl-messageformat";
 import en from "../../messages/en.json";
 import ru from "../../messages/ru.json";
 import ua from "../../messages/ua.json";
-import { FREE_SKINS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_FROM, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "./rubies";
+import { FREE_SKINS, FREE_SKIN_IDS, FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_FROM, PREMIUM_SKIN_IDS, SPECIAL_FROM, SPECIAL_SKIN_IDS, TOTAL_SKINS } from "./rubies";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
 
 const fmt = (msg: string, locale: string, values: Record<string, unknown>) =>
@@ -36,9 +36,12 @@ describe("рубіни: множина (ICU plural)", () => {
 
 describe("скіни: платні 12..17, преміум 18..23 і особливі 24..33", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
-    // + скин «Вожака» (36), которого нет среди выбираемых
-    expect(SKINS).toHaveLength(TOTAL_SKINS + 1);
+    // номер 36 - зарезервований скін «Вожака», нові вовки йдуть після нього (37-40)
+    expect(SKINS).toHaveLength(TOTAL_SKINS);
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17, 34, 35]);
+    expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 37, 38, 39, 40]);
+    expect(FREE_SKIN_ROWS.map((r) => r.length)).toEqual([6, 6, 4]);
+    expect(isPaidSkin(36)).toBe(false);
     expect(isPaidSkin(FREE_SKINS - 1)).toBe(false);
     expect(isPaidSkin(FREE_SKINS)).toBe(true);
     expect(isPaidSkin(TOTAL_SKINS)).toBe(false);
@@ -61,7 +64,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
     for (const id of PREMIUM_SKIN_IDS) {
       expect(isPaidSkin(id)).toBe(true);
       expect(SKINS[id].anim?.frames).toBeGreaterThanOrEqual(2);
-      expect(SKINS[id].anim?.frames).toBeLessThanOrEqual(6);
+      expect(SKINS[id].anim?.frames).toBeLessThanOrEqual(8);
       for (const m of [ua, ru, en]) {
         expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
       }
@@ -71,7 +74,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("особливі 24..33: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
     expect(SPECIAL_FROM).toBe(24);
-    expect(TOTAL_SKINS).toBe(36);
+    expect(TOTAL_SKINS).toBe(41);
     expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
     expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
     expect(isSpecialSkin(23)).toBe(false);

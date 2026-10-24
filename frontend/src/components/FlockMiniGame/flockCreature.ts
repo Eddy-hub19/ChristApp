@@ -325,13 +325,72 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
   }
 }
 
+
+/** Пастельна веселка: кільце з 6 кольорів, t - частка обороту (кільце замкнене). Повертає rgb(r,g,b). */
+const PASTEL = [
+  [255, 179, 198],
+  [255, 207, 163],
+  [255, 241, 160],
+  [191, 240, 192],
+  [165, 227, 255],
+  [210, 184, 255],
+];
+function pastel(t: number): string {
+  const x = (((t % 1) + 1) % 1) * PASTEL.length;
+  const i = Math.floor(x);
+  const f = x - i;
+  const a = PASTEL[i % PASTEL.length];
+  const b = PASTEL[(i + 1) % PASTEL.length];
+  return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`;
+}
+/** rgb(...)/#hex -> rgba(...) із заданою прозорістю. */
+function rgbaOf(color: string, alpha: number): string {
+  if (color.startsWith("#")) {
+    const n = parseInt(color.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+  }
+  return color.replace("rgb(", "rgba(").replace(")", `,${alpha})`);
+}
+
+/** Крапля-полум'я з основою в (x, y), довжиною len, шириною w у напрямку ang; hot - тришарове (червоне, помаранчеве, жовте). */
+function flame(c: CanvasRenderingContext2D, x: number, y: number, len: number, w: number, ang: number, hot: boolean) {
+  const layers: [number, string][] = hot
+    ? [
+        [1, "#ff4d2e"],
+        [0.72, "#ff9a2e"],
+        [0.42, "#ffe066"],
+      ]
+    : [[1, "#ff9a2e"]];
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  for (const [k, col] of layers) {
+    c.fillStyle = col;
+    c.globalAlpha = 0.92;
+    c.beginPath();
+    c.moveTo(0, -w * 0.5 * k);
+    c.quadraticCurveTo(len * 0.55 * k, -w * 0.55 * k, len * k, 0);
+    c.quadraticCurveTo(len * 0.55 * k, w * 0.55 * k, 0, w * 0.5 * k);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+}
+
 /** Шари анімації преміум-скінів: бітова маска (позаду тіла / поверх нього). */
 export const LAYER_BEHIND = 1;
 export const LAYER_FRONT = 2;
 
 const ANIM_LAYERS: Partial<Record<NonNullable<Skin["deco"]>, number>> = {
   angel: LAYER_BEHIND | LAYER_FRONT,
-  rainbow: LAYER_FRONT,
+  // вся вовна райдужної малюється шаром ПОЗАДУ мордочки (тіло без вовни, див. drawCreature)
+  rainbow: LAYER_BEHIND,
+  phoenix: LAYER_BEHIND | LAYER_FRONT,
+  moon: LAYER_FRONT,
+  bloom: LAYER_FRONT,
+  newyear: LAYER_FRONT,
+  butterfly: LAYER_BEHIND | LAYER_FRONT,
+  thunder: LAYER_FRONT,
   frost: LAYER_FRONT,
   sun: LAYER_BEHIND,
   david: LAYER_FRONT,
@@ -352,7 +411,19 @@ export function layerExtent(skin: Skin, layer: number): number {
     case "angel":
       return layer === LAYER_BEHIND ? 1.68 : 1.06;
     case "rainbow":
-      return 0.93;
+      return 1.34;
+    case "phoenix":
+      return layer === LAYER_BEHIND ? 2.05 : 1.45;
+    case "moon":
+      return 1.4;
+    case "bloom":
+      return 1.38;
+    case "newyear":
+      return 1.34;
+    case "butterfly":
+      return layer === LAYER_BEHIND ? 1.95 : 1.3;
+    case "thunder":
+      return 1.55;
     case "frost":
       return 1.3;
     case "sun":
@@ -365,8 +436,6 @@ export function layerExtent(skin: Skin, layer: number): number {
       return 1.5;
   }
 }
-
-const RAINBOW = ["#ff6b6b", "#ffa94d", "#ffe066", "#69db7c", "#4dabf7", "#b197fc"];
 
 /**
  * Один кадр анімованого шару в ЛОКАЛЬНИХ координатах (мордочка дивиться в +x, центр у нуль): шар кешується
@@ -408,14 +477,259 @@ export function drawAnimLayer(c: CanvasRenderingContext2D, skin: Skin, r: number
       break;
     }
     case "rainbow": {
-      // кольорові "клаптики" на спині й боках: палітра зсувається на кадр - шерсть переливається
-      const cnt = 7;
-      c.globalAlpha = 0.78;
-      for (let i = 0; i < cnt; i++) {
-        const a = Math.PI * 0.62 + (i / (cnt - 1)) * Math.PI * 0.76;
-        c.fillStyle = RAINBOW[(i + k) % RAINBOW.length];
-        circle(c, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.27);
+      // ВСЯ вовна (11 "хмаринок" і серцевина) плавно перетікає пастельними кольорами веселки з легким світінням.
+      // Колір хмаринки = точка на кільці палітри; кадр зсуває кільце на 1/n обороту, цикл безшовний.
+      const bumps = 11;
+      const turn = k / n;
+      const glow = c.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 1.32);
+      glow.addColorStop(0, rgbaOf(pastel(turn + 0.25), 0.4));
+      glow.addColorStop(1, rgbaOf(pastel(turn + 0.25), 0));
+      c.fillStyle = glow;
+      circle(c, 0, 0, r * 1.32);
+      c.fill();
+      c.fillStyle = "rgba(0,0,0,0.16)";
+      circle(c, r * 0.05, r * 0.07, r * 0.98);
+      c.fill();
+      for (let i = 0; i < bumps; i++) {
+        const a = (i / bumps) * TAU + 0.2;
+        c.fillStyle = pastel(i / bumps + turn);
+        circle(c, Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74, r * 0.27);
         c.fill();
+      }
+      const core = c.createRadialGradient(-r * 0.2, -r * 0.25, 0, 0, 0, r * 0.84);
+      core.addColorStop(0, "#ffffff");
+      core.addColorStop(1, pastel(turn + 0.5));
+      c.fillStyle = core;
+      circle(c, 0, 0, r * 0.82);
+      c.fill();
+      c.fillStyle = "#ffffff";
+      c.globalAlpha = 0.5;
+      circle(c, -r * 0.2, -r * 0.25, r * 0.45);
+      c.fill();
+      break;
+    }
+    case "phoenix": {
+      const flick = [1, 1.14, 0.92, 1.07];
+      if (layer === LAYER_BEHIND) {
+        // полум'яні крильця: три пера з кожного боку, довжина мерехтить між кадрами
+        for (const side of [-1, 1]) {
+          for (let f = 0; f < 3; f++) {
+            const phi = side * (Math.PI / 2 + 0.35 + f * 0.42);
+            const len = r * (1.0 - f * 0.13) * flick[(k + f + (side > 0 ? 1 : 0)) % 4];
+            flame(c, -r * 0.1, side * r * 0.78, len, r * 0.34, phi, true);
+          }
+        }
+        // хвіст-язик позаду
+        flame(c, -r * 0.88, 0, r * 0.62 * flick[(k + 2) % 4], r * 0.26, Math.PI, true);
+      } else {
+        // іскри над крильцями (різні для кожного кадру)
+        const sp: [number, number][][] = [
+          [[-0.2, -1.1], [0.1, 1.15], [-0.7, 1.0]],
+          [[0.3, -1.2], [-0.5, 1.2], [0.0, -0.95]],
+          [[-0.6, -1.05], [0.35, 1.05], [-0.2, 1.3]],
+          [[0.1, -1.0], [-0.4, 1.1], [0.5, 1.25]],
+        ];
+        for (const [x, y] of sp[k % 4]) {
+          c.fillStyle = "#ffe066";
+          circle(c, x * r, y * r, r * 0.05);
+          c.fill();
+        }
+      }
+      break;
+    }
+    case "moon": {
+      // золотий півмісяць на боці вовни: коло без меншого кола (evenodd під обрізкою за зовнішнім колом)
+      c.save();
+      circle(c, -r * 0.2, -r * 0.5, r * 0.34);
+      c.clip();
+      c.fillStyle = "#ffd95a";
+      c.beginPath();
+      c.rect(-r * 2, -r * 2, r * 4, r * 4);
+      c.arc(-r * 0.06, -r * 0.6, r * 0.29, 0, TAU);
+      c.fill("evenodd");
+      c.restore();
+      c.strokeStyle = "rgba(190,130,20,0.75)";
+      c.lineWidth = Math.max(1, r * 0.03);
+      c.beginPath();
+      c.arc(-r * 0.2, -r * 0.5, r * 0.34, 0.65, TAU - 0.15);
+      c.stroke();
+      // зірочки мерехтять: розмір і яскравість різні в кожному кадрі
+      const ang = [0.75, 2.15, 3.85, 5.3];
+      const dist = [1.12, 1.2, 1.08, 1.18];
+      const size = [
+        [1, 0.45, 0.85, 0.35],
+        [0.5, 1, 0.4, 0.8],
+        [0.85, 0.4, 1, 0.5],
+        [0.35, 0.8, 0.5, 1],
+      ];
+      for (let i = 0; i < 4; i++) {
+        const s = size[i][k % 4];
+        c.fillStyle = `rgba(255,246,190,${0.45 + 0.55 * s})`;
+        star(c, Math.cos(ang[i]) * r * dist[i], Math.sin(ang[i]) * r * dist[i], r * 0.17 * (0.4 + 0.6 * s), 4, 0.3);
+        c.fill();
+      }
+      break;
+    }
+    case "bloom": {
+      // пелюстки кружляють навколо овечки (6 штук: крок на кадр = 60°/кадрів - цикл безшовний), квітка на голові
+      const petal = ["#ffb3c7", "#ffffff", "#ffd1dc", "#fff2a8", "#ffb3c7", "#ffffff"];
+      const rot = (k / n) * (TAU / 6);
+      for (let i = 0; i < 6; i++) {
+        const a = rot + (i * TAU) / 6;
+        c.fillStyle = petal[i];
+        c.strokeStyle = "rgba(190,100,130,0.45)";
+        c.lineWidth = Math.max(1, r * 0.025);
+        c.beginPath();
+        c.ellipse(Math.cos(a) * r * 1.13, Math.sin(a) * r * 1.13, r * 0.19, r * 0.1, a + Math.PI / 2, 0, TAU);
+        c.fill();
+        c.stroke();
+      }
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * TAU;
+        c.fillStyle = "#f48fb1";
+        circle(c, r * 0.05 + Math.cos(a) * r * 0.11, -r * 0.62 + Math.sin(a) * r * 0.11, r * 0.08);
+        c.fill();
+      }
+      c.fillStyle = "#ffe066";
+      circle(c, r * 0.05, -r * 0.62, r * 0.065);
+      c.fill();
+      break;
+    }
+    case "newyear": {
+      // гірлянда по краю вовни (вільна перед мордочкою) блимає по черзі, поруч - сніжинки
+      const colors = ["#ff5a5f", "#ffd24a", "#4cd37b", "#58a6ff"];
+      c.strokeStyle = "#2f6b45";
+      c.lineWidth = Math.max(1.2, r * 0.035);
+      c.lineCap = "round";
+      c.beginPath();
+      c.arc(0, 0, r * 0.9, 0.95, TAU - 0.95);
+      c.stroke();
+      const cnt = 10;
+      for (let i = 0; i < cnt; i++) {
+        const a = 0.95 + (i / (cnt - 1)) * (TAU - 1.9);
+        const bx = Math.cos(a) * r * 0.9;
+        const by = Math.sin(a) * r * 0.9;
+        const lit = (i + k) % 2 === 0;
+        const col = colors[i % colors.length];
+        if (lit) {
+          const g = c.createRadialGradient(bx, by, 0, bx, by, r * 0.22);
+          g.addColorStop(0, rgbaOf(col, 0.7));
+          g.addColorStop(1, rgbaOf(col, 0));
+          c.fillStyle = g;
+          circle(c, bx, by, r * 0.22);
+          c.fill();
+        }
+        c.fillStyle = col;
+        c.globalAlpha = lit ? 1 : 0.5;
+        circle(c, bx, by, r * (lit ? 0.075 : 0.06));
+        c.fill();
+        c.globalAlpha = 1;
+      }
+      c.strokeStyle = "rgba(255,255,255,0.95)";
+      c.lineWidth = Math.max(1, r * 0.03);
+      const flakes: [number, number][] = [[-0.5, -1.13], [-0.95, 0.65], [0.55, 1.12]];
+      for (let i = 0; i < 3; i++) {
+        const fr = r * 0.12 * [1, 0.7, 0.9, 0.6][(k + i) % 4];
+        const fx = flakes[i][0] * r;
+        const fy = flakes[i][1] * r;
+        for (let arm = 0; arm < 3; arm++) {
+          const aa = (arm * Math.PI) / 3 + k * 0.2;
+          c.beginPath();
+          c.moveTo(fx - Math.cos(aa) * fr, fy - Math.sin(aa) * fr);
+          c.lineTo(fx + Math.cos(aa) * fr, fy + Math.sin(aa) * fr);
+          c.stroke();
+        }
+      }
+      break;
+    }
+    case "butterfly": {
+      if (layer === LAYER_BEHIND) {
+        // крильця метелика махають: розмах крила між кадрами 1 -> 0.4 -> 1
+        const w = [1, 0.72, 0.4, 0.72][k % 4];
+        for (const side of [-1, 1]) {
+          const y = (v: number) => side * (0.68 + v * w) * r;
+          c.lineWidth = Math.max(1, r * 0.03);
+          c.strokeStyle = "rgba(70,40,120,0.6)";
+          // нижнє (менше) крило
+          c.fillStyle = "#5fd6cf";
+          c.beginPath();
+          c.moveTo(-r * 0.15, y(0.02));
+          c.bezierCurveTo(0, y(0.5), -r * 0.5, y(0.98), -r * 0.88, y(0.6));
+          c.bezierCurveTo(-r * 0.98, y(0.3), -r * 0.6, y(-0.03), -r * 0.15, y(0.02));
+          c.fill();
+          c.stroke();
+          // верхнє (більше) крило
+          c.fillStyle = "#a98bff";
+          c.beginPath();
+          c.moveTo(r * 0.35, y(0));
+          c.bezierCurveTo(r * 0.95, y(0.35), r * 0.7, y(1.2), 0, y(1.0));
+          c.bezierCurveTo(-r * 0.25, y(0.7), -r * 0.1, y(0.02), r * 0.35, y(0));
+          c.fill();
+          c.stroke();
+          // візерунок
+          const sp = Math.max(0.45, w);
+          c.fillStyle = "#ffd6f0";
+          circle(c, r * 0.28, y(0.62), r * 0.13 * sp);
+          c.fill();
+          c.fillStyle = "#e4dbff";
+          circle(c, -r * 0.55, y(0.5), r * 0.09 * sp);
+          c.fill();
+        }
+      } else {
+        // вусики
+        c.strokeStyle = "#5b3a8c";
+        c.lineWidth = Math.max(1, r * 0.04);
+        c.lineCap = "round";
+        for (const side of [-1, 1]) {
+          c.beginPath();
+          c.moveTo(r * 0.68, side * r * 0.16);
+          c.quadraticCurveTo(r * 0.95, side * r * 0.2, r * 1.1, side * r * 0.42);
+          c.stroke();
+          c.fillStyle = "#5b3a8c";
+          circle(c, r * 1.1, side * r * 0.42, r * 0.055);
+          c.fill();
+        }
+      }
+      break;
+    }
+    case "thunder": {
+      // спалахи блискавки: кадри 1 і 3 - удар (з різних боків) і сяйво рогів, 0 і 2 - тиша з легкими іскрами
+      const flash = k % 2 === 1;
+      if (flash) {
+        const side = k === 1 ? -1 : 1;
+        const pts: [number, number][] = [
+          [-0.3, side * 1.52],
+          [0.15, side * 1.3],
+          [-0.12, side * 1.18],
+          [0.3, side * 1.0],
+          [0.05, side * 0.92],
+        ];
+        c.lineJoin = "round";
+        c.lineCap = "round";
+        c.strokeStyle = "rgba(255,240,120,0.28)";
+        c.lineWidth = Math.max(2, r * 0.07);
+        circle(c, 0, 0, r * 1.1);
+        c.stroke();
+        for (const [lw, col] of [[0.13, "#ffe94d"], [0.055, "#ffffff"]] as const) {
+          c.strokeStyle = col;
+          c.lineWidth = Math.max(1.5, r * lw);
+          c.beginPath();
+          c.moveTo(pts[0][0] * r, pts[0][1] * r);
+          for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0] * r, pts[i][1] * r);
+          c.stroke();
+        }
+        c.fillStyle = "rgba(255,250,170,0.75)";
+        for (const hs of [-1, 1]) {
+          circle(c, Math.cos(hs * 1.55) * r * 0.78, Math.sin(hs * 1.55) * r * 0.78, r * 0.2);
+          c.fill();
+        }
+      } else {
+        c.fillStyle = "rgba(255,240,150,0.9)";
+        for (const hs of [-1, 1]) {
+          const a = hs * 1.55 + (k === 0 ? 0.35 : -0.35) * hs;
+          circle(c, Math.cos(a) * r * 1.08, Math.sin(a) * r * 1.08, r * 0.045);
+          c.fill();
+        }
       }
       break;
     }
@@ -522,6 +836,8 @@ export function drawCreature(
   frame = 0,
   /** false - без анімованих шарів (їх малюють окремими спрайтами). */
   layers = true,
+  /** Тіло для кешу: шари малюються окремо (у райдужної - ще й уся вовна). */
+  bodyOnly = false,
 ) {
   c.save();
   c.translate(x, y);
@@ -534,6 +850,8 @@ export function drawCreature(
   const fwdY = Math.sin(ang);
   const dark = "rgba(0,0,0,0.16)";
   const layerMask = layers ? animLayers(skin) : 0;
+  // «Веселкова вівця»: вовну (а не смугу збоку) малює шар позаду - тіло лишає лише мордочку й вуха
+  const rainbowWool = skin.deco === "rainbow" && (bodyOnly || layerMask !== 0);
   if (layerMask & LAYER_BEHIND) drawLayerRotated(c, skin, r, ang, frame, LAYER_BEHIND);
 
   if (skin.kind === "wolf" || skin.kind === "dog") {
@@ -589,25 +907,29 @@ export function drawCreature(
     const bumps = skin.kind === "lamb" ? 9 : 11;
     const br = r * (skin.kind === "lamb" ? 0.3 : 0.27);
     drawSpecialBehind(c, skin, r, ang);
-    c.fillStyle = dark;
-    circle(c, r * 0.05, r * 0.07, r * 0.98);
-    c.fill();
+    if (!rainbowWool) {
+      c.fillStyle = dark;
+      circle(c, r * 0.05, r * 0.07, r * 0.98);
+      c.fill();
+    }
     c.fillStyle = skin.fur;
     // робот - гладкий металевий корпус без кучерявої шерсті
-    if (skin.deco !== "robot") {
+    if (skin.deco !== "robot" && !rainbowWool) {
       for (let i = 0; i < bumps; i++) {
         const a = (i / bumps) * TAU + 0.2;
         circle(c, Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74, br);
         c.fill();
       }
     }
-    circle(c, 0, 0, r * (skin.deco === "robot" ? 0.95 : 0.82));
-    c.fill();
-    c.fillStyle = skin.light;
-    c.globalAlpha = 0.65;
-    circle(c, -r * 0.2, -r * 0.25, r * 0.5);
-    c.fill();
-    c.globalAlpha = 1;
+    if (!rainbowWool) {
+      circle(c, 0, 0, r * (skin.deco === "robot" ? 0.95 : 0.82));
+      c.fill();
+      c.fillStyle = skin.light;
+      c.globalAlpha = 0.65;
+      circle(c, -r * 0.2, -r * 0.25, r * 0.5);
+      c.fill();
+      c.globalAlpha = 1;
+    }
     if (skin.kind === "ram") {
       // «Сонячний баран»: товстіші, більше закручені золоті роги
       const sunny = skin.deco === "sun";

@@ -680,12 +680,22 @@
   gap: 6px;
   flex-wrap: wrap;
 
+  /* «Купити» / «Скасувати» в панелях покупки скінів і артефактів: пігулки однакової висоти, текст не обрізається */
   button {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    min-height: 36px;
-    padding: 0 12px;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: visible;
+    cursor: pointer;
   }
 }
 .missing {

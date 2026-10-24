@@ -6,6 +6,8 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy"
   // платные обычные (34, 35), статичные
   | "hearts" | "mint"
+  // преміум-ряд 2 (анімовані, шари-спрайти)
+  | "phoenix" | "moon" | "bloom" | "newyear" | "butterfly" | "thunder"
   // «Вожак» (36): бот-босс, вне NUM_SKINS - игрок его выбрать не может
   | "alpha";
 
@@ -34,7 +36,7 @@ export interface Skin {
   accent: string;
 }
 
-/** Порядок = номер скіна на сервері (NUM_SKINS = 36: 0-11 безкоштовні, 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні, у тому ж ряду лобі, що й 12-17)). Назви - у перекладах flock.skins.<id>. */
+/** Порядок = номер скіна на сервері (NUM_SKINS = 41: 0-11 безкоштовні (+ 37-40 нові вовки), 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні, у тому ж ряду лобі, що й 12-17)). Назви - у перекладах flock.skins.<id>. */
 export const SKINS: Skin[] = [
   { kind: "sheep", fur: "#f6f1e7", light: "#ffffff", face: "#3b3532", accent: "#f2a7b3" },
   { kind: "sheep", fur: "#f7c6d3", light: "#ffe4ec", face: "#4a3440", accent: "#f08aa4" },
@@ -57,7 +59,7 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "stars", fur: "#27305e", light: "#4a57a0", face: "#c9cdf2", accent: "#ffd86b" },
   // --- преміум (18..23), по 60 рубінів, з легкою анімацією ---
   { kind: "lamb", deco: "angel", anim: { frames: 4, fps: 6 }, fur: "#fffaf0", light: "#ffffff", face: "#e8b9a0", accent: "#ffb3c0" },
-  { kind: "sheep", deco: "rainbow", anim: { frames: 6, fps: 4 }, fur: "#fbf6f0", light: "#ffffff", face: "#3e3a45", accent: "#f2a7b3" },
+  { kind: "sheep", deco: "rainbow", anim: { frames: 8, fps: 5 }, fur: "#fbf6f0", light: "#ffffff", face: "#3e3a45", accent: "#f2a7b3" },
   { kind: "sheep", deco: "frost", anim: { frames: 4, fps: 3 }, fur: "#cfe6fb", light: "#f3faff", face: "#3d5a78", accent: "#ffb6c5" },
   { kind: "ram", deco: "sun", anim: { frames: 4, fps: 5 }, fur: "#f7e3a6", light: "#fff6d2", face: "#5a3d12", accent: "#e0a41f" },
   { kind: "lamb", deco: "david", anim: { frames: 2, fps: 3 }, fur: "#fff1d6", light: "#ffffff", face: "#d9a58a", accent: "#ffa3a8" },
@@ -78,6 +80,24 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "mint", fur: "#bfe6dc", light: "#e4f6f1", face: "#1f2c2b", accent: "#f6a6b8" },
   // --- «Вожак» (36): тёмный волк с золотой короной, красные глаза ---
   { kind: "wolf", deco: "alpha", fur: "#24262e", light: "#454958", face: "#6c707c", accent: "#ff3b3b" },
+  // --- нові безкоштовні вовки (37..40), статичні ---
+  { kind: "wolf", fur: "#8a5a3b", light: "#b07a54", face: "#e3cdb2", accent: "#f3d65c" },
+  { kind: "wolf", fur: "#eceff3", light: "#ffffff", face: "#d4dae2", accent: "#8fc9f2" },
+  { kind: "wolf", fur: "#c4642b", light: "#e68b50", face: "#f1d9bd", accent: "#f3d65c" },
+  { kind: "wolf", fur: "#6f8aa8", light: "#9fb6cf", face: "#cfdbe8", accent: "#f3d65c" },
+];
+
+/**
+ * Преміум-ряд 2 (6 скінів з анімацією, 2-6 кадрів): намальовано, але НЕ підключено до SKINS/лобі/сервера,
+ * доки не схвалено контактний лист (docs/img/flock-premium-row2.png).
+ */
+export const NEW_PREMIUM_SKINS: Skin[] = [
+  { kind: "sheep", deco: "phoenix", anim: { frames: 4, fps: 6 }, fur: "#ffe7c4", light: "#fff6e3", face: "#4a2616", accent: "#ff8a3d" },
+  { kind: "sheep", deco: "moon", anim: { frames: 4, fps: 3 }, fur: "#dfe6fb", light: "#ffffff", face: "#2b2f55", accent: "#ffe27a" },
+  { kind: "sheep", deco: "bloom", anim: { frames: 6, fps: 4 }, fur: "#fff3f7", light: "#ffffff", face: "#4a3140", accent: "#f48fb1" },
+  { kind: "sheep", deco: "newyear", anim: { frames: 4, fps: 3 }, fur: "#eef5ff", light: "#ffffff", face: "#2a3a4f", accent: "#ff6b6b" },
+  { kind: "sheep", deco: "butterfly", anim: { frames: 4, fps: 6 }, fur: "#f3ecff", light: "#ffffff", face: "#3b2f52", accent: "#ff9ad5" },
+  { kind: "ram", deco: "thunder", anim: { frames: 4, fps: 5 }, fur: "#8e9ab4", light: "#c7d0e4", face: "#262b3a", accent: "#ffd23f" },
 ];
 
 export const SKIN_COUNT = SKINS.length;

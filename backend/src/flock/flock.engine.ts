@@ -309,6 +309,12 @@ export class FlockWorld {
   }
 
   // ---------- гравці ----------
+  /** Номер скіна не-боса: у межах нумерації, без зарезервованого скіна «Вожака». */
+  private humanSkin(skin: number) {
+    const id = Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(skin) || 0));
+    return id === BOSS_SKIN ? 0 : id;
+  }
+
   addPlayer(opts: {
     name: string;
     skin: number;
@@ -323,7 +329,7 @@ export class FlockWorld {
       name: opts.name,
       skin: opts.boss
         ? BOSS_SKIN
-        : Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(opts.skin) || 0)),
+        : this.humanSkin(opts.skin),
       artifact: !opts.bot && isArtifactId(opts.artifact) ? opts.artifact : 0,
       bot: !!opts.bot,
       boss: !!opts.boss,

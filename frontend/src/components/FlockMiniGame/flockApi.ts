@@ -32,7 +32,7 @@ export interface FlockMe {
   entryBonus?: number;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkins: number; premiumFrom?: number; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */

@@ -281,7 +281,7 @@ export const FLOCK_CONFIG = {
     skinPrice: 20,
     /** Вартість преміум-скіна (з анімацією) - окремо від звичайних платних. */
     premiumSkinPrice: 60,
-    /** Скіни з номерами < freeSkins безкоштовні, решта - платні. */
+    /** Перший номер платних скінів у старій нумерації (безкоштовні задає FREE_SKIN_IDS). */
     freeSkins: 12,
     /** Скіни з номерами >= premiumFrom - преміум (дорожчі, з анімацією). */
     premiumFrom: 18,
@@ -534,17 +534,34 @@ export const BONUS_KINDS = Object.keys(
   FLOCK_CONFIG.bonusDurations,
 ) as BonusKind[];
 
-/** Безкоштовні 0..11, шість платних 12..17, шість преміум 18..23 і десять особливих 24..33 (номер скіна по мережі - u8). */
-/** Звичайні платні скіни після особливих (34, 35): ціна як у 12..17 (skinPrice). */
+/**
+ * Номери скінів (u8 по мережі). Нумерація існуючих НЕ міняється, нові додаються в кінець:
+ * 0-11 безкоштовні (старі), 12-17 платні, 18-23 преміум, 24-33 особливі, 34-35 платні (звичайні),
+ * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки. Групи задано явними списками.
+ */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 36;
-/** Скін «Вожака»: поза NUM_SKINS (гравець обрати не може, у лобі його нема). */
+export const NUM_SKINS = 41;
+/** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
+/** Перший номер платних скінів у старій нумерації (лише для зворотної сумісності; безкоштовні - FREE_SKIN_IDS). */
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
+/**
+ * Безкоштовні скіни: явний список. Ботам дістаються лише вони (випадковий з цього списку).
+ * Порядок = розкладка лобі: 6 овечок (0-5), ряд вовків (8, 9 і нові 37-40), решта (ягня 6, баран 7, собака 10, вівця 11).
+ */
+export const FREE_SKIN_IDS: readonly number[] = [
+  0, 1, 2, 3, 4, 5, 8, 9, 37, 38, 39, 40, 6, 7, 10, 11,
+];
+export const isFreeSkin = (id: number) => FREE_SKIN_IDS.includes(id);
+/** Скін, який гравець узагалі може обрати (не «Вожак», у межах нумерації). */
+export const isSelectableSkin = (id: number) =>
+  Number.isInteger(id) && id >= 0 && id < NUM_SKINS && id !== BOSS_SKIN;
+export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
+/** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
+export const PREMIUM_SKIN_IDS: readonly number[] = [18, 19, 20, 21, 22, 23];
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
-export const isPaidSkin = (id: number) => id >= FREE_SKINS && id < NUM_SKINS;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
-export const isPremiumSkin = (id: number) => id >= PREMIUM_FROM && id < SPECIAL_FROM;
+export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < EXTRA_PAID_FROM;
 /** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
@@ -555,13 +572,14 @@ export const skinPriceOf = (id: number) =>
       : FLOCK_CONFIG.rubies.skinPrice;
 
 /**
- * Скрытые скіни (тимчасово): не показуються в лобі й магазині, купити їх не можна (сервер відхиляє `skin_hidden`).
- * Уже куплені лишаються в гравця й доступні для гри. Щоб відкрити скіни - достатньо спорожнити цей масив.
- * Зараз сховано п'ять: 13 «Барашек із дзвіночком», 16 «Вовк в овечій шкурі» (звичайні платні), 22 «Пастушок Давид»
- * (преміум), 26 «Вівця-грибок» і 30 «Вівця-робот» (особливі). Ботам скіни й так лише безкоштовні (0..11).
+ * Зняті з продажу скіни: не показуються в лобі (крім тих, хто їх вже купив) і не продаються (сервер відхиляє
+ * `skin_hidden`). Куплені лишаються в гравця й доступні для гри. Щоб відкрити скіни - спорожнити масив.
+ * Зараз: 13 «Барашек із дзвіночком», 16 «Вовк в овечій шкурі», 22 «Пастушок Давид», 23 «Полярний вовк»,
+ * 24 «Кришталева вівця», 26 «Вівця-грибок», 27 «Лавова вівця», 30 «Вівця-робот», 31 «Вівця-суші».
  * Нумерація не змінюється; дзеркало для клієнта - HIDDEN_SKIN_IDS у frontend/src/lib/rubies.ts (до завантаження профілю).
+ * Покупки на момент зняття (2026-10-24, читання БД): 13 - 1, 23 - 1, 24 - 1, 27 - 2, 31 - 2: спрайти лишаються в коді.
  */
-export const HIDDEN_SKINS: readonly number[] = [13, 16, 22, 26, 30];
+export const HIDDEN_SKINS: readonly number[] = [13, 16, 22, 23, 24, 26, 27, 30, 31];
 export const isHiddenSkin = (id: number) => HIDDEN_SKINS.includes(id);
 
 /** Артефакти: номер по мережі (u8) і в БД; 0 - нічого не надіто. Ціна - FLOCK_CONFIG.artifacts.price. */

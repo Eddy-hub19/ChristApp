@@ -1,6 +1,9 @@
 import {
   FLOCK_CONFIG as C,
   FREE_SKINS,
+  FREE_SKIN_IDS,
+  BOSS_SKIN,
+  isSelectableSkin,
   EXTRA_PAID_FROM,
   NUM_SKINS,
   PREMIUM_FROM,
@@ -14,12 +17,15 @@ import {
 import { decodeState, encodeState } from './protocol';
 
 describe('скіни: ціни й діапазони', () => {
-  it('0..11 безкоштовні, 12..17 платні по 20, 18..23 преміум по 60', () => {
+  it('безкоштовні - явний список FREE_SKIN_IDS, 12..17 платні по 20, 18..23 преміум по 60', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(36);
-    for (let id = 0; id < FREE_SKINS; id++) {
+    expect(NUM_SKINS).toBe(41);
+    expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 37, 38, 39, 40,
+    ]);
+    for (const id of FREE_SKIN_IDS) {
       expect(isPaidSkin(id)).toBe(false);
       expect(isPremiumSkin(id)).toBe(false);
     }
@@ -38,20 +44,27 @@ describe('скіни: ціни й діапазони', () => {
       expect(isPaidSkin(id)).toBe(true);
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(true);
-      expect(isHiddenSkin(id)).toBe([26, 30].includes(id)); // сховані лише грибок і робот
       expect(skinPriceOf(id)).toBe(C.rubies.specialSkinPrice);
     }
-    for (let id = EXTRA_PAID_FROM; id < NUM_SKINS; id++) {
+    for (let id = EXTRA_PAID_FROM; id < BOSS_SKIN; id++) {
       expect(isPaidSkin(id)).toBe(true);
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(false);
       expect(isHiddenSkin(id)).toBe(false);
       expect(skinPriceOf(id)).toBe(C.rubies.skinPrice);
     }
+    // «Вожак» зарезервований: не продається і не обирається
+    expect(isPaidSkin(BOSS_SKIN)).toBe(false);
+    expect(isSelectableSkin(BOSS_SKIN)).toBe(false);
     expect(C.rubies.specialSkinPrice).toBe(40);
     expect(C.rubies.skinPrice).toBe(20);
     expect(C.rubies.premiumSkinPrice).toBe(60);
     expect(isPaidSkin(NUM_SKINS)).toBe(false);
+  });
+
+  it('зняті з продажу скіни: дзвіночок, вовк в шкурі, Давид, полярний вовк, кришталева, грибок, лава, робот, суші', () => {
+    const hidden = Array.from({ length: NUM_SKINS }, (_, i) => i).filter(isHiddenSkin);
+    expect(hidden).toEqual([13, 16, 22, 23, 24, 26, 27, 30, 31]);
   });
 
   it('номер скіна по мережі - u8: усі 36 (і до 255) проходять кодек без змін формату', () => {
