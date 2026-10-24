@@ -366,6 +366,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 15,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "names",
+        text: {
+          ua: "Швидкі фрази без емодзі, ще 4 нові («Привіт», «Не їж мене», «Давай разом», «Вибач») і два ряди в сітці",
+          ru: "Быстрые фразы без эмодзи, ещё 4 новые («Привет», «Не ешь меня», «Давай вместе», «Прости») и два ряда в сетке",
+          en: "Quick phrases without emoji, 4 new ones (“Hi”, “Don't eat me”, “Let's team up”, “Sorry”) and two more rows in the grid",
+        },
+      },
+      {
+        icon: "names",
+        text: {
+          ua: "Можна написати своє повідомлення в хмаринку: до 40 символів, не частіше 1 разу за 5 секунд. Лайка й посилання відсікаються",
+          ru: "Можно написать своё сообщение в облачко: до 40 символов, не чаще 1 раза в 5 секунд. Брань и ссылки отсекаются",
+          en: "You can write your own message in the bubble: up to 40 characters, once per 5 seconds. Swearing and links are blocked",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

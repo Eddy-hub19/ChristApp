@@ -176,6 +176,16 @@
     "openChat": "Open chat"
   },
   "admin": {
+    "flockMute": {
+          "title": "Flock: custom text",
+          "notMuted": "not muted",
+          "mutedUntil": "muted until {time}",
+          "minutes": "Minutes",
+          "mute": "Mute",
+          "min": "{count} min",
+          "hours": "{count} h",
+          "unmute": "Unmute"
+    },
     "rubies": {
       "title": "Rubies",
       "loading": "Loading…",
@@ -248,6 +258,10 @@
     "procHealthBad": "Problems",
     "procSecProcess": "Node process",
     "procSecDb": "Database",
+    "procFlockSays": "Latest custom texts (server memory, up to 100)",
+    "procFlockSaysNone": "No custom texts yet (the list is empty after a server restart)",
+    "procFlockSayMute": "Mute",
+    "procFlockSayMuted": "muted",
     "procSecFlock": "Flock",
     "procFlockNone": "No active arenas right now",
     "procFlockArena": "Arena {id}",
@@ -1208,6 +1222,15 @@
     "phrases": {
       "open": "Quick phrases",
       "title": "Quick phrases",
+      "customPlaceholder": "Write your own",
+      "customLabel": "Write your own",
+      "customSend": "Send",
+      "customWait": "wait 5 s",
+      "rejected": {
+        "profanity": "This message can't be sent",
+        "muted": "You are muted: custom text is temporarily unavailable",
+        "disabled": "Custom text is turned off right now"
+      },
       "hideOthers": "Hide others' phrases"
     },
     "daily": {

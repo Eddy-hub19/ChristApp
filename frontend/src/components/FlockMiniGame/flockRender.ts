@@ -207,6 +207,8 @@ function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
 
 /** Скільки CSS px має шрифт хмаринки фрази на екрані (розмір не залежить від масштабу камери). */
 const BUBBLE_FONT_PX = 14;
+/** Найбільша ширина хмаринки зі своїм текстом (CSS px). */
+const BUBBLE_MAX_CSS_PX = 220;
 /** Овечка, менша за стільки CSS px на екрані, фразу не показує (надто далеко). */
 const BUBBLE_MIN_SHEEP_PX = 8;
 
@@ -437,11 +439,13 @@ function drawPhrases(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawOpts, 
     if (!cell) continue;
     const r = m.radiusOf(cell.mass);
     if (r * scale < BUBBLE_MIN_SHEEP_PX) continue;
-    const def = phraseById(ph.id);
-    if (!def) continue;
+    const def = ph.text === undefined ? phraseById(ph.id) : undefined;
+    if (ph.text === undefined && !def) continue;
     // великі овечки зблизька - трохи більша хмаринка; здалеку розмір на екрані не падає нижче базового
     const k = 1 + Math.min(0.4, (r * scale) / 500);
-    const spr = phraseBubbleSprite(ph.id, lang, `${def.emoji} ${def.text[lang]}`, BUBBLE_FONT_PX * k * o.dpr, theme);
+    // хмаринка не ширша ~220 px: ширина тексту в «em» = 220/шрифт мінус поля
+    const maxEm = BUBBLE_MAX_CSS_PX / (BUBBLE_FONT_PX * k) - 1.4;
+    const spr = phraseBubbleSprite(ph.text === undefined ? ph.id : 0, lang, ph.text ?? def!.text[lang], BUBBLE_FONT_PX * k * o.dpr, theme, maxEm);
     // спрайт намальовано під шрифт ≈ BUBBLE_FONT_PX·k CSS px (з округленням до "відра"): світових одиниць на px спрайта
     const wScale = (BUBBLE_FONT_PX * k) / (scale * spr.px);
     ctx.globalAlpha = left < PHRASE_FADE_MS ? Math.max(0, left / PHRASE_FADE_MS) : 1;

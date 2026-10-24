@@ -115,6 +115,9 @@ export type AdminFlockDecision = {
   reasons: ("late" | "loop" | "cpu")[];
   sample: { lateMs: number; loopP99Ms: number; cpuPct: number };
 };
+/** Свій текст гравця в «Отарі» (пам'ять сервера, не БД). */
+export type AdminFlockSay = { at: number; userId: string; name: string; text: string; mutedUntil: number | null };
+
 export type AdminFlockArena = {
   id: number;
   humans: number;
@@ -167,7 +170,7 @@ export type AdminServerStatus = {
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
   /** Нет в старых версиях бекенда. */
-  flock?: { arenas: AdminFlockArena[] };
+  flock?: { arenas: AdminFlockArena[]; says?: AdminFlockSay[] };
   users: { total: number; active: number };
 };
 
@@ -296,4 +299,14 @@ export const adjustAdminMemberRubies = (memberId: string, amount: number, reason
   adminJson<{ rubies: number }>(`/members/${memberId}/rubies`, {
     method: "POST",
     body: JSON.stringify({ amount, reason }),
+  });
+
+/** Мут свого тексту «Отари» (пам'ять сервера): mutedUntil - мс (epoch менеджера) або null. */
+export const adminFlockMuteQueryKey = (memberId: string) => ["admin", "flock-mute", memberId] as const;
+export const fetchAdminFlockMute = (memberId: string) => adminJson<{ mutedUntil: number | null }>(`/members/${memberId}/flock-mute`);
+/** minutes = 0 знімає мут. */
+export const setAdminFlockMute = (memberId: string, minutes: number) =>
+  adminJson<{ mutedUntil: number | null }>(`/members/${memberId}/flock-mute`, {
+    method: "POST",
+    body: JSON.stringify({ minutes }),
   });

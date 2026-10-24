@@ -7,20 +7,27 @@ export type PhraseLang = "ua" | "ru" | "en";
 
 export interface PhraseDef {
   id: number;
-  emoji: string;
   text: Record<PhraseLang, string>;
 }
 
 export const PHRASES: readonly PhraseDef[] = [
-  { id: 1, emoji: "⭐", text: { ua: "Зорепад був?", ru: "Звездопад был?", en: "Was there a starfall?" } },
-  { id: 2, emoji: "🕊️", text: { ua: "Мир?", ru: "Мир?", en: "Truce?" } },
-  { id: 3, emoji: "👍", text: { ua: "Так", ru: "Да", en: "Yes" } },
-  { id: 4, emoji: "👎", text: { ua: "Ні", ru: "Нет", en: "No" } },
-  { id: 5, emoji: "🙏", text: { ua: "Дякую", ru: "Спасибо", en: "Thanks" } },
-  { id: 6, emoji: "🆘", text: { ua: "Допоможи!", ru: "Помоги!", en: "Help!" } },
-  { id: 7, emoji: "👏", text: { ua: "Гарна гра", ru: "Хорошая игра", en: "Good game" } },
-  { id: 8, emoji: "🐺", text: { ua: "Обережно, Вожак!", ru: "Осторожно, Вожак!", en: "Watch out, Alpha!" } },
+  { id: 1, text: { ua: "Зорепад був?", ru: "Звездопад был?", en: "Was there a starfall?" } },
+  { id: 2, text: { ua: "Мир?", ru: "Мир?", en: "Truce?" } },
+  { id: 3, text: { ua: "Так", ru: "Да", en: "Yes" } },
+  { id: 4, text: { ua: "Ні", ru: "Нет", en: "No" } },
+  { id: 5, text: { ua: "Дякую", ru: "Спасибо", en: "Thanks" } },
+  { id: 6, text: { ua: "Допоможи!", ru: "Помоги!", en: "Help!" } },
+  { id: 7, text: { ua: "Гарна гра", ru: "Хорошая игра", en: "Good game" } },
+  { id: 8, text: { ua: "Обережно, Вожак!", ru: "Осторожно, Вожак!", en: "Watch out, Alpha!" } },
+  { id: 9, text: { ua: "Привіт", ru: "Привет", en: "Hi" } },
+  { id: 10, text: { ua: "Не їж мене", ru: "Не ешь меня", en: "Don't eat me" } },
+  { id: 11, text: { ua: "Давай разом", ru: "Давай вместе", en: "Let's team up" } },
+  { id: 12, text: { ua: "Вибач", ru: "Прости", en: "Sorry" } },
 ];
+
+/** Свій текст: максимум символів і пауза між повідомленнями (дзеркало flock.config phrases.custom*; ліміт тримає сервер). */
+export const CUSTOM_MAX_LEN = 40;
+export const CUSTOM_COOLDOWN_MS = 5000;
 
 export const phraseById = (id: number): PhraseDef | undefined => PHRASES.find((p) => p.id === id);
 

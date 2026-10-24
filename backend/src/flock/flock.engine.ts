@@ -174,7 +174,7 @@ export interface Player {
   /** «Хрест»: «Друге життя» у цьому житті вже використане. */
   reviveUsed: boolean;
   /** Швидка фраза над овечкою (id з FLOCK_CONFIG.phrases.ids; until - мс світового часу). Скидається смертю й народженням. */
-  phrase: { id: number; until: number } | null;
+  phrase: { id: number; until: number; /** Свій текст (id = 0). */ text?: string } | null;
   /** Довільні дані ШІ. */
   brain?: unknown;
 }

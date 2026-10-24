@@ -323,9 +323,73 @@
   }
 }
 
-.phraseEmoji {
-  font-size: 18px;
+.customRow {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.customInput {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 80%, transparent);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  /* 16px: iOS не наближає сторінку при фокусі */
+  font-size: 16px;
+  outline: none;
+
+  &:focus {
+    border-color: var(--accent);
+  }
+}
+
+.customSend {
   flex: none;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.customCount {
+  margin-top: 3px;
+  padding: 0 2px;
+  font-size: 11px;
+  text-align: right;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
+
+.sayNotice {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  z-index: 6;
+  transform: translateX(-50%);
+  max-width: 92vw;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(170, 40, 40, 0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
 }
 
 .phrasesToggle {

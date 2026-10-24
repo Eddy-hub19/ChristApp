@@ -62,6 +62,8 @@ export interface FlockClientOptions {
   onZorepad?: () => void;
   /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
   /** «Вожак»: 1 - вышел на охоту, 2 - побеждён (name - кто победил). */
+  /** Свій текст відхилено сервером (заборонене слово / мут / вимкнено). */
+  onSayRejected?: (reason: "profanity" | "muted" | "disabled") => void;
   onBoss?: (e: { kind: 1 | 2 | 3; name: string }) => void;
   onScissors?: (r: { taker: boolean; victim: boolean; count: number; gain: number }) => void;
   /** «Хрест»: нас з'їли, але «Друге життя» одразу повернуло овечку. */
@@ -228,6 +230,13 @@ export class FlockClient {
         if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
       });
     });
+    socket.on("qt", (msg: unknown) => {
+      this.later(() => this.model?.applyText(msg, performance.now()));
+    });
+    socket.on("qr", (msg: { r?: unknown }) => {
+      const r = msg?.r;
+      if (r === "profanity" || r === "muted" || r === "disabled") this.opts.onSayRejected?.(r);
+    });
     socket.on("lv", (msg: unknown) => {
       this.later(() => this.model?.applyLava(msg, performance.now()));
     });
@@ -353,6 +362,13 @@ export class FlockClient {
     const s = this.socket;
     if (!s?.connected || this.status !== "playing") return;
     s.emit("q", id);
+  }
+
+  /** Свій текст у хмаринку (сервер очищає, фільтрує й обмежує частоту); ліміт довжини - 40 символів. */
+  sendText(text: string) {
+    const s = this.socket;
+    if (!s?.connected || this.status !== "playing") return;
+    s.emit("q", text.slice(0, 40));
   }
 
   /** Явний вихід (хрестик): сервер одразу прибирає овечку, без паузи; токен забуваємо. */

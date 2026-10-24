@@ -306,11 +306,18 @@ export const FLOCK_CONFIG = {
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
   phrases: {
     /** Допустимі id фраз. Нова фраза = дописати id сюди й запис у клієнтський flockPhrases.ts. */
-    ids: [1, 2, 3, 4, 5, 6, 7, 8] as readonly number[],
+    ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as readonly number[],
     /** Скільки висить хмаринка (мс); не більше 30 с (див. PHRASE_MAX_MS). */
     durationMs: 30_000,
     /** Не частіше однієї фрази на гравця за цей час (мс). */
     cooldownMs: 3_000,
+    /** Свій текст: вимикач цілком (true - працює), довжина, і ліміти суворіші за готові фрази: пауза між і за хвилину. */
+    customEnabled: true,
+    customMaxLen: 40,
+    customCooldownMs: 5_000,
+    customPerMinute: 10,
+    /** Скільки останніх своїх текстів тримає пам'ять сервера для адмінки (без БД; після перезапуску порожньо). */
+    customLogSize: 100,
   },
 
   // --- «Рекорди дня» і нагорода за серію днів на 1-му місці (доба за rubies.dailyTimeZone) ---
@@ -578,6 +585,10 @@ export function clientGameConfig() {
     phrases: {
       durationMs: phraseDurationMs(),
       cooldownMs: c.phrases.cooldownMs,
+      customEnabled: c.phrases.customEnabled,
+      customMaxLen: c.phrases.customMaxLen,
+      customCooldownMs: c.phrases.customCooldownMs,
+      customPerMinute: c.phrases.customPerMinute,
     },
   };
 }

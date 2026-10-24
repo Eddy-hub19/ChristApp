@@ -152,7 +152,7 @@ export class FlockModel {
   readonly lavaBurns: LavaBurn[] = [];
   effects: ActiveEffect[] = [];
   /** pid -> активна швидка фраза: id і локальний час (годинник кадру) її кінця. Прибирається, коли гравець зник із зони. */
-  readonly phrases = new Map<number, { id: number; end: number }>();
+  readonly phrases = new Map<number, { id: number; end: number; /** Свій текст (id = 0). */ text?: string }>();
   /** pid -> локальний час (Date.now), коли пауза гравця спливе. */
   readonly pausedUntil = new Map<number, number>();
   board: DecodedBoard = { top: [], alive: 0, map: [] };
@@ -412,6 +412,16 @@ export class FlockModel {
     const end = typeof e.t === "number" && this.clockBase !== null ? e.t + this.clockBase : cap;
     if (end <= recvMs) return;
     this.phrases.set(e.p, { id: e.i, end: Math.min(end, cap) });
+  }
+
+  /** Подія `qt` (свій текст): ({p: pid, x: текст, t: кінець у часі сервера}). Замінює попередню хмаринку гравця. */
+  applyText(msg: unknown, recvMs: number = this.localNow) {
+    const e = msg as { p?: unknown; x?: unknown; t?: unknown } | null;
+    if (!e || typeof e.p !== "number" || typeof e.x !== "string" || !e.x) return;
+    const cap = recvMs + PHRASE_MAX_MS;
+    const end = typeof e.t === "number" && this.clockBase !== null ? e.t + this.clockBase : cap;
+    if (end <= recvMs) return;
+    this.phrases.set(e.p, { id: 0, end: Math.min(end, cap), text: e.x.slice(0, 80) });
   }
 
   applyBoard(pkt: ArrayBuffer | Uint8Array) {
