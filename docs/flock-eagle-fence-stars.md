@@ -2,7 +2,7 @@
 
 Скриншоти: `img/flock-eagle-normal.png` / `img/flock-eagle-active.png` (камера ×1.4), `img/flock-fence-meadow.png`,
 `img/flock-fence-grove.png`, `img/flock-fence-snow.png`, `img/flock-starfall.png`, `img/flock-new-icons.png`.
-(Кадри зроблені headless-Chrome із справжнього `drawScene`; хаос-карту лави/вулкан див. у гілці 3.)
+(Кадри зроблені headless-Chrome із справжнього `drawScene`.)
 
 ## Трафік «Орлиного зору» (6 гравців, 20 ботів, маса ~300; один і той самий стан арени)
 
