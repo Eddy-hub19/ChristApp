@@ -48,19 +48,34 @@ body.cinemaHallOpen [data-chat-bg-layer][data-fixed],
 }
 
 /*
+ * Причина «фоны не видны»: критический CSS в app/layout.tsx красит и html, и body (чтобы первый кадр не был белым). Раз у html
+ * есть свой фон, фон body перестаёт уходить на канвас и рисуется как обычный блок поверх слоя с z-index: -1 - непрозрачный в
+ * светлой теме (#f8f2e9) и на 78% в тёмной. Пока включён фон приложения, body прозрачный: цвет даёт html, а слой лежит между ними.
+ */
+html[data-app-bg]:not(:has(body.cinemaHallOpen, [data-no-app-bg])) body {
+  background: transparent !important;
+}
+
+/*
  * Пока включён фон (html[data-app-bg]), поверхности карточек, шапок и навбара полупрозрачные: фон мягко просвечивает,
  * текст остаётся читаемым. Без backdrop-filter. В зале кинотеатра и в «Отаре» остаются исходные цвета.
  */
 html[data-app-bg]:not(:has(body.cinemaHallOpen, [data-no-app-bg])) {
+  /* Подложка корневых контейнеров экранов (список чатов, контакты, игры, Біблія, карточка чата): раньше var(--background) на 78-82% закрывал фон. */
+  --page-surface: color-mix(in srgb, #2e2d2d 40%, transparent);
   --surface: color-mix(in srgb, #2f2e31 80%, transparent);
   --surface-elevated: color-mix(in srgb, #343336 84%, transparent);
 }
 html[data-app-bg][data-theme="light"]:not(:has(body.cinemaHallOpen, [data-no-app-bg])) {
+  --page-surface: color-mix(in srgb, #f8f2e9 45%, transparent);
   --surface: color-mix(in srgb, #f6efe4 82%, transparent);
   --surface-elevated: color-mix(in srgb, #fff8ee 86%, transparent);
 }
 
-/* ПК: колонка открытого чата стоит на более плотной подложке поверх фона на всё окно. */
+/* Открытый чат с фоном: карточка прозрачная (на телефоне - как раньше, фон виден за сообщениями), на ПК колонка стоит на плотной подложке. */
+section[data-has-chat-bg] {
+  background: transparent;
+}
 @media (min-width: 1024px) {
   section[data-has-chat-bg] {
     background: color-mix(in srgb, var(--surface) 88%, transparent);
