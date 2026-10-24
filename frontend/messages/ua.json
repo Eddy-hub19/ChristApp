@@ -1246,6 +1246,7 @@
       "scissorsTaker": "Ножиці! +{gain} маси, зачеплено: {count}",
       "revived": "Друге життя!",
       "scissorsVictim": "Тебе підстригли!",
+      "eagle": "Орлиний зір: ти бачиш далі {sec} с",
       "bossSpawn": "Вожак вийшов на полювання",
       "bossDefeated": "{name} переміг Вожака!",
       "bossAteLeader": "Вожак з'їв лідера {name}!"
@@ -1271,6 +1272,7 @@
       "freeze": "Заморозка",
       "golden": "Золоте руно",
       "boost": "Розгін",
+      "eagle": "Орлиний зір",
       "scissors": "Ножиці"
     },
     "skins": {

@@ -26,6 +26,8 @@ export interface FlockCfg {
   resumeFailed: boolean;
   /** Радіус огляду від маси: base + perSqrtMass*sqrt(маса), не більше max (дзеркало серверної формули). */
   view: { base: number; perSqrtMass: number; max: number };
+  /** Відсування камери при бонусі «Орлиний зір» (1 - немає; без поля - старий сервер). */
+  eagleZoom?: number;
   /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
   thorns?: { id: number; x: number; y: number; mass: number }[];
   /** Піврозмір спрайта їжі (світові одиниці). Без поля - 8.5 (старий сервер). */
@@ -478,7 +480,8 @@ export class FlockModel {
       cx /= m;
       cy /= m;
       const v = this.cfg.view;
-      const targetR = Math.min(v.max, v.base + v.perSqrtMass * Math.sqrt(m));
+      const eagle = this.hasEffect("eagle") ? (this.cfg.eagleZoom ?? 1) : 1;
+      const targetR = Math.min(v.max, v.base + v.perSqrtMass * Math.sqrt(m)) * eagle;
       if (!this.haveCam) {
         this.camX = cx;
         this.camY = cy;

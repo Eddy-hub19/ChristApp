@@ -237,7 +237,9 @@ export interface DeathEvent {
 }
 
 /** Бонуси, що з'являються як звичайні (без рідкісних «Ножиць»: їх спавнить окремий шанс). */
-const REGULAR_BONUS_KINDS = BONUS_KINDS.filter((k) => k !== 'scissors');
+const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
+  (k) => k !== 'scissors' && k !== 'eagle',
+);
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
 export const speedOf = (mass: number) =>
@@ -571,9 +573,12 @@ export class FlockWorld {
     const scissors =
       !this.bonuses.some((b) => b.kind === 'scissors') &&
       this.rng() < C.scissors.spawnChance;
+    const eagle = !scissors && this.rng() < C.eagle.spawnChance;
     const kind = scissors
       ? 'scissors'
-      : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
+      : eagle
+        ? 'eagle'
+        : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
     this.bonuses.push({
       id,
       x: this.rand(120, C.worldSize - 120),
@@ -613,10 +618,14 @@ export class FlockWorld {
   }
 
   viewRadius(p: Player) {
-    return Math.min(
+    const r = Math.min(
       C.viewMax,
       C.viewBase + C.viewPerSqrtMass * Math.sqrt(p.total),
     );
+    // «Орлиний зір» (+ хвіст, поки камера клієнта повертається): ботів це не стосується - вони не користуються viewRadius
+    return (p.effects.eagle ?? 0) + C.eagle.graceMs > this.now
+      ? r * C.eagle.viewMultiplier
+      : r;
   }
 
   // ---------- тік ----------

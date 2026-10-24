@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { EagleEyeIcon } from "@/components/icons/game";
 import { artifactIconSrc } from "./flockArtifacts";
 import { BONUS_ICON } from "./flockRender";
 import type { FlockGameConfig } from "./flockApi";
@@ -24,6 +25,7 @@ type Props = {
 type Tab = "about" | "updates";
 
 function EntryIcon({ icon }: { icon: InfoEntry["icon"] }) {
+  if (icon === "bonus:eagle") return <EagleEyeIcon size={28} />;
   if (icon.startsWith("bonus:")) return <span className={styles.emoji}>{BONUS_ICON[icon.slice(6)] ?? "?"}</span>;
   if (icon.startsWith("artifact:")) {
     // eslint-disable-next-line @next/next/no-img-element

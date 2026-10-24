@@ -5,6 +5,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
+import { EagleEyeIcon, StarfallIcon } from "@/components/icons/game";
 import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
@@ -162,6 +163,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
   const [zorepad, setZorepad] = useState<number | null>(null);
   const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number; gain: number } | null>(null);
+  /** Подсказка при подборе «Орлиного зору» (id - чтобы анимация стартовала снова). */
+  const [eagleHint, setEagleHint] = useState<number | null>(null);
   const [reviveMsg, setReviveMsg] = useState<number | null>(null);
   const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2 | 3; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
@@ -345,6 +348,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
     clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0);
   }, [skin, artifact, me]);
+
+  const eagleOn = hud.effects.some((e) => e.kind === "eagle");
+  const eagleWasOn = useRef(false);
+  useEffect(() => {
+    if (eagleOn && !eagleWasOn.current) setEagleHint(Date.now());
+    eagleWasOn.current = eagleOn;
+  }, [eagleOn]);
+  useEffect(() => {
+    if (eagleHint === null) return;
+    const id = setTimeout(() => setEagleHint(null), 2600);
+    return () => clearTimeout(id);
+  }, [eagleHint]);
 
   useEffect(() => {
     if (zorepad === null) return;
@@ -762,9 +777,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <span>{t("reconnecting", { seconds: reconnectLeft })}</span>
             </div>
           ) : null}
+          {eagleHint !== null ? (
+            <div key={eagleHint} className={styles.eagleBanner} role="status">
+              <EagleEyeIcon size={30} /> {t("events.eagle", { sec: Math.round((hud.effects.find((e) => e.kind === "eagle")?.totalMs ?? 10000) / 1000) })}
+            </div>
+          ) : null}
           {zorepad !== null ? (
             <div key={zorepad} className={styles.zorepadBanner} role="status">
-              {t("events.zorepad")}
+              <StarfallIcon size={40} /> {t("events.zorepad")}
             </div>
           ) : null}
           {scissorsMsg ? (
@@ -822,13 +842,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {hud.effects.length > 0 ? (
             <ul className={styles.effects}>
               {hud.effects.map((e) => (
-                <li key={e.kind} title={t(`bonuses.${e.kind}`)} className={e.kind === "boost" || e.kind === "freeze" ? styles.effectLabeled : undefined}>
-                  <span className={styles.effectIcon}>{BONUS_ICON[e.kind]}</span>
+                <li
+                  key={e.kind}
+                  title={t(`bonuses.${e.kind}`)}
+                  className={[e.kind === "boost" || e.kind === "freeze" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
+                >
+                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : BONUS_ICON[e.kind]}</span>
                   {e.kind === "boost" || e.kind === "freeze" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
                   </span>
-                  {e.kind === "freeze" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
+                  {e.kind === "freeze" || e.kind === "eagle" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
                 </li>
               ))}
             </ul>

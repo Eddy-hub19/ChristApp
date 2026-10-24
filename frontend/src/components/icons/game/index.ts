@@ -15,4 +15,9 @@ export {
   LeafIcon,
   ShieldIcon,
   TrophyIcon,
+  StarfallIcon,
+  EagleEyeIcon,
+  LavaIcon,
+  FenceIcon,
+  AlphaIcon,
 } from "./icons";

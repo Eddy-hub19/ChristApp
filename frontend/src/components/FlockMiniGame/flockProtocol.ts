@@ -32,6 +32,7 @@ export const BONUS_CODE = [
   /** Не бонус із поля: розгін на старті (лише в списку ефектів гравця). */
   'boost',
   'scissors',
+  'eagle',
 ] as const;
 
 export interface DecodedFood {

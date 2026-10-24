@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
+import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
 import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang } from "./flockWhatsNewData";
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
@@ -23,6 +23,11 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   leaf: (p) => <LeafIcon {...p} />,
   shield: (p) => <ShieldIcon {...p} />,
   trophy: (p) => <TrophyIcon {...p} />,
+  starfall: (p) => <StarfallIcon {...p} />,
+  eye: (p) => <EagleEyeIcon {...p} />,
+  lava: (p) => <LavaIcon {...p} />,
+  fence: (p) => <FenceIcon {...p} />,
+  alpha: (p) => <AlphaIcon {...p} />,
 };
 
 /** Цвета игры: золото, красный, зелёный, бирюзовый, розовый. */

@@ -109,6 +109,9 @@ function simMode() {
           'double',
         ] as const)
           h.effects[k] = w.now + 1e9;
+      // FLOCK_EAGLE=N: у перших N людей постійно «Орлиний зір» (замір трафіку)
+      if (process.env.FLOCK_EAGLE && h.alive && humans.indexOf(h) < Number(process.env.FLOCK_EAGLE))
+        h.effects.eagle = w.now + 1e9;
       if (!h.alive)
         mgr.join(`c${humans.indexOf(h)}`, `u${humans.indexOf(h)}`, 'x', 0);
       else thinkBot(w, h, rng);

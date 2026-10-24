@@ -1246,6 +1246,7 @@
       "scissorsTaker": "Scissors! +{gain} mass, sheared: {count}",
       "revived": "Second life!",
       "scissorsVictim": "You got a haircut!",
+      "eagle": "Eagle eye: you see farther for {sec} s",
       "bossSpawn": "The Alpha has come out to hunt",
       "bossDefeated": "{name} defeated the Alpha!",
       "bossAteLeader": "The Alpha ate the leader {name}!"
@@ -1271,6 +1272,7 @@
       "freeze": "Freeze",
       "golden": "Golden fleece",
       "boost": "Boost",
+      "eagle": "Eagle eye",
       "scissors": "Scissors"
     },
     "skins": {

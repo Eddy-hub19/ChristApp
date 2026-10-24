@@ -263,3 +263,149 @@ export function TrophyIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Зорепад: велика зірка з хвостом, що падає, і маленька поруч. */
+export function StarfallIcon(props: ColorIconProps) {
+  const g = useGradient("#fff0a6", "#f5ad1f");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path
+        d="M2.6 4.2L10 11M2.2 9.2l5.6 4.2M7 2.4l3.6 6.2"
+        stroke="#ffd45c"
+        strokeOpacity=".85"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15.4 6.2l1.9 3.8 4.2.6-3 3 .7 4.2-3.8-2-3.8 2 .7-4.2-3-3 4.2-.6z"
+        fill={g.fill}
+        {...stroke}
+      />
+      <path
+        d="M14.2 9l1.2-1.8"
+        stroke="#fff"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M19.8 3.4l.5 1 1.1.2-.8.8.2 1.1-1-.5-1 .5.2-1.1-.8-.8 1.1-.2z"
+        fill="#fff"
+        stroke="#e08a00"
+        strokeWidth=".6"
+        strokeLinejoin="round"
+      />
+    </ColorIconSvg>
+  );
+}
+
+/** Око (Орлиний зір). */
+export function EagleEyeIcon(props: ColorIconProps) {
+  const g = useGradient("#ffe08a", "#f0a21c");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path
+        d="M1.8 12C4.6 7.4 8 5.4 12 5.4s7.4 2 10.2 6.6c-2.8 4.6-6.2 6.6-10.2 6.6S4.6 16.6 1.8 12z"
+        fill="#fff"
+        {...stroke}
+      />
+      <circle cx="12" cy="12" r="5" fill={g.fill} {...stroke} />
+      <circle cx="12" cy="12" r="2.3" fill={INK} />
+      <circle cx="10.6" cy="10.4" r="1.1" fill="#fff" />
+      <path
+        d="M3.4 7.2l2 1.6M12 2.4v2.2M20.6 7.2l-2 1.6"
+        stroke={GOLD_DEEP}
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </ColorIconSvg>
+  );
+}
+
+/** Лава: тріщина з розжареним потоком і бризками. */
+export function LavaIcon(props: ColorIconProps) {
+  const g = useGradient("#ffb23d", "#e5412a");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path
+        d="M2 15.2c2.4-1.6 4.4 1.2 7 0s4.6 1.6 7 0 4.4 1.2 6 .2V21H2z"
+        fill={g.fill}
+        {...stroke}
+      />
+      <path
+        d="M2 11.4l3.2-3.4 2.6 2.4 3-5.4 3 5 2.6-2.6 3.6 4.2"
+        fill="#3a2a2e"
+        {...stroke}
+      />
+      <path
+        d="M5 18.2c1.6-.8 3 .6 4.6 0M13 18.8c1.4-.6 2.6.4 4 0"
+        stroke="#ffe08a"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="18.4" cy="5.6" r="1.1" fill="#ff8a3d" />
+      <circle cx="21" cy="8.4" r=".8" fill="#ffc83d" />
+    </ColorIconSvg>
+  );
+}
+
+/** Загорожа (загін): стовпчики з двома поперечинами. */
+export function FenceIcon(props: ColorIconProps) {
+  const g = useGradient("#d8a15f", "#a2682f");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <rect
+        x="1.8"
+        y="7.6"
+        width="20.4"
+        height="3"
+        rx="1.1"
+        fill={g.fill}
+        {...stroke}
+      />
+      <rect
+        x="1.8"
+        y="14"
+        width="20.4"
+        height="3"
+        rx="1.1"
+        fill={g.fill}
+        {...stroke}
+      />
+      <path
+        d="M4 5.2l1.8-1.8 1.8 1.8V21H4zM10.2 5.2L12 3.4l1.8 1.8V21h-3.6zM16.4 5.2l1.8-1.8L20 5.2V21h-3.6z"
+        fill={g.fill}
+        {...stroke}
+      />
+      <path
+        d="M5.8 6.4v13M12 6.4v13M18.2 6.4v13"
+        stroke="#fff"
+        strokeOpacity=".4"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
+    </ColorIconSvg>
+  );
+}
+
+/** Вожак: вовча голова з короною. */
+export function AlphaIcon(props: ColorIconProps) {
+  const g = useGradient("#8b7fa6", "#4a3f60");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path
+        d="M5 11.4L3.6 2.8l5.4 3.8h6l5.4-3.8L19 11.4c.7 1.2.9 2.8.4 4.2-.9 2.7-3.7 5.8-7.4 6.6-3.7-.8-6.5-3.9-7.4-6.6-.5-1.4-.3-3 .4-4.2z"
+        fill={g.fill}
+        {...stroke}
+      />
+      <ellipse cx="12" cy="17.4" rx="3.6" ry="2.9" fill="#d8d0e8" {...stroke} strokeWidth={0.9} />
+      <ellipse cx="12" cy="15.9" rx="1.5" ry="1" fill={INK} />
+      <path d="M7.6 12.2l3 1.1M16.4 12.2l-3 1.1" stroke="#ffe08a" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M8 6.2l.9-3.4 1.8 1.6L12 1.6l1.3 2.8 1.8-1.6.9 3.4z" fill="#ffc83d" {...stroke} strokeWidth={0.9} />
+    </ColorIconSvg>
+  );
+}

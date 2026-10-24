@@ -171,6 +171,18 @@ export const FLOCK_CONFIG = {
     freeze: 4000,
     golden: 0,
     scissors: 0,
+    eagle: 10_000,
+  },
+  /**
+   * Бонус «Орлиний зір»: гравець бачить більше карти. Сервер шле йому область ×viewMultiplier, клієнт відсуває
+   * камеру в zoom разів (плавно); після кінця область тримається ще graceMs, поки камера повертається.
+   * spawnChance - шанс, що черговий бонус на полі - «Орлиний зір». Боти бачать свій звичайний радіус.
+   */
+  eagle: {
+    spawnChance: 0.1,
+    viewMultiplier: 1.4,
+    zoom: 1.4,
+    graceMs: 1500,
   },
   /**
    * Бонус «Ножиці»: миттєва хвиля навколо того, хто підібрав. Усі (крім нього), у кого загальна маса більша за
@@ -475,6 +487,7 @@ export function clientGameConfig() {
   const c = FLOCK_CONFIG;
   return {
     bonusDurations: { ...c.bonusDurations },
+    eagle: { zoom: c.eagle.zoom, zoomPct: Math.round((c.eagle.zoom - 1) * 100), viewMultiplier: c.eagle.viewMultiplier, spawnChance: c.eagle.spawnChance },
     speedMultiplier: c.speedMultiplier,
     goldenMassFraction: c.goldenMassFraction,
     goldenMinMass: c.goldenMinMass,

@@ -169,8 +169,13 @@
     background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   }
   .effectIcon {
+    display: inline-flex;
     font-size: 18px;
     line-height: 1;
+  }
+  /* «Орлиний зір»: золотисте світіння, як у бонусу на полі */
+  .effectEagle {
+    box-shadow: 0 0 10px rgba(255, 176, 46, 0.55);
   }
   /* Рядки з підписом («Розгін», «Заморозка»): коротша смужка, щоб не заїжджати під «Топ-10» на вузьких екранах. */
   .effectLabeled .effectBar {
@@ -769,6 +774,31 @@
       opacity: 0;
       transform: translate(-50%, 0);
     }
+  }
+}
+
+.eagleBanner {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 92vw;
+  text-align: center;
+  pointer-events: none;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffe9b0;
+  text-shadow: 0 2px 12px rgba(255, 150, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.8);
+  animation: zorepadPop 2.6s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .eagleBanner {
+    animation: none;
+    transform: translateX(-50%);
   }
 }
 
