@@ -1,6 +1,6 @@
 .chat {
   color: var(--foreground);
-  background: var(--background);
+  background: var(--page-surface, var(--background));
   border-radius: 30px;
   box-shadow:
     0 2px 8px 0 rgba(38, 28, 16, 0.08),

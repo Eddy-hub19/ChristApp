@@ -4,7 +4,7 @@
   gap: 16px;
   padding: max(16px, env(safe-area-inset-top, 0px)) 16px 16px;
   color: var(--foreground);
-  background: var(--background);
+  background: var(--page-surface, var(--background));
 }
 
 .header {
