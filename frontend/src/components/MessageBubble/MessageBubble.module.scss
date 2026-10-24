@@ -123,7 +123,7 @@
 
 .voiceMessageMeta {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   line-height: 1.35;
   color: var(--foreground);
@@ -153,7 +153,7 @@
 
 .fileMessageMeta {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   line-height: 1.35;
   color: var(--foreground);
@@ -266,7 +266,7 @@
 
 .imageMessageMeta {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   line-height: 1.35;
   color: var(--foreground);
@@ -368,7 +368,7 @@
 
 .senderCompact {
   margin: 0 0 3px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -437,7 +437,7 @@ html[data-theme="dark"] .myBubble {
 .date {
   display: inline-flex;
   color: var(--text-muted);
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 10px;
   font-style: normal;
   font-weight: 400;
@@ -692,4 +692,15 @@ html[data-theme="dark"] .senderCompact {
 /* У аватарки в Global chat свой верхний отступ, когда над пузырём стоит персонаж стиля. */
 .row:has([data-bubble-start]) .avatarBtn {
   margin-top: 40px;
+}
+
+/* Личный шрифт сообщений и размер текста (lib/chatFonts.ts): внутри пузыря шрифт интерфейса заменяется шрифтом сообщений,
+   так что цитаты, реакции, голосовые и карточки внутри пузыря следуют ему автоматически. */
+:global(html[data-msg-font]) .bubble {
+  --ui-font: var(--msg-font);
+  font-family: var(--ui-font);
+}
+
+.messageContent {
+  font-size: calc(1em * var(--msg-scale, 1));
 }

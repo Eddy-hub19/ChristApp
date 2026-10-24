@@ -1,4 +1,10 @@
 import {
+  CHAT_PREFS_MAX_BYTES,
+  jsonBytes,
+  sanitizeChatBackgrounds,
+  sanitizeFontPrefs,
+} from 'src/config/chat-prefs';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -34,6 +40,8 @@ const profileSelect = {
   themeFontKey: true,
   bio: true,
   bubbleStyle: true,
+  chatBackgrounds: true,
+  fontPrefs: true,
 } as const;
 
 @Injectable()
@@ -110,8 +118,17 @@ export class UsersService {
       dto.themeFontKey !== undefined;
     const hasBio = dto.bio !== undefined;
     const hasBubbleStyle = dto.bubbleStyle !== undefined;
+    const hasChatBackgrounds = dto.chatBackgrounds !== undefined;
+    const hasFontPrefs = dto.fontPrefs !== undefined;
 
-    if (!hasIdentity && !hasAppearance && !hasBio && !hasBubbleStyle) {
+    if (
+      !hasIdentity &&
+      !hasAppearance &&
+      !hasBio &&
+      !hasBubbleStyle &&
+      !hasChatBackgrounds &&
+      !hasFontPrefs
+    ) {
       throw new BadRequestException('Нет данных для обновления');
     }
 
@@ -162,6 +179,18 @@ export class UsersService {
           ? null
           : dto.bio.trim();
 
+    // личные фоны и шрифты: размер ограничен, значения чистятся по спискам (config/chat-prefs.ts); null - сброс
+    if (
+      (hasChatBackgrounds && jsonBytes(dto.chatBackgrounds) > CHAT_PREFS_MAX_BYTES) ||
+      (hasFontPrefs && jsonBytes(dto.fontPrefs) > CHAT_PREFS_MAX_BYTES)
+    ) {
+      throw new BadRequestException('Слишком большие настройки чата');
+    }
+    const chatBackgrounds = hasChatBackgrounds
+      ? sanitizeChatBackgrounds(dto.chatBackgrounds)
+      : null;
+    const fontPrefs = hasFontPrefs ? sanitizeFontPrefs(dto.fontPrefs) : null;
+
     if (hasBubbleStyle && dto.bubbleStyle !== 'default') {
       // при BUBBLE_STYLES_ACCESS = 'admin' (тестовый режим) менять стиль может только админ; при 'all' - любой
       const me = await this.prisma.user.findUnique({
@@ -178,6 +207,20 @@ export class UsersService {
         where: { id: userId },
         data: {
           ...(hasBubbleStyle ? { bubbleStyle: dto.bubbleStyle } : {}),
+          ...(hasChatBackgrounds
+            ? {
+                chatBackgrounds: chatBackgrounds
+                  ? (chatBackgrounds as unknown as Prisma.InputJsonValue)
+                  : Prisma.DbNull,
+              }
+            : {}),
+          ...(hasFontPrefs
+            ? {
+                fontPrefs: fontPrefs
+                  ? (fontPrefs as unknown as Prisma.InputJsonValue)
+                  : Prisma.DbNull,
+              }
+            : {}),
           ...(nextUsername !== undefined ? { username: nextUsername } : {}),
           ...(nextNickname !== undefined ? { nickname: nextNickname } : {}),
           ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),

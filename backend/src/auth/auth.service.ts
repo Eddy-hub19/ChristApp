@@ -29,6 +29,8 @@ const USER_SAFE_SELECT = {
   themeFontKey: true,
   bio: true,
   bubbleStyle: true,
+  chatBackgrounds: true,
+  fontPrefs: true,
 } as const;
 
 const REFRESH_TOKEN_TTL_DAYS = 7;

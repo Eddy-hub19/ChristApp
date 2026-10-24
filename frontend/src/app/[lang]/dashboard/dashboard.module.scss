@@ -35,7 +35,7 @@
 }
 
 .appBrandName {
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: clamp(1rem, 4vw, 1.15rem);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -83,7 +83,7 @@
 }
 
 .greetingHi {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: clamp(1.05rem, 3.8vw, 1.2rem);
   font-weight: 700;
   line-height: 1.35;
@@ -97,7 +97,7 @@
 
 .greetingLead,
 .greetingHint {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.5;
@@ -173,7 +173,7 @@ html[data-theme="light"] .greeting {
 }
 
 .statLabel {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -188,7 +188,7 @@ html[data-theme="light"] .greeting {
 }
 
 .streakNumber {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 1.65rem;
   font-weight: 700;
   color: var(--foreground);
@@ -196,7 +196,7 @@ html[data-theme="light"] .greeting {
 }
 
 .lastLink {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
@@ -280,7 +280,7 @@ html[data-theme="light"] .greeting {
 }
 
 .sectionLabel {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -326,7 +326,7 @@ html[data-theme="light"] .page .statCard {
 }
 
 .statLabel {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -341,7 +341,7 @@ html[data-theme="light"] .page .statCard {
 }
 
 .streakNumber {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 1.65rem;
   font-weight: 700;
   color: var(--foreground);
@@ -349,7 +349,7 @@ html[data-theme="light"] .page .statCard {
 }
 
 .lastLink {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
@@ -391,7 +391,7 @@ html[data-theme="light"] .page .statCard {
 }
 
 .sectionLabel {
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -420,7 +420,7 @@ html[data-theme="light"] .page .statCard {
 
 .feedTitle {
   margin: 0 0 10px;
-  font-family: var(--font-inter), "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;

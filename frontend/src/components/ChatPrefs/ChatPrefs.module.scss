@@ -1,0 +1,169 @@
+/* Экраны «Фон чату» и «Шрифт»: общие классы (экран, сетка, карточки, кнопки) берутся из BubbleStyleSettings.module.scss. */
+
+/* Миниатюра фона в строке профиля */
+.thumb {
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  width: 44px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+/* Живое превью чата: фон + пузыри выбранного стиля (в текущей теме приложения) */
+.preview {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 5px;
+  min-height: 112px;
+  padding: 8px 8px 8px 12px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--background);
+}
+.previewBig {
+  min-height: 230px;
+  gap: 10px;
+  padding: 14px 14px 14px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line-soft);
+}
+
+.cardNone {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  border-radius: 10px;
+  border: 1px dashed var(--line-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px;
+}
+
+.sliderBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.sliderHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sliderValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.range {
+  width: 100%;
+  height: 28px;
+  accent-color: var(--accent);
+}
+.range:disabled {
+  opacity: 0.45;
+}
+
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: 13px;
+}
+.tipText {
+  flex: 1;
+  min-width: 160px;
+}
+.tipBtn {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sectionTitle {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* Шрифты */
+.fontCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  min-width: 0;
+  text-align: left;
+  padding: 10px;
+}
+.fontName {
+  font-size: 17px;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.fontSample {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.sizeRow {
+  display: flex;
+  gap: 6px;
+}
+.sizeBtn {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sizeBtnActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.resetLink {
+  align-self: flex-start;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.resetLink:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

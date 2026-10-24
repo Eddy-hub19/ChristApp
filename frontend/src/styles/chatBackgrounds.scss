@@ -1,0 +1,90 @@
+/*
+ * Личные фоны чата (lib/chatBackgrounds.ts). Слой лежит за списком сообщений (position: absolute, z-index: -1 внутри
+ * карточки чата), а не fixed-attachment: на iOS оно ломается. Статичный SVG/CSS-градиент, без анимаций, backdrop-filter и теней.
+ *   <div data-chat-bg-layer data-chat-bg="pasture"><i data-v="light"/><i data-v="dark"/><b style="opacity: dim"/></div>
+ * Оба варианта (светлый и тёмный) лежат в DOM и подгружены заранее; тема просто меняет, какой из них непрозрачен,
+ * поэтому смена темы приложения происходит без вспышки и без загрузки картинки. <b> - затемнение (тёмная тема) /
+ * осветление (светлая): полупрозрачный цвет фона приложения.
+ */
+@use "sass:list";
+
+[data-chat-bg-layer] {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  contain: paint;
+
+  > i {
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+  }
+  > b {
+    position: absolute;
+    inset: 0;
+    background: var(--background);
+  }
+}
+
+html[data-theme="dark"] [data-chat-bg-layer] > i[data-v="light"],
+html:not([data-theme="dark"]) [data-chat-bg-layer] > i[data-v="dark"] {
+  opacity: 0;
+}
+
+/* Рисунки-сцены (cover) */
+@each $id in pasture, sky, savanna, vineyard, bethlehem, rainbow {
+  [data-chat-bg="#{$id}"] > i[data-v="light"] {
+    background-image: url("/chat-bg/#{$id}-light.svg");
+  }
+  [data-chat-bg="#{$id}"] > i[data-v="dark"] {
+    background-image: url("/chat-bg/#{$id}-dark.svg");
+  }
+}
+
+/* Узоры-плитки (repeat) */
+@each $id, $size in ("olive": 300px 300px, "waves": 360px 240px) {
+  [data-chat-bg="#{$id}"] > i {
+    background-repeat: repeat;
+    background-size: $size;
+    background-position: 0 0;
+  }
+  [data-chat-bg="#{$id}"] > i[data-v="light"] {
+    background-image: url("/chat-bg/#{$id}-light.svg");
+  }
+  [data-chat-bg="#{$id}"] > i[data-v="dark"] {
+    background-image: url("/chat-bg/#{$id}-dark.svg");
+  }
+}
+
+/* Градиенты */
+$gradients: (
+  "grad-amber": (
+    linear-gradient(180deg, #f8f0d2 0%, #f0cf94 52%, #b7bf80 100%),
+    linear-gradient(180deg, #1b1e18 0%, #3a2a14 40%, #9a5f1d 58%, #1b2a17 100%),
+  ),
+  "grad-stone": (
+    linear-gradient(180deg, #f2eadd 0%, #d9cbb8 100%),
+    linear-gradient(180deg, #1c1c1e 0%, #2b2722 60%, #3a3026 100%),
+  ),
+  "grad-sea": (
+    linear-gradient(180deg, #e2f2ef 0%, #9fd0cb 100%),
+    linear-gradient(180deg, #0e2a35 0%, #14465a 100%),
+  ),
+  "grad-rose": (
+    linear-gradient(180deg, #fce6ea 0%, #e6c6e2 100%),
+    linear-gradient(180deg, #2a1626 0%, #4a2a48 100%),
+  ),
+);
+@each $id, $pair in $gradients {
+  [data-chat-bg="#{$id}"] > i[data-v="light"] {
+    background-image: list.nth($pair, 1);
+  }
+  [data-chat-bg="#{$id}"] > i[data-v="dark"] {
+    background-image: list.nth($pair, 2);
+  }
+}

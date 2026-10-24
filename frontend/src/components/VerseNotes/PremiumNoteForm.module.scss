@@ -115,7 +115,7 @@
   padding: 10px 2px 12px;
   border: none;
   border-radius: 0;
-  font-family: var(--font-body, "Inter", sans-serif);
+  font-family: var(--font-body, var(--ui-font));
   font-size: 15px;
   line-height: 1.6;
   resize: none;
@@ -159,7 +159,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, #c9a227 55%, rgba(180, 150, 90, 0.65));
   cursor: pointer;
-  font-family: var(--font-body, "Inter", sans-serif);
+  font-family: var(--font-body, var(--ui-font));
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.03em;

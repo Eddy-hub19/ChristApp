@@ -1,0 +1,40 @@
+/*
+ * Личные шрифты (lib/chatFonts.ts). На <html> стоят атрибуты data-ui-font / data-msg-font / data-text-size
+ * (ставит блокирующий скрипт из layout до первого paint и UserPrefsSync); значения подставляются на body,
+ * где живут переменные next/font (--font-nunito и т.д.), поэтому без вспышки и без JS-стилей.
+ * Новый шрифт = строка в $fonts + запись в lib/chatFonts.ts + подключение в styles/fonts.ts.
+ */
+@use "sass:meta";
+
+$fonts: (
+  "system": (system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif),
+  "nunito": (var(--font-nunito), sans-serif),
+  "rubik": (var(--font-rubik), sans-serif),
+  "comfortaa": (var(--font-comfortaa), sans-serif),
+  "montserrat-alternates": (var(--font-montserrat-alternates), sans-serif),
+  "exo-2": (var(--font-exo-2), sans-serif),
+  "russo-one": (var(--font-russo-one), sans-serif),
+  "jura": (var(--font-jura), sans-serif),
+  "pacifico": (var(--font-pacifico), cursive),
+  "lobster": (var(--font-lobster), cursive),
+  "marck-script": (var(--font-marck-script), cursive),
+  "caveat": (var(--font-caveat), cursive),
+  "press-start-2p": (var(--font-press-start-2p), monospace),
+  "pangolin": (var(--font-pangolin), cursive),
+);
+
+@each $id, $stack in $fonts {
+  html[data-ui-font="#{$id}"] body {
+    --ui-font: #{meta.inspect($stack)};
+  }
+  html[data-msg-font="#{$id}"] body {
+    --msg-font: #{meta.inspect($stack)};
+  }
+}
+
+html[data-text-size="sm"] body {
+  --msg-scale: 0.88;
+}
+html[data-text-size="lg"] body {
+  --msg-scale: 1.15;
+}

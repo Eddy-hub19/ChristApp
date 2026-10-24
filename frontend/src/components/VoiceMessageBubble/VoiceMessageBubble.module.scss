@@ -9,7 +9,7 @@
 
 .voiceCompactSender {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -19,7 +19,7 @@
 
 .voiceUsername {
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 13px;
   font-weight: 700;
   color: var(--foreground);
@@ -106,7 +106,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ui-font);
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1;

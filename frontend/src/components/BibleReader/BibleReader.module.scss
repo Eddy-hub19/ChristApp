@@ -599,7 +599,7 @@
         margin: 0 0 4px;
         padding: 4px 0 12px;
         border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 55%, transparent);
-        font-family: "Inter", sans-serif;
+        font-family: var(--ui-font);
         font-size: 14px;
         font-weight: 700;
         line-height: 1.35;
