@@ -271,7 +271,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       if (data.streakAward) setStreakAward(data.streakAward);
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
-      setSkin((cur) => (isPaidSkin(cur) && !data.ownedSkins.includes(cur) ? 0 : cur));
+      setSkin((cur) => (!isSelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
       setArtifact(data.selectedArtifact ?? 0);
     } catch {
       /* офлайн: лобі працює з безкоштовними скінами */

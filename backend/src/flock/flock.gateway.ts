@@ -11,7 +11,7 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FLOCK_CONFIG, NUM_SKINS } from './flock.config';
+import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin } from './flock.config';
 import { FlockManager } from './flock.manager';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
@@ -152,7 +152,9 @@ export class FlockGateway
         ? body.arena
         : undefined;
     const userId = client.data.userId!;
-    const wanted = Math.max(0, Math.min(NUM_SKINS - 1, skin));
+    // знятий скін (збережений вибір із минулого) на арену не потрапляє: замість нього біла овечка
+    const clamped = Math.max(0, Math.min(NUM_SKINS - 1, skin));
+    const wanted = isRemovedSkin(clamped) ? 0 : clamped;
     // Скін перевіряє сервер: платний без покупки на арену не пускаємо (не підміняємо мовчки).
     // Перевіряємо завжди, навіть із resume: токен міг не підійти, і тоді створюється нова овечка з цим скіном.
     if (!(await this.rubies.canUseSkin(userId, wanted))) {
