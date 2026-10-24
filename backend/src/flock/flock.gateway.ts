@@ -252,7 +252,25 @@ export class FlockGateway
   /** Швидка фраза: тіло - лише id (число). Невідомий id / частота / мертвий гравець - мовчки ігноруються. */
   @SubscribeMessage('q')
   phrase(@ConnectedSocket() client: FlockSocket, @MessageBody() body: unknown) {
+    // рядок - свій текст (очищення, фільтр, мут, суворий ліміт); число - готова фраза
+    if (typeof body === 'string') {
+      const res = this.manager.sayText(client.id, body);
+      if (!res.ok && (res.reason === 'profanity' || res.reason === 'muted' || res.reason === 'disabled'))
+        client.emit('qr', { r: res.reason });
+      return;
+    }
     this.manager.say(client.id, body);
+  }
+
+  /** Заглушити гравця (свій текст) на minutes хв; 0 - зняти. Лише пам'ять процесу. */
+  muteUser(userId: string, minutes: number) {
+    return this.manager.muteUser(userId, minutes);
+  }
+  mutedUntil(userId: string) {
+    return this.manager.mutedUntil(userId);
+  }
+  recentSays() {
+    return this.manager.recentSays();
   }
 
   @SubscribeMessage('x')

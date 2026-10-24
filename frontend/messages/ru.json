@@ -176,6 +176,16 @@
     "openChat": "Чат"
   },
   "admin": {
+    "flockMute": {
+          "title": "Отара: свой текст",
+          "notMuted": "не заглушён",
+          "mutedUntil": "заглушён до {time}",
+          "minutes": "Минуты",
+          "mute": "Заглушить",
+          "min": "{count} мин",
+          "hours": "{count} ч",
+          "unmute": "Снять мут"
+    },
     "rubies": {
       "title": "Рубины",
       "loading": "Загрузка…",
@@ -248,6 +258,10 @@
     "procHealthBad": "Проблемы",
     "procSecProcess": "Процесс Node",
     "procSecDb": "База данных",
+    "procFlockSays": "Последние свои тексты игроков (память сервера, до 100)",
+    "procFlockSaysNone": "Своих текстов ещё не было (после перезапуска сервера список пуст)",
+    "procFlockSayMute": "Заглушить",
+    "procFlockSayMuted": "заглушён",
     "procSecFlock": "Отара",
     "procFlockNone": "Сейчас нет активных арен",
     "procFlockArena": "Арена {id}",
@@ -1208,6 +1222,15 @@
     "phrases": {
       "open": "Быстрые фразы",
       "title": "Быстрые фразы",
+      "customPlaceholder": "Написать своё",
+      "customLabel": "Написать своё",
+      "customSend": "Отправить",
+      "customWait": "жди 5 с",
+      "rejected": {
+        "profanity": "Это сообщение нельзя отправить",
+        "muted": "Тебя заглушили: свой текст временно недоступен",
+        "disabled": "Свой текст сейчас выключен"
+      },
       "hideOthers": "Скрывать чужие фразы"
     },
     "daily": {

@@ -82,7 +82,7 @@ export class AdminController {
       },
       realtime: this.chatGateway.getRealtimeStats(),
       /** Арени «Отари»: люди, боти, нагрузка и последние решения регулятора ботов. */
-      flock: { arenas: this.flockGateway.getAdminStats() },
+      flock: { arenas: this.flockGateway.getAdminStats(), says: this.flockGateway.recentSays() },
       users: { total: usersTotal, active: usersActive },
     };
   }
@@ -160,6 +160,20 @@ export class AdminController {
       id,
       typeof body?.artifact === 'number' ? body.artifact : NaN,
     );
+  }
+
+  /** Чи заглушений учасник у своєму тексті «Отари» (пам'ять процесу). */
+  @Get('members/:id/flock-mute')
+  memberFlockMute(@Param('id') id: string) {
+    return { mutedUntil: this.flockGateway.mutedUntil(id) };
+  }
+
+  /** Заглушити учасника у своєму тексті «Отари» на minutes хв (0 - зняти); готові фрази лишаються. Без БД. */
+  @Post('members/:id/flock-mute')
+  setMemberFlockMute(@Param('id') id: string, @Body() body: { minutes?: unknown }) {
+    const m = typeof body?.minutes === 'number' && Number.isFinite(body.minutes) ? Math.floor(body.minutes) : NaN;
+    if (!(m >= 0 && m <= 60 * 24 * 7)) throw new BadRequestException('invalid_minutes');
+    return { mutedUntil: this.flockGateway.muteUser(id, m) };
   }
 
   @Delete('members/:id')

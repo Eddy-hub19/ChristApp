@@ -16,7 +16,7 @@ import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFloc
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
 import FlockInvite from "./FlockInvite";
-import { loadHidePhrases, PHRASES, saveHidePhrases, toPhraseLang } from "./flockPhrases";
+import { CUSTOM_COOLDOWN_MS, CUSTOM_MAX_LEN, loadHidePhrases, PHRASES, saveHidePhrases, toPhraseLang } from "./flockPhrases";
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
@@ -184,6 +184,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Пауза між фразами (дзеркало серверного ліміту): кнопки сіріють, щоб не здавалось, що фраза "не пішла". */
   const [phraseCooldown, setPhraseCooldown] = useState(false);
   const [hideOthersPhrases, setHideOthersPhrases] = useState(false);
+  /** Свій текст: поле вводу, пауза між повідомленнями, відмова сервера й висота клавіатури (visualViewport). */
+  const [customText, setCustomText] = useState("");
+  const [customCooldown, setCustomCooldown] = useState(false);
+  const [sayNotice, setSayNotice] = useState<string | null>(null);
+  const [kbInset, setKbInset] = useState(0);
+  const typingRef = useRef(false);
+  const customInputRef = useRef<HTMLInputElement | null>(null);
   const hideOthersPhrasesRef = useRef(false);
   const phraseLangRef = useRef(toPhraseLang(locale));
   phraseLangRef.current = toPhraseLang(locale);
@@ -314,6 +321,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onNotice: setNotice,
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
+        onSayRejected: (reason) => setSayNotice(t(`phrases.rejected.${reason}`)),
         onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
         onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count, gain: r.gain }),
         onRevive: () => setReviveMsg(Date.now()),
@@ -631,6 +639,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   useEffect(() => {
     if (!open) return;
     const down = (e: KeyboardEvent) => {
+      // у полі свого тексту пробіл/W/T - звичайні літери, а не «розділитись»/«кинути»/панель; Escape закриває панель
+      const el0 = e.target as HTMLElement | null;
+      if (el0 && (el0.tagName === "INPUT" || el0.tagName === "TEXTAREA" || el0.isContentEditable)) {
+        if (e.code === "Escape" && playing) setPhrasesOpen(false);
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
         if (!e.repeat) splitQueuedRef.current = true;
@@ -670,6 +684,46 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (!playing) setPhrasesOpen(false);
   }, [playing]);
 
+  // клавіатура на телефоні: панель стоїть над нею (visualViewport), керування вимкнене, поки поле у фокусі
+  useEffect(() => {
+    if (!phrasesOpen) {
+      typingRef.current = false;
+      setKbInset(0);
+      customInputRef.current?.blur();
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKbInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [phrasesOpen]);
+
+  useEffect(() => {
+    if (sayNotice === null) return;
+    const id = setTimeout(() => setSayNotice(null), 3200);
+    return () => clearTimeout(id);
+  }, [sayNotice]);
+
+  const submitCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = customText.replace(/\s+/g, " ").trim();
+    if (!text || customCooldown) return;
+    clientRef.current?.sendText(text);
+    setCustomText("");
+    setCustomCooldown(true);
+    setTimeout(() => setCustomCooldown(false), CUSTOM_COOLDOWN_MS);
+    // після відправки панель закривається, клавіатура ховається, керування повертається
+    customInputRef.current?.blur();
+    typingRef.current = false;
+    setPhrasesOpen(false);
+  };
+
   const sendPhrase = (id: number) => {
     setPhrasesOpen(false);
     if (phraseCooldown) return;
@@ -686,6 +740,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   // жести на канвасі
   const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (typingRef.current && e.pointerType !== "mouse") return; // клавіатура відкрита: джойстик вимкнено
     const r = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - r.left;
     const py = e.clientY - r.top;
@@ -708,6 +763,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (typingRef.current && e.pointerType !== "mouse") return; // клавіатура відкрита: джойстик вимкнено
     e.currentTarget.setPointerCapture?.(e.pointerId);
     if (e.pointerType !== "mouse") {
       const r = e.currentTarget.getBoundingClientRect();
@@ -775,6 +831,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <div className={styles.reconnect} role="status">
               <span className={styles.spinner} aria-hidden />
               <span>{t("reconnecting", { seconds: reconnectLeft })}</span>
+            </div>
+          ) : null}
+          {sayNotice ? (
+            <div className={styles.sayNotice} role="status">
+              {sayNotice}
             </div>
           ) : null}
           {eagleHint !== null ? (
@@ -885,7 +946,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           </div>
           {phrasesOpen ? <div className={styles.phrasesBackdrop} onPointerDown={() => setPhrasesOpen(false)} aria-hidden /> : null}
           {phrasesOpen ? (
-            <div className={styles.phrasesPanel} role="menu" aria-label={t("phrases.title")}>
+            <div className={styles.phrasesPanel} role="menu" aria-label={t("phrases.title")} style={kbInset > 0 ? { bottom: kbInset + 12 } : undefined}>
               <div className={styles.phrasesGrid}>
                 {PHRASES.map((p) => (
                   <button
@@ -896,12 +957,40 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                     disabled={phraseCooldown}
                     onClick={() => sendPhrase(p.id)}
                   >
-                    <span className={styles.phraseEmoji} aria-hidden>
-                      {p.emoji}
-                    </span>
                     <span>{p.text[toPhraseLang(locale)]}</span>
                   </button>
                 ))}
+              </div>
+              <form className={styles.customRow} onSubmit={submitCustom}>
+                <input
+                  ref={customInputRef}
+                  className={styles.customInput}
+                  value={customText}
+                  maxLength={CUSTOM_MAX_LEN}
+                  onChange={(e) => setCustomText(e.target.value.slice(0, CUSTOM_MAX_LEN))}
+                  onFocus={() => {
+                    typingRef.current = true;
+                    stickRef.current = null;
+                    dirRef.current = { angle: dirRef.current.angle, power: 0 };
+                    if (stickBaseRef.current) stickBaseRef.current.style.display = "none";
+                  }}
+                  onBlur={() => {
+                    typingRef.current = false;
+                  }}
+                  placeholder={t("phrases.customPlaceholder")}
+                  aria-label={t("phrases.customLabel")}
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+                <button type="submit" className={styles.customSend} disabled={!customText.trim() || customCooldown} aria-label={t("phrases.customSend")} title={t("phrases.customSend")}>
+                  {t("phrases.customSend")}
+                </button>
+              </form>
+              <div className={styles.customCount} aria-live="off">
+                {customText.length}/{CUSTOM_MAX_LEN}
+                {customCooldown ? ` · ${t("phrases.customWait")}` : ""}
               </div>
               <label className={styles.phrasesToggle}>
                 <input type="checkbox" checked={hideOthersPhrases} onChange={(e) => toggleHidePhrases(e.target.checked)} />

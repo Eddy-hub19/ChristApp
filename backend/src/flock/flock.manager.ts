@@ -19,6 +19,7 @@ import {
 } from './flock.engine';
 import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { initBoss, thinkBoss } from './flock.boss';
+import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
 import {
   BotGovernor,
@@ -76,7 +77,10 @@ interface Session {
   /** Коли гравець востаннє казав фразу (годинник менеджера) - ліміт частоти. */
   lastPhraseAt: number;
   /** pid -> фраза, яку цей клієнт уже отримав (null = знає, що її нема): шлемо лише зміни й лише для тих, кого бачить. */
-  phraseSent: Map<number, { id: number; until: number }>;
+  phraseSent: Map<number, { id: number; until: number; text?: string }>;
+  /** Свій текст: коли востаннє (годинник менеджера) і часи за останню хвилину - ліміти суворіші за готові фрази. */
+  lastCustomAt: number;
+  customTimes: number[];
   /** Старий клієнт (до v2) не знає про кущі з `welcome` - йому кущі йдуть у кожному пакеті стану. */
   thornsInState: boolean;
 }
@@ -713,7 +717,9 @@ class Arena {
       if (cur === (prev ?? null)) continue;
       if (cur) {
         s.phraseSent.set(pid, cur);
-        send(key, 'q', { p: pid, i: cur.id, t: Math.round(cur.until) });
+        // свій текст - окремою подією `qt` (старі клієнти її ігнорують); готова фраза - як і раніше `q`
+        if (cur.text !== undefined) send(key, 'qt', { p: pid, x: cur.text, t: Math.round(cur.until) });
+        else send(key, 'q', { p: pid, i: cur.id, t: Math.round(cur.until) });
       } else {
         s.phraseSent.delete(pid);
         // сплила сама - клієнт погасить її за часом; шлемо скидання, лише якщо її зняли раніше строку (смерть / народження)
@@ -922,12 +928,18 @@ const newToken = () => randomBytes(16).toString('hex');
  * Сесія гравця живе за userId і не прив'язана до сокета: при розриві (не явному виході)
  * овечка лишається на арені в паузі `resumePauseMs`, місце в ліміті за нею зарезервоване.
  */
+export type SayOutcome = { ok: true } | { ok: false; reason: SayReject | 'disabled' | 'muted' | 'rate' | 'gone' };
+
 export class FlockManager {
   private readonly arenas = new Map<number, Arena>();
   /** Сесія за поточним сокетом (у паузі запису немає). */
   private readonly byConn = new Map<string, Session>();
   private readonly byUser = new Map<string, Session>();
   private nextArenaId = 1;
+  /** Заглушені гравці (userId -> до коли, годинник менеджера); без БД. */
+  private readonly mutes = new Map<string, { until: number; name: string }>();
+  /** Останні свої тексти (пам'ять процесу, не БД). */
+  private readonly sayLog: { at: number; userId: string; name: string; text: string }[] = [];
   private sweeper: NodeJS.Timeout | null = null;
 
   constructor(
@@ -1004,6 +1016,8 @@ export class FlockManager {
       massReported: 0,
       thornsInState: opts.legacyThorns === true,
       lastPhraseAt: -Infinity,
+      lastCustomAt: -Infinity,
+      customTimes: [],
       phraseSent: new Map(),
     };
     arena.sessions.set(userId, session);
@@ -1137,6 +1151,68 @@ export class FlockManager {
     s.lastPhraseAt = t;
     p.phrase = { id: phraseId, until: w.now + phraseDurationMs() };
     return true;
+  }
+
+  /**
+   * Свій текст (<= customMaxLen символів): очищення й фільтр (flock.say.ts), вимикач, мут від адміна, і суворіший ліміт
+   * за готові фрази (пауза customCooldownMs + не більше customPerMinute за хвилину). Той самий канал хмаринки.
+   * Нічого не пишеться в БД; останні тексти лежать лише в пам'яті для адмінки.
+   */
+  sayText(connKey: string, raw: unknown): SayOutcome {
+    if (!C.phrases.customEnabled) return { ok: false, reason: 'disabled' };
+    const s = this.byConn.get(connKey);
+    if (!s) return { ok: false, reason: 'gone' };
+    const t = this.now();
+    const mute = this.mutes.get(s.userId);
+    if (mute && mute.until > t) return { ok: false, reason: 'muted' };
+    if (mute) this.mutes.delete(s.userId);
+    const w = s.arena.world;
+    const p = w.players.get(s.pid);
+    if (!p || p.bot || !p.alive || p.paused) return { ok: false, reason: 'gone' };
+    if (t - s.lastCustomAt < C.phrases.customCooldownMs) return { ok: false, reason: 'rate' };
+    s.customTimes = s.customTimes.filter((x) => t - x < 60_000);
+    if (s.customTimes.length >= C.phrases.customPerMinute) return { ok: false, reason: 'rate' };
+    const res = sanitizeSay(raw);
+    if (!res.ok) {
+      // спроби з забороненим словом теж рахуються в ліміт (щоб не підбирати обхід фільтра)
+      if (res.reason === 'profanity') {
+        s.lastCustomAt = t;
+        s.customTimes.push(t);
+      }
+      return res;
+    }
+    s.lastCustomAt = t;
+    s.customTimes.push(t);
+    p.phrase = { id: 0, until: w.now + phraseDurationMs(), text: res.text };
+    this.sayLog.push({ at: Date.now(), userId: s.userId, name: p.name, text: res.text });
+    if (this.sayLog.length > C.phrases.customLogSize) this.sayLog.shift();
+    return { ok: true };
+  }
+
+  /** Останні свої тексти (нові першими) - лише пам'ять, для адмінки «Процеси». */
+  recentSays() {
+    const t = this.now();
+    return [...this.sayLog].reverse().map((m) => ({
+      ...m,
+      mutedUntil: this.mutes.get(m.userId)?.until && this.mutes.get(m.userId)!.until > t ? this.mutes.get(m.userId)!.until : null,
+    }));
+  }
+
+  /** Заглушити гравця на `minutes` хв (0 - зняти). Лише пам'ять: після перезапуску мут зникає. Готові фрази лишаються. */
+  muteUser(userId: string, minutes: number, name = '') {
+    if (!(minutes > 0)) {
+      this.mutes.delete(userId);
+      return null;
+    }
+    const until = this.now() + Math.min(minutes, 60 * 24 * 7) * 60_000;
+    const known = name || this.byUser.get(userId)?.arena.world.players.get(this.byUser.get(userId)!.pid)?.name || this.mutes.get(userId)?.name || '';
+    this.mutes.set(userId, { until, name: known });
+    return until;
+  }
+
+  mutedUntil(userId: string): number | null {
+    const m = this.mutes.get(userId);
+    return m && m.until > this.now() ? m.until : null;
   }
 
   /**

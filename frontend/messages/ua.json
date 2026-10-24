@@ -176,6 +176,16 @@
     "openChat": "Чат"
   },
   "admin": {
+    "flockMute": {
+          "title": "Отара: свій текст",
+          "notMuted": "не заглушений",
+          "mutedUntil": "заглушений до {time}",
+          "minutes": "Хвилини",
+          "mute": "Заглушити",
+          "min": "{count} хв",
+          "hours": "{count} год",
+          "unmute": "Зняти мут"
+    },
     "rubies": {
       "title": "Рубіни",
       "loading": "Завантаження…",
@@ -248,6 +258,10 @@
     "procHealthBad": "Проблеми",
     "procSecProcess": "Процес Node",
     "procSecDb": "База даних",
+    "procFlockSays": "Останні свої тексти гравців (пам'ять сервера, до 100)",
+    "procFlockSaysNone": "Своїх текстів ще не було (після перезапуску сервера список порожній)",
+    "procFlockSayMute": "Заглушити",
+    "procFlockSayMuted": "заглушений",
     "procSecFlock": "Отара",
     "procFlockNone": "Зараз немає активних арен",
     "procFlockArena": "Арена {id}",
@@ -1208,6 +1222,15 @@
     "phrases": {
       "open": "Швидкі фрази",
       "title": "Швидкі фрази",
+      "customPlaceholder": "Написати своє",
+      "customLabel": "Написати своє",
+      "customSend": "Надіслати",
+      "customWait": "чекай 5 с",
+      "rejected": {
+        "profanity": "Це повідомлення не можна надіслати",
+        "muted": "Ти заглушений: свій текст тимчасово недоступний",
+        "disabled": "Свій текст зараз вимкнено"
+      },
       "hideOthers": "Ховати чужі фрази"
     },
     "daily": {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
@@ -11,7 +12,8 @@ import {
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
-import type { AdminFlockArena, AdminFlockDecision } from "@/lib/queries/adminQueries";
+import type { AdminFlockArena, AdminFlockDecision, AdminFlockSay } from "@/lib/queries/adminQueries";
+import { setAdminFlockMute } from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -56,7 +58,7 @@ function Sparkline({ values }: { values: number[] }) {
 const flockLevelDot: Record<AdminFlockDecision["level"], HealthLevel> = { low: "ok", normal: "ok", high: "bad" };
 
 /** Арены «Отари»: сколько людей и ботов, нагрузка арены и решения регулятора (кого убрали/вернули и почему). */
-function FlockSection({ arenas }: { arenas: AdminFlockArena[] }) {
+function FlockSection({ arenas, says }: { arenas: AdminFlockArena[]; says: AdminFlockSay[] }) {
   const t = useTranslations("admin");
   const ms = (v: number) => t("procFlockMs", { value: v.toFixed(1) });
   return (
@@ -103,7 +105,47 @@ function FlockSection({ arenas }: { arenas: AdminFlockArena[] }) {
           )}
         </div>
       ))}
+      <FlockSays says={says} />
     </section>
+  );
+}
+
+/** Останні 100 своїх текстів гравців «Отари» з пам'яті сервера (БД не пишемо; після перезапуску порожньо) і кнопка «Заглушити». */
+function FlockSays({ says }: { says: AdminFlockSay[] }) {
+  const t = useTranslations("admin");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [muted, setMuted] = useState<Set<string>>(new Set());
+  const mute = async (userId: string) => {
+    setBusy(userId);
+    try {
+      await setAdminFlockMute(userId, 15);
+      setMuted((s) => new Set(s).add(userId));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div>
+      <h3 className={styles.procSubheading}>{t("procFlockSays")}</h3>
+      {says.length === 0 ? (
+        <p className={styles.metaSmall}>{t("procFlockSaysNone")}</p>
+      ) : (
+        <ul className={styles.metaSmall}>
+          {says.map((s, i) => (
+            <li key={`${s.at}-${i}`}>
+              {new Date(s.at).toLocaleTimeString()} · <strong>{s.name}</strong>: {s.text}{" "}
+              {s.mutedUntil || muted.has(s.userId) ? (
+                <em>{t("procFlockSayMuted")}</em>
+              ) : (
+                <button type="button" disabled={busy === s.userId} onClick={() => void mute(s.userId)}>
+                  {t("procFlockSayMute")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -412,7 +454,7 @@ export default function AdminProcesses({ active }: { active: boolean }) {
         </div>
       </section>
 
-      <FlockSection arenas={data.flock?.arenas ?? []} />
+      <FlockSection arenas={data.flock?.arenas ?? []} says={data.flock?.says ?? []} />
 
       <CpuBenchmark active={active} />
 

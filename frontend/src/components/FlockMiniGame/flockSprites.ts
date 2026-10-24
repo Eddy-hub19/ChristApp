@@ -707,27 +707,32 @@ export interface BubbleSprite {
   tipY: number;
 }
 const bubbles = new Lru<BubbleSprite>(64);
+/** Хмаринки зі своїм текстом: окремий невеликий LRU за текстом (малюються один раз при отриманні, не щокадру). */
+const textBubbles = new Lru<BubbleSprite>(48);
 
 /**
  * Хмаринка з хвостиком одним спрайтом. Ключ - фраза + мова + тема + "відро" розміру шрифту (по dpr), тож вона
  * малюється один раз, а не щокадру; далі лише drawImage.
  */
-export function phraseBubbleSprite(phraseId: number, lang: string, text: string, fontPx: number, theme: Theme): BubbleSprite {
+export function phraseBubbleSprite(phraseId: number, lang: string, text: string, fontPx: number, theme: Theme, maxEm = Infinity): BubbleSprite {
   const px = Math.max(10, Math.round(fontPx / 2) * 2);
-  const key = `${phraseId}|${lang}|${px}|${theme.dark ? "d" : "l"}`;
-  let spr = bubbles.get(key);
+  // свій текст (id 0): ключ - сам текст, окремий кеш; готова фраза - за id і мовою
+  const custom = phraseId === 0;
+  const cache = custom ? textBubbles : bubbles;
+  const key = custom ? `t|${text}|${px}|${theme.dark ? "d" : "l"}` : `${phraseId}|${lang}|${px}|${theme.dark ? "d" : "l"}`;
+  let spr = cache.get(key);
   if (spr) return spr;
   const font = `700 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   const probe = makeCanvas(4, 4).getContext("2d");
-  let tw = px * text.length * 0.6;
-  if (probe) {
-    probe.font = font;
-    tw = probe.measureText(text).width;
-  }
+  if (probe) probe.font = font;
+  const measure = (s: string) => (probe ? probe.measureText(s).width : px * s.length * 0.6);
+  const lines = wrapBubbleText(text, Math.max(px * 3, maxEm * px), measure);
+  const tw = Math.max(...lines.map(measure));
   const padX = px * 0.7;
   const padY = px * 0.5;
+  const lineH = px * 1.25;
   const bw = tw + padX * 2;
-  const bh = px * 1.25 + padY * 2;
+  const bh = lineH * lines.length + padY * 2;
   const tail = px * 0.6;
   const m = Math.ceil(px * 0.12) + 1; // поле під обводку
   const cv = makeCanvas(bw + m * 2, bh + tail + m * 2);
@@ -761,9 +766,39 @@ export function phraseBubbleSprite(phraseId: number, lang: string, text: string,
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillStyle = theme.dark ? "#f4fff0" : "#1f3a1f";
-    c.fillText(text, cx, y0 + bh / 2 + px * 0.04);
+    lines.forEach((ln, i) => c.fillText(ln, cx, y0 + padY + lineH * (i + 0.5) + px * 0.04));
   }
   spr = { cv, px, tipX: cv.width / 2, tipY: cv.height - m };
-  bubbles.set(key, spr);
+  cache.set(key, spr);
   return spr;
+}
+
+/** Переносить текст по словах у рядки не ширше maxW; надто довге слово ріжеться по символах. */
+export function wrapBubbleText(text: string, maxW: number, measure: (s: string) => number): string[] {
+  const lines: string[] = [];
+  let cur = "";
+  const push = () => {
+    if (cur) lines.push(cur);
+    cur = "";
+  };
+  for (const word of text.split(" ")) {
+    if (!word) continue;
+    const joined = cur ? `${cur} ${word}` : word;
+    if (measure(joined) <= maxW) {
+      cur = joined;
+      continue;
+    }
+    push();
+    if (measure(word) <= maxW) {
+      cur = word;
+      continue;
+    }
+    // довге слово: по символах
+    for (const ch of word) {
+      if (cur && measure(cur + ch) > maxW) push();
+      cur += ch;
+    }
+  }
+  push();
+  return lines.length ? lines : [text];
 }

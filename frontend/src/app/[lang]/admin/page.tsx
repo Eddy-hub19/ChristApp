@@ -14,6 +14,7 @@ import {
   type AdminMember,
 } from "@/lib/queries/adminQueries";
 import AdminMemberRubies from "./AdminMemberRubies";
+import AdminFlockMute from "./AdminFlockMute";
 import AdminProcesses from "./AdminProcesses";
 import styles from "./admin.module.scss";
 
@@ -195,6 +196,7 @@ export default function AdminPage() {
                   <strong>{t("labelLastSeen")}</strong> {lastSeenLabel}
                 </p>
                 <AdminMemberRubies memberId={m.id} />
+                <AdminFlockMute memberId={m.id} />
                 <div className={styles.actions}>
                   <button
                     type="button"
