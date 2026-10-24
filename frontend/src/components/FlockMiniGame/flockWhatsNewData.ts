@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -310,6 +310,36 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Розумніші боти: випереджають рух цілі, тікають у відкритий простір чи до куща, не лізуть до цілей під охороною і діляться лише коли певні, що наздоженуть",
           ru: "Умнее боты: упреждают движение цели, убегают в открытое место или к кусту, не лезут к целям под охраной и делятся, только когда уверены, что догонят",
           en: "Smarter bots: they lead their targets, flee to open space or a bush, avoid guarded targets and split only when sure to catch",
+        },
+      },
+    ],
+  },
+  {
+    version: 13,
+    date: "2026-10-24",
+    items: [
+      {
+        icon: "eye",
+        text: {
+          ua: "Новий бонус «Орлиний зір»: 10 секунд камера віддаляється, і ти бачиш більше карти",
+          ru: "Новый бонус «Орлиный взор»: 10 секунд камера отдаляется, и ты видишь больше карты",
+          en: "New bonus “Eagle eye”: for 10 seconds the camera pulls back and you see more of the map",
+        },
+      },
+      {
+        icon: "fence",
+        text: {
+          ua: "Арену обнесено загорожею: дерев'яною, сніговою або з сухого дерева, залежно від карти. На мінікарті межа тепер у рамці",
+          ru: "Арена обнесена оградой: деревянной, снежной или из сухого дерева, в зависимости от карты. На миникарте граница теперь в рамке",
+          en: "The arena now has a fence: wooden, snowy or dry-wood depending on the map. The minimap border is framed",
+        },
+      },
+      {
+        icon: "starfall",
+        text: {
+          ua: "Нові зорі «Зорепаду»: кожна своєї форми, з золотим хвостом і світлим кільцем-міткою на землі",
+          ru: "Новые звёзды «Зорепада»: каждая своей формы, с золотым хвостом и светлым кольцом-меткой на земле",
+          en: "New Starfall stars: each its own shape, with a golden tail and a bright ring marking where it lands",
         },
       },
     ],

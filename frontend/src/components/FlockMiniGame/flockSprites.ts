@@ -237,45 +237,118 @@ export const BONUS_WORLD_SIZE = 120;
 
 // ---------- зірки «Зорепаду» ----------
 const STAR_PX = 192;
-let starCv: HTMLCanvasElement | null = null;
+const starCvs: (HTMLCanvasElement | null)[] = [];
+let starTailCv: HTMLCanvasElement | null = null;
 let starShadowCv: HTMLCanvasElement | null = null;
 /** Піврозмір зірки у світових одиницях (клітина стартової маси має радіус ~20). */
 export const STAR_WORLD_R = 46;
-/** Спрайт зірки: золота п'ятикутна зірка зі світінням, один раз у кеші. */
-export function starSprite() {
-  if (starCv) return starCv;
+/**
+ * Варіанти зірок: кожна зірка падає в «своєму» вигляді (за id): різна кількість променів, нахил, повнота й відтінок золота.
+ * [променів, внутрішній радіус (частка), нахил (рад), колір зверху, колір знизу].
+ */
+const STAR_LOOKS: [number, number, number, string, string][] = [
+  [5, 0.5, 0, "#fff6b8", "#ffb81c"],
+  [5, 0.42, 0.14, "#fff0a0", "#ffa91a"],
+  [6, 0.5, 0.08, "#fff8c8", "#ffc02a"],
+  [5, 0.58, -0.1, "#ffeb9a", "#ff9f18"],
+  [4, 0.46, 0.4, "#fff4b0", "#ffb421"],
+  [7, 0.56, 0, "#fffad2", "#ffc83d"],
+];
+export const STAR_VARIANTS = STAR_LOOKS.length;
+/** Спрайт зірки: золото з білим блиском, заокруглені промені, тонка темна обводка; кеш по варіантах. */
+export function starSprite(variant = 0) {
+  const v = ((variant % STAR_VARIANTS) + STAR_VARIANTS) % STAR_VARIANTS;
+  const hit = starCvs[v];
+  if (hit) return hit;
   const cv = makeCanvas(STAR_PX, STAR_PX);
   const c = cv.getContext("2d");
   if (c) {
+    const [n, inner, tilt, top, bottom] = STAR_LOOKS[v];
     const m = STAR_PX / 2;
     const glow = c.createRadialGradient(m, m, 0, m, m, m);
-    glow.addColorStop(0, "rgba(255,240,150,0.95)");
-    glow.addColorStop(0.45, "rgba(255,214,90,0.35)");
+    glow.addColorStop(0, "rgba(255,240,150,0.85)");
+    glow.addColorStop(0.45, "rgba(255,214,90,0.28)");
     glow.addColorStop(1, "rgba(255,214,90,0)");
     c.fillStyle = glow;
     c.fillRect(0, 0, STAR_PX, STAR_PX);
     c.translate(m, m);
-    c.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (i / 10) * TAU;
-      const r = i % 2 === 0 ? m * 0.62 : m * 0.26;
-      c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    c.closePath();
-    const g = c.createLinearGradient(0, -m * 0.6, 0, m * 0.5);
-    g.addColorStop(0, "#fff3a8");
-    g.addColorStop(1, "#ffb81c");
+    const path = () => {
+      c.beginPath();
+      for (let i = 0; i < n * 2; i++) {
+        const a = -Math.PI / 2 + tilt + (i / (n * 2)) * TAU;
+        const r = i % 2 === 0 ? m * 0.5 : m * 0.5 * inner;
+        c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      c.closePath();
+    };
+    const g = c.createLinearGradient(0, -m * 0.55, 0, m * 0.5);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bottom);
+    c.lineJoin = "round";
+    // товстий штрих із круглим з'єднанням заокруглює кінці променів; темніший - це тонка обводка
+    path();
+    c.strokeStyle = "#8a4a06";
+    c.lineWidth = 17;
+    c.stroke();
+    path();
+    c.strokeStyle = g;
+    c.lineWidth = 13.5;
+    c.stroke();
     c.fillStyle = g;
     c.fill();
-    c.lineJoin = "round";
-    c.lineWidth = 4;
-    c.strokeStyle = "#e08a00";
+    // білий блиск: світла пляма й маленька іскра
+    c.fillStyle = "rgba(255,255,255,0.85)";
+    c.beginPath();
+    c.ellipse(-m * 0.12, -m * 0.16, m * 0.1, m * 0.05, -0.7, 0, TAU);
+    c.fill();
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.arc(-m * 0.2, -m * 0.07, m * 0.028, 0, TAU);
+    c.fill();
+    c.strokeStyle = "rgba(255,255,255,0.9)";
+    c.lineWidth = 3;
+    c.lineCap = "round";
+    const sx = m * 0.27;
+    const sy = -m * 0.3;
+    c.beginPath();
+    c.moveTo(sx - 9, sy);
+    c.lineTo(sx + 9, sy);
+    c.moveTo(sx, sy - 9);
+    c.lineTo(sx, sy + 9);
     c.stroke();
   }
-  starCv = cv;
+  starCvs[v] = cv;
   return cv;
 }
-/** Тінь-мітка на землі там, де приземлиться зірка. */
+/** Хвіст зорі, що падає: вузький золотий відблиск вертикально (малюється над зіркою, вгору). */
+export function starTailSprite() {
+  if (starTailCv) return starTailCv;
+  const cv = makeCanvas(64, 192);
+  const c = cv.getContext("2d");
+  if (c) {
+    const g = c.createLinearGradient(0, 0, 0, 192);
+    g.addColorStop(0, "rgba(255,230,120,0)");
+    g.addColorStop(0.7, "rgba(255,214,90,0.55)");
+    g.addColorStop(1, "rgba(255,246,190,0.9)");
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(32, 0);
+    c.quadraticCurveTo(10, 120, 8, 192);
+    c.lineTo(56, 192);
+    c.quadraticCurveTo(54, 120, 32, 0);
+    c.fill();
+    c.strokeStyle = "rgba(255,255,255,0.7)";
+    c.lineWidth = 3;
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(32, 70);
+    c.lineTo(32, 186);
+    c.stroke();
+  }
+  starTailCv = cv;
+  return cv;
+}
+/** Тінь-мітка на землі там, де приземлиться зірка: м'яка тінь і світле кільце. */
 export function starShadowSprite() {
   if (starShadowCv) return starShadowCv;
   const cv = makeCanvas(STAR_PX, STAR_PX);
@@ -283,16 +356,20 @@ export function starShadowSprite() {
   if (c) {
     const m = STAR_PX / 2;
     const g = c.createRadialGradient(m, m, m * 0.1, m, m, m * 0.95);
-    g.addColorStop(0, "rgba(0,0,0,0.55)");
-    g.addColorStop(0.7, "rgba(0,0,0,0.3)");
+    g.addColorStop(0, "rgba(0,0,0,0.5)");
+    g.addColorStop(0.7, "rgba(0,0,0,0.26)");
     g.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = g;
     c.fillRect(0, 0, STAR_PX, STAR_PX);
-    c.strokeStyle = "rgba(255,230,120,0.9)";
-    c.lineWidth = 5;
-    c.setLineDash([14, 10]);
+    c.strokeStyle = "rgba(255,246,200,0.95)";
+    c.lineWidth = 6;
     c.beginPath();
-    c.arc(m, m, m * 0.72, 0, TAU);
+    c.arc(m, m, m * 0.7, 0, TAU);
+    c.stroke();
+    c.strokeStyle = "rgba(255,200,60,0.75)";
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.arc(m, m, m * 0.78, 0, TAU);
     c.stroke();
   }
   starShadowCv = cv;
@@ -580,7 +657,8 @@ export function clearSpriteCaches() {
   digitAtlas.clear();
   bonusCache.clear();
   for (const k of Object.keys(thornCvs)) delete thornCvs[k];
-  starCv = null;
+  starCvs.length = 0;
+  starTailCv = null;
   starShadowCv = null;
   tile = null;
 }

@@ -143,7 +143,7 @@ export const INFO_SECTIONS: InfoSection[] = [
     entries: [
       {
         id: "who",
-        icon: "trophy",
+        icon: "alpha",
         title: { ua: "Хто це", ru: "Кто это", en: "Who is it" },
         text: {
           ua: "Сильний темний вовк із золотою короною. З'являється з масою лідера ×{mult} (не менше {start}), завжди більший за найкращого живого гравця, але не росте понад лідер ×{ceil} і понад {max}. Полює на великих гравців, заганяє їх до краю карти, ховається в кущах і тікає від груп. Якщо він з'їв лідера таблиці, усі на арені бачать повідомлення.",
@@ -262,6 +262,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
         params: { mass: num("scissors.massThreshold"), pct: pct("scissors.cutFraction"), min: num("scissors.minMassAfter") },
       },
+      {
+        id: "eagle",
+        icon: "bonus:eagle",
+        title: { ua: "Орлиний зір", ru: "Орлиный взор", en: "Eagle eye" },
+        text: {
+          ua: "{sec} с камера віддаляється приблизно на {pct}%, і ти бачиш більше карти (сервер надсилає тобі ширшу область). Боти цього не отримують.",
+          ru: "{sec} с камера отдаляется примерно на {pct}%, и ты видишь больше карты (сервер присылает тебе более широкую область). Боты этого не получают.",
+          en: "For {sec} s the camera pulls back by about {pct}% so you see more of the map (the server sends you a wider area). Bots don't get this.",
+        },
+        params: { sec: sec("bonusDurations.eagle"), pct: num("eagle.zoomPct") },
+      },
     ],
   },
   {
@@ -270,7 +281,7 @@ export const INFO_SECTIONS: InfoSection[] = [
     entries: [
       {
         id: "zorepad",
-        icon: "star",
+        icon: "starfall",
         title: { ua: "Зорепад", ru: "Зорепад", en: "Starfall" },
         text: {
           ua: "Коли жива людина досягає маси {mass}, приблизно {sec} с з неба падають зірки (один гравець може запустити зорепад не більше {times} разів за життя). Кожна зірка дає {star} маси. Падають подалі від лідера (найкращого живого гравця) і ближче до менших.",
@@ -347,6 +358,16 @@ export const INFO_SECTIONS: InfoSection[] = [
           ua: "Арена випадково отримує одну з карт: звичайна (зелені кущі), «Роща» (осіннє листя) або «Сніг» (ялинки). Відрізняється лише вигляд.",
           ru: "Арена случайно получает одну из карт: обычная (зелёные кусты), «Роща» (осенняя листва) или «Снег» (ёлки). Отличается только вид.",
           en: "Each arena gets a random map: regular (green bushes), Grove (autumn leaves) or Snow (fir trees). Only the look differs.",
+        },
+      },
+      {
+        id: "fence",
+        icon: "fence",
+        title: { ua: "Загорожа", ru: "Ограда", en: "Fence" },
+        text: {
+          ua: "Арена обнесена загоном у стилі карти: дерево, сніг, сухе дерево. Це край світу: далі йти не можна. На мінікарті межа показана тонкою рамкою.",
+          ru: "Арена обнесена загоном в стиле карты: дерево, снег, сухое дерево. Это край мира: дальше идти нельзя. На миникарте граница показана тонкой рамкой.",
+          en: "The arena is enclosed by a pen in the map's style: wood, snow, dry wood. It is the edge of the world; you can't go past it. The minimap shows the border as a thin frame.",
         },
       },
       {

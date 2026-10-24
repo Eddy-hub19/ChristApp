@@ -227,6 +227,8 @@ export class FlockGateway
         perSqrtMass: FLOCK_CONFIG.viewPerSqrtMass,
         max: FLOCK_CONFIG.viewMax,
       },
+      /** «Орлиний зір»: у скільки разів камера клієнта відсувається, поки діє бонус. */
+      eagleZoom: FLOCK_CONFIG.eagle.zoom,
     });
   }
 

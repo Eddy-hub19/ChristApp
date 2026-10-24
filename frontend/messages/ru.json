@@ -1246,6 +1246,7 @@
       "scissorsTaker": "Ножницы! +{gain} массы, задето: {count}",
       "revived": "Вторая жизнь!",
       "scissorsVictim": "Тебя подстригли!",
+      "eagle": "Орлиный взор: ты видишь дальше {sec} с",
       "bossSpawn": "Вожак вышел на охоту",
       "bossDefeated": "{name} победил Вожака!",
       "bossAteLeader": "Вожак съел лидера {name}!"
@@ -1271,6 +1272,7 @@
       "freeze": "Заморозка",
       "golden": "Золотое руно",
       "boost": "Разгон",
+      "eagle": "Орлиный взор",
       "scissors": "Ножницы"
     },
     "skins": {

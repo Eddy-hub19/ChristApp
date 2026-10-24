@@ -2,8 +2,9 @@ import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
 import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
+import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { BOSS_SKIN } from "./flockSkins";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, thornSprite, type ThornKind } from "./flockSprites";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -46,6 +47,7 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   freeze: { color: "#9fe8ff", icon: "❄" },
   golden: { color: "#ffc93c", icon: "🌟" },
   scissors: { color: "#ff5c8a", icon: "✂️" },
+  eagle: { color: "#ffb02e", icon: "👁" },
   boost: { color: "#ff9f43", icon: "🚀" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
@@ -244,6 +246,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
   ctx.strokeRect(0, 0, world, world);
+  // загорожа за межею поля (кешований тайл, лише видима частина)
+  drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
 
   // їжа: розмір із сервера (піврозмір x2); на віддаленій камері - не менше FOOD_MIN_PX на екрані й без погойдування
   const far = scale < FAR_SCALE;
@@ -314,11 +318,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       ctx.drawImage(starShadowSprite(), s.x - sh * 1.15, s.y - sh * 1.15, sh * 2.3, sh * 2.3);
       const rise = STAR_FALL_H * (1 - p) * (1 - p);
       ctx.globalAlpha = Math.min(1, p * 4);
-      ctx.drawImage(starSprite(), s.x - R * 1.6, s.y - rise - R * 1.6, R * 3.2, R * 3.2);
+      // хвіст: короткий, вкорочується біля землі
+      const tail = R * (1 + 2.4 * (1 - p));
+      ctx.drawImage(starTailSprite(), s.x - R * 0.55, s.y - rise - R * 0.4 - tail, R * 1.1, tail);
+      ctx.drawImage(starSprite(s.id), s.x - R * 1.6, s.y - rise - R * 1.6, R * 3.2, R * 3.2);
       ctx.globalAlpha = 1;
     } else {
       const sz = R * 3.2 * (1 + Math.sin(o.time * 5 + s.id) * 0.06);
-      ctx.drawImage(starSprite(), s.x - sz / 2, s.y - sz / 2, sz, sz);
+      ctx.drawImage(starSprite(s.id), s.x - sz / 2, s.y - sz / 2, sz, sz);
     }
   }
 
@@ -517,6 +524,10 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
     ctx.fill();
   }
   const w = m.cfg.world;
+  // загорожа: тонка рамка по периметру
+  ctx.strokeStyle = fenceMiniColor(fenceStyleOf(m.cfg.map));
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, size - 2, size - 2);
   ctx.fillStyle = "#ffd24a";
   circle(ctx, (m.camX / w) * size, (m.camY / w) * size, 3.4);
   ctx.fill();
