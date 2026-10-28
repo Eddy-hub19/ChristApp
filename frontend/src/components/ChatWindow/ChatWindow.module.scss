@@ -75,8 +75,6 @@
   box-shadow:
     0 8px 24px -14px rgba(0, 0, 0, 0.35),
     0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   animation: scrollDownIn 0.22s ease-out;
 
   &:hover {
@@ -142,9 +140,7 @@ html[data-theme="dark"] .chatWindow {
   text-transform: uppercase;
   color: color-mix(in srgb, #d4af37 92%, var(--foreground) 8%);
   border: 1.5px solid rgba(212, 175, 55, 0.88);
-  background: color-mix(in srgb, var(--surface-elevated) 38%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
   box-shadow:
     0 0 0 1px rgba(212, 175, 55, 0.12),
     0 8px 28px -12px rgba(212, 175, 55, 0.35),
@@ -277,9 +273,7 @@ html[data-theme="light"] .recentDividerLine {
   text-transform: capitalize;
   color: color-mix(in srgb, var(--foreground) 72%, var(--text-muted) 28%);
   border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
-  background: color-mix(in srgb, var(--surface-elevated) 72%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
   box-shadow: 0 4px 14px -10px rgba(0, 0, 0, 0.3);
 }
 

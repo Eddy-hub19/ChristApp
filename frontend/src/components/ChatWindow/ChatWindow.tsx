@@ -37,6 +37,10 @@ import MessageBubble from "@/components/MessageBubble/MessageBubble";
 
 type ChatWindowProps = {
   messages: Message[];
+  /** Постраничная подгрузка вверх: вызывается, когда список прокручен почти к началу и есть более старые сообщения. */
+  onLoadOlder?: () => void;
+  hasMoreOlder?: boolean;
+  loadingOlder?: boolean;
   /** Плавно проявити список (fade) — після скелетона, щоб заміна не різала око. */
   revealOnMount?: boolean;
   currentUsername?: string;
@@ -94,8 +98,16 @@ const AUTO_SCROLL_FOLLOW_DISTANCE_PX = 80;
 /** Сообщения одного человека дальше друг от друга во времени - уже новая группа (персонаж стиля рисуется снова). */
 const BUBBLE_GROUP_GAP_MS = 5 * 60_000;
 
+const NO_READERS: never[] = [];
+
+/** За сколько пикселей до верха списка начинаем подгружать более старые сообщения. */
+const LOAD_OLDER_TRIGGER_PX = 400;
+
 function ChatWindow({
   messages,
+  onLoadOlder,
+  hasMoreOlder = false,
+  loadingOlder = false,
   currentUsername,
   currentUser,
   withSenderAvatars = false,
@@ -373,6 +385,48 @@ function ChatWindow({
     updateScrollDownVisibility();
   }, [messages.length, updateScrollDownVisibility]);
 
+  // Подгрузка старых сообщений при прокрутке вверх. Позицию «якорим»: после вставки сверху список не должен прыгать.
+  const olderStateRef = useRef({ onLoadOlder, hasMoreOlder, loadingOlder });
+  useEffect(() => {
+    olderStateRef.current = { onLoadOlder, hasMoreOlder, loadingOlder };
+  });
+  const olderAnchorRef = useRef<{ scrollHeight: number; scrollTop: number; firstId: string | undefined } | null>(null);
+
+  const requestOlder = useCallback(() => {
+    const container = scrollContainerRef.current;
+    const state = olderStateRef.current;
+    if (!container || !state.onLoadOlder || !state.hasMoreOlder || state.loadingOlder) return;
+    if (container.scrollTop > LOAD_OLDER_TRIGGER_PX) return;
+    olderAnchorRef.current = {
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+      firstId: messages[0]?.id,
+    };
+    state.onLoadOlder();
+  }, [messages]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const onScrollTop = () => requestOlder();
+    container.addEventListener("scroll", onScrollTop, { passive: true });
+    return () => container.removeEventListener("scroll", onScrollTop);
+  }, [requestOlder]);
+
+  // Короткий список (не заполняет экран) или уже у верха после загрузки: проверяем ещё раз.
+  useEffect(() => {
+    if (hasMoreOlder && !loadingOlder) requestOlder();
+  }, [hasMoreOlder, loadingOlder, requestOlder]);
+
+  const firstMessageId = messages[0]?.id;
+  useLayoutEffect(() => {
+    const anchor = olderAnchorRef.current;
+    const container = scrollContainerRef.current;
+    if (!anchor || !container || anchor.firstId === firstMessageId) return;
+    container.scrollTop = anchor.scrollTop + (container.scrollHeight - anchor.scrollHeight);
+    olderAnchorRef.current = null;
+  }, [firstMessageId]);
+
   /**
    * Клавіатура (і будь-яка інша зміна висоти списку) не має ховати останнє повідомлення:
    * якщо людина стояла біля низу — тримаємо її там.
@@ -599,6 +653,12 @@ function ChatWindow({
     };
   }, [jumpToMessageRef, navigateToReferencedMessage]);
 
+  // Стабильная ссылка: иначе стрелка на каждом рендере списка заставляет перерисовываться все пузыри.
+  const handlePlayGameInvite = useCallback(
+    (game: Parameters<NonNullable<typeof onJoinGame>>[0]) => onJoinGame?.(game, ""),
+    [onJoinGame],
+  );
+
   const renderBubble = (message: Message) => {
     const dateSeparatorLabel = dateSeparatorByMessageId.get(message.id);
     return (
@@ -629,7 +689,7 @@ function ChatWindow({
     >
       {(() => {
         const readReceiptUsers =
-          readReceiptUsersByMessageId?.get(message.id) ?? [];
+          readReceiptUsersByMessageId?.get(message.id) ?? NO_READERS;
         return (
           <MessageBubble
             message={message}
@@ -643,7 +703,7 @@ function ChatWindow({
                 : undefined
             }
             onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
-            onPlayGameInvite={onJoinGame ? (game) => onJoinGame(game, "") : undefined}
+            onPlayGameInvite={onJoinGame ? handlePlayGameInvite : undefined}
             onReply={onReplyMessage}
             onReplyPreviewClick={navigateToReferencedMessage}
             onDelete={onDeleteMessage}

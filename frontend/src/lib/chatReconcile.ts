@@ -17,7 +17,8 @@ function timeOf(message: KeyedMessage): number {
 /**
  * Зводить показаний список (з кешу або попередньої версії) зі свіжою історією сервера.
  * Сервер — істина в межах завантаженого вікна: видалені повідомлення зникають, редагування й реакції
- * оновлюються, нові додаються. Незмінені повідомлення лишаються тими самими об'єктами (без зайвих
+ * оновлюються, нові додаються. Повідомлення СТАРШІ за вікно (кеш до 200 штук, підвантажені вгору сторінки)
+ * не чіпаємо: вікно відповіді їх не охоплює, отже не спростовує. Незмінені повідомлення лишаються тими самими об'єктами (без зайвих
  * перемальовувань і стрибків), а живі повідомлення новіші за останнє у відповіді не губляться.
  */
 export function reconcileMessages<T extends KeyedMessage>(prev: T[], fresh: T[]): T[] {
@@ -29,8 +30,14 @@ export function reconcileMessages<T extends KeyedMessage>(prev: T[], fresh: T[])
 
   if (fresh.length > 0) {
     const freshIds = new Set(fresh.map((message) => message.id));
-    const newestFresh = Math.max(...fresh.map(timeOf));
+    const times = fresh.map(timeOf);
+    const newestFresh = Math.max(...times);
+    const oldestFresh = Math.min(...times);
     const live = prev.filter((message) => !freshIds.has(message.id) && timeOf(message) > newestFresh);
+    const older = prev.filter(
+      (message) => !freshIds.has(message.id) && message.deliveryStatus === undefined && timeOf(message) < oldestFresh,
+    );
+    merged.unshift(...older);
     merged.push(...live);
   }
 

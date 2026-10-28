@@ -14,9 +14,7 @@
   box-shadow:
     0 4px 8px 0 rgba(0, 0, 0, 0.1),
     0 6px 20px 0 rgba(0, 0, 0, 0.1);
-  -webkit-backdrop-filter: blur(clamp(14px, 2.8vw, 24px)) saturate(145%);
-  backdrop-filter: blur(clamp(14px, 2.8vw, 24px)) saturate(145%);
-  background: transparent;
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
   min-height: 80px;
   box-sizing: border-box;
 

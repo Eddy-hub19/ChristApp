@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { Crown, Lock, X } from "lucide-react";
@@ -130,6 +131,9 @@ function SkinPreview({ skinId, artifactId = 0, size = 56 }: { skinId: number; ar
 export default function FlockMiniGame({ open, userId, arenaId = null, onClose }: Props) {
   // Навбар і лампочка теми не потрібні на арені — ні на маршруті /games/flock, ні в модалці з чату.
   useFullscreenMode(open);
+  // «Отара» рисует свою сцену: корневой фон приложения на это время не показываем.
+  useEffect(() => (open ? suspendAppBackground() : undefined), [open]);
+
   const t = useTranslations("flock");
   const locale = useLocale();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -806,7 +810,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     status === "taken";
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" data-app-overlay data-no-app-bg aria-label={t("title")}>
+    <div className={styles.overlay} role="dialog" aria-modal="true" data-app-overlay aria-label={t("title")}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}

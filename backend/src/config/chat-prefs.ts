@@ -8,8 +8,6 @@
 export const CHAT_BACKGROUND_IDS = [
   'default',
   'pasture',
-  'sky',
-  'savanna',
   'vineyard',
   'bethlehem',
   'rainbow',
@@ -18,7 +16,6 @@ export const CHAT_BACKGROUND_IDS = [
   'grad-amber',
   'grad-stone',
   'grad-sea',
-  'grad-rose',
 ] as const;
 
 /** "as-is" - «Як зараз» (как сейчас в приложении), "system" - системный шрифт. */
@@ -34,6 +31,9 @@ export const CHAT_FONT_IDS = [
 export const CHAT_TEXT_SIZES = ['sm', 'md', 'lg'] as const;
 
 /** Затемнение/освещение фона, %. */
+/** Убранные фоны: сохранённое значение читаем как «Стандартний» (при следующем сохранении заменится). */
+const REMOVED_CHAT_BACKGROUND_IDS = ['sky', 'savanna', 'grad-rose'];
+
 export const CHAT_BG_DIM_MAX = 60;
 export const CHAT_BG_MAX_ROOMS = 200;
 export const CHAT_PREFS_MAX_BYTES = 8 * 1024;
@@ -60,6 +60,8 @@ const isPlain = (v: unknown): v is Record<string, unknown> =>
 
 function choiceOf(v: unknown): ChatBackgroundChoice | null {
   if (!isPlain(v) || typeof v.id !== 'string') return null;
+  if (REMOVED_CHAT_BACKGROUND_IDS.includes(v.id))
+    return { id: 'default', dim: 0 };
   if (!(CHAT_BACKGROUND_IDS as readonly string[]).includes(v.id)) return null;
   const raw = typeof v.dim === 'number' && Number.isFinite(v.dim) ? v.dim : 0;
   return {

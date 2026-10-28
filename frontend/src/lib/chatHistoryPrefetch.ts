@@ -1,12 +1,13 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { getAuthToken } from "@/lib/auth";
-import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi";
+import { loadRoomHistoryWithCache } from "@/lib/chatHistorySync";
+import { getUserIdFromJwt } from "@/lib/jwtUser";
 import { HISTORY_REQUEST_TIMEOUT_MS } from "@/lib/chatHistoryLoad";
 import { queryKeys } from "@/lib/queryKeys";
 import { STALE } from "@/lib/queryPolicy";
 
 /** Скільки повідомлень тягнемо за раз: однаково для сторінки кімнати і префетчу (спільний ключ кешу). */
-export const HISTORY_PAGE_SIZE = 250;
+export { HISTORY_FIRST_PAGE as HISTORY_PAGE_SIZE } from "@/lib/chatHistorySync";
 
 /** Скільки верхніх чатів списку підвантажуємо наперед. */
 export const AUTO_PREFETCH_ROOMS = 3;
@@ -21,11 +22,10 @@ export function prefetchRoomHistory(
   return queryClient.prefetchQuery({
     queryKey: queryKeys.chat.history(roomId),
     queryFn: () =>
-      fetchRoomMessagesOrThrow({
+      loadRoomHistoryWithCache({
         token,
         roomId,
-        limit: HISTORY_PAGE_SIZE,
-        skip: 0,
+        userId: getUserIdFromJwt(token),
         timeoutMs: HISTORY_REQUEST_TIMEOUT_MS,
       }),
     staleTime: STALE.live,

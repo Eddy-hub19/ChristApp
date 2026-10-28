@@ -8,6 +8,8 @@ type FetchRoomMessagesParams = {
   roomId: string;
   limit?: number;
   skip?: number;
+  /** Лише повідомлення новіші за це (дельта від останнього закешованого); порожній масив - нічого нового. */
+  afterId?: string;
   /** Обрив зависшого запиту (холодний старт бекенду), щоб спрацював повтор. */
   timeoutMs?: number;
 };
@@ -22,12 +24,14 @@ export class RoomHistoryHttpError extends Error {
 export async function fetchRoomMessagesOrThrow({
   token,
   roomId,
-  limit = 250,
+  limit = 50,
   skip = 0,
+  afterId,
   timeoutMs,
 }: FetchRoomMessagesParams) {
+  const afterParam = afterId ? `&afterId=${encodeURIComponent(afterId)}` : "";
   const response = await apiFetch(
-    `${API_URL}/messages/room?roomId=${encodeURIComponent(roomId)}&limit=${limit}&skip=${skip}`,
+    `${API_URL}/messages/room?roomId=${encodeURIComponent(roomId)}&limit=${limit}&skip=${skip}${afterParam}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -64,6 +68,8 @@ type FetchOlderRoomMessagesParams = {
   beforeId: string;
   /** Догрузити історію щонайменше до цього повідомлення (оригінал цитати). */
   untilId?: string;
+  /** Розмір сторінки (за замовчуванням 300 для переходу до цитати; для прокрутки вгору - 50). */
+  limit?: number;
 };
 
 /** Старша частина історії кімнати — для переходу до цитати, якої ще немає у списку. */
@@ -72,10 +78,11 @@ export async function fetchOlderRoomMessages({
   roomId,
   beforeId,
   untilId,
+  limit = 300,
 }: FetchOlderRoomMessagesParams) {
   const query = new URLSearchParams({ roomId, beforeId });
   if (untilId) query.set("untilId", untilId);
-  query.set("limit", "300");
+  query.set("limit", String(limit));
   const response = await apiFetch(`${API_URL}/messages/room/older?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",

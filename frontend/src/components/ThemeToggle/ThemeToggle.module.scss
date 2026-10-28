@@ -22,7 +22,7 @@
  * Працює автоматично для кожного елемента з aria-modal="true" (правильна розмітка модалки)
  * або data-app-overlay (повноекранна підкладка без діалогу). Нові модалки — так само.
  */
-:global(body:has([aria-modal="true"], [data-app-overlay])) .hanger {
+.hanger[data-overlay-open] {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

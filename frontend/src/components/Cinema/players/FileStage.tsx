@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import Hls from "hls.js";
+import type HlsType from "hls.js";
 import { HLS_CONFIG, HLS_MAX_RECOVERY_ATTEMPTS } from "@/lib/hlsConfig";
 import type { PlayerAdapterHandle, PlayerAdapterProps, StageQuality } from "./types";
 import { useSyncEngine, type SyncDriver, type SyncPlaybackState } from "./useSyncEngine";
@@ -91,7 +91,9 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
   ref,
 ) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const hlsRef = useRef<HlsType | null>(null);
+  /** Номер последней привязки источника: hls.js грузится лениво, устаревшая загрузка не должна перетереть новый источник. */
+  const attachSeqRef = useRef(0);
   const readyRef = useRef(false);
   const loadedVideoRef = useRef<string | null>(null);
   const playbackStateRef = useRef<SyncPlaybackState>("unstarted");
@@ -108,61 +110,70 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
     if (!video) return;
     hlsRef.current?.destroy();
     hlsRef.current = null;
+    attachSeqRef.current += 1;
 
     if (isHlsUrl(url)) {
       if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = url;
-      } else if (Hls.isSupported()) {
-        const hls = new Hls(HLS_CONFIG);
-        let recoveries = 0;
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.FRAG_LOADED, () => {
-          recoveries = 0;
-        });
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          hls.subtitleTrack = -1;
-          hls.subtitleDisplay = false;
-        });
-        hls.on(Hls.Events.ERROR, (_evt, data) => {
-          if (!data.fatal) return;
-          // Спершу пробуємо відновитись (обмежену кількість разів, щоб не крутитись вічно)
-          if (recoveries < HLS_MAX_RECOVERY_ATTEMPTS) {
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              recoveries++;
-              hls.recoverMediaError();
-              return;
-            }
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.response?.code !== 403) {
-              recoveries++;
-              hls.startLoad();
-              return;
-            }
-          }
-          // hls.js фетчить маніфест/сегменти сам (XHR) — на відміну від нативного <video src>,
-          // якому CORS для простого відтворення не потрібен. Відсутній/непрочитаний статус
-          // (code 0 чи взагалі немає response) на мережевій помилці — типова ознака CORS-блоку
-          // чужим сервером (хоч так само виглядає й "сервер зараз недоступний").
-          const looksLikeCors =
-            data.type === Hls.ErrorTypes.NETWORK_ERROR &&
-            (data.response == null || data.response.code === 0);
-          onStatus({
-            ready: readyRef.current,
-            buffering: false,
-            autoplayMuted: false,
-            poorConnection: false,
-            error: looksLikeCors ? "CORS" : "HTML5",
-          });
-        });
-        hlsRef.current = hls;
       } else {
-        onStatus({
-          ready: false,
-          buffering: false,
-          autoplayMuted: false,
-          poorConnection: false,
-          error: "HTML5",
+        // hls.js (~650 КБ) нужен только для HLS-потоков: грузим по требованию, а не вместе со всем приложением.
+        const seq = ++attachSeqRef.current;
+        void import("hls.js").then(({ default: Hls }) => {
+          if (seq !== attachSeqRef.current || videoRef.current !== video) return;
+          if (!Hls.isSupported()) {
+            onStatus({
+              ready: false,
+              buffering: false,
+              autoplayMuted: false,
+              poorConnection: false,
+              error: "HTML5",
+            });
+            return;
+          }
+          const hls = new Hls(HLS_CONFIG);
+          let recoveries = 0;
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.FRAG_LOADED, () => {
+            recoveries = 0;
+          });
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            hls.subtitleTrack = -1;
+            hls.subtitleDisplay = false;
+          });
+          hls.on(Hls.Events.ERROR, (_evt, data) => {
+            if (!data.fatal) return;
+            // Спершу пробуємо відновитись (обмежену кількість разів, щоб не крутитись вічно)
+            if (recoveries < HLS_MAX_RECOVERY_ATTEMPTS) {
+              if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                recoveries++;
+                hls.recoverMediaError();
+                return;
+              }
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.response?.code !== 403) {
+                recoveries++;
+                hls.startLoad();
+                return;
+              }
+            }
+            // hls.js фетчить маніфест/сегменти сам (XHR) — на відміну від нативного <video src>,
+            // якому CORS для простого відтворення не потрібен. Відсутній/непрочитаний статус
+            // (code 0 чи взагалі немає response) на мережевій помилці — типова ознака CORS-блоку
+            // чужим сервером (хоч так само виглядає й "сервер зараз недоступний").
+            const looksLikeCors =
+              data.type === Hls.ErrorTypes.NETWORK_ERROR &&
+              (data.response == null || data.response.code === 0);
+            onStatus({
+              ready: readyRef.current,
+              buffering: false,
+              autoplayMuted: false,
+              poorConnection: false,
+              error: looksLikeCors ? "CORS" : "HTML5",
+            });
+          });
+          hlsRef.current = hls;
         });
+        readyRef.current = false;
         return;
       }
     } else {
@@ -227,6 +238,7 @@ const FileStage = forwardRef<PlayerAdapterHandle, PlayerAdapterProps>(function F
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("ended", onEnded);
       video.removeEventListener("error", onError);
+      attachSeqRef.current += 1;
       hlsRef.current?.destroy();
       hlsRef.current = null;
       readyRef.current = false;

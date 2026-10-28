@@ -516,9 +516,7 @@
       text-transform: uppercase;
       color: color-mix(in srgb, #d4af37 92%, var(--foreground) 8%);
       border: 1.5px solid rgba(212, 175, 55, 0.88);
-      background: color-mix(in srgb, var(--surface-elevated) 38%, transparent);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
       box-shadow:
         0 0 0 1px rgba(212, 175, 55, 0.12),
         0 8px 28px -12px rgba(212, 175, 55, 0.35),

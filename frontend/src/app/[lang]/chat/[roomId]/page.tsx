@@ -43,10 +43,8 @@ import {
 import { buildStickerMessagePayload } from "@/lib/stickerMessage";
 import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
 import { type StickerItem } from "@/components/StickerPicker/StickerPicker";
-import {
-  fetchOlderRoomMessages,
-  fetchRoomMessagesOrThrow,
-} from "@/lib/chatMessagesApi";
+import { fetchOlderRoomMessages } from "@/lib/chatMessagesApi";
+import { loadRoomHistoryWithCache } from "@/lib/chatHistorySync";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { reconcileMessages } from "@/lib/chatReconcile";
 import { readCachedMessages, writeCachedMessages } from "@/lib/chatMessageCache";
@@ -58,7 +56,7 @@ import {
   writeHistoryCache,
 } from "@/lib/chatHistoryCache";
 import { STALE } from "@/lib/queryPolicy";
-import { getUserIdFromJwt } from "@/lib/jwtUser";
+import { getUserIdFromJwt, getUsernameFromJwt } from "@/lib/jwtUser";
 import { HISTORY_PAGE_SIZE } from "@/lib/chatHistoryPrefetch";
 
 import {
@@ -633,6 +631,11 @@ export default function ChatPageDetails() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   /** Свіжа історія вже прийшла (сокетом або запитом): помилка завантаження більше не актуальна. */
   const [historyDelivered, setHistoryDelivered] = useState(false);
+  /** Постраничная подгрузка вверх: есть ли ещё более старые сообщения и идёт ли загрузка. */
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
+  const olderErrorAtRef = useRef(0);
   /** Бекенд не відповідає (мережа / таймаут / 502-504): фоново опитуємо /health, UI при цьому не змінюється. */
   const [historyColdFailing, setHistoryColdFailing] = useState(false);
   /** Минуло ~60 с, а повідомлень немає: під скелетоном з'являється тихий сірий рядок. */
@@ -854,11 +857,11 @@ export default function ChatPageDetails() {
         throw new Error(t("noTokenOrRoom"));
       }
       try {
-        const result = await fetchRoomMessagesOrThrow({
+        // Есть локальный кеш - у сервера спрашиваем только новое после последнего известного сообщения.
+        const result = await loadRoomHistoryWithCache({
           token,
           roomId: effectiveSocketRoomId,
-          limit: HISTORY_PAGE_SIZE,
-          skip: 0,
+          userId: user?.id ?? getUserIdFromJwt(token),
           timeoutMs: HISTORY_REQUEST_TIMEOUT_MS,
         });
         historyTerminalFailureRef.current = false;
@@ -1195,6 +1198,9 @@ export default function ChatPageDetails() {
     messageIdsRef.current = new Set();
     historyAppliedRef.current = false;
     setHistoryDelivered(false);
+    setHasMoreOlder(true);
+    setLoadingOlder(false);
+    loadingOlderRef.current = false;
     setSkeletonWasShown(false);
     awaitingRoomHistoryRef.current = false;
     setReplyToMessage(null);
@@ -1224,6 +1230,8 @@ export default function ChatPageDetails() {
       roomHistoryQuery.data as IncomingSocketMessage[],
       user?.username,
     );
+    // Окно короче страницы - дальше вверх ничего нет, лишний запрос «ещё старее» не нужен.
+    if (roomHistoryQuery.data.length < HISTORY_PAGE_SIZE) setHasMoreOlder(false);
 
     applyServerHistory(uniqueHistory);
     setIsHistoryLoading(false);
@@ -1242,10 +1250,13 @@ export default function ChatPageDetails() {
     const userId = user?.id ?? getUserIdFromJwt(getAuthToken() ?? "");
     if (!userId || !effectiveSocketRoomId) return;
     let cancelled = false;
-    void readCachedMessages<Message>(userId, effectiveSocketRoomId).then((cached) => {
+    void readCachedMessages<IncomingSocketMessage>(userId, effectiveSocketRoomId).then((cached) => {
       if (cancelled || historyAppliedRef.current || !cached?.length) return;
-      messageIdsRef.current = new Set(cached.map((item) => item.id));
-      setMessages(cached);
+      const username = user?.username ?? getUsernameFromJwt(getAuthToken() ?? "");
+      const { uniqueHistory } = normalizeRoomHistory(cached, username);
+      rawHistoryRef.current = cached;
+      messageIdsRef.current = new Set(uniqueHistory.map((item) => item.id));
+      setMessages(uniqueHistory);
       setIsHistoryLoading(false);
     });
     return () => {
@@ -1258,11 +1269,8 @@ export default function ChatPageDetails() {
     const userId = user?.id;
     if (!userId || !effectiveSocketRoomId || !historyAppliedRef.current) return;
     const timer = window.setTimeout(() => {
-      void writeCachedMessages(
-        userId,
-        effectiveSocketRoomId,
-        messages.filter((item) => !isOptimisticMessageId(item.id)),
-      );
+      // Пишем сырые сообщения сервера (их ведут сокет-события и подгрузка вверх), а не готовый список.
+      void writeCachedMessages(userId, effectiveSocketRoomId, rawHistoryRef.current);
     }, 600);
     return () => window.clearTimeout(timer);
   }, [messages, user?.id, effectiveSocketRoomId]);
@@ -1708,14 +1716,18 @@ export default function ChatPageDetails() {
         }
       }
 
-      rawHistoryRef.current = history;
+      // Сокет отдаёт актуальное окно (последние 50): сверяем с тем, что уже в кеше, а старее окна не теряем.
+      rawHistoryRef.current = reconcileMessages(
+        rawHistoryRef.current as unknown as Array<{ id: string; createdAt: string }>,
+        history as unknown as Array<{ id: string; createdAt: string }>,
+      ) as unknown as typeof history;
       // Авторитетна історія вже містить справжні реакції — очікування підтвердження знімається без відкату.
       pendingReactions.onHistoryResynced();
       applyServerHistory(uniqueHistory);
       setIsHistoryLoading(false);
       void queryClient.setQueryData(
         chatRoomHistoryQueryKey(historyRoomId),
-        history,
+        rawHistoryRef.current,
       );
     };
     socket.on("roomHistory", onRoomHistory);
@@ -2626,6 +2638,16 @@ export default function ChatPageDetails() {
     return map;
   }, [users]);
 
+  // Стабильные функции: иначе новые стрелки на каждом рендере страницы ломают memo у всех пузырей (печать, присутствие, реакции).
+  const resolveReactionAvatarUrl = useCallback(
+    (senderId: string) => resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl),
+    [usersById],
+  );
+  const resolveReactionUserLabel = useCallback(
+    (senderId: string) => usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username,
+    [usersById],
+  );
+
   const peekProfileUser = peekProfileUserId
     ? (usersById.get(peekProfileUserId) ?? null)
     : null;
@@ -3032,14 +3054,14 @@ export default function ChatPageDetails() {
     peerLastReadAt,
   ]);
 
-  const handleReplyMessage = (message: Message) => {
+  const handleReplyMessage = useCallback((message: Message) => {
     // Ще не підтверджене сервером повідомлення (id тимчасовий) не можна цитувати.
     if (isOptimisticMessageId(message.id)) return;
     setReplyToMessage(message);
     setEditingMessage(null);
     // Синхронно в жесті — інакше iOS не відкриє (або закриє) клавіатуру.
     focusChatComposer();
-  };
+  }, []);
 
   /**
    * Оригінал цитати ще не в списку: дозавантажуємо історію до нього і гортаємо.
@@ -3050,6 +3072,47 @@ export default function ChatPageDetails() {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  /** Прокрутка вверх: догружаем страницу (50) старее самого раннего показанного сообщения; результат попадает и в кеш. */
+  const handleLoadOlder = useCallback(async () => {
+    if (loadingOlderRef.current) return;
+    // после ошибки не долбим сервер: следующая попытка - по очередной прокрутке, не раньше чем через 5 с
+    if (Date.now() - olderErrorAtRef.current < 5000) return;
+    const targetRoomId = joinedRoomRef.current;
+    const token = getAuthToken();
+    const oldest = messagesRef.current.find((m) => !isOptimisticMessageId(m.id));
+    if (!targetRoomId || !token || !oldest) return;
+
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const { messages: older, hasMore } = await fetchOlderRoomMessages({
+        token,
+        roomId: targetRoomId,
+        beforeId: oldest.id,
+        limit: HISTORY_PAGE_SIZE,
+      });
+      if (joinedRoomRef.current !== targetRoomId) return;
+      const olderRaw = older as unknown as IncomingSocketMessage[];
+      const knownRaw = new Set(rawHistoryRef.current.map((m) => String(m.id)));
+      rawHistoryRef.current = [
+        ...olderRaw.filter((m) => !knownRaw.has(String(m.id))),
+        ...rawHistoryRef.current,
+      ];
+      const { uniqueHistory } = normalizeRoomHistory(olderRaw, user?.username);
+      const fresh = uniqueHistory.filter((item) => !messageIdsRef.current.has(item.id));
+      if (fresh.length > 0) {
+        for (const item of fresh) messageIdsRef.current.add(item.id);
+        setMessages((prev) => [...fresh, ...prev]);
+      }
+      setHasMoreOlder(hasMore);
+    } catch {
+      olderErrorAtRef.current = Date.now();
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [user?.username]);
 
   const handleMissingReferencedMessage = useCallback(
     async (referencedMessageId: string) => {
@@ -4013,6 +4076,9 @@ export default function ChatPageDetails() {
   const messagingPane = (
     <ChatWindow
       messages={messages}
+      onLoadOlder={handleLoadOlder}
+      hasMoreOlder={hasMoreOlder}
+      loadingOlder={loadingOlder}
       revealOnMount={skeletonWasShown}
       pendingUploads={chatUploads.items.filter(
         (item) => !item.roomId || item.roomId === effectiveSocketRoomId,
@@ -4048,12 +4114,8 @@ export default function ChatPageDetails() {
       readReceiptLabel={t("readReceipt")}
       onOpenReaders={handleOpenReaders}
       onToggleReaction={handleToggleReaction}
-      resolveReactionAvatarUrl={(senderId) =>
-        resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)
-      }
-      resolveReactionUserLabel={(senderId) =>
-        usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username
-      }
+      resolveReactionAvatarUrl={resolveReactionAvatarUrl}
+      resolveReactionUserLabel={resolveReactionUserLabel}
       roomKey={effectiveSocketRoomId ?? routeRoomId}
       hideSenderNames={hideSenderNamesInMessages}
       hideOwnSenderName={hideOwnSenderNameInGlobal}

@@ -1,5 +1,6 @@
 "use client";
 
+import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -154,7 +155,11 @@ export default function WatchHall({ roomId }: { roomId: string }) {
   // Зала завжди «темна» і на весь екран: ховаємо прокрутку сторінки під нею.
   useEffect(() => {
     document.body.classList.add("cinemaHallOpen");
-    return () => document.body.classList.remove("cinemaHallOpen");
+    const resumeBackground = suspendAppBackground();
+    return () => {
+      document.body.classList.remove("cinemaHallOpen");
+      resumeBackground();
+    };
   }, []);
 
   // На iOS 100dvh не стискається під клавіатуру — стискається лише visual viewport.

@@ -112,8 +112,6 @@
     "items": {
       "default": "Standard",
       "pasture": "Pasture",
-      "sky": "Sky",
-      "savanna": "Savanna",
       "vineyard": "Vineyard",
       "bethlehem": "Bethlehem night",
       "rainbow": "After the rain",
@@ -121,8 +119,7 @@
       "waves": "Waves",
       "grad-amber": "Amber",
       "grad-stone": "Stone",
-      "grad-sea": "Sea",
-      "grad-rose": "Rose"
+      "grad-sea": "Sea"
     }
   },
   "fontSettings": {

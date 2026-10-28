@@ -246,6 +246,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Картинки и шрифты из public/ без хеша в имени: неделя в кеше + фоновая проверка (иначе Vercel отдаёт max-age=0).
+        source: "/:dir(chat-bg|fonts|flock|bubbles)/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=86400",
+          },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [
           {

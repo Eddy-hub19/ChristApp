@@ -19,7 +19,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 /** Як часто перевіряємо, чи вже доречно показати плашку (таймер, модалки й повний екран не мають подій). */
-const CHECK_INTERVAL_MS = 2000;
+const CHECK_INTERVAL_MS = 5000;
 
 function isStandaloneDisplay(): boolean {
   if (typeof window === "undefined") return true;

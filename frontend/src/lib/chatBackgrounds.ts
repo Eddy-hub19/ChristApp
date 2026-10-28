@@ -11,8 +11,6 @@ import type { BubbleStyleId } from "@/lib/bubbleStyles";
 export const CHAT_BACKGROUNDS = [
   { id: "default", kind: "none" },
   { id: "pasture", kind: "art" },
-  { id: "sky", kind: "art" },
-  { id: "savanna", kind: "art" },
   { id: "vineyard", kind: "art" },
   { id: "bethlehem", kind: "art" },
   { id: "rainbow", kind: "art" },
@@ -21,7 +19,6 @@ export const CHAT_BACKGROUNDS = [
   { id: "grad-amber", kind: "gradient" },
   { id: "grad-stone", kind: "gradient" },
   { id: "grad-sea", kind: "gradient" },
-  { id: "grad-rose", kind: "gradient" },
 ] as const;
 
 export type ChatBackgroundId = (typeof CHAT_BACKGROUNDS)[number]["id"];
@@ -41,11 +38,14 @@ export interface ChatBackgrounds {
 }
 
 const IDS = CHAT_BACKGROUNDS.map((b) => b.id) as readonly string[];
+/** Убранные фоны («Небо», «Савана», «Троянда»): сохранённое значение читаем как «Стандартний», а не ломаем профиль. */
+const REMOVED_IDS: readonly string[] = ["sky", "savanna", "grad-rose"];
 export const isChatBackgroundId = (v: unknown): v is ChatBackgroundId => typeof v === "string" && IDS.includes(v);
 
 const isPlain = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 function choiceOf(v: unknown): ChatBackgroundChoice | null {
+  if (isPlain(v) && typeof v.id === "string" && REMOVED_IDS.includes(v.id)) return { id: "default", dim: 0 };
   if (!isPlain(v) || !isChatBackgroundId(v.id)) return null;
   const raw = typeof v.dim === "number" && Number.isFinite(v.dim) ? v.dim : 0;
   return { id: v.id, dim: Math.max(0, Math.min(CHAT_BG_DIM_MAX, Math.round(raw))) };
@@ -110,8 +110,6 @@ export function chatRoomBackgroundKey(opts: { routeRoomId: string | undefined; d
 /** Рекомендованный фон для стиля пузырей (только подсказка, сам фон не меняется). */
 export const RECOMMENDED_BACKGROUND: Partial<Record<BubbleStyleId, ChatBackgroundId>> = {
   lamb: "pasture",
-  dove: "sky",
-  lion: "savanna",
   vine: "vineyard",
   thorns: "bethlehem",
   ichthys: "waves",
