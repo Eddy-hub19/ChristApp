@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import {
   AUTH_CHANGED_EVENT,
   getAuthToken,
   isPwaStandaloneClient,
 } from "@/lib/auth";
 import {
+  getAuthSessionSnapshot,
   initializeApp,
   isUnauthorizedAuthError,
   logout,
   refreshToken,
+  subscribeAuthSession,
 } from "@/lib/authSession";
 import { getJwtExpiresAt } from "@/lib/jwtUser";
 
@@ -23,7 +26,26 @@ const RECOVERY_RETURN_TO_KEY = "christ-recovery-return-to";
 /** PWA standalone (iOS Safari): час для підтягування кук у пісочницю перед першим /refresh і /me. */
 const PWA_STANDALONE_BOOTSTRAP_DELAY_MS = 800;
 
+/** Google-пользователь без выбранного @username не должен попадать в приложение: ведём на экран выбора ника. */
+function useNicknameGate() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const user = useSyncExternalStore(
+    subscribeAuthSession,
+    () => getAuthSessionSnapshot().user,
+    () => null,
+  );
+  const mustChoose = user?.usernameChosen === false;
+
+  useEffect(() => {
+    if (mustChoose && pathname !== "/choose-nickname") {
+      router.replace("/choose-nickname");
+    }
+  }, [mustChoose, pathname, router]);
+}
+
 export default function AuthSessionSync() {
+  useNicknameGate();
   const timeoutRef = useRef<number | null>(null);
   const recoveryTimeoutRef = useRef<number | null>(null);
   const recoveryTickerRef = useRef<number | null>(null);

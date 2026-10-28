@@ -49,6 +49,12 @@ async function proxy(
 
   if (forwardedCookie) reqHeaders["cookie"] = forwardedCookie;
 
+  // Реальний IP клієнта для лімітів входу на бекенді (інакше там видно лише адресу Vercel).
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip");
+  if (clientIp) reqHeaders["x-client-ip"] = clientIp;
+
   let body: string | undefined;
   if (method !== "GET" && method !== "HEAD") {
     body = await req.text();

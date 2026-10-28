@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { normalizeUsernameHandle } from 'src/users/username.util';
 import { LoginDto, RegisterDto } from './dto/AuthDTO';
 import { REFRESH_TOKEN_COOKIE } from './auth.constants';
+import { AuthRateLimiter, clientIp } from './auth-rate-limiter';
 
 const USER_SAFE_SELECT = {
   id: true,
@@ -31,11 +32,15 @@ const USER_SAFE_SELECT = {
   bubbleStyle: true,
   chatBackgrounds: true,
   fontPrefs: true,
+  usernameChosen: true,
 } as const;
 
 const REFRESH_TOKEN_TTL_DAYS = 7;
 const REFRESH_ROTATION_GRACE_MS = 30_000;
 const ACCESS_TOKEN_TTL = '7d';
+
+/** Хеш заведомо неверного пароля: сверка с ним выравнивает время ответа, когда аккаунта нет. */
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync('christapp-dummy-password', 10);
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -55,6 +60,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private limiter: AuthRateLimiter,
   ) {
     this.accessExpiresIn =
       this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() ||
@@ -135,6 +141,7 @@ export class AuthService {
 
   async register(dto: RegisterDto, res: Response, req?: Request) {
     const meta = req ? this.requestMeta(req) : 'meta=not-provided';
+    this.limiter.countRegister(clientIp(req));
     const nickname = dto.username.trim();
     const username = normalizeUsernameHandle(dto.username);
     this.logger.log(
@@ -149,9 +156,11 @@ export class AuthService {
       this.logger.warn(
         `register denied: username taken username=${username}; ${meta}`,
       );
-      throw new ConflictException(
-        'Этот username уже занят. Выберите другой @username.',
-      );
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'USERNAME_TAKEN',
+        message: 'Этот username уже занят. Выберите другой @username.',
+      });
     }
 
     try {
@@ -192,23 +201,33 @@ export class AuthService {
         const hasEmail = fields.some((f) => f.includes('email'));
         const hasUsername = fields.some((f) => f.includes('username'));
         if (hasEmail && hasUsername) {
-          throw new ConflictException(
-            'Этот email или username уже заняты. Войдите в аккаунт или укажите другие данные.',
-          );
+          throw new ConflictException({
+            statusCode: 409,
+            code: 'IDENTITY_TAKEN',
+            message:
+              'Этот email или username уже заняты. Войдите в аккаунт или укажите другие данные.',
+          });
         }
         if (hasEmail) {
-          throw new ConflictException(
-            'Этот email уже зарегистрирован. Войдите или укажите другой email.',
-          );
+          throw new ConflictException({
+            statusCode: 409,
+            code: 'EMAIL_TAKEN',
+            message:
+              'Этот email уже зарегистрирован. Войдите или укажите другой email.',
+          });
         }
         if (hasUsername) {
-          throw new ConflictException(
-            'Этот username уже занят. Выберите другой @username.',
-          );
+          throw new ConflictException({
+            statusCode: 409,
+            code: 'USERNAME_TAKEN',
+            message: 'Этот username уже занят. Выберите другой @username.',
+          });
         }
-        throw new ConflictException(
-          'Пользователь с таким email или username уже существует.',
-        );
+        throw new ConflictException({
+          statusCode: 409,
+          code: 'IDENTITY_TAKEN',
+          message: 'Пользователь с таким email или username уже существует.',
+        });
       }
 
       throw new InternalServerErrorException('Ошибка при регистрации');
@@ -220,9 +239,10 @@ export class AuthService {
     const identifier = dto.email.trim();
     const asEmail = identifier.toLowerCase();
     const asHandle = normalizeUsernameHandle(identifier);
-    this.logger.log(
-      `login attempt: identifier=${identifier}; asEmail=${asEmail}; asHandle=${asHandle}; ${meta}`,
-    );
+    this.logger.log(`login attempt: asHandle=${asHandle}; ${meta}`);
+
+    const ip = clientIp(req);
+    this.limiter.assertLoginAllowed(ip, asHandle);
 
     const user = await this.prisma.user.findFirst({
       where: {
@@ -232,22 +252,24 @@ export class AuthService {
       select: { id: true, username: true, password: true },
     });
 
-    if (!user) {
+    // Одинаковый ответ и одинаковая работа для «нет аккаунта», «нет пароля (Google)» и «неверный пароль»:
+    // по тексту и по времени нельзя понять, существует ли ник.
+    const valid = await bcrypt.compare(
+      dto.password,
+      user?.password ?? DUMMY_BCRYPT_HASH,
+    );
+    if (!user || !user.password || !valid) {
+      this.limiter.recordLoginFailure(ip, asHandle);
       this.logger.warn(
-        `login failed: account not found for identifier=${identifier}; ${meta}`,
+        `login failed: ${user ? `userId=${user.id}` : 'account not found'}; ${meta}`,
       );
-      throw new UnauthorizedException(
-        'Аккаунт с таким email или username не найден. Проверьте написание или зарегистрируйтесь.',
-      );
+      throw new UnauthorizedException({
+        statusCode: 401,
+        code: 'INVALID_CREDENTIALS',
+        message: 'Неверный ник или пароль.',
+      });
     }
-
-    const valid = await bcrypt.compare(dto.password, user.password);
-    if (!valid) {
-      this.logger.warn(
-        `login failed: invalid password for userId=${user.id}; username=${user.username}; ${meta}`,
-      );
-      throw new UnauthorizedException('Неверный пароль.');
-    }
+    this.limiter.recordLoginSuccess(asHandle);
 
     await this.issueRefreshSession(user.id, res);
     this.logger.log(
@@ -447,6 +469,20 @@ export class AuthService {
     return accessPayload;
   }
 
+  /** Пользователь по действующей refresh-куке (без ротации): так подключаем Google из redirect-навигации, где нет заголовка Authorization. */
+  async userIdFromRefreshCookie(req: Request): Promise<string> {
+    const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
+    if (!raw || typeof raw !== 'string') throw new UnauthorizedException();
+    const session = await this.prisma.refreshSession.findUnique({
+      where: { tokenHash: sha256Hex(raw) },
+      select: { userId: true, isRevoked: true, expiresAt: true },
+    });
+    if (!session || session.isRevoked || session.expiresAt < new Date()) {
+      throw new UnauthorizedException();
+    }
+    return session.userId;
+  }
+
   async logout(req: Request, res: Response) {
     const meta = this.requestMeta(req);
     const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
@@ -465,7 +501,7 @@ export class AuthService {
     return { ok: true };
   }
 
-  private async issueRefreshSession(userId: string, res: Response) {
+  async issueRefreshSession(userId: string, res: Response) {
     const raw = randomRefreshToken();
     const tokenHash = sha256Hex(raw);
     const expiresAt = new Date(Date.now() + this.refreshTtlMs);
@@ -489,7 +525,7 @@ export class AuthService {
     );
   }
 
-  private async buildAccessResponse(userId: string) {
+  async buildAccessResponse(userId: string) {
     const safe = await this.prisma.user.findUnique({
       where: { id: userId },
       select: USER_SAFE_SELECT,

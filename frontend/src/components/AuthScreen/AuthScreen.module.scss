@@ -1,0 +1,539 @@
+/*
+ * Экран входа и регистрации: всегда тёмный (светлая тема приложения его не меняет).
+ * Палитра объявлена прямо на .screen, поэтому вложенные «старые» компоненты (LoginServerWarmupPanel и др.),
+ * которые читают --foreground / --login-*, тоже рисуются тёмными.
+ */
+.screen {
+  --auth-gold: #ddb468;
+  --auth-gold-light: #f1cd8a;
+  --auth-text: #f5ecde;
+  --auth-muted: rgba(245, 236, 222, 0.62);
+  --auth-line: rgba(255, 255, 255, 0.16);
+  --auth-error: #ffb4b4;
+  --auth-ok: #9fd9a8;
+
+  --foreground: #ffffff;
+  --login-card-bg: #242323;
+  --login-card-border: #3a3939;
+  --login-card-shadow: rgba(0, 0, 0, 0.35);
+  --login-muted: #bdb8b8;
+  --login-title: #f1efef;
+  --login-label: #d8d4d4;
+  --login-footer: #bdb8b8;
+  --login-input-bg: #1e1d1d;
+  --login-input-border: #4a4747;
+  --login-link: #f3c98b;
+  --login-error-bg: #3d2222;
+  --login-error-text: #ffc2c2;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  color-scheme: dark;
+  color: var(--auth-text);
+  font-family: var(--ui-font, system-ui, sans-serif);
+  background:
+    radial-gradient(
+      120% 70% at 15% -10%,
+      rgba(221, 180, 104, 0.22) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 60% at 105% 105%,
+      rgba(70, 84, 140, 0.32) 0%,
+      transparent 60%
+    ),
+    linear-gradient(180deg, #17151a 0%, #0f0e12 100%);
+  /* safe-area + место под клавиатуру (iOS не сжимает fixed-контейнер, поэтому добавляем отступ и скроллим) */
+  padding: max(env(safe-area-inset-top), 20px)
+    max(env(safe-area-inset-right), 16px)
+    calc(max(env(safe-area-inset-bottom), 20px) + var(--keyboard-inset, 0px))
+    max(env(safe-area-inset-left), 16px);
+  scroll-padding-bottom: 24px;
+}
+
+.inner {
+  width: 100%;
+  max-width: 400px;
+  min-height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Шапка --- */
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.logo {
+  display: block;
+  filter: drop-shadow(0 4px 18px rgba(221, 180, 104, 0.35));
+}
+
+.brandName {
+  margin: 4px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--auth-text);
+}
+
+.tagline {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--auth-muted);
+}
+
+/* --- Стеклянная карточка (единственное место с backdrop-filter) --- */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 22px 20px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* запасной вариант без blur: плотнее, чтобы текст читался на любом фоне */
+  background: linear-gradient(
+    160deg,
+    rgba(48, 45, 54, 0.92),
+    rgba(30, 28, 34, 0.92)
+  );
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.5),
+    0 0 36px rgba(221, 180, 104, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* мягкая подсветка по краю */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.5),
+      rgba(255, 255, 255, 0.05) 42%,
+      rgba(221, 180, 104, 0.45)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+}
+
+@supports (
+  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
+) {
+  .card {
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.04)
+    );
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+  }
+}
+
+/* слабые устройства (JS ставит data-glass="flat") и «уменьшить прозрачность» в системе - без blur */
+.screen[data-glass="flat"] .card {
+  background: linear-gradient(
+    160deg,
+    rgba(48, 45, 54, 0.94),
+    rgba(30, 28, 34, 0.94)
+  );
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .card,
+  .screen[data-glass="flat"] .card {
+    background: #262430;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* --- Форма --- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--auth-muted);
+}
+
+.input {
+  width: 100%;
+  height: 50px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--auth-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--auth-text);
+  /* 16px: иначе iOS Safari приближает страницу при фокусе */
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+
+  &::placeholder {
+    color: rgba(245, 236, 222, 0.38);
+  }
+
+  &:focus {
+    border-color: var(--auth-gold);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: 0 0 0 3px rgba(221, 180, 104, 0.22);
+  }
+
+  /* автозаполнение браузера не должно красить поле в белый/жёлтый */
+  &:-webkit-autofill {
+    -webkit-text-fill-color: var(--auth-text);
+    caret-color: var(--auth-text);
+    box-shadow:
+      0 0 0 1000px #2a2832 inset,
+      0 0 0 3px rgba(221, 180, 104, 0.15);
+  }
+}
+
+.inputInvalid {
+  border-color: #e58a8a;
+
+  &:focus {
+    border-color: #e58a8a;
+    box-shadow: 0 0 0 3px rgba(229, 138, 138, 0.22);
+  }
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.inputWithToggle {
+  padding-right: 50px;
+}
+
+.eyeBtn {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--auth-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+
+  &:hover,
+  &[aria-pressed="true"] {
+    color: var(--auth-gold-light);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--auth-gold);
+    outline-offset: -2px;
+  }
+}
+
+/* Строка под полем: место зарезервировано, форма не «прыгает» при появлении ошибки. */
+.note {
+  min-height: 18px;
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--auth-muted);
+}
+
+.noteError {
+  color: var(--auth-error);
+}
+
+.noteOk {
+  color: var(--auth-ok);
+}
+
+.formError {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 138, 138, 0.4);
+  background: rgba(120, 40, 40, 0.28);
+  color: var(--auth-error);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+/* --- Кнопки --- */
+.primaryBtn,
+.googleBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 50px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    filter 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.995);
+  }
+
+  &:disabled {
+    cursor: progress;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--auth-gold-light);
+    outline-offset: 2px;
+  }
+}
+
+.primaryBtn {
+  margin-top: 6px;
+  border: 0;
+  font-weight: 700;
+  color: #2a2013;
+  background: linear-gradient(
+    180deg,
+    var(--auth-gold-light) 0%,
+    var(--auth-gold) 100%
+  );
+  box-shadow:
+    0 8px 22px rgba(221, 180, 104, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.8;
+  }
+}
+
+/* Google: тёмная тема по их брендингу - #131314, рамка #8E918F, текст #E3E3E3, цветной логотип G */
+.googleBtn {
+  border: 1px solid #8e918f;
+  background: #131314;
+  color: #e3e3e3;
+  font-family: Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
+  font-weight: 500;
+
+  &:hover:not(:disabled) {
+    background: #1c1c1e;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+  }
+}
+
+.googleLogo {
+  flex: none;
+}
+
+.spinner {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  opacity: 0.85;
+  animation: auth-spin 0.8s linear infinite;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* --- Разделитель «або» --- */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 2px 0;
+  color: var(--auth-muted);
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: var(--auth-line);
+}
+
+.dividerText {
+  font-size: 13px;
+  text-transform: lowercase;
+}
+
+/* --- Нижняя строка --- */
+.switch {
+  margin: 2px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--auth-muted);
+}
+
+.switchLink {
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--auth-gold-light);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease;
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--auth-gold);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@media (max-width: 380px) {
+  .card {
+    padding: 18px 16px 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  .screen {
+    padding-top: 40px;
+    padding-bottom: calc(40px + var(--keyboard-inset, 0px));
+  }
+
+  .inner {
+    max-width: 420px;
+    gap: 20px;
+  }
+}
+
+/* --- Экран выбора ника --- */
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.avatarImg,
+.avatarFallback {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--auth-line);
+}
+
+.avatarFallback {
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--auth-text);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ghostBtn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--auth-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--auth-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--auth-gold);
+    outline-offset: 2px;
+  }
+}

@@ -70,6 +70,8 @@ function isPrivateLanHttpOrigin(origin: string): boolean {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // за балансировщиком Render: req.ip - адрес клиента, а не прокси
+  app.set('trust proxy', 1);
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 

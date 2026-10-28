@@ -55,7 +55,7 @@ export default async function LangLayout({
   }
 
   setRequestLocale(lang);
-  const messages = await getMessages();
+  const messages = await getMessages({ locale: lang });
 
   return (
     <NextIntlClientProvider locale={lang} messages={messages}>

@@ -5,6 +5,7 @@ import styles from "@/app/[lang]/profile/profile.module.scss";
 import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
+import GoogleSettingsRow from "@/components/GoogleSettings/GoogleSettingsRow";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { getAppStreak } from "@/lib/appStreak";
@@ -1032,6 +1033,7 @@ export default function ProfilePage() {
         {canUseBubbleStyles(user?.username) ? <BubbleStyleRow onOpen={() => setBubbleSettingsOpen(true)} /> : null}
         <ChatBackgroundRow onOpen={() => setBgSettingsOpen(true)} />
         <FontRow onOpen={() => setFontSettingsOpen(true)} />
+        <GoogleSettingsRow />
       </section>
       {bubbleSettingsOpen ? <BubbleStyleSettings onClose={() => setBubbleSettingsOpen(false)} /> : null}
       {bgSettingsOpen ? <ChatBackgroundSettings scope={{ kind: "default" }} onClose={() => setBgSettingsOpen(false)} /> : null}

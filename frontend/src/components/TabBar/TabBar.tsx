@@ -83,7 +83,7 @@ export default function TabBar() {
     requestUnreadSummaryRefresh(queryClient, userId);
   }, [queryClient, userId, inFullscreenGame]);
 
-  const hiddenRoutes = ["/", "/register", "/offline"];
+  const hiddenRoutes = ["/", "/register", "/choose-nickname", "/offline"];
   /** Список чатів — таб видимий; відкрита кімната — таб прихований, більше місця під листування. */
   const hideOnActiveChatRoom =
     pathname.startsWith("/chat/") || pathname.startsWith("/cinema/");

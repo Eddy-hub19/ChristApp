@@ -18,6 +18,7 @@ import {
   getNetworkFailureHint,
   messageFromApiResponseBody,
 } from "@/lib/apiError";
+import { parseAuthError, type AuthErrorInfo } from "@/lib/authErrors";
 import { recordDailyVisit } from "@/lib/appStreak";
 import { ingestBubbleStyles } from "@/lib/bubbleStyles";
 import { filterTesterUsers } from "@/lib/testerUsers";
@@ -76,6 +77,8 @@ export function useAuth(options?: UseAuthOptions) {
   const redirectIfUnauthenticated = options?.redirectIfUnauthenticated;
 
   const [error, setError] = useState<string | null>(null);
+  /** Код помилки з бекенду (INVALID_CREDENTIALS, RATE_LIMITED…): екрани показують переклад за ним. */
+  const [errorInfo, setErrorInfo] = useState<AuthErrorInfo | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const authSnapshot = useSyncExternalStore(
     subscribeAuthSession,
@@ -205,6 +208,7 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       setIsSubmitting(true);
       setError(null);
+      setErrorInfo(null);
       const data = await loginWithPassword(email, password);
 
       saveRecentAuthIdentity({
@@ -225,6 +229,11 @@ export function useAuth(options?: UseAuthOptions) {
       return true;
     } catch (err: unknown) {
       const rawMessage = err instanceof Error ? err.message : "";
+      setErrorInfo(
+        err instanceof TypeError
+          ? { code: "NETWORK" }
+          : parseAuthError(rawMessage),
+      );
       setError(
         messageFromApiResponseBody(rawMessage, 401, getNetworkFailureHint(err)),
       );
@@ -243,6 +252,7 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       setIsSubmitting(true);
       setError(null);
+      setErrorInfo(null);
       const data = await registerWithPassword(input);
 
       saveRecentAuthIdentity({
@@ -263,6 +273,11 @@ export function useAuth(options?: UseAuthOptions) {
       return true;
     } catch (err: unknown) {
       const rawMessage = err instanceof Error ? err.message : "";
+      setErrorInfo(
+        err instanceof TypeError
+          ? { code: "NETWORK" }
+          : parseAuthError(rawMessage),
+      );
       setError(
         messageFromApiResponseBody(rawMessage, 400, getNetworkFailureHint(err)),
       );
@@ -271,6 +286,11 @@ export function useAuth(options?: UseAuthOptions) {
       setIsSubmitting(false);
     }
   };
+
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorInfo(null);
+  }, []);
 
   const logout = async () => {
     void clearAppBadgeIfSupported();
@@ -284,6 +304,8 @@ export function useAuth(options?: UseAuthOptions) {
     users,
     loading,
     error,
+    errorInfo,
+    clearError,
     isSubmitting,
     login,
     register,
