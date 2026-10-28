@@ -112,8 +112,6 @@
     "items": {
       "default": "Стандартный",
       "pasture": "Пастбище",
-      "sky": "Небо",
-      "savanna": "Саванна",
       "vineyard": "Виноградник",
       "bethlehem": "Вифлеемская ночь",
       "rainbow": "После дождя",
@@ -121,8 +119,7 @@
       "waves": "Волны",
       "grad-amber": "Янтарь",
       "grad-stone": "Камень",
-      "grad-sea": "Море",
-      "grad-rose": "Роза"
+      "grad-sea": "Море"
     }
   },
   "fontSettings": {

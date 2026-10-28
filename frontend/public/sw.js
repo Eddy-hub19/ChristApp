@@ -1,12 +1,15 @@
+// v9 → v10: файлы /_next/static/ (имя содержит хеш содержимого, не меняются) теперь cache-first, а не
+// stale-while-revalidate: без лишней сетевой проверки на каждый чанк. Остальная статика - как раньше (SWR),
+// приватные ответы (запросы с Authorization) по-прежнему не кешируются.
 // v8 → v9: HTML-оболонка з v8 могла містити застарілі <head> (напр. інший
 // apple-mobile-web-app-status-bar-style) і жила вічно через stale-while-revalidate,
 // бо сам sw.js між релізами не мінявся — версію піднімайте щоразу, коли міняється
 // що-небудь у SHELL_URLS/APP_SHELL чи стратегії кешування, інакше browser не
 // побачить новий service worker і не оновить кеш.
-const STATIC_CACHE = "christapp-static-v9";
-const RUNTIME_CACHE = "christapp-runtime-v9";
+const STATIC_CACHE = "christapp-static-v10";
+const RUNTIME_CACHE = "christapp-runtime-v10";
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v9";
+const API_SWR_CACHE = "christapp-api-swr-v10";
 const OFFLINE_URL = "/offline";
 /** Скільки чекати мережу для HTML-оболонки, перш ніж повернути закешовану версію. */
 const SHELL_NETWORK_TIMEOUT_MS = 1500;
@@ -249,6 +252,18 @@ async function networkFirstWithTimeout(request, timeoutMs) {
   }
 }
 
+/** Неизменяемые файлы с хешем в имени: из кеша без обращения к сети, при промахе - сеть и запись в кеш. */
+async function cacheFirstImmutable(request) {
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) {
+    cache.put(request, response.clone()).catch(() => {});
+  }
+  return response;
+}
+
 async function staleWhileRevalidate(request) {
   const requestUrl = new URL(request.url);
   const canUseCacheApi = isHttpOrHttps(requestUrl);
@@ -334,6 +349,11 @@ self.addEventListener("fetch", (event) => {
       return;
     }
     event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirstImmutable(request));
     return;
   }
 

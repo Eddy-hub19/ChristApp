@@ -372,6 +372,31 @@ export class MessagesService {
     return this.attachReplies(rows.reverse());
   }
 
+  /**
+   * Только новые сообщения: строго позже `afterId` (хронологически). Клиент с кешем спрашивает так «что нового с моего
+   * последнего сообщения»: пустой массив, если ничего нет. Если `afterId` не найден (удалён) - отдаём последние `limit`,
+   * клиент сливает их с кешем по id.
+   */
+  async getRoomMessagesAfter(roomId: string, afterId: string, limit = 200) {
+    const after = await this.prisma.message.findFirst({
+      where: { id: afterId, roomId },
+      select: { createdAt: true },
+    });
+    if (!after) return this.getRoomMessages(roomId, limit, 0);
+
+    const rows = await this.prisma.message.findMany({
+      where: { roomId, createdAt: { gt: after.createdAt } },
+      include: {
+        sender: { select: PUBLIC_USER_SELECT },
+        reactions: { orderBy: { createdAt: 'asc' } },
+        voiceListens: { select: { userId: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+    return this.attachReplies(rows);
+  }
+
   async getAll(limit = 50, skip = 0) {
     return this.prisma.message.findMany({
       include: { sender: { select: PUBLIC_USER_SELECT } },

@@ -80,6 +80,7 @@ export class MessagesController {
     @Query('roomId') roomId?: string,
     @Query('limit') limit?: string,
     @Query('skip') skip?: string,
+    @Query('afterId') afterId?: string,
   ) {
     const userId = req.user?.id;
     if (!userId) {
@@ -97,9 +98,13 @@ export class MessagesController {
     }
 
     const parsedLimit = Math.min(
-      Math.max(parseInt(limit ?? '250', 10) || 250, 1),
+      Math.max(parseInt(limit ?? '50', 10) || 50, 1),
       500,
     );
+    const after = (afterId ?? '').trim();
+    if (after) {
+      return this.messagesService.getRoomMessagesAfter(rid, after, parsedLimit);
+    }
     const parsedSkip = Math.max(parseInt(skip ?? '0', 10) || 0, 0);
     return this.messagesService.getRoomMessages(rid, parsedLimit, parsedSkip);
   }

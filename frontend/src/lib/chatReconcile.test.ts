@@ -45,6 +45,12 @@ describe("reconcileMessages", () => {
     expect(result.map((m) => m.id)).toEqual(["a", "b", "live"]);
   });
 
+  it("keeps cached messages older than the fetched window", () => {
+    const prev = [msg("old1", 1), msg("old2", 2), msg("a", 5)];
+    const result = reconcileMessages(prev, [msg("a", 5), msg("b", 6)]);
+    expect(result.map((m) => m.id)).toEqual(["old1", "old2", "a", "b"]);
+  });
+
   it("drops everything when the server window is empty", () => {
     expect(reconcileMessages([msg("a", 1)], [])).toEqual([]);
   });

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -72,6 +73,8 @@ async function bootstrap() {
 
   // за балансировщиком Render: req.ip - адрес клиента, а не прокси
   app.set('trust proxy', 1);
+  // gzip/br для JSON (история чата, списки): без сжатия 250 сообщений шли как есть
+  app.use(compression());
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 

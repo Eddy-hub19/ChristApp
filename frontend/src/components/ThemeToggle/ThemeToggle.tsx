@@ -69,12 +69,50 @@ export default function ThemeToggle() {
   /** Екрани чатів (особисті, Global chat, «Поділися з Ісусом»): лампочка не займає місце в шапці; тема - на головному й у профілі. */
   const isChatRoom = /^\/chat\/[^/]+/.test(pathname);
 
-  if (isProfilePage || isOfflinePage || isAuthScreen || isCinemaHall || isFullscreen || isChatRoom) {
+  const hidden =
+    isProfilePage || isOfflinePage || isAuthScreen || isCinemaHall || isFullscreen || isChatRoom;
+
+  // Место под лампочку для шапок экранов (--theme-toggle-inset): атрибут на <html> вместо `:root:has([data-theme-toggle])`.
+  useEffect(() => {
+    if (hidden) return;
+    const root = document.documentElement;
+    root.setAttribute("data-theme-toggle-on", "");
+    return () => root.removeAttribute("data-theme-toggle-on");
+  }, [hidden]);
+
+  // Открыта модалка/шторка/игра - лампочка прячется. Вместо `body:has(...)` (пересчёт при каждом изменении DOM)
+  // следим за появлением таких элементов одним наблюдателем с троттлингом через rAF.
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  useEffect(() => {
+    if (hidden) return;
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      setOverlayOpen(Boolean(document.querySelector('[aria-modal="true"], [data-app-overlay]')));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(check);
+    };
+    check();
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-modal", "data-app-overlay"],
+    });
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [hidden]);
+
+  if (hidden) {
     return null;
   }
 
   return (
-    <div className={styles.hanger} data-theme-toggle>
+    <div className={styles.hanger} data-theme-toggle data-overlay-open={overlayOpen ? "" : undefined}>
       <span className={styles.mount} />
       <button
         type="button"

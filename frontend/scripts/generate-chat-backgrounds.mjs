@@ -134,47 +134,6 @@ const pastureScene = (d) => {
   return svg(b, skyDefs("sky", P.sky) + sunGlow("glow", d ? 292 : 90, d ? 190 : 468, d ? 44 : 70, d ? "#f6efc9" : "#ffe9a0"));
 };
 
-const skyScene = (d) => {
-  const P = d
-    ? { sky: [[0, "#080e24"], [0.5, "#1f2a52"], [0.78, "#3d3550"], [1, "#6b4a3c"]], c1: "#3a4670", c2: "#5a4d6e", c3: "#7a5a58", bird: "#0a0f22" }
-    : { sky: [[0, "#7fb2e4"], [0.5, "#b9d6ef"], [0.78, "#f6e2c0"], [1, "#f9d6a6"]], c1: "#ffffff", c2: "#fdf0dc", c3: "#fbe0b8", bird: "#5b6a82" };
-  let b = `<rect width="${W}" height="${H}" fill="url(#sky)"/>`;
-  if (d) b += stars(90, 21, 520, "#fff", 1) + circle(300, 110, 34, "url(#glow)") + `<path d="M306,82 a28,28 0 1 0 0,56 a22,22 0 1 1 0,-56Z" fill="#e8e4cf"/>`;
-  else b += circle(60, 560, 120, "url(#glow)") + circle(60, 560, 22, "#fff6cc");
-  for (const [x, y, s, o] of [[20, 90, 1.4, 0.9], [230, 170, 1.1, 0.8], [90, 250, 1.6, 0.7], [260, 340, 1.3, 0.8], [-10, 440, 1.5, 0.85]]) b += cloud(x, y, s, P.c1, o);
-  const birds = [[150, 300, 1.3], [212, 328, 1], [262, 296, 0.8], [186, 270, 0.7]];
-  for (const [x, y, s] of birds) b += `<path d="M${x - 14 * s},${y} Q${x - 6 * s},${y - 9 * s} ${x},${y} Q${x + 6 * s},${y - 9 * s} ${x + 14 * s},${y}" fill="none" stroke="${P.bird}" stroke-width="${f(2 * s)}" stroke-linecap="round"/>`;
-  for (const [x, y, s, c] of [[-20, 600, 2.2, P.c3], [200, 620, 2, P.c2], [30, 680, 2.4, P.c1], [240, 720, 2.2, P.c3], [-30, 770, 2.6, P.c2], [210, 790, 2.4, P.c1]]) b += cloud(x, y, s, c, 0.95);
-  b += `<rect y="772" width="${W}" height="30" fill="${P.c1}" opacity="0.5"/>`;
-  return svg(b, skyDefs("sky", P.sky) + sunGlow("glow", d ? 300 : 60, d ? 110 : 560, d ? 60 : 120, d ? "#e8e4cf" : "#ffe9a0"));
-};
-
-const savannaScene = (d) => {
-  const P = d
-    ? { sky: [[0, "#120e24"], [0.45, "#3a1f36"], [0.7, "#a2442a"], [1, "#e8842e"]], d1: "#4a2a2c", d2: "#3a1e24", d3: "#2a1620", grass: "#5a2c18", tree: "#120c14", sun: "#ffd98a", haze: "#8a3a2a" }
-    : { sky: [[0, "#e9d6a4"], [0.45, "#f5d594"], [0.7, "#f7c46a"], [1, "#f1a948"]], d1: "#e2b062", d2: "#d99b4a", d3: "#c78232", grass: "#b87a2a", tree: "#6a4a1e", sun: "#fff3c0", haze: "#fbe2a0" };
-  let b = `<rect width="${W}" height="${H}" fill="url(#sky)"/>`;
-  if (d) b += stars(40, 31, 330, "#ffd7a8", 0.9);
-  b += circle(268, 468, 110, "url(#glow)") + circle(268, 470, 30, P.sun);
-  for (const [x, y, s] of [[10, 190, 1.3], [250, 120, 1.1], [150, 330, 1.5]]) b += cloud(x, y, s, d ? "#5a2c3a" : "#fff0cc", d ? 0.55 : 0.7);
-  b += `<rect y="478" width="${W}" height="16" fill="${P.haze}" opacity="0.5"/>`;
-  b += hill([[0, 506], [130, 490], [280, 504], [400, 488]], P.d1);
-  // далёкие акации
-  for (const [x, y, s] of [[60, 510, 0.5], [180, 506, 0.42], [330, 508, 0.55]]) b += `<g fill="${P.tree}"><rect x="${x - 1}" y="${y - 10 * s * 2}" width="2" height="${20 * s}"/>${ellipse(x, y - 22 * s, 28 * s, 6 * s, P.tree)}</g>`;
-  b += hill([[0, 560], [110, 540], [250, 566], [400, 538]], P.d2);
-  b += hill([[0, 630], [140, 596], [300, 628], [400, 604]], P.d3);
-  // большая акация
-  b += `<g fill="${P.tree}"><path d="M40,720 C48,664 60,640 78,612 C90,596 104,590 112,584 L116,590 C106,598 96,606 90,620 C80,640 72,672 66,720Z"/>${ellipse(110, 576, 92, 14, P.tree)}${ellipse(176, 590, 54, 10, P.tree)}${ellipse(54, 596, 44, 9, P.tree)}${ellipse(128, 560, 52, 9, P.tree)}</g>`;
-  b += hill([[0, 724], [120, 700], [280, 722], [400, 704]], P.grass);
-  const r = rng(9);
-  for (let i = 0; i < 60; i++) {
-    const x = r() * W;
-    const y = 700 + r() * 100;
-    b += `<path d="M${f(x)},${f(y)} q${f(r() * 6 - 3)},-9 ${f(r() * 8 - 4)},-${f(10 + r() * 8)}" stroke="${d ? "#8a4a1c" : "#8f5a1a"}" stroke-width="1.3" fill="none" opacity="0.6"/>`;
-  }
-  return svg(b, skyDefs("sky", P.sky) + sunGlow("glow", 268, 468, 110, d ? "#ffb25a" : "#ffe9a0"));
-};
-
 const vineyardScene = (d) => {
   const P = d
     ? { sky: [[0, "#14123a"], [0.45, "#3b2a5a"], [0.68, "#b6483a"], [1, "#f08a3a"]], far: "#2a2650", mid: "#1f2442", row1: "#1d3a24", row2: "#16301f", row3: "#102719", cyp: "#0e2216", villa: "#2c2a48", win: "#ffd27a", leaf: "#2f5a2a", leaf2: "#3b6e32", grape: "#3a2a6a", grape2: "#54409a" }
@@ -324,8 +283,6 @@ const wavesTile = (d) => {
 
 const scenes = {
   pasture: pastureScene,
-  sky: skyScene,
-  savanna: savannaScene,
   vineyard: vineyardScene,
   bethlehem: bethlehemScene,
   rainbow: rainbowScene,

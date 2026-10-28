@@ -141,12 +141,12 @@ body.offlinePage {
   --theme-toggle-inset: 0px;
 }
 
-:root:has([data-theme-toggle]) {
+:root[data-theme-toggle-on] {
   --theme-toggle-inset: 58px;
 }
 
 @media (min-width: 1500px) {
-  :root:has([data-theme-toggle]) {
+  :root[data-theme-toggle-on] {
     --theme-toggle-inset: 0px;
   }
 }

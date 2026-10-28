@@ -1,11 +1,15 @@
 /**
  * Локальний кеш останніх повідомлень чату (IndexedDB): при вході в чат список показується одразу,
- * а свіжа історія підтягується у фоні. Записи прив'язані до користувача, а при виході з акаунта кеш стирається.
+ * а з сервера запитуються лише новіші за останнє відоме повідомлення. Зберігаємо СИРІ повідомлення сервера
+ * (до 200 на чат і користувача): з них відновлюється і список, і дельта-запит. Записи прив'язані до користувача,
+ * а при виході з акаунта кеш стирається.
  */
 
-export const CACHED_MESSAGES_LIMIT = 50;
+export const CACHED_MESSAGES_LIMIT = 200;
 
-const DB_NAME = "christapp-chat-cache";
+/** Попередня версія кешу зберігала вже оброблені повідомлення; формат несумісний, тож база інша, стара видаляється. */
+const LEGACY_DB_NAME = "christapp-chat-cache";
+const DB_NAME = "christapp-chat-cache-v2";
 const STORE = "rooms";
 
 type CacheEntry<T> = { userId: string; savedAt: number; messages: T[] };
@@ -70,7 +74,16 @@ export async function writeCachedMessages<T>(userId: string, roomId: string, mes
   db.close();
 }
 
+function deleteLegacyDb() {
+  try {
+    if (typeof indexedDB !== "undefined") indexedDB.deleteDatabase(LEGACY_DB_NAME);
+  } catch {
+    // не критично
+  }
+}
+
 export async function clearChatMessageCache(): Promise<void> {
+  deleteLegacyDb();
   const db = await openDb();
   if (!db) return;
   await new Promise<void>((resolve) => {
