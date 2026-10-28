@@ -6,6 +6,7 @@ import {
   FLOCK_MAPS,
   NUM_SKINS,
   BOSS_SKIN,
+  MONSTER_SKIN,
   isRemovedSkin,
   ARTIFACT,
   isArtifactId,
@@ -139,6 +140,8 @@ export interface Player {
   bot: boolean;
   /** «Вожак»: свої розпад і стеля маси, старт із більшою масою. */
   boss: boolean;
+  /** «Лавове чудовисько» (орда карти «Вулкан»): бот без рубінів і без місця в таблиці лідерів, лаву ігнорує. Маса появи - у bossStart. */
+  monster: boolean;
   /** Лише Вожак: маса появи, поріг таяння й поточна стеля маси (залежать від лідера на мить появи). */
   bossStart: number;
   bossDecayFrom: number;
@@ -147,6 +150,8 @@ export interface Player {
   lavaSafeUntil: number;
   /** Загинув у лаві (екран смерті: «згорів»). */
   burned: boolean;
+  /** Загинув поза колом режиму «Звужуване коло». */
+  zoneDeath: boolean;
   alive: boolean;
   cells: Cell[];
   angle: number;
@@ -319,6 +324,8 @@ export class FlockWorld {
   /** «Дощ»: поточна подія (null - нема) і калюжі; rainEvents - що розіслати цього тіку (старт). */
   private rain: { endsAt: number; dryUntil: number } | null = null;
   readonly puddles: Puddle[] = [];
+  /** Режим «Звужуване коло»: поточне коло (null - режиму нема). Клітини поза ним втрачають масу (stepCircle). */
+  circle: { x: number; y: number; r: number } | null = null;
   readonly rainEvents: RainEvent[] = [];
   private rainNextAt = 0;
   private zActive = false;
@@ -402,6 +409,9 @@ export class FlockWorld {
     /** Маса появи Вожака (за лідером); без неї - boss.startMass. */
     bossMass?: number;
     bossCeil?: number;
+    /** «Лавове чудовисько»: скін MONSTER_SKIN, маса появи monsterMass (у bossStart), без щита й артефакта. */
+    monster?: boolean;
+    monsterMass?: number;
   }): Player {
     const id = this.nextId(this.nextPid, (i) => this.players.has(i));
     this.nextPid = id + 1;
@@ -410,15 +420,19 @@ export class FlockWorld {
       name: opts.name,
       skin: opts.boss
         ? BOSS_SKIN
-        : this.humanSkin(opts.skin),
+        : opts.monster
+          ? MONSTER_SKIN
+          : this.humanSkin(opts.skin),
       artifact: !opts.bot && isArtifactId(opts.artifact) ? opts.artifact : 0,
       bot: !!opts.bot,
       boss: !!opts.boss,
-      bossStart: opts.bossMass ?? C.boss.startMass,
+      monster: !!opts.monster,
+      bossStart: opts.monster ? (opts.monsterMass ?? C.monsters.massMin) : (opts.bossMass ?? C.boss.startMass),
       bossDecayFrom: (opts.bossMass ?? C.boss.startMass) * C.boss.decayFromFraction,
       bossCeil: opts.bossCeil ?? C.boss.maxMass,
       lavaSafeUntil: 0,
       burned: false,
+      zoneDeath: false,
       alive: false,
       cells: [],
       angle: 0,
@@ -455,15 +469,15 @@ export class FlockWorld {
   respawn(p: Player) {
     for (const c of p.cells) this.cellsById.delete(c.id);
     p.cells = [];
-    const spot = this.safeSpawn();
-    this.addCell(p, spot.x, spot.y, p.boss ? p.bossStart : C.startMass);
+    const spot = p.monster ? this.lavaSpawn() : this.safeSpawn();
+    this.addCell(p, spot.x, spot.y, p.boss || p.monster ? p.bossStart : C.startMass);
     p.alive = true;
     p.effects = {};
     p.frozenUntil = 0;
     p.boostUntil = this.now + C.spawnBoost.durationMs;
     p.spawnedAt = this.now;
     p.paused = false;
-    const start = p.boss ? p.bossStart : C.startMass;
+    const start = p.boss || p.monster ? p.bossStart : C.startMass;
     p.maxMass = start;
     p.total = start;
     p.topMs = 0;
@@ -476,10 +490,13 @@ export class FlockWorld {
     p.wantSplit = p.wantThrow = false;
     p.sprintUntil = 0;
     p.sprinting = false;
-    // коротка недоторканність після народження
-    p.effects.shield = this.now + C.spawnShieldMs;
-    p.lavaSafeUntil = this.now + C.spawnShieldMs;
+    // коротка недоторканність після народження (чудовиська її не мають: з'являються в лаві, куди гравцям не можна)
+    if (!p.monster) {
+      p.effects.shield = this.now + C.spawnShieldMs;
+      p.lavaSafeUntil = this.now + C.spawnShieldMs;
+    }
     p.burned = false;
+    p.zoneDeath = false;
   }
 
   removePlayer(pid: number) {
@@ -489,6 +506,16 @@ export class FlockWorld {
     this.players.delete(pid);
   }
 
+  /** Точка для чудовиська: випадкове місце в річці лави (у світі без лави - звичайна безпечна точка). */
+  private lavaSpawn() {
+    const lava = this.lava;
+    if (!lava) return this.safeSpawn();
+    return {
+      x: this.rand(200, C.worldSize - 200),
+      y: lava.y0 + this.rng() * (lava.y1 - lava.y0),
+    };
+  }
+
   private safeSpawn() {
     // запасна точка - центр світу; на карті з лавою центр у річці, тож береться ділянка над нею
     let best = this.lava
@@ -496,8 +523,15 @@ export class FlockWorld {
       : { x: C.worldSize / 2, y: C.worldSize / 2 };
     let bestD = -1;
     for (let i = 0; i < 8; i++) {
-      const x = this.rand(150, C.worldSize - 150);
-      const y = this.rand(150, C.worldSize - 150);
+      let x = this.rand(150, C.worldSize - 150);
+      let y = this.rand(150, C.worldSize - 150);
+      // «Звужуване коло»: нові гравці з'являються всередині кола, а не поза ним (там одразу втрата маси)
+      if (this.circle) {
+        const a = this.rng() * TWO_PI;
+        const d = Math.sqrt(this.rng()) * this.circle.r * 0.85;
+        x = Math.min(C.worldSize - 150, Math.max(150, this.circle.x + Math.cos(a) * d));
+        y = Math.min(C.worldSize - 150, Math.max(150, this.circle.y + Math.sin(a) * d));
+      }
       if (this.lavaBlockedAt(x, y, C.lava.clearMargin + 160)) continue;
       let d = Infinity;
       for (const c of this.cellsById.values()) {
@@ -768,6 +802,7 @@ export class FlockWorld {
     this.stepFood();
     this.stepThorns();
     this.stepLava(dt);
+    this.stepCircle(dt);
     this.stepBonuses();
 
     // total, decay, статистика
@@ -792,10 +827,16 @@ export class FlockWorld {
         for (const c of p.cells) c.mass *= k;
         total = p.bossCeil;
       }
+      // чудовиська: стеля маси - надлишок після з'їдених гравців зникає
+      if (p.monster && total > C.monsters.ceilMass) {
+        const k = C.monsters.ceilMass / total;
+        for (const c of p.cells) c.mass *= k;
+        total = C.monsters.ceilMass;
+      }
       p.total = total;
       if (total > p.maxMass) p.maxMass = total;
-      // «Вожак» не лідер: від нього не відганяємо зірки «Зорепаду» і йому не йде час першого місця
-      if (!p.boss && (!leader || total > leader.total)) leader = p;
+      // «Вожак» не лідер: від нього не відганяємо зірки «Зорепаду» і йому не йде час першого місця; чудовиська - теж
+      if (!p.boss && !p.monster && (!leader || total > leader.total)) leader = p;
     }
     this.leaderPid = leader?.id ?? 0;
     if (leader && !leader.paused) leader.topMs += dt * 1000;
@@ -857,7 +898,7 @@ export class FlockWorld {
 
   private speedFor(p: Player, c: Cell) {
     if (this.now < p.frozenUntil) return 0;
-    let m = this.spawnBoostFactor(p);
+    let m = p.monster ? C.monsters.speedMultiplier : this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) m *= C.speedMultiplier;
     if (this.hasArtifact(p, ARTIFACT.shoes)) m *= 1 + C.artifacts.shoesSpeedBonus;
     if (p.sprinting) m = sprintedMultiplier(m);
@@ -1139,7 +1180,7 @@ export class FlockWorld {
     if (!lava) return;
     const mid = (lava.y0 + lava.y1) / 2;
     for (const p of this.players.values()) {
-      if (!p.alive) continue;
+      if (!p.alive || p.monster) continue;
       const safe = p.paused || this.now < p.lavaSafeUntil;
       for (const c of [...p.cells]) {
         if (!inLava(lava, c.x, c.y)) continue;
@@ -1150,6 +1191,30 @@ export class FlockWorld {
           continue;
         }
         this.burnCell(p, c);
+      }
+    }
+  }
+
+  /** «Звужуване коло»: поза колом клітина втрачає масу (частка або мінімум за секунду), зовсім мала - зникає; гравець без клітин гине. */
+  private stepCircle(dt: number) {
+    const z = this.circle;
+    if (!z) return;
+    const Z = C.circle;
+    for (const p of this.players.values()) {
+      if (!p.alive || p.paused || p.monster) continue;
+      for (const c of [...p.cells]) {
+        if (Math.hypot(c.x - z.x, c.y - z.y) <= z.r) continue;
+        c.mass -= Math.max(c.mass * Z.outsideLossPerSec, Z.outsideMinLossPerSec) * dt;
+        if (c.mass >= Z.dieBelowMass) continue;
+        this.dropCell(p, c);
+        if (p.cells.length > 0) continue;
+        p.alive = false;
+        p.zoneDeath = true;
+        p.diedAt = this.now;
+        p.killerPid = 0;
+        p.phrase = null;
+        this.deaths.push({ pid: p.id, killerPid: 0 });
+        break;
       }
     }
   }
@@ -1168,7 +1233,7 @@ export class FlockWorld {
 
   private stepThorns() {
     for (const p of this.players.values()) {
-      if (!p.alive || p.paused || this.isGhost(p)) continue;
+      if (!p.alive || p.paused || p.monster || this.isGhost(p)) continue;
       // popCell додає шматки в кінець p.cells: ітеруємо по початковій довжині без копії масиву
       const n = p.cells.length;
       for (let i = 0; i < n; i++) {
@@ -1573,7 +1638,7 @@ export class FlockWorld {
 
   leaderboard(limit = 10) {
     return [...this.players.values()]
-      .filter((p) => p.alive)
+      .filter((p) => p.alive && !p.monster)
       .sort((a, b) => b.total - a.total)
       .slice(0, limit);
   }

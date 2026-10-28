@@ -9,7 +9,9 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   // преміум-ряд 2 (анімовані, шари-спрайти)
   | "phoenix" | "moon" | "bloom" | "newyear" | "butterfly" | "thunder"
   // «Вожак» (36): бот-босс, вне NUM_SKINS - игрок его выбрать не может
-  | "alpha";
+  | "alpha"
+  // «Лавове чудовисько» (47): орда карты «Вулкан», тоже вне NUM_SKINS
+  | "magma";
 
 /** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
 export interface SkinAnim {
@@ -92,11 +94,15 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "newyear", anim: { frames: 4, fps: 3 }, fur: "#eef5ff", light: "#ffffff", face: "#2a3a4f", accent: "#ff6b6b" },
   { kind: "sheep", deco: "butterfly", anim: { frames: 4, fps: 6 }, fur: "#f3ecff", light: "#ffffff", face: "#3b2f52", accent: "#ff9ad5" },
   { kind: "ram", deco: "thunder", anim: { frames: 4, fps: 5 }, fur: "#8e9ab4", light: "#c7d0e4", face: "#262b3a", accent: "#ffd23f" },
+  // --- «Лавове чудовисько» (47): тёмный камень с огненными трещинами; игрок его выбрать не может ---
+  { kind: "wolf", deco: "magma", fur: "#2a1c19", light: "#4a2f27", face: "#120a08", accent: "#ff6a1a" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
 /** Скин «Вожака» (бот-босс); в лобби его нет. */
 export const BOSS_SKIN = 36;
+/** Скин «Лавового чудовиська» (орда карты «Вулкан»); в лобби его нет (дзеркало MONSTER_SKIN на сервере). */
+export const MONSTER_SKIN = 47;
 
 export function skinOf(id: number): Skin {
   return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];

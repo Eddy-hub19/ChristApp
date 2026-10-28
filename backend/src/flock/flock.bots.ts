@@ -163,6 +163,13 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
 
   const now = world.now;
   const me = world.centroid(p);
+  // «Звужуване коло»: бот, який вийшов за ~85% радіуса, просто повертається до центру (дешево, без пошуку цілей)
+  const zone = world.circle;
+  if (zone && Math.hypot(me.x - zone.x, me.y - zone.y) > zone.r * 0.85) {
+    p.angle = Math.atan2(zone.y - me.y, zone.x - me.x);
+    p.power = 1;
+    return;
+  }
   let myMax = 0;
   let big = p.cells[0];
   for (const c of p.cells)

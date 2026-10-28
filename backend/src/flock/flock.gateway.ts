@@ -50,6 +50,7 @@ export class FlockGateway
       {
         onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
+        onCircleWin: (userId, connKey) => void this.rewardCircleWin(userId, connKey),
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
@@ -78,6 +79,16 @@ export class FlockGateway
       if (res && connKey) this.ns?.sockets.get(connKey)?.emit('r', res);
     } catch (e) {
       this.log.error(`awardBossKill: ${String(e)}`);
+    }
+  }
+
+  /** Нагорода за перемогу в режимі «Звужуване коло»: у межах добового ліміту арени, пише сервер, клієнту - подія `r`. */
+  private async rewardCircleWin(userId: string, connKey: string | null) {
+    try {
+      const res = await this.rubies.awardCircleWin(userId);
+      if (res && connKey) this.ns?.sockets.get(connKey)?.emit('r', res);
+    } catch (e) {
+      this.log.error(`awardCircleWin: ${String(e)}`);
     }
   }
 
@@ -136,6 +147,8 @@ export class FlockGateway
       resume?: unknown;
       arena?: unknown;
       resumeOnly?: unknown;
+      /** Режим арени: 'circle' - «Звужуване коло» (окрема арена); без поля - звичайна. */
+      mode?: unknown;
       /** Версія протоколу клієнта: 2+ читає кущі з `welcome`, без поля - старий клієнт. */
       v?: unknown;
     },
@@ -181,11 +194,12 @@ export class FlockGateway
         resume,
         arena,
         resumeOnly: body?.resumeOnly === true,
+        mode: body?.mode === 'circle' ? 'circle' : 'normal',
         legacyThorns: !(typeof body?.v === 'number' && body.v >= 2),
       },
     );
     if (!res.ok) {
-      client.emit('e', { code: res.error, resumeFailed: !!res.resumeFailed });
+      client.emit('e', { code: res.error, resumeFailed: !!res.resumeFailed, waitMs: res.waitMs });
       return;
     }
     client.emit('w', {
@@ -208,6 +222,9 @@ export class FlockGateway
       stars: res.stars,
       /** «Дощ» на момент входу: { l, y, d, p: [[id, x, y, r]] }; без поля - дощу нема. */
       rain: res.rain,
+      /** Режим арени ('circle' - «Звужуване коло») і стан кола: { x, y, r0, r1, hold, shrink, stage, stages }. */
+      mode: res.mode,
+      circle: res.circle,
       /** На скільки калюжа уповільнює клітини (частка), для передбачення на клієнті. */
       rainSlow: FLOCK_CONFIG.rain.slowFraction,
       /** Серія днів на 1-му місці: { p - pid держателя тут (0 - нема), d - днів }; далі приходить подією `sk`. */

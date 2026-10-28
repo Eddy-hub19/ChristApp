@@ -49,12 +49,32 @@ export interface FlockCfg {
   thornStyle?: "bush" | "autumn" | "fir" | "charred";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
+  /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
+  mode?: "normal" | "circle";
+  circle?: CircleMsgIn;
   /** На скільки калюжа уповільнює клітини (частка); без поля - 0.2. */
   rainSlow?: number;
   /** «Дощ», що йде на момент входу: l - лишилось дощу (мс), y - підсихання після нього, d - повне підсихання, p - калюжі [id, x, y, r]. */
   rain?: { l: number; y?: number; d: number; p: [number, number, number, number][] };
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
+}
+
+/** Повідомлення сервера про коло режиму «Звужуване коло» (welcome.circle або подія `cz`). */
+export interface CircleMsgIn {
+  x: number;
+  y: number;
+  r0: number;
+  r1: number;
+  hold: number;
+  shrink: number;
+  stage: number;
+  stages: number;
+}
+
+/** Коло в локальному годиннику моделі: t0 - момент отримання, hold/shrink - що лишалось на цю мить. */
+export interface RCircle extends CircleMsgIn {
+  t0: number;
 }
 
 /** Калюжа «Дощу» (світові координати). */
@@ -173,6 +193,8 @@ export class FlockModel {
   thorns: { id: number; x: number; y: number; mass: number }[] = [];
   /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
   readonly stars = new Map<number, RStar>();
+  /** Коло режиму «Звужуване коло» (null - режиму нема або раунд закінчився й чекаємо новий). */
+  circle: RCircle | null = null;
   /** Поточний «Дощ» (null - нема). */
   rain: RRain | null = null;
   /** «Прискорення» своєї клітини діє цього кадру (для сліду й індикатора). */
@@ -247,6 +269,31 @@ export class FlockModel {
   sprintReady(): boolean {
     const sp = this.cfg.speed.sprint;
     return Boolean(sp) && this.alive && this.total >= sp!.minTotalMass && this.total > sp!.floorMass;
+  }
+
+  /** Коло з welcome / події `cz`: далі радіус рахується за локальним часом (circleRadius). */
+  applyCircle(msg: CircleMsgIn | null | undefined, recvMs: number = this.localNow) {
+    if (!msg || !Number.isFinite(msg.x) || !Number.isFinite(msg.r0)) return;
+    this.circle = { ...msg, t0: recvMs };
+  }
+
+  /** Радіус кола зараз: до кінця hold стоїть, далі лінійно до r1 за shrink. */
+  circleRadius(now: number = this.localNow): number {
+    const c = this.circle;
+    if (!c) return 0;
+    const t = now - c.t0;
+    if (t <= c.hold || c.shrink <= 0) return t <= c.hold ? c.r0 : c.r1;
+    return c.r0 + (c.r1 - c.r0) * Math.min(1, (t - c.hold) / c.shrink);
+  }
+
+  /** Що показати в шапці: розминка, очікування, звуження або фінал; left - секунди до наступної зміни. */
+  circleStatus(now: number = this.localNow): { phase: "warmup" | "hold" | "shrink" | "final"; leftMs: number; stage: number; stages: number } | null {
+    const c = this.circle;
+    if (!c) return null;
+    const t = now - c.t0;
+    if (t < c.hold) return { phase: c.stage === 0 ? "warmup" : "hold", leftMs: c.hold - t, stage: c.stage, stages: c.stages };
+    if (t < c.hold + c.shrink) return { phase: "shrink", leftMs: c.hold + c.shrink - t, stage: c.stage, stages: c.stages };
+    return { phase: "final", leftMs: 0, stage: c.stage, stages: c.stages };
   }
 
   /** Події «Дощу»: msg з welcome (rain) або події "rn": { l, d, y?, p }. */

@@ -5,7 +5,7 @@ import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
 import { drawGroundFood, groundOf, type Ground } from "./flockGround";
 import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, lavaDistance } from "./flockLava";
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
-import { BOSS_SKIN } from "./flockSkins";
+import { BOSS_SKIN, MONSTER_SKIN } from "./flockSkins";
 import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
@@ -259,6 +259,23 @@ function puddleSprite() {
     c.fill();
   }));
 }
+/** «Звужуване коло»: поза колом - червонувата пелена (одна заливка evenodd), по краю - яскрава межа. */
+function drawCircleZone(ctx: CanvasRenderingContext2D, m: FlockModel, world: number, scale: number, time: number) {
+  const c = m.circle;
+  if (!c) return;
+  const r = m.circleRadius();
+  ctx.fillStyle = "rgba(200,40,30,0.24)";
+  ctx.beginPath();
+  ctx.rect(-50, -50, world + 100, world + 100);
+  ctx.arc(c.x, c.y, Math.max(1, r), 0, TAU, true);
+  ctx.fill("evenodd");
+  const shrinking = m.circleStatus()?.phase === "shrink";
+  ctx.strokeStyle = shrinking ? `rgba(255,${90 + Math.round(Math.sin(time * 6) * 30)},60,0.95)` : "rgba(255,120,80,0.8)";
+  ctx.lineWidth = Math.max(5, 7 / scale);
+  circle(ctx, c.x, c.y, Math.max(1, r));
+  ctx.stroke();
+}
+
 function drawPuddles(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number) {
   const rain = m.rain;
   if (!rain) return;
@@ -371,6 +388,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
   drawPuddles(ctx, m, x0, x1, y0, y1);
+  drawCircleZone(ctx, m, world, scale, o.time);
 
   // їжа: розмір із сервера (піврозмір x2); на віддаленій камері - не менше FOOD_MIN_PX на екрані й без погойдування
   const far = scale < FAR_SCALE;
@@ -510,7 +528,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       const meta = m.players.get(c.pid);
       if (!meta) continue;
       const size = Math.max(11 / scale, Math.min(r * 0.42, 26));
-      const spr = nameSprite(meta.skin === BOSS_SKIN ? `👑 ${meta.name}` : meta.name, meta.bot, size * scale * dpr, theme);
+      const spr = nameSprite(meta.skin === BOSS_SKIN ? `👑 ${meta.name}` : meta.name, meta.bot && meta.skin !== MONSTER_SKIN, size * scale * dpr, theme);
       const f = size / spr.px;
       const ty = c.y - r * 0.05;
       ctx.drawImage(spr.cv, c.x - spr.centerX * f, ty - (spr.cv.height * f) / 2, spr.cv.width * f, spr.cv.height * f);
@@ -670,6 +688,13 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
     ctx.fill();
   }
   const w = m.cfg.world;
+  // «Звужуване коло»: межа кола на мінікарті
+  if (m.circle) {
+    ctx.strokeStyle = "rgba(255,110,70,0.95)";
+    ctx.lineWidth = 1.6;
+    circle(ctx, (m.circle.x / w) * size, (m.circle.y / w) * size, Math.max(1, (m.circleRadius() / w) * size));
+    ctx.stroke();
+  }
   // загорожа: тонка рамка по периметру
   ctx.strokeStyle = fenceMiniColor(fenceStyleOf(m.cfg.map));
   ctx.lineWidth = 2;

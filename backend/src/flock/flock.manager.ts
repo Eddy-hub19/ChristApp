@@ -19,12 +19,15 @@ import {
 } from './flock.engine';
 import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { initBoss, thinkBoss } from './flock.boss';
+import { initMonster, thinkMonster } from './flock.monsters';
+import { CircleRound, type CircleMsg } from './flock.circle';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
 import {
   BotGovernor,
   ProcessLoadSampler,
   botCapForHumans,
+  classifyLoad,
   type GovernorDecision,
   type LoadSample,
 } from './flock.bot-governor';
@@ -98,15 +101,36 @@ export interface FlockHooks {
     userId: string,
     run: { maxMass: number; kills: number; topMs: number },
   ) => void;
+  /** Людина виграла раунд режиму «Звужуване коло» (рубіни нараховує лише сервер, у межах добового ліміту). */
+  onCircleWin?: (userId: string, connKey: string | null) => void;
   /** Держатель серії днів на 1-му місці (FlockStreak.days > 0) або null; читається при вході на арену. */
   getStreak?: () => { userId: string; days: number } | null;
 }
 
+/** normal - звичайна арена; circle - режим «Звужуване коло» (окрема арена). */
+export type ArenaMode = 'normal' | 'circle';
+
 class Arena {
   readonly world: FlockWorld;
+  /** «Звужуване коло»: поточний раунд і його стан (running - іде, ended - показуємо підсумки до roundEndAt). */
+  private round: CircleRound | null = null;
+  private roundState: 'running' | 'ended' = 'running';
+  private roundEndAt = 0;
+  /** Повідомлення режиму цього тіку: [подія, тіло]; розсилаються всім сесіям арени. */
+  private roundMsgs: [string, object][] = [];
+  /** Підсумок останнього раунду для тих, хто дивиться картку (і для відновлення). */
+  private lastSummary: object | null = null;
   /** Сесії арени за userId (пауза тримає місце в лімiті). */
   readonly sessions = new Map<string, Session>();
   readonly bots = new Set<number>();
+  /** «Лавові чудовиська» (лише карта з лавою): не боти за ліміти й таблицю лідерів, свій регулятор. */
+  readonly monsters = new Set<number>();
+  private monsterRespawn = new Map<number, number>();
+  /** Високе навантаження: чудовиськ прибрано (першими, до ботів), повертаються після спокійних оцінок. */
+  private monstersShed = false;
+  private monstersLowStreak = 0;
+  /** Скільки чудовиськ штатно (min..max, випадково при створенні арени). */
+  private readonly monsterTarget: number;
   private timer: NodeJS.Timeout | null = null;
   private nextAt = 0;
   private botRespawn = new Map<number, number>();
@@ -166,9 +190,16 @@ class Arena {
     private readonly hooks: FlockHooks = {},
     /** Лаг loop і CPU процесу (у тестах підміняється). За замовчуванням міряє сама арена. */
     private readonly loadProbe?: () => Pick<LoadSample, 'loopP99Ms' | 'cpuPct'>,
+    readonly mode: ArenaMode = 'normal',
   ) {
-    this.mapId = pickMapId(rng);
+    this.mapId =
+      mode === 'circle'
+        ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
+        : pickMapId(rng);
     this.world = new FlockWorld(rng, this.mapId);
+    this.monsterTarget =
+      C.monsters.min + Math.floor(rng() * (C.monsters.max - C.monsters.min + 1));
+    if (mode === 'circle') this.startRound();
     this.thornList = this.world.thorns.map((t) => ({
       id: t.id,
       x: t.x,
@@ -265,6 +296,204 @@ class Arena {
     this.botRespawn.delete(id);
   }
 
+  // ---------- «Звужуване коло» ----------
+  /** Після розминки раунд "закритий": нових ботів не додаємо, мертві боти не відроджуються (інакше нема "останнього живого"). */
+  private circleLocked() {
+    return (
+      this.mode === 'circle' &&
+      this.round !== null &&
+      this.roundState === 'running' &&
+      !this.round.inWarmup(this.world.now)
+    );
+  }
+
+  /** Гравцю можна (пере)народитися: не режим, або раунд на розминці / показує підсумки. */
+  canRespawnHere() {
+    return !this.circleLocked();
+  }
+
+  /** Скільки мс до наступного раунду (для підказки «Раунд ще триває»). */
+  roundWaitMs() {
+    if (!this.round) return 0;
+    if (this.roundState === 'ended') return Math.max(0, this.roundEndAt - this.world.now);
+    return Math.max(0, this.round.totalMs - this.round.elapsed(this.world.now));
+  }
+
+  /** Стан кола для нового клієнта (welcome). */
+  circleSnapshot(): CircleMsg | undefined {
+    if (this.mode !== 'circle' || !this.round) return undefined;
+    return this.round.snapshot(this.world.now);
+  }
+
+  private startRound() {
+    const w = this.world;
+    const m = C.circle.centerMargin;
+    const x = m + this.rng() * (C.worldSize - 2 * m);
+    const y = m + this.rng() * (C.worldSize - 2 * m);
+    this.round = new CircleRound(x, y, w.now);
+    this.roundState = 'running';
+    w.circle = { x, y, r: C.circle.startRadius };
+    // усі живі (люди й боти) народжуються заново всередині кола; мертві люди вернуться кнопкою «Грати знову»
+    for (const p of w.players.values()) {
+      if (p.monster) continue;
+      if (!p.bot && !p.alive) continue;
+      w.respawn(p);
+    }
+    for (const s of this.sessions.values()) {
+      s.rewardedThisLife = false;
+      s.knownChunks.clear();
+      s.knownPlayers.clear();
+      s.phraseSent.clear();
+    }
+    this.botRespawn.clear();
+  }
+
+  /** До тіку: радіус кола за годинником і повідомлення про нову стадію. */
+  private stepRoundPre() {
+    const r = this.round;
+    if (!r || this.roundState !== 'running') return;
+    const now = this.world.now;
+    const z = this.world.circle;
+    if (z) z.r = r.radiusAt(now);
+    const ev = r.nextEvent(now);
+    if (ev) this.roundMsgs.push(['cz', ev]);
+  }
+
+  /** Після тіку: чи кінець раунду, або чи час стартувати новий. */
+  private stepRoundPost() {
+    const r = this.round;
+    if (!r) return;
+    const w = this.world;
+    if (this.roundState === 'ended') {
+      if (w.now >= this.roundEndAt) this.startRound();
+      return;
+    }
+    if (r.inWarmup(w.now)) return;
+    let alive = 0;
+    let humansAlive = 0;
+    for (const p of w.players.values()) {
+      if (!p.alive || p.monster) continue;
+      alive++;
+      if (!p.bot) humansAlive++;
+    }
+    const noHumans = this.sessions.size > 0 && humansAlive === 0;
+    if (alive <= 1 || noHumans || r.timeUp(w.now)) this.endRound();
+  }
+
+  private endRound() {
+    const w = this.world;
+    this.roundState = 'ended';
+    this.roundEndAt = w.now + C.circle.endHoldMs;
+    w.circle = null;
+    const alive = [...w.players.values()]
+      .filter((p) => p.alive && !p.monster)
+      .sort((a, b) => b.total - a.total);
+    const winner = alive[0] ?? null;
+    const top = alive.slice(0, 3).map((p) => ({ name: p.name, mass: Math.round(p.total) }));
+    this.lastSummary = { winner: winner ? { name: winner.name, mass: Math.round(winner.total) } : null, top, restartMs: C.circle.endHoldMs };
+    for (const s of this.sessions.values()) {
+      const p = w.players.get(s.pid);
+      const place = p && p.alive ? alive.findIndex((a) => a.id === p.id) + 1 : 0;
+      this.roundMsgs.push([
+        'ce:' + s.pid,
+        {
+          ...this.lastSummary,
+          you: { place, win: !!winner && winner.id === s.pid, mass: p ? Math.round(p.maxMass) : 0 },
+        },
+      ]);
+      if (winner && winner.id === s.pid && winner.alive) this.hooks.onCircleWin?.(s.userId, s.connKey);
+    }
+  }
+
+  // ---------- «Лавові чудовиська» ----------
+  /** Скільки чудовиськ має бути зараз: лише на карті з лавою, за людьми обмежено (6 людей - не більше 4), 0 під навантаженням. */
+  wantMonsters() {
+    const M = C.monsters;
+    if (!M.enabled || !this.world.lava || this.monstersShed || !this.hasLiveHuman()) return 0;
+    let cap = this.monsterTarget;
+    for (const [from, limit] of M.capByHumans) {
+      if (this.humans >= from) {
+        cap = Math.min(cap, limit);
+        break;
+      }
+    }
+    return cap;
+  }
+
+  private addMonster() {
+    const M = C.monsters;
+    const p = this.world.addPlayer({
+      name: M.name,
+      skin: 0,
+      bot: true,
+      monster: true,
+      monsterMass: M.massMin + this.rng() * (M.massMax - M.massMin),
+    });
+    initMonster(p, this.rng);
+    this.monsters.add(p.id);
+  }
+
+  private removeMonster(id: number) {
+    this.world.removePlayer(id);
+    this.monsters.delete(id);
+    this.monsterRespawn.delete(id);
+  }
+
+  /** Підганяє чудовиськ під потрібну кількість, відроджує вбитих у лаві (через respawnMs) і дає їм подумати. */
+  private stepMonsters() {
+    const w = this.world;
+    if (!C.monsters.enabled || !w.lava) return;
+    const want = this.wantMonsters();
+    while (this.monsters.size < want) this.addMonster();
+    if (this.monsters.size > want) {
+      // зайвих (мертвих першими) просто прибираємо: вони живуть у лаві, а не на очах
+      const ids = [...this.monsters].sort(
+        (a, b) => Number(w.players.get(a)?.alive ?? 0) - Number(w.players.get(b)?.alive ?? 0),
+      );
+      for (const id of ids) {
+        if (this.monsters.size <= want) break;
+        this.removeMonster(id);
+      }
+    }
+    for (const id of this.monsters) {
+      const p = w.players.get(id);
+      if (!p) {
+        this.monsters.delete(id);
+        continue;
+      }
+      if (!p.alive) {
+        const at = this.monsterRespawn.get(id) ?? w.now + C.monsters.respawnMs;
+        this.monsterRespawn.set(id, at);
+        if (w.now >= at) {
+          this.monsterRespawn.delete(id);
+          w.respawn(p);
+        }
+        continue;
+      }
+      thinkMonster(w, p, this.rng);
+    }
+  }
+
+  /**
+   * Регулятор навантаження для чудовиськ: при високому їх прибирають ПЕРШИМИ (ботів у цю оцінку не чіпаємо), повертають
+   * після lowEvalsToReturn спокійних оцінок поспіль, коли боти вже не обмежені. Повертає true, якщо цю оцінку витратили на них.
+   */
+  private shedMonsters(level: 'low' | 'normal' | 'high'): boolean {
+    if (level === 'high' && !this.monstersShed && this.monsters.size > 0) {
+      this.monstersShed = true;
+      this.monstersLowStreak = 0;
+      return true;
+    }
+    if (this.monstersShed) {
+      if (level === 'low' && this.governor.loadCap === null) {
+        if (++this.monstersLowStreak >= C.monsters.lowEvalsToReturn) this.monstersShed = false;
+      } else {
+        this.monstersLowStreak = 0;
+      }
+    }
+    return false;
+  }
+
   /** Центри й прямокутники огляду живих людей (так само, як у buildState). */
   private humanViews() {
     const w = this.world;
@@ -304,7 +533,7 @@ class Arena {
         this.retiring.delete(id);
         active++;
       }
-      while (active < want) {
+      while (active < want && !this.circleLocked()) {
         this.addBot();
         active++;
       }
@@ -338,6 +567,7 @@ class Arena {
    * (високе навантаження, ліміт ботів 0 і жодного бота на арені).
    */
   private bossAllowed() {
+    if (this.mode === 'circle') return false;
     return !(this.governor.loadCap === 0 && this.bots.size === 0);
   }
 
@@ -492,6 +722,22 @@ class Arena {
     const sample: LoadSample = { lateMs, ...proc };
     this.lastSample = sample;
     const before = this.governor.loadCap;
+    const level = classifyLoad(sample).level;
+    if (this.shedMonsters(level)) {
+      // высокая нагрузка: убрали орду монстров, ботов в эту оценку не трогаем
+      const d: GovernorDecision = {
+        at: nowMs,
+        level,
+        action: 'remove',
+        loadCap: this.governor.loadCap,
+        reasons: classifyLoad(sample).reasons,
+        sample,
+      };
+      this.decisions.push(d);
+      if (this.decisions.length > 20) this.decisions.shift();
+      this.syncBots();
+      return d;
+    }
     const d = this.governor.evaluate(
       sample,
       this.targetBots(),
@@ -524,6 +770,8 @@ class Arena {
         continue;
       }
       if (!p.alive) {
+        // раунд «Звужуване коло» після розминки: мертві боти до нового раунду не відроджуються
+        if (this.circleLocked()) continue;
         const at = this.botRespawn.get(id) ?? w.now + C.botRespawnMs;
         this.botRespawn.set(id, at);
         if (w.now >= at) {
@@ -534,10 +782,13 @@ class Arena {
       }
       thinkBot(w, p, this.rng);
     }
+    this.stepRoundPre();
+    this.stepMonsters();
     this.stepBossPre();
     this.leaderBeforeTick = w.leaderPid;
     const tB = performance.now();
     w.tick(1 / this.rate.hz);
+    this.stepRoundPost();
     this.stepBossPost();
     const tC = performance.now();
     this.phase.think += tB - tA;
@@ -565,7 +816,7 @@ class Arena {
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
       // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
-      this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
+      if (this.mode === 'normal') this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
       boardBuf = encodeBoard({
         top: ranked.slice(0, 10).map((t) => ({
           pid: t.id,
@@ -615,7 +866,7 @@ class Arena {
       ) {
         s.massReported = mm;
         s.massReportedAt = w.now;
-        this.hooks.onMass?.(s.userId, mm);
+        if (this.mode === 'normal') this.hooks.onMass?.(s.userId, mm);
       }
       if (starMsg) send(key, 'z', starMsg);
       if (rainMsg) send(key, 'rn', rainMsg);
@@ -624,6 +875,12 @@ class Arena {
       // «Хрест»: «Друге життя» - лише самому гравцеві
       if (revived.has(s.pid)) send(key, 'rv', {});
       for (const m of bossMsgs) send(key, 'bm', m);
+      for (const [ev, body] of this.roundMsgs) {
+        // 'ce:<pid>' - личный итог раунда (только этому игроку)
+        if (ev.startsWith('ce:')) {
+          if (Number(ev.slice(3)) === s.pid) send(key, 'ce', body);
+        } else send(key, ev, body);
+      }
       if (!p.alive && !s.deadSent) {
         s.deadSent = true;
         send(key, 'd', {
@@ -634,8 +891,9 @@ class Arena {
           topMs: Math.round(p.topMs),
           killer: w.players.get(p.killerPid)?.name ?? null,
           burned: p.burned || undefined,
+          zone: p.zoneDeath || undefined,
         });
-        this.hooks.onMass?.(s.userId, p.maxMass);
+        if (this.mode === 'normal') this.hooks.onMass?.(s.userId, p.maxMass);
         this.hooks.onDeath?.(s.userId, {
           maxMass: p.maxMass,
           kills: p.kills,
@@ -653,6 +911,7 @@ class Arena {
       }
     }
     this.bossMsgs = [];
+    this.roundMsgs = [];
     this.phase.send += sentMs;
     this.phase.encode += performance.now() - t0 - sentMs;
   }
@@ -896,11 +1155,15 @@ export interface JoinOptions {
   legacyThorns?: boolean;
   /** Арена з посилання-запрошення. Немає такої (закрита) - заходимо в доступну без жодних повідомлень. */
   arena?: number;
+  /** Режим арени: без поля - звичайна; circle - «Звужуване коло» (окрема арена). */
+  mode?: ArenaMode;
 }
 
 export interface JoinResult {
   ok: boolean;
-  error?: 'full' | 'busy' | 'expired';
+  error?: 'full' | 'busy' | 'expired' | 'round_running';
+  /** Для round_running: скільки мс чекати нового раунду. */
+  waitMs?: number;
   pid?: number;
   arenaId?: number;
   humans?: number;
@@ -917,6 +1180,9 @@ export interface JoinResult {
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
+  /** Режим арени і стан кола «Звужуване коло» на момент входу (hold/shrink - що лишилось). */
+  mode?: ArenaMode;
+  circle?: CircleMsg;
   rain?: { l: number; y: number; d: number; p: [number, number, number, number][] };
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
@@ -974,6 +1240,10 @@ export class FlockManager {
     if (sameConn) {
       // повторний вхід з того ж сокета = переродження
       const p = sameConn.arena.world.players.get(sameConn.pid);
+      if (p && !p.alive && !sameConn.arena.canRespawnHere()) {
+        // «Звужуване коло»: поки раунд іде, мертвий чекає наступного
+        return { ok: false, error: 'round_running', waitMs: sameConn.arena.roundWaitMs() };
+      }
       if (p && !p.alive) {
         sameConn.arena.world.setArtifact(p, opts.artifact ?? 0);
         sameConn.arena.world.respawn(p);
@@ -997,7 +1267,7 @@ export class FlockManager {
     // явний новий вхід (або токен не підійшов): стара сесія цього користувача (вкладка/пауза) закривається
     if (prev) this.removeSession(prev);
 
-    const arena = this.pickArena(opts.arena);
+    const arena = this.pickArena(opts.arena, opts.mode ?? 'normal');
     if (!arena) return { ok: false, error: 'full', resumeFailed };
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
@@ -1049,6 +1319,8 @@ export class FlockManager {
       lava: s.arena.world.lava ?? undefined,
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
+      mode: s.arena.mode,
+      circle: s.arena.circleSnapshot(),
       streak: this.streakInfo(s.arena) ?? undefined,
     };
   }
@@ -1074,13 +1346,17 @@ export class FlockManager {
   }
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
-  private pickArena(requested?: number): Arena | null {
-    const has = (a: Arena) => a.humans < C.maxHumansPerArena;
+  private pickArena(requested?: number, mode: ArenaMode = 'normal'): Arena | null {
+    const has = (a: Arena) => a.mode === mode && a.humans < C.maxHumansPerArena;
     const wanted = requested ? this.arenas.get(requested) : undefined;
     if (wanted && has(wanted)) return wanted;
     const any = [...this.arenas.values()].find(has);
     if (any) return any;
-    if (this.arenas.size >= C.maxArenas) return null;
+    // ліміт арен - окремо для звичайних і для режиму «Звужуване коло» (звичайна арена від режиму не залежить)
+    const sameMode = [...this.arenas.values()].filter((a) => a.mode === mode).length;
+    if (mode === 'circle') {
+      if (!C.circle.enabled || sameMode >= C.circle.maxArenas) return null;
+    } else if (sameMode >= C.maxArenas) return null;
     const arena = new Arena(
       this.nextArenaId++,
       this.rng,
@@ -1088,6 +1364,7 @@ export class FlockManager {
       this.now,
       this.hooks,
       this.opts.loadProbe,
+      mode,
     );
     this.arenas.set(arena.id, arena);
     return arena;

@@ -1,5 +1,5 @@
 import createSocket from "socket.io-client";
-import { FlockModel, type FlockCfg } from "./flockModel";
+import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
 import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
 import type { Dir } from "./flockInputMath";
 import {
@@ -26,7 +26,18 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | null;
+export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | "roundRunning" | null;
+
+/** Режим арени: звичайна або «Звужуване коло». */
+export type FlockMode = "normal" | "circle";
+
+/** Підсумок раунду «Звужуване коло» (подія `ce`; you - особисто для цього гравця). */
+export interface CircleEndInfo {
+  winner: { name: string; mass: number } | null;
+  top: { name: string; mass: number }[];
+  restartMs: number;
+  you: { place: number; win: boolean; mass: number };
+}
 
 /** Нагорода від сервера: «Ти перший! +10 рубінів». */
 export interface RewardInfo {
@@ -43,6 +54,8 @@ export interface DeathInfo {
   killer: string | null;
   /** Згорів у лаві (карта «Вулкан»). */
   burned?: boolean;
+  /** Загинув поза колом (режим «Звужуване коло»). */
+  zone?: boolean;
 }
 
 export interface FlockClientOptions {
@@ -52,6 +65,14 @@ export interface FlockClientOptions {
   lagMs?: number;
   /** Арена з посилання-запрошення (лише для нового входу). */
   arenaId?: number | null;
+  /** Режим, у якому входимо (за замовчуванням звичайна арена). */
+  mode?: FlockMode;
+  /** Раунд «Звужуване коло» завершився: показати підсумкову картку. */
+  onCircleEnd?: (info: CircleEndInfo) => void;
+  /** Стартував новий раунд (картку підсумків ховаємо). */
+  onCircleStart?: () => void;
+  /** Мертвого не пускають до кінця раунду: скільки мс чекати. */
+  onRoundWait?: (waitMs: number) => void;
   /** Якщо є свіжа збережена сесія - повертатись у неї одразу, без лобі. */
   autoResume?: boolean;
   onStatus: (status: FlockStatus) => void;
@@ -86,6 +107,7 @@ export class FlockClient {
   private socket: Sock | null = null;
   private skin = 0;
   private artifact = 0;
+  private mode: FlockMode;
   private wantPlay = false;
   private disposed = false;
   private arenaId: number | null;
@@ -101,6 +123,7 @@ export class FlockClient {
   constructor(private readonly opts: FlockClientOptions) {
     this.lag = Math.max(0, opts.lagMs ?? 0);
     this.arenaId = opts.arenaId ?? null;
+    this.mode = opts.mode ?? "normal";
     this.connect();
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", this.onVisible);
@@ -145,7 +168,7 @@ export class FlockClient {
         // розрив посеред гри: той самий токен, нову овечку не створюємо
         const have = this.stored ?? saved;
         if (have) this.emitResume(have);
-        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, artifact: this.artifact, ...(this.arenaId ? { arena: this.arenaId } : {}) }); // ще не встигли отримати welcome
+        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, artifact: this.artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...(this.mode === "circle" ? { mode: "circle" } : {}) }); // ще не встигли отримати welcome
       } else if (this.opts.autoResume !== false && saved && isResumable(saved)) {
         this.skin = saved.skin;
         this.wantPlay = true;
@@ -176,8 +199,11 @@ export class FlockClient {
     socket.on("w", (cfg: FlockCfg) => {
       this.later(() => {
         this.model = new FlockModel(cfg);
+        // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
+        this.mode = cfg.mode === "circle" ? "circle" : "normal";
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.model.applyRain(cfg.rain, performance.now());
+        this.model.applyCircle(cfg.circle, performance.now());
         this.stored = {
           token: cfg.resumeToken,
           arenaId: cfg.arenaId,
@@ -269,7 +295,26 @@ export class FlockClient {
     socket.on("r", (r: RewardInfo) => {
       if (typeof r?.amount === "number" && typeof r?.balance === "number") this.opts.onReward?.(r);
     });
-    socket.on("e", (e: { code?: string }) => {
+    // «Звужуване коло»: нова стадія кола (клієнти самі рахують радіус за часом) і підсумок раунду
+    socket.on("cz", (msg: CircleMsgIn) => {
+      this.later(() => {
+        if (!this.model) return;
+        this.model.applyCircle(msg, performance.now());
+        if (msg?.stage === 0) this.opts.onCircleStart?.();
+      });
+    });
+    socket.on("ce", (info: CircleEndInfo) => {
+      this.later(() => this.opts.onCircleEnd?.(info));
+    });
+    socket.on("e", (e: { code?: string; waitMs?: number }) => {
+      if (e?.code === "round_running") {
+        // «Звужуване коло»: поки раунд іде, мертвий чекає наступного - лобі з підказкою
+        this.wantPlay = false;
+        this.opts.onNotice?.("roundRunning");
+        this.opts.onRoundWait?.(Math.max(0, Number(e.waitMs) || 0));
+        this.setStatus("ready");
+        return;
+      }
       if (e?.code === "skin_locked") {
         // скін не куплено: сервер на арену не пустив, повертаємось у лобі
         this.wantPlay = false;
@@ -341,14 +386,15 @@ export class FlockClient {
   }
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
-  join(skin: number, artifact = 0) {
+  join(skin: number, artifact = 0, mode: FlockMode = this.mode) {
+    this.mode = mode;
     this.skin = skin;
     this.artifact = artifact;
     this.wantPlay = true;
     this.opts.onNotice?.(null);
     if (this.model) this.model.resetCamera();
     if (this.socket?.connected) {
-      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, artifact, ...(this.arenaId ? { arena: this.arenaId } : {}) });
+      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...(mode === "circle" ? { mode: "circle" } : {}) });
     }
   }
 
