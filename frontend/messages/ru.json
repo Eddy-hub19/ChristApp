@@ -374,6 +374,7 @@
     "resetting": "Сброс…",
     "dayStreak": "Серия дней",
     "dayStreakAlt": "Серия дней",
+    "streakTip": "Серия дней: {count}. Заходи каждый день, чтобы не потерять её",
     "verseKeeper": "Хранитель стихов",
     "verseKeeperGot": "Получено",
     "rewardsAlt": "Награды",

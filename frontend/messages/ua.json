@@ -374,6 +374,7 @@
     "resetting": "Скидання…",
     "dayStreak": "Серія днів",
     "dayStreakAlt": "Серія днів",
+    "streakTip": "Серія днів: {count}. Заходь щодня, щоб не втратити її",
     "verseKeeper": "Зберігач віршів",
     "verseKeeperGot": "Отримано",
     "rewardsAlt": "Нагороди",
