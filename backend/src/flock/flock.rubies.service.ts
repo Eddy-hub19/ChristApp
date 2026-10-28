@@ -209,9 +209,15 @@ export class FlockRubiesService {
    * Нагорода за 1-ше місце. Повертає null, якщо добовий ліміт вичерпано (сума обрізається до залишку).
    * Добу рахуємо за часом Києва.
    */
+  /** Перемога в режимі «Звужуване коло»: та сама добова межа арени, що й за 1-ше місце (причина ARENA_TOP1), інша сума. */
+  async awardCircleWin(userId: string, now = new Date()): Promise<AwardResult | null> {
+    return this.awardTop1(userId, now, FLOCK_CONFIG.circle.winReward);
+  }
+
   async awardTop1(
     userId: string,
     now = new Date(),
+    reward: number = R.top1Reward,
   ): Promise<AwardResult | null> {
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
@@ -225,7 +231,7 @@ export class FlockRubiesService {
         },
       });
       const left = R.dailyLimit - (agg._sum.delta ?? 0);
-      const amount = Math.min(R.top1Reward, left);
+      const amount = Math.min(reward, left);
       if (amount <= 0) return null;
       const next = await this.apply(tx, userId, balance, {
         delta: amount,

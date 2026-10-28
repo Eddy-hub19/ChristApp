@@ -418,6 +418,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 17,
+    date: "2026-10-30",
+    items: [
+      {
+        icon: "lava",
+        text: {
+          ua: "На карті «Вулкан» з'явилась орда «Лавових чудовиськ» (6–10): вони швидші на 20%, нападають на найближчого, але їх можна з'їсти. Новачків вони не чіпають",
+          ru: "На карте «Вулкан» появилась орда «Лавовых чудовищ» (6–10): они быстрее на 20%, нападают на ближайшего, но их можно съесть. Новичков они не трогают",
+          en: "A horde of “Lava monsters” (6–10) now roams the “Volcano” map: 20% faster, they hunt the nearest player, but you can eat them. Newcomers are safe",
+        },
+      },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Новий режим «Звужуване коло» (лобі → «Режими»): карта стискається, поза колом тане маса, переможець отримує рубіни в межах добового ліміту",
+          ru: "Новый режим «Сужающийся круг» (лобби → «Режимы»): карта сжимается, вне круга тает масса, победитель получает рубины в пределах дневного лимита",
+          en: "New “Shrinking circle” mode (lobby → “Modes”): the map shrinks, mass melts outside the circle, and the winner earns rubies within the daily limit",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

@@ -268,6 +268,34 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
       }
       break;
     }
+    case "magma": {
+      // «Лавове чудовисько»: тёмное тело с огненными трещинами (радиально, ломаные) и тлеющим краем
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      for (const pass of [0, 1]) {
+        c.strokeStyle = pass === 0 ? "#ff6a1a" : "#ffd36b";
+        c.lineWidth = Math.max(pass === 0 ? 1.3 : 0.7, r * (pass === 0 ? 0.075 : 0.032));
+        c.beginPath();
+        for (const a0 of [0.35, 1.45, 2.4, 3.55, 4.5, 5.55]) {
+          let px = Math.cos(a0) * r * 0.22;
+          let py = Math.sin(a0) * r * 0.22;
+          c.moveTo(px, py);
+          for (let k = 1; k <= 3; k++) {
+            const a = a0 + (k % 2 === 0 ? 0.2 : -0.2);
+            const d = r * (0.22 + k * 0.22);
+            px = Math.cos(a) * d;
+            py = Math.sin(a) * d;
+            c.lineTo(px, py);
+          }
+        }
+        c.stroke();
+      }
+      c.strokeStyle = "rgba(255,110,20,0.55)";
+      c.lineWidth = Math.max(1.2, r * 0.07);
+      circle(c, 0, 0, r * 0.96);
+      c.stroke();
+      break;
+    }
     case "alpha": {
       // «Вожак»: золотое кольцо по краю (заметен издалека) и корона на макушке
       c.strokeStyle = "#f2b61c";

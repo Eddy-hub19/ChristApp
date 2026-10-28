@@ -307,6 +307,62 @@ export const FLOCK_CONFIG = {
     gap: 100,
   },
 
+  /**
+   * «Лавові чудовиська» (лише карти з лавою): орда з min..max істот, що нападають на найближчу людину. Швидші за гравця
+   * тієї ж маси на speedMultiplier - 1, маса невелика, ділитися не вміють, лави не бояться й ходять по ній. Їх можна з'їсти
+   * (звичайна маса), мертві відроджуються в лаві через respawnMs. Не нападають на новачків (botGraceMs), щит, привида й паузу;
+   * рубінів за них нема, у таблиці лідерів їх нема. При високому навантаженні регулятор прибирає їх ПЕРВИМИ (ботів не чіпає),
+   * повертає після lowEvalsToReturn спокійних оцінок; capByHumans - жорсткий ліміт за числом людей (від 6 людей - не більше 4).
+   */
+  monsters: {
+    enabled: true,
+    min: 6,
+    max: 10,
+    name: 'Магма',
+    massMin: 60,
+    massMax: 90,
+    /** Стеля маси: надлишок після з'їдених гравців зникає, щоб орда не обростала. */
+    ceilMass: 160,
+    speedMultiplier: 1.2,
+    respawnMs: 20_000,
+    /** Раз на скільки тіків думає (боти - botThinkEvery = 5). */
+    thinkEvery: 8,
+    aggroRadius: 900,
+    capByHumans: [[6, 4]] as readonly (readonly [number, number])[],
+    lowEvalsToReturn: 6,
+  },
+
+  /**
+   * Режим «Звужуване коло» (окрема арена, кнопка «Режими» в лобі). Раунд: warmupMs тиші, далі стадії: holdMs чекаємо,
+   * shrinkMs коло звужується до radius (центр випадковий, на початку коло майже покриває світ). Клітина ПОЗА колом
+   * втрачає масу: max(маса × outsideLossPerSec, outsideMinLossPerSec) за секунду; менше за dieBelowMass - зникає.
+   * Раунд кінчається, коли лишився один живий (разом із ботами) чи жодної людини, або по таймеру (після останнього
+   * звуження ще finalHoldMs): переможець - останній живий або найбільший за масою. Людині-переможцю - winReward рубінів
+   * (у межах того ж добового ліміту арени), далі endHoldMs показуємо підсумки й стартує новий раунд. Світ без лави й дощу.
+   */
+  circle: {
+    enabled: true,
+    maxArenas: 1,
+    /** Карти, на яких може бути режим (без лави й дощу). */
+    maps: [0, 2] as readonly number[],
+    warmupMs: 15_000,
+    startRadius: 2500,
+    /** Центр не ближче до краю світу, ніж centerMargin (щоб круг лишався в межах карти). */
+    centerMargin: 1000,
+    stages: [
+      { holdMs: 12_000, shrinkMs: 25_000, radius: 1150 },
+      { holdMs: 10_000, shrinkMs: 20_000, radius: 700 },
+      { holdMs: 8_000, shrinkMs: 15_000, radius: 380 },
+      { holdMs: 6_000, shrinkMs: 12_000, radius: 150 },
+    ] as readonly { holdMs: number; shrinkMs: number; radius: number }[],
+    finalHoldMs: 10_000,
+    outsideLossPerSec: 0.12,
+    outsideMinLossPerSec: 6,
+    dieBelowMass: 8,
+    endHoldMs: 10_000,
+    winReward: 5,
+  },
+
   // --- область видимості ---
   viewBase: 400,
   viewPerSqrtMass: 6.5,
@@ -571,6 +627,16 @@ export function clientGameConfig() {
       takerShare: c.scissors.takerShare,
     },
     spawnBoost: { ...c.spawnBoost },
+    circle: {
+      warmupMs: c.circle.warmupMs,
+      stages: c.circle.stages.length,
+      outsideLossPerSec: c.circle.outsideLossPerSec,
+      outsideMinLossPerSec: c.circle.outsideMinLossPerSec,
+      winReward: c.circle.winReward,
+      endHoldMs: c.circle.endHoldMs,
+      totalMs: c.circle.warmupMs + c.circle.stages.reduce((a, st) => a + st.holdMs + st.shrinkMs, 0) + c.circle.finalHoldMs,
+    },
+    monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
     rain: {
       intervalMinMs: c.rain.intervalMinMs,
@@ -656,6 +722,8 @@ export const EXTRA_PAID_FROM = 34;
 export const NUM_SKINS = 47;
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
+/** Скін «Лавового чудовиська»: поза NUM_SKINS, гравець його вибрати не може (клієнт малює темне створіння з вогняними тріщинами). */
+export const MONSTER_SKIN = 47;
 /** Перший номер платних скінів у старій нумерації (лише для зворотної сумісності; безкоштовні - FREE_SKIN_IDS). */
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 /**

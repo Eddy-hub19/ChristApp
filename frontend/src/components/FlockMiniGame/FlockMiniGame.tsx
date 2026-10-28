@@ -12,7 +12,7 @@ import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
-import { FlockClient, type DeathInfo, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
+import { FlockClient, type CircleEndInfo, type DeathInfo, type FlockMode, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
@@ -21,6 +21,7 @@ import { CUSTOM_COOLDOWN_MS, CUSTOM_MAX_LEN, loadHidePhrases, PHRASES, saveHideP
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
+import FlockModes from "./FlockModes";
 import FlockSheet from "./FlockSheet";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
@@ -60,9 +61,11 @@ type Hud = {
   sprintSupported: boolean;
   sprintReady: boolean;
   sprintActive: boolean;
+  /** Режим «Звужуване коло»: стадія/фаза кола (null - звичайна арена). */
+  circle: { phase: "warmup" | "hold" | "shrink" | "final"; leftMs: number; stage: number; stages: number } | null;
 };
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -184,6 +187,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
+  /** «Режими» (окно в лобби), подведение итогов раунда «Звужуване коло» и «раунд ещё идёт» для мёртвого. */
+  const [modesOpen, setModesOpen] = useState(false);
+  const [circleEnd, setCircleEnd] = useState<(CircleEndInfo & { at: number }) | null>(null);
+  const [roundWait, setRoundWait] = useState<{ ms: number; at: number } | null>(null);
+  /** Текущее время для секунд на карточке итогов и подсказке «раунд ещё идёт» (обновляется таймером, не при рендере). */
+  const [nowMs, setNowMs] = useState(0);
   const [isTouch, setIsTouch] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<FlockNotice>(null);
@@ -333,6 +342,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         arenaId,
         autoResume: true,
         onNotice: setNotice,
+        onCircleEnd: (info) => setCircleEnd({ ...info, at: Date.now() }),
+        onCircleStart: () => setCircleEnd(null),
+        onRoundWait: (ms) => setRoundWait({ ms, at: Date.now() }),
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
         onSayRejected: (reason) => setSayNotice(t(`phrases.rejected.${reason}`)),
@@ -358,7 +370,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     };
   }, [open, userId, attempt, arenaId, refreshMe]);
 
-  const play = useCallback(() => {
+  const play = useCallback((mode?: FlockMode) => {
     try {
       localStorage.setItem(SKIN_KEY, String(skin));
     } catch {
@@ -368,8 +380,19 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setDeath(null);
     setReward(null);
     if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
-    clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0);
+    setCircleEnd(null);
+    setRoundWait(null);
+    setModesOpen(false);
+    clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0, mode);
   }, [skin, artifact, me]);
+
+  // секунды на карточке итогов и в подсказке «раунд ещё идёт» тикают раз в 500 мс
+  useEffect(() => {
+    if (!circleEnd && !roundWait) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [circleEnd, roundWait]);
 
   const eagleOn = hud.effects.some((e) => e.kind === "eagle");
   const eagleWasOn = useRef(false);
@@ -629,6 +652,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         sprintSupported: Boolean(model.cfg.speed.sprint),
         sprintReady: model.sprintReady(),
         sprintActive: model.sprintActive,
+        circle: model.cfg.mode === "circle" ? model.circleStatus(performance.now()) : null,
       });
     }, 250);
 
@@ -943,6 +967,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </ol>
           </aside>
 
+          {hud.circle ? (
+            <div className={styles.circleBanner} role="status" aria-live="polite">
+              <strong>
+                {hud.circle.phase === "warmup"
+                  ? t("circle.warmup", { s: Math.ceil(hud.circle.leftMs / 1000) })
+                  : hud.circle.phase === "hold"
+                    ? t("circle.hold", { s: Math.ceil(hud.circle.leftMs / 1000) })
+                    : hud.circle.phase === "shrink"
+                      ? t("circle.shrinking", { s: Math.ceil(hud.circle.leftMs / 1000) })
+                      : t("circle.final")}
+              </strong>
+              <span>{t("circle.alive", { n: hud.alive })}</span>
+            </div>
+          ) : null}
+
           <canvas ref={miniRef} className={styles.minimap} style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE }} aria-hidden />
 
           {hud.effects.length > 0 ? (
@@ -1080,11 +1119,56 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         </>
       ) : null}
 
-      {status === "dead" && death ? (
+      {(status === "playing" || status === "dead") && circleEnd ? (
+        <div className={styles.cardWrap}>
+          <div className={styles.card} role="alertdialog" aria-label={t("circle.endTitle")}>
+            <h2>{t("circle.endTitle")}</h2>
+            <p className={styles.sub}>
+              {circleEnd.winner ? t("circle.winner", { name: circleEnd.winner.name, mass: circleEnd.winner.mass }) : t("circle.noWinner")}
+            </p>
+            <p className={circleEnd.you.win ? styles.notice : styles.sub}>
+              {circleEnd.you.win
+                ? t("circle.youWon")
+                : circleEnd.you.place > 0
+                  ? t("circle.youPlace", { place: circleEnd.you.place })
+                  : t("circle.youOut")}
+            </p>
+            <dl className={styles.summary}>
+              <div>
+                <dt>{t("dead.maxSize")}</dt>
+                <dd>{circleEnd.you.mass}</dd>
+              </div>
+            </dl>
+            {circleEnd.top.length > 0 ? (
+              <ol className={styles.killed}>
+                {circleEnd.top.map((row, i) => (
+                  <li key={`${row.name}-${i}`}>
+                    {i + 1}. {row.name} — {row.mass}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            <p className={styles.sub}>
+              {t("circle.next", { s: Math.max(0, Math.ceil((circleEnd.at + circleEnd.restartMs - (nowMs || circleEnd.at)) / 1000)) })}
+            </p>
+            <div className={styles.cardButtons}>
+              <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
+                {t("again")}
+              </button>
+              <button type="button" className={styles.secondary} onClick={handleClose}>
+                {t("close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {status === "dead" && death && !circleEnd ? (
         <div className={styles.cardWrap}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
             <h2>{death.burned ? t("dead.burnedTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
+            {death.zone ? <p className={styles.sub}>{t("dead.zone")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
             <dl className={styles.summary}>
               <div>
@@ -1102,7 +1186,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </dl>
             {death.killed.length > 0 ? <p className={styles.killed}>{death.killed.join(", ")}</p> : null}
             <div className={styles.cardButtons}>
-              <button type="button" className={styles.primary} onClick={play} autoFocus>
+              <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
                 {t("again")}
               </button>
               <button type="button" className={styles.secondary} onClick={handleClose}>
@@ -1119,7 +1203,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           canPlay={status === "ready"}
           onClose={(withPlay) => {
             setAnnouncement(null);
-            if (withPlay) play();
+            if (withPlay) play("normal");
           }}
         />
       ) : null}
@@ -1217,6 +1301,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </>
           )}
         </FlockSheet>
+      ) : null}
+      {modesOpen && showLobby ? (
+        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlay={() => play("circle")} onClose={() => setModesOpen(false)} />
       ) : null}
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
@@ -1334,6 +1421,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
+            {notice === "roundRunning" ? (
+              <p className={styles.notice}>
+                {t("status.roundRunning", { s: roundWait ? Math.max(1, Math.ceil((roundWait.ms - ((nowMs || roundWait.at) - roundWait.at)) / 1000)) : 1 })}
+              </p>
+            ) : null}
             {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
             {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
             {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}
@@ -1347,10 +1439,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   {t("retry")}
                 </button>
               ) : (
-                <button type="button" className={styles.primary} onClick={play} disabled={status !== "ready"}>
+                <button type="button" className={styles.primary} onClick={() => play("normal")} disabled={status !== "ready"}>
                   {status === "ready" ? t("play") : status === "resuming" ? t("resuming") : t("connecting")}
                 </button>
               )}
+              <button type="button" className={styles.secondary} onClick={() => setModesOpen(true)} aria-haspopup="dialog">
+                {t("modes.open")}
+              </button>
               <button type="button" className={styles.secondary} onClick={handleClose}>
                 {t("close")}
               </button>
