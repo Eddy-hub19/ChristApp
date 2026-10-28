@@ -56,9 +56,13 @@ type Hud = {
   selfPid: number;
   effects: { kind: string; remainingMs: number; totalMs: number }[];
   arenaId: number | null;
+  /** «Прискорення»: сервер його підтримує, зараз достатньо маси (кнопка активна) і воно діє просто зараз. */
+  sprintSupported: boolean;
+  sprintReady: boolean;
+  sprintActive: boolean;
 };
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -144,6 +148,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const dirRef = useRef<Dir>({ angle: 0, power: 0 });
   const throwHeldRef = useRef(false);
   const splitQueuedRef = useRef(false);
+  /** Кнопка / Shift «Прискорення» утримується. */
+  const sprintHeldRef = useRef(false);
+  const stepInputRef = useRef({ angle: 0, power: 0, sprint: false });
+  const sprintSentRef = useRef(false);
+  /** Палец, держащий кнопку «Прискорення»: кнопка может стать неактивной (мало массы) и не получить pointerup - отпускаем по окну. */
+  const sprintPointerRef = useRef<number | null>(null);
   const lastSentRef = useRef<{ dir: Dir; at: number } | null>(null);
   const themeRef = useRef<Theme>(currentTheme());
   const stickRef = useRef<{ id: number; bx: number; by: number } | null>(null);
@@ -577,7 +587,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       const dt = (now - last) / 1000;
       last = now;
       model.aspect = aspectRef.current;
-      model.step(dt, dirRef.current, now);
+      const stepInput = stepInputRef.current;
+      stepInput.angle = dirRef.current.angle;
+      stepInput.power = dirRef.current.power;
+      stepInput.sprint = sprintHeldRef.current;
+      model.step(dt, stepInput, now);
       if (debug) (window as unknown as { __flockModel?: unknown }).__flockModel = model;
       if (model.total > maxTotalRef.current) maxTotalRef.current = model.total;
       drawScene(ctx, model, {
@@ -612,6 +626,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         selfPid: model.cfg.pid,
         arenaId: model.cfg.arenaId,
         effects: model.effects.map((e) => ({ ...e })),
+        sprintSupported: Boolean(model.cfg.speed.sprint),
+        sprintReady: model.sprintReady(),
+        sprintActive: model.sprintActive,
       });
     }, 250);
 
@@ -625,8 +642,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       splitQueuedRef.current = false;
       const nowMs = performance.now();
       const prev = lastSentRef.current;
-      if (split || thr || inputChanged(prev?.dir ?? null, dir, prev ? nowMs - prev.at : 1e9)) {
-        client.sendInput(dir, split, thr, aspectRef.current);
+      // пока «Прискорення» утримується - шлём ввод каждый такт (сервер держит его ~0.45 с после последнего пакета)
+      const sprint = sprintHeldRef.current;
+      const sprintChanged = sprint !== sprintSentRef.current;
+      if (split || thr || sprint || sprintChanged || inputChanged(prev?.dir ?? null, dir, prev ? nowMs - prev.at : 1e9)) {
+        sprintSentRef.current = sprint;
+        client.sendInput(dir, split, thr, aspectRef.current, sprint);
         lastSentRef.current = { dir: { ...dir }, at: nowMs };
       }
     }, 100);
@@ -654,6 +675,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         if (!e.repeat) splitQueuedRef.current = true;
       } else if (e.code === "KeyW") {
         throwHeldRef.current = true;
+      } else if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
+        sprintHeldRef.current = true;
       } else if (e.code === "KeyT" && playing && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const el = e.target as HTMLElement | null;
         if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
@@ -666,12 +689,30 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "KeyW") throwHeldRef.current = false;
+      if (e.code === "ShiftLeft" || e.code === "ShiftRight") sprintHeldRef.current = false;
+    };
+    // окно потеряло фокус - keyup может не прийти: отпускаем рывок
+    const release = () => {
+      sprintHeldRef.current = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    const releasePointer = (e: PointerEvent) => {
+      if (e.pointerId === sprintPointerRef.current) {
+        sprintPointerRef.current = null;
+        sprintHeldRef.current = false;
+      }
+    };
+    window.addEventListener("blur", release);
+    window.addEventListener("pointerup", releasePointer);
+    window.addEventListener("pointercancel", releasePointer);
     return () => {
+      window.removeEventListener("pointerup", releasePointer);
+      window.removeEventListener("pointercancel", releasePointer);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", release);
+      sprintHeldRef.current = false;
     };
   }, [open, playing, handleClose]);
 
@@ -947,6 +988,25 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             >
               {t("controls.throw")}
             </button>
+            {hud.sprintSupported ? (
+              <button
+                type="button"
+                className={[styles.actionBtn, styles.sprintBtn, hud.sprintActive ? styles.sprintBtnActive : ""].filter(Boolean).join(" ")}
+                disabled={!hud.sprintReady && !hud.sprintActive}
+                aria-pressed={hud.sprintActive}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  sprintPointerRef.current = e.pointerId;
+                  sprintHeldRef.current = true;
+                }}
+                onPointerUp={() => (sprintHeldRef.current = false)}
+                onPointerLeave={() => (sprintHeldRef.current = false)}
+                onPointerCancel={() => (sprintHeldRef.current = false)}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                {t("controls.sprint")}
+              </button>
+            ) : null}
           </div>
           {phrasesOpen ? <div className={styles.phrasesBackdrop} onPointerDown={() => setPhrasesOpen(false)} aria-hidden /> : null}
           {phrasesOpen ? (

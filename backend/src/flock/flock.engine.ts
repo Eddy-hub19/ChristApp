@@ -157,6 +157,10 @@ export interface Player {
   boostUntil: number;
   wantSplit: boolean;
   wantThrow: boolean;
+  /** Кнопка «Прискорення» утримується: кожен ввід із нею продовжує до now+SPRINT_HOLD_MS (клієнт шле ~10/с; обрив мережі = відпустив). */
+  sprintUntil: number;
+  /** «Прискорення» діє цього тіку (кнопка + умови за масою; ботам і паузі - ні). */
+  sprinting: boolean;
   lastSplitAt: number;
   lastThrowAt: number;
   spawnedAt: number;
@@ -213,6 +217,21 @@ export interface Bonus {
 }
 
 /** Зірка події «Зорепад»: падає fallMs, підбирається після landAt. */
+/** Калюжа «Дощу»: уповільнює клітини, чий центр у колі. */
+export interface Puddle {
+  id: number;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** Старт дощу: l - скільки мс триватиме дощ, d - скільки підсихають калюжі після нього, p - [id, x, y, r]. */
+export interface RainEvent {
+  l: number;
+  d: number;
+  p: [number, number, number, number][];
+}
+
 export interface Star {
   id: number;
   x: number;
@@ -258,6 +277,16 @@ const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
 );
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
+/**
+ * Множник швидкості з «Прискоренням»: +speedBonus до решти бонусів, але не вище maxSpeedMultiplier
+ * (і ніколи не нижче того, що було без ривка: ривок швидкість не віднімає).
+ */
+/** Скільки мс «Прискорення» тримається після останнього вводу з утриманою кнопкою. */
+const SPRINT_HOLD_MS = 450;
+
+export const sprintedMultiplier = (m: number) =>
+  Math.min(m * (1 + C.sprint.speedBonus), Math.max(m, C.sprint.maxSpeedMultiplier));
+
 export const speedOf = (mass: number) =>
   Math.max(C.minSpeed, C.baseSpeed * Math.pow(mass, C.speedMassExp));
 export const chunkIndexOf = (x: number, y: number) => {
@@ -287,6 +316,11 @@ export class FlockWorld {
   readonly scissorsEvents: ScissorsEvent[] = [];
   /** pid гравців, що цього тіку ожили від «Хреста» (очищається щотіку). */
   readonly reviveEvents: number[] = [];
+  /** «Дощ»: поточна подія (null - нема) і калюжі; rainEvents - що розіслати цього тіку (старт). */
+  private rain: { endsAt: number; dryUntil: number } | null = null;
+  readonly puddles: Puddle[] = [];
+  readonly rainEvents: RainEvent[] = [];
+  private rainNextAt = 0;
   private zActive = false;
   private zUntil = 0;
   private zNextSpawnAt = 0;
@@ -317,6 +351,7 @@ export class FlockWorld {
     readonly mapId: number = 0,
   ) {
     const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
+    if (C.rain.maps.includes(mapId)) this.rainNextAt = this.rollRainDelay();
     if (map.lava) {
       this.lava = generateLava(rng, C.worldSize);
       this.hazards = [
@@ -393,6 +428,8 @@ export class FlockWorld {
       boostUntil: 0,
       wantSplit: false,
       wantThrow: false,
+      sprintUntil: 0,
+      sprinting: false,
       lastSplitAt: -1e9,
       lastThrowAt: -1e9,
       spawnedAt: this.now,
@@ -437,6 +474,8 @@ export class FlockWorld {
     p.zorepadCount = 0;
     p.reviveUsed = false;
     p.wantSplit = p.wantThrow = false;
+    p.sprintUntil = 0;
+    p.sprinting = false;
     // коротка недоторканність після народження
     p.effects.shield = this.now + C.spawnShieldMs;
     p.lavaSafeUntil = this.now + C.spawnShieldMs;
@@ -503,6 +542,10 @@ export class FlockWorld {
     p.angle = angle;
     p.power = Math.max(0, Math.min(1, power));
   }
+  setSprint(pid: number, on: boolean) {
+    const p = this.players.get(pid);
+    if (p) p.sprintUntil = on ? this.now + SPRINT_HOLD_MS : 0;
+  }
   queueSplit(pid: number) {
     const p = this.players.get(pid);
     if (p) p.wantSplit = true;
@@ -520,6 +563,8 @@ export class FlockWorld {
     p.pausedAt = this.now;
     p.power = 0;
     p.wantSplit = p.wantThrow = false;
+    p.sprintUntil = 0;
+    p.sprinting = false;
   }
 
   /**
@@ -691,6 +736,7 @@ export class FlockWorld {
     this.reviveEvents.length = 0;
     this.deaths.length = 0;
     this.lavaEvents.length = 0;
+    this.rainEvents.length = 0;
     const nowMs = this.now;
 
     for (const p of this.players.values()) {
@@ -698,12 +744,14 @@ export class FlockWorld {
       if (p.paused) {
         // стоїмо: імпульс (поділ/кидок) плавно згасає, керування й злиття не працюють
         p.power = 0;
+        p.sprinting = false;
         this.moveCells(p, dt);
         continue;
       }
       if (p.wantSplit) this.doSplit(p);
       if (p.wantThrow) this.doThrow(p);
       p.wantSplit = p.wantThrow = false;
+      this.stepSprint(p, dt);
       this.moveCells(p, dt);
       this.mergeOwn(p, dt);
     }
@@ -753,6 +801,7 @@ export class FlockWorld {
     if (leader && !leader.paused) leader.topMs += dt * 1000;
 
     this.stepZorepad();
+    this.stepRain();
 
     // поповнення їжі (порціями, щоб не стрибало)
     for (let i = 0; i < C.foodRegrowPerTick && this.foodById.size < C.maxFood; i++)
@@ -780,12 +829,39 @@ export class FlockWorld {
     return 1 + (C.spawnBoost.speedBonus * left) / C.spawnBoost.durationMs;
   }
 
+  /**
+   * «Прискорення»: умови (кнопка, не бот, не пауза, не заморожений, маса не менша за minTotalMass) і спалювання маси.
+   * Згоріла маса просто зникає; загальна маса не падає нижче max(startMass, floorMass). Щит і інші ефекти не чіпаємо.
+   */
+  private stepSprint(p: Player, dt: number) {
+    const S = C.sprint;
+    const floor = Math.max(C.startMass, S.floorMass);
+    p.sprinting =
+      this.now < p.sprintUntil &&
+      !p.bot &&
+      !p.paused &&
+      this.now >= p.frozenUntil &&
+      p.total >= S.minTotalMass &&
+      p.total > floor;
+    if (!p.sprinting) return;
+    let total = 0;
+    for (const c of p.cells) total += c.mass;
+    if (total <= floor) {
+      p.sprinting = false;
+      return;
+    }
+    const burn = Math.min(total * S.burnPerSec * dt, total - floor);
+    const k = (total - burn) / total;
+    for (const c of p.cells) c.mass *= k;
+  }
+
   private speedFor(p: Player, c: Cell) {
     if (this.now < p.frozenUntil) return 0;
-    let s = speedOf(c.mass) * this.spawnBoostFactor(p);
-    if (this.hasEffect(p, 'speed')) s *= C.speedMultiplier;
-    if (this.hasArtifact(p, ARTIFACT.shoes)) s *= 1 + C.artifacts.shoesSpeedBonus;
-    return Math.min(s, C.maxSpeedHard);
+    let m = this.spawnBoostFactor(p);
+    if (this.hasEffect(p, 'speed')) m *= C.speedMultiplier;
+    if (this.hasArtifact(p, ARTIFACT.shoes)) m *= 1 + C.artifacts.shoesSpeedBonus;
+    if (p.sprinting) m = sprintedMultiplier(m);
+    return Math.min(speedOf(c.mass) * m, C.maxSpeedHard) * this.puddleFactor(c.x, c.y);
   }
 
   private moveCells(p: Player, dt: number) {
@@ -1240,6 +1316,106 @@ export class FlockWorld {
     });
   }
 
+  // ---------- «Дощ» ----------
+  private rollRainDelay() {
+    const R = C.rain;
+    return this.now + R.intervalMinMs + this.rng() * (R.intervalMaxMs - R.intervalMinMs);
+  }
+
+  /** Дощ іде просто зараз (калюжі ще й підсихають після нього - див. puddleFactor). */
+  rainActive() {
+    return this.rain !== null && this.now < this.rain.endsAt;
+  }
+
+  /** Множник швидкості від калюж у точці: 1 - сухо; у калюжі 1 - slowFraction (лінійно слабшає, поки калюжі підсихають). */
+  puddleFactor(x: number, y: number): number {
+    const rain = this.rain;
+    if (!rain || this.puddles.length === 0) return 1;
+    const f = this.now < rain.endsAt ? 1 : Math.max(0, (rain.dryUntil - this.now) / C.rain.dryMs);
+    for (const q of this.puddles) {
+      const dx = x - q.x;
+      const dy = y - q.y;
+      if (dx * dx + dy * dy < q.r * q.r) return 1 - C.rain.slowFraction * f;
+    }
+    return 1;
+  }
+
+  /** Точка в калюжі з запасом (для ботів: туди за їжею не йдуть, поки калюжі діють). */
+  inPuddle(x: number, y: number, margin = 0): boolean {
+    if (!this.rain) return false;
+    for (const q of this.puddles) {
+      const rr = q.r + margin;
+      const dx = x - q.x;
+      const dy = y - q.y;
+      if (dx * dx + dy * dy < rr * rr) return true;
+    }
+    return false;
+  }
+
+  /** Стан дощу для нового клієнта (welcome): l - лишилось дощу, y - лишилось підсихання після нього, d - повне підсихання. */
+  rainSnapshot() {
+    const rain = this.rain;
+    if (!rain) return undefined;
+    return {
+      l: Math.max(0, Math.round(rain.endsAt - this.now)),
+      y: Math.max(0, Math.round(rain.dryUntil - Math.max(this.now, rain.endsAt))),
+      d: C.rain.dryMs,
+      p: this.puddles.map((q) => [q.id, Math.round(q.x), Math.round(q.y), Math.round(q.r)] as [number, number, number, number]),
+    };
+  }
+
+  private stepRain() {
+    if (!C.rain.maps.includes(this.mapId)) return;
+    const R = C.rain;
+    const rain = this.rain;
+    if (rain) {
+      if (this.now >= rain.dryUntil) {
+        this.rain = null;
+        this.puddles.length = 0;
+        this.rainNextAt = this.rollRainDelay();
+      }
+      return;
+    }
+    if (this.now < this.rainNextAt || this.zActive) return;
+    let human = false;
+    for (const p of this.players.values()) {
+      if (p.alive && !p.bot && !p.paused) {
+        human = true;
+        break;
+      }
+    }
+    if (!human) return;
+
+    const duration = R.durationMinMs + this.rng() * (R.durationMaxMs - R.durationMinMs);
+    this.rain = { endsAt: this.now + duration, dryUntil: this.now + duration + R.dryMs };
+    this.puddles.length = 0;
+    const want = R.puddlesMin + Math.floor(this.rng() * (R.puddlesMax - R.puddlesMin + 1));
+    const half = C.worldSize / 2;
+    const lo = R.edgeMargin;
+    const hi = C.worldSize - R.edgeMargin;
+    for (let attempt = 0; attempt < want * 30 && this.puddles.length < want; attempt++) {
+      const r = R.puddleRadiusMin + this.rng() * (R.puddleRadiusMax - R.puddleRadiusMin);
+      const x = lo + this.rng() * (hi - lo);
+      const y = lo + this.rng() * (hi - lo);
+      if (Math.hypot(x - half, y - half) < R.centerClear + r) continue;
+      if (this.puddles.some((q) => Math.hypot(x - q.x, y - q.y) < q.r + r + R.gap)) continue;
+      let underPlayer = false;
+      for (const p of this.players.values()) {
+        if (!p.alive || p.bot) continue;
+        for (const c of p.cells) {
+          if (Math.hypot(x - c.x, y - c.y) < r + R.gap) underPlayer = true;
+        }
+      }
+      if (underPlayer) continue;
+      this.puddles.push({ id: this.puddles.length + 1, x, y, r });
+    }
+    this.rainEvents.push({
+      l: Math.round(duration),
+      d: R.dryMs,
+      p: this.puddles.map((q) => [q.id, Math.round(q.x), Math.round(q.y), Math.round(q.r)] as [number, number, number, number]),
+    });
+  }
+
   // ---------- «Зорепад» ----------
   /** Зірки для нового клієнта (welcome): скільки мс лишилось до приземлення (0 - уже лежить). */
   starsSnapshot() {
@@ -1310,6 +1486,8 @@ export class FlockWorld {
    */
   private zorepadStarter(): Player | null {
     const Z = C.zorepad;
+    // під час дощу «Зорепад» чекає його кінця (дощ і зорепад не йдуть разом)
+    if (this.rainActive()) return null;
     let alive = 0;
     let starter: Player | null = null;
     for (const p of this.players.values()) {

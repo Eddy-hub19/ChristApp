@@ -17,7 +17,15 @@ export interface FlockCfg {
   tickHz: number;
   radiusK: number;
   /** spawnBoost - частка розгону на старті (0.4 = +40%), що спадає до 0 за durations.boost. */
-  speed: { base: number; exp: number; min: number; boost: number; spawnBoost?: number };
+  speed: {
+    base: number;
+    exp: number;
+    min: number;
+    boost: number;
+    spawnBoost?: number;
+    /** «Прискорення» (дзеркало серверного FLOCK_CONFIG.sprint); без поля - старий сервер, кнопки нема. */
+    sprint?: { speedBonus: number; burnPerSec: number; minTotalMass: number; floorMass: number; maxSpeedMultiplier: number };
+  };
   durations: Record<string, number>;
   magnetRadius: number;
   /** Скільки сервер тримає овечку в паузі після розриву. */
@@ -41,8 +49,28 @@ export interface FlockCfg {
   thornStyle?: "bush" | "autumn" | "fir" | "charred";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
+  /** На скільки калюжа уповільнює клітини (частка); без поля - 0.2. */
+  rainSlow?: number;
+  /** «Дощ», що йде на момент входу: l - лишилось дощу (мс), y - підсихання після нього, d - повне підсихання, p - калюжі [id, x, y, r]. */
+  rain?: { l: number; y?: number; d: number; p: [number, number, number, number][] };
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
+}
+
+/** Калюжа «Дощу» (світові координати). */
+export interface RPuddle {
+  id: number;
+  x: number;
+  y: number;
+  r: number;
+}
+
+/** «Дощ»: часові мітки в локальному годиннику моделі (мс). Калюжі діють до dryEndsAt, слабшаючи після rainEndsAt. */
+export interface RRain {
+  rainEndsAt: number;
+  dryEndsAt: number;
+  dryMs: number;
+  puddles: RPuddle[];
 }
 
 /** Зірка «Зорепаду»: падає fall мс від t0 (локальний час, мс), потім лежить, поки її не з'їдять. */
@@ -145,6 +173,10 @@ export class FlockModel {
   thorns: { id: number; x: number; y: number; mass: number }[] = [];
   /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
   readonly stars = new Map<number, RStar>();
+  /** Поточний «Дощ» (null - нема). */
+  rain: RRain | null = null;
+  /** «Прискорення» своєї клітини діє цього кадру (для сліду й індикатора). */
+  sprintActive = false;
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
   /** Активні хвилі «Ножиць» (анімація ~SCISSORS_WAVE_MS, потім прибираються при малюванні). */
   readonly scissorsWaves: RScissorsWave[] = [];
@@ -199,10 +231,66 @@ export class FlockModel {
     return this.cfg.radiusK * Math.sqrt(mass);
   }
 
-  speedOf(mass: number, boosted: boolean, startFactor = 1) {
+  speedOf(mass: number, boosted: boolean, startFactor = 1, sprint = false) {
     const s = this.cfg.speed;
-    const v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor;
-    return boosted ? v * s.boost : v;
+    let v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor;
+    if (boosted) v *= s.boost;
+    if (sprint && s.sprint) {
+      // та сама формула, що на сервері (sprintedMultiplier): +бонус до решти множників, але не вище стелі
+      const m = startFactor * (boosted ? s.boost : 1);
+      v *= Math.min(m * (1 + s.sprint.speedBonus), Math.max(m, s.sprint.maxSpeedMultiplier)) / m;
+    }
+    return v;
+  }
+
+  /** Чи можна зараз користуватись «Прискоренням» (достатньо маси): для активності кнопки й передбачення. */
+  sprintReady(): boolean {
+    const sp = this.cfg.speed.sprint;
+    return Boolean(sp) && this.alive && this.total >= sp!.minTotalMass && this.total > sp!.floorMass;
+  }
+
+  /** Події «Дощу»: msg з welcome (rain) або події "rn": { l, d, y?, p }. */
+  applyRain(msg: { l?: number; y?: number; d?: number; p?: unknown } | null | undefined, recvMs: number = this.localNow) {
+    if (!msg || !Array.isArray(msg.p)) return;
+    const l = Math.max(0, Number(msg.l) || 0);
+    const dryMs = Math.max(1, Number(msg.d) || 1);
+    const y = msg.y === undefined ? dryMs : Math.max(0, Number(msg.y) || 0);
+    this.rain = {
+      rainEndsAt: recvMs + l,
+      dryEndsAt: recvMs + l + y,
+      dryMs,
+      puddles: (msg.p as unknown[]).flatMap((q) =>
+        Array.isArray(q) && q.length >= 4 ? [{ id: Number(q[0]), x: Number(q[1]), y: Number(q[2]), r: Number(q[3]) }] : [],
+      ),
+    };
+  }
+
+  /** Сила калюж: 1 - дощ іде, до 0 - підсихають, 0 - немає. */
+  rainStrength(now: number = this.localNow): number {
+    const r = this.rain;
+    if (!r) return 0;
+    if (now < r.rainEndsAt) return 1;
+    return Math.max(0, (r.dryEndsAt - now) / r.dryMs);
+  }
+
+  /** Дощ іде просто зараз (не лише калюжі підсихають). */
+  isRaining(now: number = this.localNow): boolean {
+    return this.rain !== null && now < this.rain.rainEndsAt;
+  }
+
+  /** Множник швидкості від калюж (дзеркало серверного puddleFactor): 1 - сухо, у калюжі 0.8 (слабшає, поки підсихають). */
+  puddleFactor(x: number, y: number): number {
+    const r = this.rain;
+    const slow = this.cfg.rainSlow ?? 0.2;
+    if (!r) return 1;
+    const f = this.rainStrength();
+    if (f <= 0) return 1;
+    for (const q of r.puddles) {
+      const dx = x - q.x;
+      const dy = y - q.y;
+      if (dx * dx + dy * dy < q.r * q.r) return 1 - slow * f;
+    }
+    return 1;
   }
 
   /** Множник розгіну на старті: 1 + бонус × (залишок / тривалість); 1, якщо сервер не надіслав ефект «boost». */
@@ -434,7 +522,7 @@ export class FlockModel {
    * вводом (рух одразу), а сервер м'яко підтягує до свого знімка, екстрапольованого "на зараз".
    * `now` - локальний час кадру (performance.now()); без нього рахуємо від dt (тести).
    */
-  step(dt: number, input: { angle: number; power: number }, now?: number) {
+  step(dt: number, input: { angle: number; power: number; sprint?: boolean }, now?: number) {
     dt = Math.min(dt, 0.1);
     this.localNow = now ?? this.localNow + dt * 1000;
     const base = this.clockBase ?? this.localNow;
@@ -457,11 +545,14 @@ export class FlockModel {
     const dx = Math.cos(input.angle);
     const dy = Math.sin(input.angle);
     const world = this.cfg.world;
+    if (this.rain && this.localNow >= this.rain.dryEndsAt) this.rain = null;
+    const sprinting = Boolean(input.sprint) && !frozen && this.sprintReady();
+    this.sprintActive = sprinting;
     for (const c of this.cells.values()) {
       c.mass += (c.tmass - c.mass) * kMass;
       if (c.pid === this.cfg.pid) {
         if (!frozen) {
-          const v = this.speedOf(c.mass, boosted, startFactor) * input.power;
+          const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
         }

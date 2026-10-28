@@ -206,6 +206,10 @@ export class FlockGateway
       lava: res.lava,
       /** Зірки «Зорепаду» на момент входу: { id, x, y, fall - мс до приземлення }. */
       stars: res.stars,
+      /** «Дощ» на момент входу: { l, y, d, p: [[id, x, y, r]] }; без поля - дощу нема. */
+      rain: res.rain,
+      /** На скільки калюжа уповільнює клітини (частка), для передбачення на клієнті. */
+      rainSlow: FLOCK_CONFIG.rain.slowFraction,
       /** Серія днів на 1-му місці: { p - pid держателя тут (0 - нема), d - днів }; далі приходить подією `sk`. */
       streak: res.streak,
       /** Піврозмір спрайта їжі (світові одиниці). */
@@ -220,6 +224,8 @@ export class FlockGateway
         boost: FLOCK_CONFIG.speedMultiplier,
         /** Розгін на старті: +частка швидкості, що спадає до 0 за durations.boost. */
         spawnBoost: FLOCK_CONFIG.spawnBoost.speedBonus,
+        /** «Прискорення»: клієнт передбачає ту саму формулу (flockModel.speedOf). */
+        sprint: { ...FLOCK_CONFIG.sprint },
       },
       durations: {
         ...FLOCK_CONFIG.bonusDurations,
@@ -248,6 +254,7 @@ export class FlockGateway
       msg.split,
       msg.throw,
       msg.aspect,
+      msg.sprint,
     );
   }
 

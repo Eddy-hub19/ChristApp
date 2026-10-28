@@ -226,6 +226,19 @@ export const FLOCK_CONFIG = {
     /** Від цієї загальної маси розгін вимикається. */
     massLimit: 120,
   },
+  /**
+   * «Прискорення» (кнопка / Shift): поки утримується, швидкість +speedBonus, а за це горить burnPerSec від маси за секунду
+   * (згоріла маса зникає, їжею не сиплеться). Не працює, якщо загальна маса менша за minTotalMass, і ніколи не опускає її
+   * нижче max(startMass, floorMass). Ботам недоступне. Підсумковий множник швидкості з усіма бонусами
+   * (розгін × «Прискорення» × башмаки × рив​ок) не перевищує maxSpeedMultiplier (і ніколи не менший за той, що був без ривка).
+   */
+  sprint: {
+    speedBonus: 0.25,
+    burnPerSec: 0.015,
+    minTotalMass: 40,
+    floorMass: 30,
+    maxSpeedMultiplier: 2.2,
+  },
   magnetRadius: 340,
   magnetPull: 260,
   freezeRadius: 650,
@@ -267,6 +280,31 @@ export const FLOCK_CONFIG = {
     nearSmallerRadius: 500,
     /** Відступ від краю світу. */
     edgeMargin: 80,
+  },
+
+  /**
+   * Подія «Дощ» (лише карти зі списку maps - «Гай»): раз на intervalMin..MaxMs, триває durationMin..MaxMs; на цей час
+   * з'являється puddlesMin..Max калюж (випадково, не в центрі й не під живими гравцями). Калюжа уповільнює клітину на
+   * slowFraction; коли дощ скінчився, калюжі підсихають ще dryMs (уповільнення лінійно слабшає до 0).
+   * «Зорепад» не стартує під час дощу (відкладається до його кінця), дощ не стартує під час зорепаду.
+   */
+  rain: {
+    maps: [1] as readonly number[],
+    intervalMinMs: 120_000,
+    intervalMaxMs: 240_000,
+    durationMinMs: 40_000,
+    durationMaxMs: 60_000,
+    puddlesMin: 8,
+    puddlesMax: 12,
+    puddleRadiusMin: 95,
+    puddleRadiusMax: 160,
+    slowFraction: 0.2,
+    dryMs: 20_000,
+    /** Радіус навколо центру світу без калюж. */
+    centerClear: 450,
+    edgeMargin: 220,
+    /** Мінімальний проміжок між краями калюж і до клітин живих людей на мить початку. */
+    gap: 100,
   },
 
   // --- область видимості ---
@@ -533,6 +571,17 @@ export function clientGameConfig() {
       takerShare: c.scissors.takerShare,
     },
     spawnBoost: { ...c.spawnBoost },
+    sprint: { ...c.sprint },
+    rain: {
+      intervalMinMs: c.rain.intervalMinMs,
+      intervalMaxMs: c.rain.intervalMaxMs,
+      durationMinMs: c.rain.durationMinMs,
+      durationMaxMs: c.rain.durationMaxMs,
+      puddlesMin: c.rain.puddlesMin,
+      puddlesMax: c.rain.puddlesMax,
+      slowFraction: c.rain.slowFraction,
+      dryMs: c.rain.dryMs,
+    },
     spawnShieldMs: c.spawnShieldMs,
     resumePauseMs: c.resumePauseMs,
     resumeShieldMs: c.resumeShieldMs,

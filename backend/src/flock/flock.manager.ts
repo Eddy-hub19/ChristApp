@@ -37,6 +37,7 @@ import {
   FX_PAUSED,
   FX_SHIELD,
   FX_SPEED,
+  FX_SPRINT,
   encodeBoard,
   encodeState,
   type StateInput,
@@ -587,6 +588,8 @@ class Arena {
     }
     // «Зорепад»: події (старт / зірка з'явилась / з'їдена) - одним малим повідомленням усім, без потоку позицій.
     const starMsg = w.starEvents.length ? { e: w.starEvents } : null;
+    // «Дощ»: старт одним повідомленням (тривалість, підсихання, калюжі); далі клієнти рахують час самі
+    const rainMsg = w.rainEvents.length ? w.rainEvents[0] : null;
     // «Ножиці»: усім - анімація хвилі; клієнт сам вирішує, чи він серед постраждалих
     const scissorsMsgs = w.scissorsEvents.map((e) => ({
       x: e.x,
@@ -615,6 +618,7 @@ class Arena {
         this.hooks.onMass?.(s.userId, mm);
       }
       if (starMsg) send(key, 'z', starMsg);
+      if (rainMsg) send(key, 'rn', rainMsg);
       if (lavaMsg) send(key, 'lv', lavaMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       // «Хрест»: «Друге життя» - лише самому гравцеві
@@ -680,6 +684,7 @@ class Arena {
       if (w.now < o.frozenUntil) fx |= FX_FROZEN;
       if (o.paused) fx |= FX_PAUSED;
       if (w.hasEffect(o, 'speed')) fx |= FX_SPEED;
+      if (o.sprinting) fx |= FX_SPRINT;
       if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
       sh.fx.set(o.id, fx);
     }
@@ -911,6 +916,8 @@ export interface JoinResult {
   lava?: { y0: number; y1: number; bridges: { x0: number; x1: number }[] };
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
+  /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
+  rain?: { l: number; y: number; d: number; p: [number, number, number, number][] };
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
@@ -1041,6 +1048,7 @@ export class FlockManager {
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       lava: s.arena.world.lava ?? undefined,
       stars: s.arena.world.starsSnapshot(),
+      rain: s.arena.world.rainSnapshot(),
       streak: this.streakInfo(s.arena) ?? undefined,
     };
   }
@@ -1116,6 +1124,7 @@ export class FlockManager {
     split: boolean,
     thr: boolean,
     aspect = 1,
+    sprint = false,
   ) {
     const s = this.byConn.get(connKey);
     if (!s) return;
@@ -1131,6 +1140,7 @@ export class FlockManager {
     }
     const w = s.arena.world;
     w.setInput(s.pid, angle, power);
+    w.setSprint(s.pid, sprint);
     if (split) w.queueSplit(s.pid);
     if (thr) w.queueThrow(s.pid);
   }

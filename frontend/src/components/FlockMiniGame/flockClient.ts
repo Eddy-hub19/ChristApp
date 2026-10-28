@@ -1,6 +1,6 @@
 import createSocket from "socket.io-client";
 import { FlockModel, type FlockCfg } from "./flockModel";
-import { BTN_SPLIT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
+import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
 import type { Dir } from "./flockInputMath";
 import {
   clearFlockSession,
@@ -177,6 +177,7 @@ export class FlockClient {
       this.later(() => {
         this.model = new FlockModel(cfg);
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
+        this.model.applyRain(cfg.rain, performance.now());
         this.stored = {
           token: cfg.resumeToken,
           arenaId: cfg.arenaId,
@@ -229,6 +230,10 @@ export class FlockClient {
         if (!this.model) return;
         if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
       });
+    });
+    // «Дощ»: один раз на подію (тривалість, підсихання, калюжі); далі час рахує модель
+    socket.on("rn", (msg: { l?: number; d?: number; p?: unknown }) => {
+      this.later(() => this.model?.applyRain(msg, performance.now()));
     });
     socket.on("qt", (msg: unknown) => {
       this.later(() => this.model?.applyText(msg, performance.now()));
@@ -347,11 +352,11 @@ export class FlockClient {
     }
   }
 
-  sendInput(dir: Dir, split: boolean, thr: boolean, aspect = 1) {
+  sendInput(dir: Dir, split: boolean, thr: boolean, aspect = 1, sprint = false) {
     const s = this.socket;
     if (!s?.connected || this.status !== "playing") return;
     // одне число = один текстовий кадр socket.io (бінарне вкладення коштує вдвічі більше на сервері)
-    const packed = encodeInputPacked(dir.angle, dir.power, (split ? BTN_SPLIT : 0) | (thr ? BTN_THROW : 0), aspect);
+    const packed = encodeInputPacked(dir.angle, dir.power, (split ? BTN_SPLIT : 0) | (thr ? BTN_THROW : 0) | (sprint ? BTN_SPRINT : 0), aspect);
     const send = () => s.emit("i", packed);
     if (this.lag > 0) setTimeout(send, this.lag);
     else send();

@@ -8,7 +8,7 @@ import type { WhatsNewIcon } from "./flockWhatsNewData";
 
 export type InfoLang = "ua" | "ru" | "en";
 export type L = Record<InfoLang, string>;
-export type ParamFormat = "sec" | "pct" | "x" | "num";
+export type ParamFormat = "sec" | "pct" | "pct1" | "min" | "x" | "num";
 
 export interface InfoParam {
   path: string;
@@ -36,6 +36,9 @@ export interface InfoSection {
 const sec = (path: string): InfoParam => ({ path, as: "sec" });
 const pct = (path: string): InfoParam => ({ path, as: "pct" });
 const num = (path: string): InfoParam => ({ path });
+/** Доля с одним знаком после запятой (1.5%), мс в минуты. */
+const pct1 = (path: string): InfoParam => ({ path, as: "pct1" });
+const min = (path: string): InfoParam => ({ path, as: "min" });
 
 export const INFO_SECTIONS: InfoSection[] = [
   {
@@ -63,6 +66,17 @@ export const INFO_SECTIONS: InfoSection[] = [
           en: "On desktop your sheep follows the mouse; on phone use the joystick. “Split” halves your sheep for a quick dash; the parts merge back after {merge} s. “Throw” tosses a chunk of mass ({throw}).",
         },
         params: { merge: sec("mergeDelayMs"), throw: num("throwMass") },
+      },
+      {
+        id: "sprint",
+        icon: "boost",
+        title: { ua: "Прискорення", ru: "Ускорение", en: "Sprint" },
+        text: {
+          ua: "Кнопка «Прискорення» (на ПК — Shift): поки тримаєш, швидкість +{pct}%, але щосекунди згорає {burn}% маси (вона зникає, не залишається їжею). Працює від маси {min}, нижче стартової маси не спалює. З іншими бонусами швидкість не росте безмежно: є стеля у {cap} рази від звичайної.",
+          ru: "Кнопка «Ускорение» (на ПК — Shift): пока держишь, скорость +{pct}%, но каждую секунду сгорает {burn}% массы (она исчезает, едой не остаётся). Работает от массы {min}, ниже стартовой массы не сжигает. С другими бонусами скорость не растёт бесконечно: есть потолок в {cap} раза от обычной.",
+          en: "The Sprint button (Shift on desktop): while held you're {pct}% faster, but {burn}% of your mass burns every second (it vanishes and doesn't turn into food). Works from {min} mass and never burns below the starting mass. With other bonuses speed doesn't stack endlessly: there's a cap of {cap}x normal speed.",
+        },
+        params: { pct: pct("sprint.speedBonus"), burn: pct1("sprint.burnPerSec"), min: num("sprint.minTotalMass"), cap: num("sprint.maxSpeedMultiplier") },
       },
       {
         id: "phrases",
@@ -301,6 +315,26 @@ export const INFO_SECTIONS: InfoSection[] = [
           star: num("zorepad.starMass"),
         },
       },
+      {
+        id: "rain",
+        icon: "rain",
+        title: { ua: "Дощ і калюжі", ru: "Дождь и лужи", en: "Rain and puddles" },
+        text: {
+          ua: "На осінній карті «Гай» раз на {minEvery}–{maxEvery} хв іде дощ ({minDur}–{maxDur} с): карта темнішає, з'являється {minPuddles}–{maxPuddles} калюж. Калюжа уповільнює на {slow}%. Коли дощ скінчився, калюжі підсихають ще {dry} с. Дощ не збігається із «Зорепадом»: зорепад чекає кінця дощу.",
+          ru: "На осенней карте «Гай» раз в {minEvery}–{maxEvery} мин идёт дождь ({minDur}–{maxDur} с): карта темнеет, появляется {minPuddles}–{maxPuddles} луж. Лужа замедляет на {slow}%. Когда дождь закончился, лужи подсыхают ещё {dry} с. Дождь не совпадает со «Зорепадом»: зорепад ждёт конца дождя.",
+          en: "On the autumn map “Grove” it rains every {minEvery}–{maxEvery} min ({minDur}–{maxDur} s): the map darkens and {minPuddles}–{maxPuddles} puddles appear. A puddle slows you by {slow}%. After the rain the puddles dry out for another {dry} s. Rain never overlaps Starfall: Starfall waits for the rain to end.",
+        },
+        params: {
+          minEvery: min("rain.intervalMinMs"),
+          maxEvery: min("rain.intervalMaxMs"),
+          minDur: sec("rain.durationMinMs"),
+          maxDur: sec("rain.durationMaxMs"),
+          minPuddles: num("rain.puddlesMin"),
+          maxPuddles: num("rain.puddlesMax"),
+          slow: pct("rain.slowFraction"),
+          dry: sec("rain.dryMs"),
+        },
+      },
     ],
   },
   {
@@ -312,6 +346,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "leaf",
         title: { ua: "Трава", ru: "Трава", en: "Grass" },
         text: { ua: "Звичайна їжа: {mass} маси за пучок.", ru: "Обычная еда: {mass} массы за пучок.", en: "Regular food: {mass} mass per tuft." },
+        params: { mass: num("foodMass") },
+      },
+      {
+        id: "leaves",
+        icon: "leaf",
+        title: { ua: "Листочки (карта «Гай»)", ru: "Листочки (карта «Гай»)", en: "Leaves (“Grove” map)" },
+        text: {
+          ua: "На осінній карті їжа — червоні й бордові листочки, щоб не губилися на золотій землі. Цінність така сама: {mass} маси.",
+          ru: "На осенней карте еда — красные и бордовые листочки, чтобы не терялись на золотой земле. Ценность та же: {mass} массы.",
+          en: "On the autumn map food is red and burgundy leaves so it stands out against the golden ground. Same value: {mass} mass.",
+        },
         params: { mass: num("foodMass") },
       },
       {
@@ -458,6 +503,10 @@ function format(value: number, as: ParamFormat | undefined): string {
       return round(value / 1000);
     case "pct":
       return String(Math.round(value * 100));
+    case "pct1":
+      return String(Math.round(value * 1000) / 10);
+    case "min":
+      return round(value / 60_000);
     case "x":
       return round(value);
     default:

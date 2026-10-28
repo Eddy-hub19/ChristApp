@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -384,6 +384,36 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Можна написати своє повідомлення в хмаринку: до 40 символів, не частіше 1 разу за 5 секунд. Лайка й посилання відсікаються",
           ru: "Можно написать своё сообщение в облачко: до 40 символов, не чаще 1 раза в 5 секунд. Брань и ссылки отсекаются",
           en: "You can write your own message in the bubble: up to 40 characters, once per 5 seconds. Swearing and links are blocked",
+        },
+      },
+    ],
+  },
+  {
+    version: 16,
+    date: "2026-10-29",
+    items: [
+      {
+        icon: "boost",
+        text: {
+          ua: "«Прискорення»: утримуй кнопку (на ПК — Shift) — швидкість +25%, але щосекунди згорає 1,5% маси. Працює від маси 40, нижче стартової не спалює",
+          ru: "«Ускорение»: удерживай кнопку (на ПК — Shift) — скорость +25%, но каждую секунду сгорает 1,5% массы. Работает от массы 40, ниже стартовой не сжигает",
+          en: "Sprint: hold the button (Shift on desktop) for +25% speed, but 1.5% of your mass burns every second. Works from 40 mass and never burns below the starting mass",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "На осінній карті «Гай» листочки-їжа тепер червоні й бордові: їх краще видно на золотій землі",
+          ru: "На осенней карте «Гай» листочки-еда теперь красные и бордовые: их лучше видно на золотой земле",
+          en: "On the autumn “Grove” map the leaf food is now red and burgundy, easier to spot on the golden ground",
+        },
+      },
+      {
+        icon: "rain",
+        text: {
+          ua: "Дощ на карті «Гай»: раз на 2–4 хв на 40–60 с, з'являється 8–12 калюж, що уповільнюють на 20% і підсихають ще 20 с після дощу",
+          ru: "Дождь на карте «Гай»: раз в 2–4 мин на 40–60 с, появляется 8–12 луж, которые замедляют на 20% и подсыхают ещё 20 с после дождя",
+          en: "Rain on the “Grove” map: every 2–4 min for 40–60 s, 8–12 puddles appear that slow you by 20% and dry out for 20 s after the rain",
         },
       },
     ],
