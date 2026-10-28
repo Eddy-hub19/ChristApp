@@ -8,8 +8,8 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import GoogleSettingsRow from "@/components/GoogleSettings/GoogleSettingsRow";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
-import { getAppStreak } from "@/lib/appStreak";
-import PersistenceAchievements from "@/components/PersistenceAchievements/PersistenceAchievements";
+import { getAppStreak, hasVisitedToday } from "@/lib/appStreak";
+import StreakBadge from "@/components/StreakBadge/StreakBadge";
 import { deleteSavedVerse } from "@/lib/versesApi";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { USERNAME_REGEX } from "@/lib/formValidation";
@@ -50,10 +50,8 @@ import {
 } from "react";
 import { useHydrated } from "@/hooks/useHydrated";
 import LanguageSwitcher from "@/components/LanguageSwitcher/LanguageSwitcher";
-import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import ProfileChaptersCard from "@/components/ProfileChaptersCard/ProfileChaptersCard";
 import BubbleStyleSettings, { BubbleStyleRow } from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { canUseBubbleStyles } from "@/lib/bubbleStyles";
 import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
@@ -123,12 +121,8 @@ export default function ProfilePage() {
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND);
   const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter");
   const [bioEdit, setBioEdit] = useState("");
-  /** Блок «Постійність / стріки» за замовчуванням прихований; відкривається лише кнопкою «Серія днів». */
-  const [isPersistenceOpen, setIsPersistenceOpen] = useState(false);
-
-  useEffect(() => {
-    setIsPersistenceOpen(false);
-  }, [user?.id]);
+  /** Сьогоднішній день уже зараховано до серії (вогник яскравий) чи ще ні (сірий). */
+  const [streakCountedToday, setStreakCountedToday] = useState(false);
 
   useEffect(() => {
     setPushPermission(getPushPermissionState());
@@ -147,13 +141,17 @@ export default function ProfilePage() {
       return;
     }
     setDayStreak(getAppStreak());
+    setStreakCountedToday(hasVisitedToday());
   }, [user]);
 
   useEffect(() => {
     if (!user) {
       return;
     }
-    const sync = () => setDayStreak(getAppStreak());
+    const sync = () => {
+      setDayStreak(getAppStreak());
+      setStreakCountedToday(hasVisitedToday());
+    };
     const onVis = () => {
       if (document.visibilityState === "visible") {
         sync();
@@ -175,16 +173,6 @@ export default function ProfilePage() {
   });
 
   const savedVerses = versesQuery.data ?? [];
-
-  const isVerseKeeperUnlocked = savedVerses.length >= 5;
-  const verseKeeperProgress = t("verseProgress", {
-    current: Math.min(savedVerses.length, 5),
-    total: 5,
-  });
-  const verseKeeperUnlockedUI = hydrated && isVerseKeeperUnlocked;
-  const verseKeeperProgressUI = hydrated
-    ? verseKeeperProgress
-    : t("verseProgressInitial", { total: 5 });
 
   const pushStatusQuery = useQuery({
     queryKey: pushStatusQueryKey(user?.id),
@@ -804,6 +792,11 @@ export default function ProfilePage() {
             })}
           </span>
         </div>
+        <StreakBadge
+          className={styles.streakCorner}
+          streak={hydrated ? dayStreak : 0}
+          countedToday={hydrated && streakCountedToday}
+        />
       </div>
 
       {showProfileEdit ? (
@@ -909,72 +902,6 @@ export default function ProfilePage() {
               {appearanceSaving ? t("resetting") : t("resetAppearance")}
             </button>
           </div>
-        </div>
-      ) : null}
-
-      <ul className={styles.list}>
-        <li className={`${styles.item} ${styles.itemInteractive}`}>
-          <Link
-            href="#persistence-section"
-            scroll={false}
-            className={styles.itemLink}
-            onClick={(event) => {
-              event.preventDefault();
-              setIsPersistenceOpen((open) => !open);
-            }}
-            aria-expanded={isPersistenceOpen}
-            aria-controls="persistence-section"
-          >
-            <Image
-              className={styles.imgIcon}
-              src={"/icon-fire.svg"}
-              alt={t("dayStreakAlt")}
-              width={16}
-              height={16}
-            />
-            <span>{dayStreak}</span>
-            <span className={styles.rewardStatePlaceholder} aria-hidden />
-            <p className={styles.statCardLabel}>{t("dayStreak")}</p>
-          </Link>
-        </li>
-        <ProfileChaptersCard />
-        <li
-          className={[
-            styles.item,
-            styles.rewardItem,
-            verseKeeperUnlockedUI ? styles.rewardItemUnlocked : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          <Image
-            className={[
-              styles.imgIcon,
-              verseKeeperUnlockedUI ? styles.rewardIconUnlocked : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            src={"/icon-badge.svg"}
-            alt={t("rewardsAlt")}
-            width={16}
-            height={16}
-          />
-          <span className={styles.rewardValue}>{verseKeeperProgressUI}</span>
-          {verseKeeperUnlockedUI ? (
-            <span className={styles.rewardState}>{t("verseKeeperGot")}</span>
-          ) : (
-            <span className={styles.rewardStatePlaceholder} aria-hidden />
-          )}
-          <p className={styles.statCardLabel}>{t("verseKeeper")}</p>
-        </li>
-      </ul>
-
-      {isPersistenceOpen ? (
-        <div id="persistence-section">
-          <PersistenceAchievements
-            dayStreak={dayStreak}
-            savedVersesCount={hydrated ? savedVerses.length : 0}
-          />
         </div>
       ) : null}
 

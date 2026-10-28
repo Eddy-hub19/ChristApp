@@ -374,6 +374,7 @@
     "resetting": "Resetting…",
     "dayStreak": "Day streak",
     "dayStreakAlt": "Day streak",
+    "streakTip": "Day streak: {count}. Visit every day so you don't lose it",
     "verseKeeper": "Verse keeper",
     "verseKeeperGot": "Unlocked",
     "rewardsAlt": "Rewards",

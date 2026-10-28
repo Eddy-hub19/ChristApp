@@ -97,3 +97,9 @@ export function getAppStreak(): number {
   }
   return 0;
 }
+
+/** Сьогоднішній день уже зараховано (той самий календарний день, що й у `recordDailyVisit`). Лише читає стан. */
+export function hasVisitedToday(): boolean {
+  const s = readState();
+  return s.lastVisitYmd !== "" && s.lastVisitYmd === getLocalYmd(new Date());
+}
