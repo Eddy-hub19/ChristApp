@@ -248,6 +248,24 @@
   }
 }
 
+/* «Прискорення»: неактивна, поки мало маси; поки діє - світиться бурштиновим ободом. */
+.sprintBtn {
+  user-select: none;
+  -webkit-touch-callout: none;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+.sprintBtnActive {
+  border-color: #ffb02e;
+  background: color-mix(in srgb, #ffb02e 38%, var(--surface-elevated));
+  box-shadow:
+    0 0 0 2px rgba(255, 176, 46, 0.55),
+    0 0 14px rgba(255, 150, 40, 0.6);
+}
+
 /* Швидкі фрази: кругла кнопка зліва внизу (джойстик плаваючий і з'являється під пальцем, «Розділитися»/«Кинути» і мінікарта - праворуч). */
 .phrasesBtn {
   position: absolute;

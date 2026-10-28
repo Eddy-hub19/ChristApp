@@ -1,12 +1,12 @@
 import type { FlockModel, RCell } from "./flockModel";
-import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED } from "./flockProtocol";
+import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
 import { AUTUMN_MAP_ID, mapTheme } from "./flockMaps";
 import { drawGroundFood, groundOf, type Ground } from "./flockGround";
 import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, lavaDistance } from "./flockLava";
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { BOSS_SKIN } from "./flockSkins";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -205,6 +205,116 @@ function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
   }));
 }
 
+// ---------- «Прискорення»: слід; «Дощ»: калюжі, краплі, затемнення (усе з кешованих спрайтів, без blur) ----------
+/** М'яка світла пляма для сліду «Прискорення»: малюється один раз, потім лише масштабується. */
+let trailCv: HTMLCanvasElement | null = null;
+function trailSprite() {
+  return (trailCv ??= sprite("sprint-trail", 64, (c, s) => {
+    const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(255,226,140,0.85)");
+    g.addColorStop(0.55, "rgba(255,170,60,0.4)");
+    g.addColorStop(1, "rgba(255,150,40,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+  }));
+}
+const TRAIL_STEPS = [
+  { back: 0.75, size: 0.95, alpha: 0.5 },
+  { back: 1.35, size: 0.75, alpha: 0.32 },
+  { back: 1.95, size: 0.55, alpha: 0.18 },
+];
+function drawSprintTrail(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, ang: number) {
+  const img = trailSprite();
+  const bx = -Math.cos(ang);
+  const by = -Math.sin(ang);
+  const prev = ctx.globalAlpha;
+  for (const t of TRAIL_STEPS) {
+    const sz = r * 2 * t.size;
+    ctx.globalAlpha = prev * t.alpha;
+    ctx.drawImage(img, x + bx * r * t.back - sz / 2, y + by * r * t.back - sz / 2, sz, sz);
+  }
+  ctx.globalAlpha = prev;
+}
+
+let puddleCv: HTMLCanvasElement | null = null;
+/** Калюжа: водяна заливка з світлим краєм і відблиском. */
+function puddleSprite() {
+  return (puddleCv ??= sprite("rain-puddle", 160, (c, s) => {
+    const g = c.createRadialGradient(s / 2, s / 2, s * 0.08, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(130,170,205,0.62)");
+    g.addColorStop(0.8, "rgba(88,128,172,0.55)");
+    g.addColorStop(1, "rgba(150,190,225,0.0)");
+    c.fillStyle = g;
+    c.beginPath();
+    c.ellipse(s / 2, s / 2, s / 2 - 2, s / 2 - 2, 0, 0, TAU);
+    c.fill();
+    c.strokeStyle = "rgba(205,228,248,0.55)";
+    c.lineWidth = 3;
+    c.beginPath();
+    c.ellipse(s / 2, s / 2, s / 2 - 5, s / 2 - 5, 0, 0, TAU);
+    c.stroke();
+    c.fillStyle = "rgba(255,255,255,0.28)";
+    c.beginPath();
+    c.ellipse(s * 0.38, s * 0.36, s * 0.16, s * 0.07, -0.5, 0, TAU);
+    c.fill();
+  }));
+}
+function drawPuddles(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number) {
+  const rain = m.rain;
+  if (!rain) return;
+  const strength = m.rainStrength();
+  if (strength <= 0) return;
+  const img = puddleSprite();
+  // пока подсыхают - кромка сжимается и калюжа бледнеет
+  const k = 0.6 + 0.4 * strength;
+  ctx.globalAlpha = 0.35 + 0.65 * strength;
+  for (const q of rain.puddles) {
+    const r = q.r * k;
+    if (q.x + r < x0 || q.x - r > x1 || q.y + r < y0 || q.y - r > y1) continue;
+    ctx.drawImage(img, q.x - r, q.y - r, r * 2, r * 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+const RAIN_DROPS = 70;
+let dropCv: HTMLCanvasElement | null = null;
+function dropSprite() {
+  return (dropCv ??= sprite("rain-drop", 32, (c, s) => {
+    const g = c.createLinearGradient(s / 2, 0, s / 2, s);
+    g.addColorStop(0, "rgba(190,215,240,0)");
+    g.addColorStop(1, "rgba(200,225,250,0.85)");
+    c.strokeStyle = g;
+    c.lineWidth = 2;
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(s * 0.35, 1);
+    c.lineTo(s * 0.65, s - 1);
+    c.stroke();
+  }));
+}
+/** Затемнение всей карты и капли (экранные координаты). Капли - один спрайт, позиции считаются из времени, без аллокаций. */
+function drawRainOverlay(ctx: CanvasRenderingContext2D, m: FlockModel, W: number, H: number, time: number, reduce: boolean) {
+  const raining = m.isRaining();
+  const strength = m.rainStrength();
+  if (strength <= 0) return;
+  // при начале дождя плавно темнеет, после его конца - плавно светлеет (вместе с подсыханием)
+  ctx.fillStyle = `rgba(14,24,44,${(0.2 * strength).toFixed(3)})`;
+  ctx.fillRect(0, 0, W, H);
+  if (!raining || reduce) return;
+  const img = dropSprite();
+  const len = Math.max(14, H * 0.035);
+  ctx.globalAlpha = 0.7;
+  for (let i = 0; i < RAIN_DROPS; i++) {
+    const seed = (i * 0.61803398875) % 1;
+    const seed2 = (i * 0.38196601125 + 0.17) % 1;
+    const speed = 0.55 + seed2 * 0.35;
+    const y = (((time * speed + seed2) % 1) * (H + len)) - len;
+    const x = seed * W + (y / H) * 40;
+    ctx.drawImage(img, x, y, len * 0.45, len);
+  }
+  ctx.globalAlpha = 1;
+}
+
 /** Скільки CSS px має шрифт хмаринки фрази на екрані (розмір не залежить від масштабу камери). */
 const BUBBLE_FONT_PX = 14;
 /** Найбільша ширина хмаринки зі своїм текстом (CSS px). */
@@ -259,6 +369,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
+  // калюжі «Дощу» лежать на землі під їжею й клітинами
+  drawPuddles(ctx, m, x0, x1, y0, y1);
 
   // їжа: розмір із сервера (піврозмір x2); на віддаленій камері - не менше FOOD_MIN_PX на екрані й без погойдування
   const far = scale < FAR_SCALE;
@@ -417,6 +529,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
   }
   ctx.restore();
+  drawRainOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   // червоне світіння біля краю екрана, коли гравець наближається до лави
   if (m.cfg.lava) {
     let near = Infinity;
@@ -466,6 +579,8 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
   const paused = (c.fx & FX_PAUSED) !== 0;
   if (ghost) ctx.globalAlpha = 0.45;
   if (paused) ctx.globalAlpha = 0.42;
+  // «Прискорення»: слід за клітиною (своя - за передбаченням моделі, чужі - за бітом від сервера); без сліду при «зменшити рух»
+  if (((own && m.sprintActive) || (c.fx & FX_SPRINT) !== 0) && !prefersReducedMotion()) drawSprintTrail(ctx, c.x, c.y, r, ang);
   if ((c.fx & FX_SPEED) !== 0) {
     ctx.strokeStyle = "rgba(255,210,74,0.7)";
     ctx.lineWidth = r * 0.08;

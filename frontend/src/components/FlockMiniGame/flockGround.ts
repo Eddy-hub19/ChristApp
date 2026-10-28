@@ -234,10 +234,11 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
   c.lineCap = "round";
   c.lineJoin = "round";
   if (ground === "autumn") {
+    // красные и бордовые листочки: не сливаются с золотым фоном и золотым декором земли (он остаётся золотым)
     const looks: [string, string, number][] = [
-      ["#f2c230", "#a8741a", 0.35],
-      ["#e07f26", "#8a3f12", -0.5],
-      ["#c9622a", "#6e2810", 0.9],
+      ["#d63a2f", "#6e1410", 0.35],
+      ["#a81f33", "#4e0c16", -0.5],
+      ["#7c1634", "#3a0818", 0.9],
     ];
     const [fill, vein, rot] = looks[kind] ?? looks[0];
     c.save();

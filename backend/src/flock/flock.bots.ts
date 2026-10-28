@@ -394,7 +394,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       let ty = 0;
       world.foodNear(me.x, me.y, prof.foodRadius, (f) => {
         const d = Math.hypot(f.x - me.x, f.y - me.y);
-        if (d < best && !inHazard(world, f.x, f.y, FOOD_EDGE)) {
+        if (d < best && !inHazard(world, f.x, f.y, FOOD_EDGE) && !world.inPuddle(f.x, f.y)) {
           best = d;
           tx = f.x;
           ty = f.y;

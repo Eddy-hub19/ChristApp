@@ -10,6 +10,9 @@ export const PKT_STATE = 1;
 export const PKT_BOARD = 2;
 export const BTN_SPLIT = 1;
 export const BTN_THROW = 2;
+/** Утримується «Прискорення». У пакованому числі - окремий біт 26 (старі клієнти його не ставлять). */
+export const BTN_SPRINT = 4;
+const SPRINT_BIT = 26;
 
 export const POS_SCALE = 16;
 export const FX_SHIELD = 1;
@@ -19,6 +22,8 @@ export const FX_SPEED = 8;
 export const FX_MAGNET = 16;
 /** Гравець у паузі (відключився, чекає повернення). */
 export const FX_PAUSED = 32;
+/** Клітина зараз у «Прискоренні» (клієнт малює слід). */
+export const FX_SPRINT = 64;
 
 export const BONUS_CODE = [
   'speed',
@@ -401,7 +406,7 @@ export function encodeInput(
   return Uint8Array.of(
     Math.floor(a) & 255,
     Math.round(Math.max(0, Math.min(1, power)) * 255),
-    buttons & 3,
+    buttons & 7,
     Math.max(1, Math.min(255, Math.round(aspect * 64))),
   );
 }
@@ -416,15 +421,22 @@ export function encodeInputPacked(
   buttons: number,
   aspect = 1,
 ): number {
-  const b = encodeInput(angle, power, buttons, aspect);
-  return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 18);
+  const b = encodeInput(angle, power, buttons & 3, aspect); // 3 бита кнопок только в бинарном формате
+  const sprint = (buttons & BTN_SPRINT) !== 0 ? 1 << SPRINT_BIT : 0;
+  return b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 18) | sprint;
 }
 
 export function decodeInputPacked(n: number) {
-  if (!Number.isFinite(n) || n < 0 || n > 0x3ffffff) return null;
+  if (!Number.isFinite(n) || n < 0 || n > 0x7ffffff) return null;
   const v = n | 0;
+  const sprint = ((v >> SPRINT_BIT) & 1) !== 0 ? BTN_SPRINT : 0;
   return decodeInput(
-    Uint8Array.of(v & 255, (v >> 8) & 255, (v >> 16) & 3, (v >> 18) & 255),
+    Uint8Array.of(
+      v & 255,
+      (v >> 8) & 255,
+      ((v >> 16) & 3) | sprint,
+      (v >> 18) & 255,
+    ),
   );
 }
 
@@ -444,6 +456,7 @@ function decodeInputBytes(buf: ArrayBuffer | Uint8Array | null | undefined) {
     power: u8[1] / 255,
     split: (u8[2] & BTN_SPLIT) !== 0,
     throw: (u8[2] & BTN_THROW) !== 0,
+    sprint: (u8[2] & BTN_SPRINT) !== 0,
     /** Старі клієнти без 4-го байта = квадрат. */
     aspect: u8.length >= 4 && u8[3] > 0 ? u8[3] / 64 : 1,
   };

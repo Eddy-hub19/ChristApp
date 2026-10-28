@@ -28,6 +28,12 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   lava: (p) => <LavaIcon {...p} />,
   fence: (p) => <FenceIcon {...p} />,
   alpha: (p) => <AlphaIcon {...p} />,
+  rain: (p) => (
+    <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 15a4 4 0 0 1-.4-8 5.5 5.5 0 0 1 10.6 1.3A3.4 3.4 0 0 1 17 15z" fill="#9db4d6" stroke="#5f7aa3" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M8 17.5l-1 3M12 17.5l-1 3M16 17.5l-1 3" stroke="#4f8fe0" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 /** Цвета игры: золото, красный, зелёный, бирюзовый, розовый. */

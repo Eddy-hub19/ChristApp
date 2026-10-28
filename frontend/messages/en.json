@@ -1215,7 +1215,8 @@
     "controls": {
       "split": "Split",
       "throw": "Throw",
-      "keys": "Mouse — move · Space — split · W — throw · T — phrases"
+      "sprint": "Sprint",
+      "keys": "Mouse — move · Space — split · W — throw · Shift — sprint · T — phrases"
     },
     "phrases": {
       "open": "Quick phrases",
