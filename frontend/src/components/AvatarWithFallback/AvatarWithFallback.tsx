@@ -80,6 +80,7 @@ export default function AvatarWithFallback({
       onError={onError}
       loading={loading}
       decoding="async"
+      referrerPolicy="no-referrer"
     />
   );
 }

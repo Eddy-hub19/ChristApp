@@ -18,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
+import { AllowWithoutNickname } from 'src/auth/allow-without-nickname.decorator';
 import { uploadErrorMessage } from 'src/common/upload-error-message';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
@@ -36,6 +37,7 @@ export class UsersController {
   ) {}
 
   @UseGuards(JwtAuthGuard)
+  @AllowWithoutNickname()
   @Post('me/avatar')
   @UseInterceptors(
     FileInterceptor('avatar', {

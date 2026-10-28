@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
+import { usePathname } from "@/i18n/navigation";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { APP_WHATS_NEW, APP_WHATS_NEW_TEXT, latestAppVersion, type AppWhatsNewLang } from "./appWhatsNewData";
 import styles from "./AppWhatsNew.module.scss";
@@ -22,6 +23,7 @@ export default function AppWhatsNew() {
   const locale = useLocale();
   const lang: AppWhatsNewLang = locale === "ru" || locale === "en" ? locale : "ua";
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const check = () => setOpen(Boolean(getAuthToken()) && loadSeen() < latestAppVersion());
@@ -30,7 +32,8 @@ export default function AppWhatsNew() {
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, check);
   }, []);
 
-  if (!open) return null;
+  // не перекрываем экран выбора ника: плашка появится на первой странице приложения
+  if (!open || pathname === "/choose-nickname") return null;
 
   const seen = loadSeen();
   const entries = APP_WHATS_NEW.filter((e) => e.version > seen).sort((a, b) => b.version - a.version);

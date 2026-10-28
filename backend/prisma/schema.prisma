@@ -11,7 +11,8 @@ model User {
   email             String             @unique
   /// * Уникальный @username (латиница, нижний регистр).
   username          String             @unique
-  password          String
+  /// null для аккаунтов, созданных через Google, пока пользователь не задал пароль.
+  password          String?
   createdAt         DateTime           @default(now())
   isActive          Boolean            @default(true)
   avatarUrl         String?
@@ -40,6 +41,9 @@ model User {
   savedVerses       SavedVerse[]
   reactions         Reaction[]
   refreshSessions   RefreshSession[]
+  authIdentities    AuthIdentity[]
+  /// false у нового Google-пользователя, пока он не выбрал @username (без этого в приложение не пускаем).
+  usernameChosen    Boolean            @default(true)
   voiceListens      VoiceMessageListen[] @relation("VoiceListens")
   avatarLikesReceived AvatarLike[] @relation("AvatarLikeTarget")
   avatarLikesGiven    AvatarLike[] @relation("AvatarLikeLiker")
@@ -66,6 +70,21 @@ model AvatarLike {
 
   @@unique([targetUserId, likerUserId])
   @@index([targetUserId])
+}
+
+/// Внешний способ входа (сейчас только Google). `providerId` = Google `sub`; email показываем лишь владельцу.
+model AuthIdentity {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String   @db.VarChar(16)
+  providerId String   @db.VarChar(64)
+  email      String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@unique([userId, provider])
+  @@index([userId])
 }
 
 /// * Opaque refresh token (хеш в БД, сырое значение только в HttpOnly-куке).

@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AuthRateLimiter } from './auth-rate-limiter';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -11,6 +12,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        AuthRateLimiter,
         {
           provide: PrismaService,
           useValue: {},

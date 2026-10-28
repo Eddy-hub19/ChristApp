@@ -169,3 +169,43 @@ Safari PWA блокирует third-party cookie-сценарии. После в
 - WebSocket соединения могут оставаться direct-origin и не зависят от refresh cookie логики.
 - После любых изменений cookie-стратегии рекомендуется один раз перелогиниться.
 - Если снова появляется `refresh denied: no refresh cookie`, сначала проверять origin запроса и какой путь был вызван (`/api/auth/...` или прямой backend URL).
+
+## Вход через Google
+
+### Почему redirect, а не Google Identity Services
+
+Кнопка GIS открывает popup и общается с окном через `postMessage`. В Safari и PWA на iPhone popup блокируется или теряет связь с приложением. Поэтому используется полный redirect (Authorization Code): `window.location.assign` → Google → обратно на наш домен. Код одноразовый, ID-токен получает сам сервер.
+
+### Поток
+
+1. `GET /api/auth/google/start?mode=login|link&lang=ua` (Next, `src/app/api/auth/google/start`): кладёт `state` + `nonce` в httpOnly-куку `g_oauth` (SameSite=Lax, 10 минут, path `/api/auth/google`) и редиректит на `accounts.google.com`.
+2. Google возвращает на `/api/auth/google/callback?code&state`. Маршрут сверяет `state` с кукой и передаёт `code` на backend `POST /auth/google`.
+3. Backend (`GoogleAuthService`) меняет `code` на ID-токен, проверяет подпись по ключам Google, `iss`, `exp`, `aud` = `GOOGLE_CLIENT_ID`, `nonce` из нашей куки, `email_verified`; повторное использование `nonce` отклоняется. Клиенту доверяем только пару «code + nonce».
+4. Дальше те же access/refresh и cookie, что при обычном входе; прокси переставляет refresh-cookie на домен фронта. Access-токен в URL не попадает: сессию подхватывает `/auth/refresh` по cookie.
+5. `mode=link` (подключение Google в профиле): пользователь определяется по действующей refresh-куке.
+
+### Правила
+
+- Аккаунты по email **не объединяются**. Если email из Google совпал с чужим аккаунтом: «Увійдіть своїм ніком і підключіть Google у профілі».
+- Новый Google-пользователь создаётся с временным `username`, `usernameChosen = false` и без пароля. Пока ник не выбран, API отвечает `403 NICKNAME_REQUIRED` (кроме `/auth/me`, `/auth/nickname`, загрузки аватара), а фронт ведёт на `/choose-nickname`.
+- Отключить Google нельзя, если это единственный способ входа (`409 LAST_LOGIN_METHOD`): сначала `POST /auth/password`.
+- Связи хранятся в таблице `AuthIdentity` (`provider`, `providerId` = Google `sub`, уникален; `email` виден только владельцу через `GET /auth/methods`).
+
+### Лимиты
+
+`AuthRateLimiter` (в памяти процесса): вход - 5 неудачных попыток на ник и 20 на IP за 15 минут; регистрация - 10 в час на IP; Google - 30 за 15 минут на IP; проверка ника - 60 за 10 минут. Ответ `429 { code: "RATE_LIMITED", retryAfterMinutes }`. Реальный IP клиента Next-прокси передаёт в заголовке `x-client-ip`.
+
+### Переменные окружения
+
+| Где | Переменная | Для чего |
+| --- | --- | --- |
+| Vercel | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | старт redirect и кнопка (`/api/auth/google/config`) |
+| Render | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | обмен кода и проверка ID-токена |
+
+Если переменные не заданы, кнопка Google скрыта, а `POST /auth/google` отвечает `503 GOOGLE_NOT_CONFIGURED`.
+
+Google Cloud Console → OAuth client «Web application»:
+
+- Authorized redirect URI: `https://<домен фронта>/api/auth/google/callback` (и `http://localhost:3000/api/auth/google/callback` для разработки);
+- Authorized JavaScript origins не нужны (GIS не используется);
+- OAuth consent screen: scopes `openid`, `email`, `profile`.

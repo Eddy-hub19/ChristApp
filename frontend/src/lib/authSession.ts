@@ -30,6 +30,8 @@ export type AuthUser = {
   chatBackgrounds?: unknown;
   /** Личные шрифты (только владельцу): lib/chatFonts.ts. */
   fontPrefs?: unknown;
+  /** false у нового Google-користувача, доки він не обрав @username. */
+  usernameChosen?: boolean;
 };
 
 export type AuthSessionPayload = {

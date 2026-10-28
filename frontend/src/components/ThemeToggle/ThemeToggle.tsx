@@ -57,6 +57,9 @@ export default function ThemeToggle() {
   const isLight = theme === "light";
   const isProfilePage = pathname.startsWith("/profile");
   const isOfflinePage = pathname === "/offline";
+  /** Экраны входа/регистрации/выбора ника всегда тёмные - переключатель темы там ничего не меняет. */
+  const isAuthScreen =
+    pathname === "/" || pathname === "/register" || pathname === "/choose-nickname";
   /** Кінозала завжди темна — перемикач теми там лише заважає. */
   const isCinemaHall = pathname.startsWith("/cinema/");
 
@@ -66,7 +69,7 @@ export default function ThemeToggle() {
   /** Екрани чатів (особисті, Global chat, «Поділися з Ісусом»): лампочка не займає місце в шапці; тема - на головному й у профілі. */
   const isChatRoom = /^\/chat\/[^/]+/.test(pathname);
 
-  if (isProfilePage || isOfflinePage || isCinemaHall || isFullscreen || isChatRoom) {
+  if (isProfilePage || isOfflinePage || isAuthScreen || isCinemaHall || isFullscreen || isChatRoom) {
     return null;
   }
 
