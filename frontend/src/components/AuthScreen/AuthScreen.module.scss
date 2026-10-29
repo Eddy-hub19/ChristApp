@@ -108,82 +108,13 @@
   color: var(--auth-muted);
 }
 
-/* --- Стеклянная карточка (единственное место с backdrop-filter) --- */
+/* --- Контейнер формы: без стекла, поля и кнопки лежат прямо на фоне экрана --- */
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 22px 20px 20px;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  /* запасной вариант без blur: плотнее, чтобы текст читался на любом фоне */
-  background: linear-gradient(
-    160deg,
-    rgba(48, 45, 54, 0.92),
-    rgba(30, 28, 34, 0.92)
-  );
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.5),
-    0 0 36px rgba(221, 180, 104, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-
-  /* мягкая подсветка по краю */
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    padding: 1px;
-    border-radius: inherit;
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.5),
-      rgba(255, 255, 255, 0.05) 42%,
-      rgba(221, 180, 104, 0.45)
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask:
-      linear-gradient(#000 0 0) content-box exclude,
-      linear-gradient(#000 0 0);
-    pointer-events: none;
-  }
-}
-
-@supports (
-  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
-) {
-  .card {
-    background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.1),
-      rgba(255, 255, 255, 0.04)
-    );
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-  }
-}
-
-/* слабые устройства (JS ставит data-glass="flat") и «уменьшить прозрачность» в системе - без blur */
-.screen[data-glass="flat"] .card {
-  background: linear-gradient(
-    160deg,
-    rgba(48, 45, 54, 0.94),
-    rgba(30, 28, 34, 0.94)
-  );
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .card,
-  .screen[data-glass="flat"] .card {
-    background: #262430;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
 }
 
 /* --- Форма --- */

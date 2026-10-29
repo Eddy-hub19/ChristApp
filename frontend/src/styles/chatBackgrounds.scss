@@ -27,7 +27,7 @@
   > b {
     position: absolute;
     inset: 0;
-    background: var(--background);
+    background: var(--chat-bg-dim, var(--background));
   }
 }
 
@@ -61,10 +61,10 @@ html[data-app-bg]:not([data-app-bg-off]) body {
  */
 html[data-app-bg]:not([data-app-bg-off]) {
   /* Подложка корневых контейнеров экранов (список чатов, контакты, игры, Біблія, карточка чата): раньше var(--background) на 78-82% закрывал фон. */
-  --page-surface: rgba(46, 45, 45, 0.4);
-  --chat-column-surface: rgba(47, 46, 49, 0.7);
-  --surface: rgba(47, 46, 49, 0.8);
-  --surface-elevated: rgba(52, 51, 54, 0.84);
+  --page-surface: rgba(23, 21, 26, 0.4);
+  --chat-column-surface: rgba(29, 27, 33, 0.7);
+  --surface: rgba(29, 27, 33, 0.8);
+  --surface-elevated: rgba(35, 33, 40, 0.84);
 }
 html[data-app-bg][data-theme="light"]:not([data-app-bg-off]) {
   --page-surface: rgba(248, 242, 233, 0.45);
