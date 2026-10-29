@@ -173,6 +173,7 @@
     "openChat": "Open chat"
   },
   "admin": {
+    "puzzleImages": {"tab": "Puzzles", "hint": "All pictures added by players (public at once, no moderation).", "loadFailed": "Could not load the list.", "loading": "Loading…", "empty": "No pictures yet.", "delete": "Delete", "deleteConfirm": "Delete this picture for everyone?", "block": "Block uploads", "unblock": "Unblock", "blockedTitle": "Blocked"},
     "flockMap": {"title": "Flock map", "current": "Now: {map}", "changes": "Changes for new players at {time}", "changed": "New players already go to a new arena", "noArena": "No arenas right now", "next": "Next map", "nextNone": "Next map: random", "nextSet": "Next map: {map}", "clear": "Random", "switchNow": "Switch map now", "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only."},
     "flockMute": {
           "title": "Flock: custom text",
@@ -265,6 +266,7 @@
     "labelLastSeen": "Last seen:",
     "tabUsers": "Users",
     "tabProcesses": "Processes",
+    "tabPuzzles": "Puzzles",
     "tabsAria": "Admin sections",
     "procLoading": "Loading server status…",
     "procLoadFailed": "Could not load server status (HTTP {status}).",
@@ -1174,6 +1176,7 @@
     "imagesCount": "{count, plural, one {# picture} other {# pictures}}",
     "anotherImage": "Another picture",
     "imageCaption": "{author}, “{title}”, {year}",
+    "custom": {"button": "Your own picture", "mine": "My pictures", "title": "Your own picture", "mineTitle": "My pictures", "tabUpload": "Add", "tabMine": "Mine", "close": "Close", "gallery": "Gallery", "camera": "Camera", "pickHint": "Pick a photo from your gallery or take one. Then crop a square.", "cropHint": "Drag the photo and zoom: only this square becomes the puzzle.", "cropAria": "Square photo crop", "zoom": "Zoom", "showAuthor": "Show me as the author", "publicNote": "Your picture is shared with all players at once and joins the random puzzles. Only upload what is fine to show everyone.", "upload": "Add to puzzles", "uploading": "Uploading…", "loading": "Loading…", "empty": "You haven't added any pictures yet", "limitNote": "You can keep up to 5 pictures: the oldest are removed automatically.", "delete": "Delete", "deleteConfirm": "Delete this picture from the puzzles?", "byAuthor": "By {author}", "anonymous": "A player's picture", "previewAlt": "A player's picture", "adminDelete": "Delete (admin)", "errors": {"unsupported_type": "Only JPEG, PNG and WebP are supported", "too_large": "The picture is too large (up to 2 MB after compression)", "rate_limited": "Wait 10 seconds before the next upload", "upload_blocked": "You are not allowed to add pictures", "storage_unavailable": "Storage is temporarily unavailable", "upload_failed": "Could not upload the picture", "no_file": "No file selected", "cannotRead": "Could not read the photo. Try JPEG or PNG", "tooBigFile": "The file is too large (up to 20 MB)", "generic": "Something went wrong. Please try again"}},
     "piecesTitle": "Number of pieces",
     "start": "Start",
     "waitingPick": "{name} is choosing a picture…",

@@ -53,6 +53,8 @@ model User {
   watchMessageReactions WatchMessageReaction[]
   flockProfile        FlockProfile?
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
+  puzzleImages        UserPuzzleImage[]
+  puzzleUploadBlock   PuzzleUploadBlock?
   flockSkinPurchases  FlockSkinPurchase[]
   flockDailyRecords   FlockDailyRecord[]
   flockStreak         FlockStreak?
@@ -433,4 +435,28 @@ model FlockStreak {
   /// Видані, але ще не показані гравцю рубіни за серію (скидається при показі).
   pendingAward Int    @default(0)
   user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Своя картинка для «Пазлів»: общая для всех, без модерации. id - случайный uuid (ссылки не перебрать); файл в Cloudinary `christapp/puzzles-user`.
+model UserPuzzleImage {
+  id           String   @id @default(uuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  url          String
+  cloudinaryId String
+  width        Int
+  height       Int
+  /// Показывать ник автора при игре (настройка владельца).
+  showAuthor   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([createdAt])
+}
+
+/// Админ заблокировал пользователю загрузку своих картинок в «Пазли».
+model PuzzleUploadBlock {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }

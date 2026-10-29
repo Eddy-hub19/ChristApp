@@ -23,6 +23,9 @@ export type PuzzleImage = {
   licenseUrl: string | null;
   commonsTitle: string;
   sourceUrl: string;
+  /** Своя картинка користувача: без персонажів і ліцензійного підпису; authorName - нік автора або null (сховав). */
+  userMade?: boolean;
+  authorName?: string | null;
 };
 
 export type CatalogCharacter = { id: string; name: Localized; imageIds: string[] };
@@ -71,6 +74,8 @@ export type PuzzleSessionState = {
   count: PieceCount;
   counts: PieceCount[];
   selection: { mode: SelectionMode; characterId: string; imageId: string } | null;
+  /** Картинки користувачів, вибрані чи складані в сесії (їх нема в каталозі). */
+  extraImages?: PuzzleImage[];
   puzzle: PuzzleState | null;
   reveal: {
     image: PuzzleImage;

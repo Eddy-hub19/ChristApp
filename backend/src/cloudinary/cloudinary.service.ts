@@ -209,4 +209,49 @@ export class CloudinaryService {
       Readable.from(buffer).pipe(uploadStream);
     });
   }
+
+  /**
+   * Своя картинка для «Пазлів» (папка `christapp/puzzles-user`): WebP, не більше 1200 px по довгій стороні.
+   * Повертає URL, public_id (для видалення) і фактичні розміри.
+   */
+  async uploadPuzzleImage(
+    buffer: Buffer,
+  ): Promise<{ url: string; publicId: string; width: number; height: number }> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/puzzles-user',
+          resource_type: 'image',
+          format: 'webp',
+          transformation: [{ width: 1200, height: 1200, crop: 'limit' }],
+        },
+        (err, result) => {
+          if (err || !result?.secure_url || !result.width || !result.height) {
+            reject(err ?? new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+            width: result.width,
+            height: result.height,
+          });
+        },
+      );
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
+  /** Видалити файл за public_id; помилки лише логуємо (запис у БД уже прибрано). */
+  async destroyImage(publicId: string): Promise<void> {
+    if (!this.ready) return;
+    try {
+      await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    } catch (err) {
+      this.logger.warn(`Cloudinary destroy failed for ${publicId}: ${String(err)}`);
+    }
+  }
 }

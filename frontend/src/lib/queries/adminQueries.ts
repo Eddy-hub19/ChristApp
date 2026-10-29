@@ -326,3 +326,22 @@ export const fetchAdminFlockMutes = () => adminJson<{ mutes: Record<string, numb
 /** Назначить карту следующей созданной арене (mapId = null - случайная) и/или закрыть текущие арены для новых игроков. */
 export const setAdminFlockNextMap = (body: { mapId?: number | null; retire?: boolean }) =>
   adminJson<AdminFlockMaps>("/flock/next-map", { method: "POST", body: JSON.stringify(body) });
+
+/** «Пазли»: картинки пользователей в админке (превью, автор, дата) и блокировка загрузки. */
+export type AdminPuzzleImage = {
+  id: string;
+  url: string;
+  width: number;
+  height: number;
+  showAuthor: boolean;
+  createdAt: string;
+  owner: { id: string; username: string; nickname: string | null };
+};
+export type AdminPuzzleBlock = { userId: string; username: string; nickname: string | null; createdAt: string };
+export const adminPuzzleImagesQueryKey = () => ["admin", "puzzle-images"] as const;
+export const adminPuzzleBlocksQueryKey = () => ["admin", "puzzle-blocks"] as const;
+export const fetchAdminPuzzleImages = () => adminJson<AdminPuzzleImage[]>("/puzzle-images");
+export const fetchAdminPuzzleBlocks = () => adminJson<AdminPuzzleBlock[]>("/puzzle-image-blocks");
+export const deleteAdminPuzzleImage = (id: string) => adminJson<{ deleted: boolean }>(`/puzzle-images/${id}`, { method: "DELETE" });
+export const setAdminPuzzleBlock = (userId: string, blocked: boolean) =>
+  adminJson<{ userId: string; blocked: boolean }>(`/puzzle-image-blocks/${userId}`, { method: "POST", body: JSON.stringify({ blocked }) });

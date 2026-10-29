@@ -17,13 +17,14 @@ import {
   type AdminMember,
 } from "@/lib/queries/adminQueries";
 import AdminProcesses from "./AdminProcesses";
+import AdminPuzzleImages from "./AdminPuzzleImages";
 import AdminUserCard from "./AdminUserCard";
 import styles from "./admin.module.scss";
 
-type AdminTab = "users" | "processes";
+type AdminTab = "users" | "processes" | "puzzles";
 type Filter = "all" | "new" | "active" | "muted";
 
-const TABS: AdminTab[] = ["users", "processes"];
+const TABS: AdminTab[] = ["users", "processes", "puzzles"];
 const FILTERS: Filter[] = ["all", "new", "active", "muted"];
 const EMPTY_MEMBERS: AdminMember[] = [];
 const EMPTY_MUTES: Record<string, number> = {};
@@ -165,12 +166,16 @@ export default function AdminDashboard() {
             onClick={() => setTab(id)}
             onKeyDown={onTabKey}
           >
-            {id === "users" ? t("tabUsers") : t("tabProcesses")}
+            {id === "users" ? t("tabUsers") : id === "processes" ? t("tabProcesses") : t("tabPuzzles")}
           </button>
         ))}
       </div>
 
-      {tab === "processes" ? (
+      {tab === "puzzles" ? (
+        <div id="admin-panel-puzzles" role="tabpanel" aria-labelledby="admin-tab-puzzles">
+          <AdminPuzzleImages />
+        </div>
+      ) : tab === "processes" ? (
         <div id="admin-panel-processes" role="tabpanel" aria-labelledby="admin-tab-processes">
           <AdminProcesses active />
         </div>

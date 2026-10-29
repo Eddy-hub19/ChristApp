@@ -27,16 +27,36 @@ export type PuzzleImage = {
   licenseUrl: string | null;
   commonsTitle: string;
   sourceUrl: string;
+  /** Своя картинка користувача (не зі списку Commons): без персонажів і ліцензійного підпису. */
+  userMade?: boolean;
+  /** Нік автора для підпису під час гри (null - автор сховав себе). Лише для `userMade`. */
+  authorName?: string | null;
 };
+
+/**
+ * Власні картинки користувачів (таблиця UserPuzzleImage). Тримаємо в пам'яті, щоб вибір картинки лишався
+ * синхронним: сервіс оновлює реєстр після кожної зміни й раз на хвилину з БД.
+ */
+let userImages = new Map<string, PuzzleImage>();
+
+export function setUserPuzzleImages(list: PuzzleImage[]) {
+  userImages = new Map(list.map((i) => [i.id, i]));
+}
+
+export function userPuzzleImageList(): PuzzleImage[] {
+  return [...userImages.values()];
+}
+
+/** Частка випадкових виборів, у яких береться картинка користувача (якщо вони є). */
+export const USER_IMAGE_WEIGHT = 0.3;
 
 export const PUZZLE_IMAGES: PuzzleImage[] = (
   imagesJson as { images: PuzzleImage[] }
 ).images;
 
 export function getPuzzleImage(id: unknown): PuzzleImage | undefined {
-  return typeof id === 'string'
-    ? PUZZLE_IMAGES.find((image) => image.id === id)
-    : undefined;
+  if (typeof id !== 'string') return undefined;
+  return PUZZLE_IMAGES.find((image) => image.id === id) ?? userImages.get(id);
 }
 
 export function imagesOfCharacter(characterId: string): PuzzleImage[] {
