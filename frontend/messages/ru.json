@@ -526,7 +526,7 @@
   },
   "chat": {
     "globalChatTitle": "Общий чат для всех",
-    "shareWithJesusTitle": "Поделись с Иисусом",
+    "shareWithJesusTitle": "Уголок",
     "directChatWith": "Чат с {name}",
     "chatFallback": "Чат",
     "previewYou": "Вы",
