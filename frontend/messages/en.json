@@ -173,6 +173,7 @@
     "openChat": "Open chat"
   },
   "admin": {
+    "flockMap": {"title": "Flock map", "current": "Now: {map}", "changes": "Changes for new players at {time}", "changed": "New players already go to a new arena", "noArena": "No arenas right now", "next": "Next map", "nextNone": "Next map: random", "nextSet": "Next map: {map}", "clear": "Random", "switchNow": "Switch map now", "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only."},
     "flockMute": {
           "title": "Flock: custom text",
           "notMuted": "not muted",
@@ -1297,6 +1298,9 @@
       "eaten": "Eaten",
       "top1": "Time at #1"
     },
+    "wind": {"warn": "Wind!"},
+    "pipe": {"hint": "Shepherd's pipe: smaller sheep nearby are pulled towards you", "pull": "The pipe is calling you!"},
+    "mapNames": {"meadow": "Summer meadow", "grove": "Autumn grove", "frost": "Winter frost", "volcano": "Volcano"},
     "hud": {
       "mass": "Mass",
       "leaderboard": "Top 10",
@@ -1339,6 +1343,7 @@
       "streakAward": "You were #1 for {days} days in a row! +{count} rubies"
     },
     "bonuses": {
+      "pipe": "Shepherd's pipe",
       "speed": "Speed boost",
       "magnet": "Magnet",
       "shield": "Shield",

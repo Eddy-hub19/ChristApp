@@ -106,15 +106,17 @@ export function generateThorns(
 }
 
 /** Номер випадкової карти (за вагами FLOCK_MAPS[].weight; рівні ваги - рівна ймовірність). */
-export function pickMapId(rng: Rng): number {
+export function pickMapId(rng: Rng, exclude?: number): number {
+  // не повторяємо попередню карту підряд (якщо є з чого вибирати)
+  const pool = FLOCK_MAPS.length > 1 ? FLOCK_MAPS.filter((m) => m.id !== exclude) : FLOCK_MAPS;
   let total = 0;
-  for (const m of FLOCK_MAPS) total += m.weight;
+  for (const m of pool) total += m.weight;
   let r = rng() * total;
-  for (const m of FLOCK_MAPS) {
+  for (const m of pool) {
     r -= m.weight;
     if (r < 0) return m.id;
   }
-  return FLOCK_MAPS[FLOCK_MAPS.length - 1].id;
+  return pool[pool.length - 1].id;
 }
 
 export interface Cell {
@@ -230,6 +232,13 @@ export interface Puddle {
   r: number;
 }
 
+/** «Вітер»: a - напрям (рад), w - за скільки мс почнеться снос, l - скільки мс він триватиме. */
+export interface WindEvent {
+  a: number;
+  w: number;
+  l: number;
+}
+
 /** Старт дощу: l - скільки мс триватиме дощ, d - скільки підсихають калюжі після нього, p - [id, x, y, r]. */
 export interface RainEvent {
   l: number;
@@ -278,7 +287,7 @@ export interface DeathEvent {
 
 /** Бонуси, що з'являються як звичайні (без рідкісних «Ножиць»: їх спавнить окремий шанс). */
 const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
-  (k) => k !== 'scissors' && k !== 'eagle',
+  (k) => k !== 'scissors' && k !== 'eagle' && k !== 'pipe',
 );
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
@@ -328,6 +337,10 @@ export class FlockWorld {
   circle: { x: number; y: number; r: number } | null = null;
   readonly rainEvents: RainEvent[] = [];
   private rainNextAt = 0;
+  /** «Вітер»: поточна подія (startAt - початок сносу, у світовому часі; до нього - лише попередження) і її повідомлення цього тіку. */
+  private wind: { startAt: number; endsAt: number; angle: number } | null = null;
+  private windNextAt = 0;
+  readonly windEvents: WindEvent[] = [];
   private zActive = false;
   private zUntil = 0;
   private zNextSpawnAt = 0;
@@ -359,6 +372,7 @@ export class FlockWorld {
   ) {
     const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
     if (C.rain.maps.includes(mapId)) this.rainNextAt = this.rollRainDelay();
+    if (C.wind.maps.includes(mapId)) this.windNextAt = this.rollWindDelay();
     if (map.lava) {
       this.lava = generateLava(rng, C.worldSize);
       this.hazards = [
@@ -704,11 +718,19 @@ export class FlockWorld {
       !this.bonuses.some((b) => b.kind === 'scissors') &&
       this.rng() < C.scissors.spawnChance;
     const eagle = !scissors && this.rng() < C.eagle.spawnChance;
+    // «Сопілка пастуха» рідкісна: на полі не більше однієї
+    const pipe =
+      !scissors &&
+      !eagle &&
+      !this.bonuses.some((b) => b.kind === 'pipe') &&
+      this.rng() < C.pipe.spawnChance;
     const kind = scissors
       ? 'scissors'
       : eagle
         ? 'eagle'
-        : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
+        : pipe
+          ? 'pipe'
+          : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
     let bx = this.rand(120, C.worldSize - 120);
     let by = this.rand(120, C.worldSize - 120);
     for (let t = 0; t < 6 && this.lavaBlockedAt(bx, by, C.lava.clearMargin + 40); t++) {
@@ -771,6 +793,7 @@ export class FlockWorld {
     this.deaths.length = 0;
     this.lavaEvents.length = 0;
     this.rainEvents.length = 0;
+    this.windEvents.length = 0;
     const nowMs = this.now;
 
     for (const p of this.players.values()) {
@@ -790,6 +813,8 @@ export class FlockWorld {
       this.mergeOwn(p, dt);
     }
 
+    this.stepWind(dt);
+
     this.cellGrid.clear();
     for (const p of this.players.values()) {
       if (!p.alive) continue;
@@ -797,6 +822,7 @@ export class FlockWorld {
     }
 
     this.stepMagnet(dt);
+    this.stepPipe(dt);
     this.stepBlobs(dt);
     this.stepCellVsCell();
     this.stepFood();
@@ -843,6 +869,7 @@ export class FlockWorld {
 
     this.stepZorepad();
     this.stepRain();
+    this.stepWindPlan();
 
     // поповнення їжі (порціями, щоб не стрибало)
     for (let i = 0; i < C.foodRegrowPerTick && this.foodById.size < C.maxFood; i++)
@@ -1481,6 +1508,119 @@ export class FlockWorld {
     });
   }
 
+  // ---------- «Вітер» ----------
+  private rollWindDelay() {
+    const W = C.wind;
+    return this.now + W.intervalMinMs + this.rng() * (W.intervalMaxMs - W.intervalMinMs);
+  }
+
+  /** Снос зараз іде (попередження до початку не рахується). */
+  windActive() {
+    return this.wind !== null && this.now >= this.wind.startAt && this.now < this.wind.endsAt;
+  }
+
+  /** Швидкість сносу клітини (од./с): та сама формула на клієнті (flockModel.windSpeed). */
+  static windSpeedFor(mass: number) {
+    return (speedOf(C.startMass) * C.wind.strength) / (1 + mass / C.wind.massHalf);
+  }
+
+  /** Вітер для нового клієнта (welcome): a - напрям, w - до початку (0 - уже дме), l - скільки лишилось сносу. */
+  windSnapshot() {
+    const w = this.wind;
+    if (!w) return undefined;
+    return {
+      a: w.angle,
+      w: Math.max(0, Math.round(w.startAt - this.now)),
+      l: Math.max(0, Math.round(w.endsAt - Math.max(this.now, w.startAt))),
+    };
+  }
+
+  /** Планування: після інтервалу (за наявності людей і без «Зорепаду») - попередження й подія. */
+  private stepWindPlan() {
+    if (!C.wind.maps.includes(this.mapId)) return;
+    const W = C.wind;
+    if (this.wind) {
+      if (this.now >= this.wind.endsAt) {
+        this.wind = null;
+        this.windNextAt = this.rollWindDelay();
+      }
+      return;
+    }
+    if (this.now < this.windNextAt || this.zActive) return;
+    let human = false;
+    for (const p of this.players.values()) {
+      if (p.alive && !p.bot && !p.paused) {
+        human = true;
+        break;
+      }
+    }
+    if (!human) return;
+    const duration = W.durationMinMs + this.rng() * (W.durationMaxMs - W.durationMinMs);
+    const angle = this.rng() * TWO_PI;
+    this.wind = { startAt: this.now + W.warnMs, endsAt: this.now + W.warnMs + duration, angle };
+    this.windEvents.push({ a: angle, w: W.warnMs, l: Math.round(duration) });
+  }
+
+  /** Клітина всередині куща: менша за кущ і її центр у його межах (ховається). */
+  private insideBush(c: Cell) {
+    const r = radiusOf(c.mass);
+    for (const t of this.thorns) {
+      const tr = radiusOf(t.mass);
+      if (r <= tr && Math.hypot(c.x - t.x, c.y - t.y) < tr) return true;
+    }
+    return false;
+  }
+
+  /** Під стартовим щитом новичка (не бонус «Щит»). */
+  private spawnShielded(p: Player) {
+    return this.now - p.spawnedAt < C.spawnShieldMs;
+  }
+
+  /** Один вектор на тік: усі клітини зносяться в бік вітру; на краю світу упираються в межу. */
+  private stepWind(dt: number) {
+    if (!this.windActive() || !this.wind) return;
+    const dx = Math.cos(this.wind.angle);
+    const dy = Math.sin(this.wind.angle);
+    for (const p of this.players.values()) {
+      if (!p.alive || p.paused || this.spawnShielded(p)) continue;
+      for (const c of p.cells) {
+        if (this.insideBush(c)) continue;
+        const v = FlockWorld.windSpeedFor(c.mass) * dt;
+        const r = radiusOf(c.mass);
+        c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x + dx * v));
+        c.y = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.y + dy * v));
+      }
+    }
+  }
+
+  // ---------- «Сопілка пастуха» ----------
+  /** Клітини, що менші за клітину власника сопілки й у радіусі, тягнуться до нього (пошук через просторову сітку). */
+  private stepPipe(dt: number) {
+    const P = C.pipe;
+    for (const owner of this.players.values()) {
+      if (!owner.alive || owner.paused || !this.hasEffect(owner, 'pipe')) continue;
+      for (const oc of owner.cells) {
+        const reach = P.radiusCells * radiusOf(oc.mass);
+        this.cellGrid.query(oc.x, oc.y, reach, (t) => {
+          if (t.pid === owner.id || t.mass >= oc.mass) return;
+          const tp = this.players.get(t.pid);
+          if (!tp || !tp.alive || tp.paused || tp.boss || tp.monster || this.spawnShielded(tp)) return;
+          const dx = oc.x - t.x;
+          const dy = oc.y - t.y;
+          const d = Math.hypot(dx, dy);
+          if (d > reach || d < 1) return;
+          const step = Math.min(d, P.pullFraction * speedOf(t.mass) * dt);
+          const nx = t.x + (dx / d) * step;
+          const ny = t.y + (dy / d) * step;
+          // біля лави не тягнемо: берег лишається безпечним
+          if (this.lava && this.lavaBlockedAt(nx, ny, C.lava.clearMargin)) return;
+          t.x = nx;
+          t.y = ny;
+        });
+      }
+    }
+  }
+
   // ---------- «Зорепад» ----------
   /** Зірки для нового клієнта (welcome): скільки мс лишилось до приземлення (0 - уже лежить). */
   starsSnapshot() {
@@ -1552,7 +1692,7 @@ export class FlockWorld {
   private zorepadStarter(): Player | null {
     const Z = C.zorepad;
     // під час дощу «Зорепад» чекає його кінця (дощ і зорепад не йдуть разом)
-    if (this.rainActive()) return null;
+    if (this.rainActive() || this.wind) return null;
     let alive = 0;
     let starter: Player | null = null;
     for (const p of this.players.values()) {

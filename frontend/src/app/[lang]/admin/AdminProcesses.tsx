@@ -12,8 +12,8 @@ import {
 } from "@/lib/queries/adminQueries";
 import { queryKeys } from "@/lib/queryKeys";
 import { cpuBudgetShare, evaluateArenaBudget, evaluateDbRtt, evaluateServerHealth, type HealthLevel } from "@/lib/adminHealth";
-import type { AdminFlockArena, AdminFlockDecision, AdminFlockSay } from "@/lib/queries/adminQueries";
-import { setAdminFlockMute } from "@/lib/queries/adminQueries";
+import type { AdminFlockArena, AdminFlockDecision, AdminFlockMaps, AdminFlockSay } from "@/lib/queries/adminQueries";
+import { setAdminFlockMute, setAdminFlockNextMap } from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
 function formatUptime(totalSec: number): string {
@@ -58,12 +58,66 @@ function Sparkline({ values }: { values: number[] }) {
 const flockLevelDot: Record<AdminFlockDecision["level"], HealthLevel> = { low: "ok", normal: "ok", high: "bad" };
 
 /** Арены «Отари»: сколько людей и ботов, нагрузка арены и решения регулятора (кого убрали/вернули и почему). */
-function FlockSection({ arenas, says }: { arenas: AdminFlockArena[]; says: AdminFlockSay[] }) {
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano"] as const;
+
+/** Карта «Отари»: текущая карта арен, когда она сменится для новых игроков, и принудительный выбор карты следующей арены (сервер проверяет права). */
+function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: AdminFlockMaps }) {
+  const t = useTranslations("admin.flockMap");
+  const tf = useTranslations("flock.mapNames");
+  const queryClient = useQueryClient();
+  const set = useMutation({
+    mutationFn: (body: { mapId?: number | null; retire?: boolean }) => setAdminFlockNextMap(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.server() }),
+  });
+  const name = (id: number | undefined) => tf(MAP_KEYS[id ?? 0] ?? MAP_KEYS[0]);
+  const normal = arenas.filter((a) => a.mode !== "circle");
+  const next = maps?.nextMap ?? null;
+  const timeOf = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return (
+    <div className={styles.procSection}>
+      <h3 className={styles.procSubheading}>{t("title")}</h3>
+      {normal.length === 0 ? <p className={styles.metaSmall}>{t("noArena")}</p> : null}
+      {normal.map((a) => (
+        <p key={a.id} className={styles.metaSmall}>
+          #{a.id}: {t("current", { map: name(a.mapId) })} ·{" "}
+          {a.mapChangesAt === 0 || a.mapChangesAt === undefined || a.mapChangesAt === null
+            ? t("changed")
+            : t("changes", { time: timeOf(a.mapChangesAt) })}
+        </p>
+      ))}
+      <p className={styles.metaSmall}>{next === null ? t("nextNone") : t("nextSet", { map: name(next) })}</p>
+      <div className={styles.pills} role="group" aria-label={t("next")}>
+        {MAP_KEYS.map((k, id) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={next === id}
+            className={`${styles.filterPill} ${next === id ? styles.filterPillActive : ""}`}
+            disabled={set.isPending}
+            onClick={() => set.mutate({ mapId: id })}
+          >
+            {name(id)}
+          </button>
+        ))}
+        <button type="button" className={styles.pill} disabled={set.isPending || next === null} onClick={() => set.mutate({ mapId: null })}>
+          {t("clear")}
+        </button>
+        <button type="button" className={styles.btnGhost} disabled={set.isPending || normal.length === 0} onClick={() => set.mutate({ retire: true })}>
+          {t("switchNow")}
+        </button>
+      </div>
+      <p className={styles.metaSmall}>{t("hint")}</p>
+    </div>
+  );
+}
+
+function FlockSection({ arenas, says, maps }: { arenas: AdminFlockArena[]; says: AdminFlockSay[]; maps?: AdminFlockMaps }) {
   const t = useTranslations("admin");
   const ms = (v: number) => t("procFlockMs", { value: v.toFixed(1) });
   return (
     <section className={styles.procSection}>
       <h2 className={styles.procHeading}>{t("procSecFlock")}</h2>
+      <FlockMapControl arenas={arenas} maps={maps} />
       {arenas.length === 0 ? <p className={styles.metaSmall}>{t("procFlockNone")}</p> : null}
       {arenas.map((a) => (
         <div key={a.id}>
@@ -454,7 +508,7 @@ export default function AdminProcesses({ active }: { active: boolean }) {
         </div>
       </section>
 
-      <FlockSection arenas={data.flock?.arenas ?? []} says={data.flock?.says ?? []} />
+      <FlockSection arenas={data.flock?.arenas ?? []} says={data.flock?.says ?? []} maps={data.flock?.maps} />
 
       <CpuBenchmark active={active} />
 

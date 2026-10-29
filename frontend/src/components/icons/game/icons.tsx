@@ -409,3 +409,31 @@ export function AlphaIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Сопілка пастуха: дерев'яна дудочка з нотами. */
+export function PipeIcon(props: ColorIconProps) {
+  const g = useGradient("#e9b77a", "#b9772f");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <rect x="2.6" y="11.2" width="14.6" height="4.4" rx="2.2" transform="rotate(-28 2.6 11.2)" fill={g.fill} {...stroke} />
+      <circle cx="8.6" cy="12.2" r="0.9" fill={INK} />
+      <circle cx="11.2" cy="10.6" r="0.9" fill={INK} />
+      <circle cx="13.8" cy="9" r="0.9" fill={INK} />
+      <path d="M18.4 5.2v5.2" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+      <ellipse cx="17.2" cy="10.6" rx="1.9" ry="1.4" fill="#f4c542" {...stroke} />
+      <path d="M18.4 5.2l3 1.4" stroke={INK} strokeWidth="1.6" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+/** Ветер: три волнистых росчерка. */
+export function WindIcon(props: ColorIconProps) {
+  return (
+    <ColorIconSvg {...props}>
+      <path d="M3 8.5h10.2a2.6 2.6 0 1 0-2.4-3.6" stroke="#6fb7e8" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M3 13h14.4a2.8 2.8 0 1 1-2.6 3.8" stroke="#8fd0f4" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M3 17.6h6.4a2.2 2.2 0 1 1-2 3" stroke="#6fb7e8" strokeWidth="2.2" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}

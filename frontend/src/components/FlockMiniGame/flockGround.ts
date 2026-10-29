@@ -85,8 +85,59 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
     c.lineTo(span, i * cell);
   }
   c.stroke();
-  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : 47);
-  if (ground === "snow") {
+  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : 47);
+  if (ground === "meadow") {
+    // трава: пятна чуть разных оттенков (светлее и темнее базового зелёного), травинки и мелкие цветочки
+    for (let i = 0; i < 34; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const w = 40 + r() * 80;
+      c.fillStyle = r() < 0.5 ? "rgba(255,255,200,0.07)" : "rgba(10,70,20,0.09)";
+      wrapped(span, x, y, w, (px, py) => {
+        c.beginPath();
+        c.ellipse(px, py, w, w * (0.45 + r() * 0.2), r() * 3, 0, TAU);
+        c.fill();
+      });
+    }
+    c.lineCap = "round";
+    const blades = ["rgba(40,120,40,0.55)", "rgba(80,160,60,0.5)", "rgba(20,90,40,0.5)", "rgba(150,200,80,0.5)"];
+    for (let i = 0; i < 260; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const h = 7 + r() * 8;
+      c.strokeStyle = blades[Math.floor(r() * blades.length)];
+      c.lineWidth = 1.6;
+      const lean = (r() - 0.5) * 8;
+      wrapped(span, x, y, 12, (px, py) => {
+        c.beginPath();
+        c.moveTo(px, py);
+        c.lineTo(px - 3 + lean * 0.3, py - h);
+        c.moveTo(px, py);
+        c.lineTo(px + lean * 0.5, py - h * 1.15);
+        c.moveTo(px, py);
+        c.lineTo(px + 3 + lean * 0.7, py - h * 0.9);
+        c.stroke();
+      });
+    }
+    const petals = ["#ffffff", "#ffe36a", "#ff9ec4", "#c9a6ff", "#ff8a6a"];
+    for (let i = 0; i < 46; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const col = petals[Math.floor(r() * petals.length)];
+      wrapped(span, x, y, 6, (px, py) => {
+        c.fillStyle = col;
+        for (let k = 0; k < 5; k++) {
+          c.beginPath();
+          c.arc(px + Math.cos((k / 5) * TAU) * 2.4, py + Math.sin((k / 5) * TAU) * 2.4, 1.8, 0, TAU);
+          c.fill();
+        }
+        c.fillStyle = "#f3b92a";
+        c.beginPath();
+        c.arc(px, py, 1.5, 0, TAU);
+        c.fill();
+      });
+    }
+  } else if (ground === "snow") {
     // замети: світлі пагорбки з блакитною тінню знизу
     for (let i = 0; i < 26; i++) {
       const x = r() * span;
@@ -122,6 +173,58 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
         x += Math.cos(a) * 17;
         y += Math.sin(a) * 17;
       }
+    }
+    // ёлочки: маленькие, со снежными шапками
+    for (let i = 0; i < 9; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const s = 12 + r() * 9;
+      wrapped(span, x, y, s * 1.4, (px, py) => {
+        c.fillStyle = "rgba(120,150,190,0.3)";
+        c.beginPath();
+        c.ellipse(px + s * 0.3, py + s * 0.15, s * 0.9, s * 0.28, 0, 0, TAU);
+        c.fill();
+        c.fillStyle = "#5a3d24";
+        c.fillRect(px - s * 0.09, py - s * 0.2, s * 0.18, s * 0.34);
+        for (let k = 0; k < 3; k++) {
+          const w = s * (0.95 - k * 0.27);
+          const top = py - s * (0.2 + k * 0.5);
+          c.fillStyle = "#2f7a4d";
+          c.beginPath();
+          c.moveTo(px - w, top);
+          c.lineTo(px, top - s * 0.85);
+          c.lineTo(px + w, top);
+          c.closePath();
+          c.fill();
+          c.fillStyle = "#ffffff";
+          c.beginPath();
+          c.moveTo(px - w * 0.62, top - s * 0.32);
+          c.lineTo(px, top - s * 0.85);
+          c.lineTo(px + w * 0.62, top - s * 0.32);
+          c.quadraticCurveTo(px, top - s * 0.18, px - w * 0.62, top - s * 0.32);
+          c.fill();
+        }
+      });
+    }
+    // снежные комочки
+    for (let i = 0; i < 24; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const s = 3 + r() * 4;
+      wrapped(span, x, y, s, (px, py) => {
+        c.fillStyle = "rgba(150,180,215,0.45)";
+        c.beginPath();
+        c.arc(px + 1, py + s * 0.5, s, 0, TAU);
+        c.fill();
+        c.fillStyle = "#ffffff";
+        c.beginPath();
+        c.arc(px, py, s, 0, TAU);
+        c.fill();
+        c.fillStyle = "rgba(190,215,240,0.8)";
+        c.beginPath();
+        c.arc(px + s * 0.3, py + s * 0.3, s * 0.55, 0, TAU);
+        c.fill();
+      });
     }
     // блиск
     c.fillStyle = "rgba(255,255,255,0.95)";
@@ -314,25 +417,29 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
       c.ellipse(6, -11, 6, 2.8, -0.5, 0, TAU);
       c.fill();
     } else {
-      // шишка
-      c.fillStyle = "#8a5a32";
-      c.strokeStyle = "#4a2c14";
-      c.lineWidth = 1.4;
+      // морозные ягоды можжевельника: синие шарики на веточке со снежной шапкой
+      c.strokeStyle = "#4e6a54";
+      c.lineWidth = 2.4;
       c.beginPath();
-      c.ellipse(0, 1, 9.5, 14, 0, 0, TAU);
-      c.fill();
+      c.moveTo(-12, 10);
+      c.quadraticCurveTo(0, 6, 12, -4);
       c.stroke();
-      c.strokeStyle = "#5e3a1c";
-      c.lineWidth = 1.4;
-      c.beginPath();
-      for (let k = -2; k <= 2; k++) {
-        c.moveTo(-9, 1 + k * 5);
-        c.quadraticCurveTo(0, 5 + k * 5, 9, 1 + k * 5);
+      for (const [x, y] of [[-6, 6], [1, 3], [8, -1], [-1, -3]]) {
+        c.fillStyle = "#4a6fd0";
+        c.strokeStyle = "#1f3578";
+        c.lineWidth = 1.2;
+        c.beginPath();
+        c.arc(x, y, 4.4, 0, TAU);
+        c.fill();
+        c.stroke();
+        c.fillStyle = "rgba(255,255,255,0.85)";
+        c.beginPath();
+        c.arc(x - 1.3, y - 1.4, 1.2, 0, TAU);
+        c.fill();
       }
-      c.stroke();
       c.fillStyle = "#ffffff";
       c.beginPath();
-      c.ellipse(0, -11, 6, 3, 0, 0, TAU);
+      c.ellipse(-2, -8, 7, 3, 0.2, 0, TAU);
       c.fill();
     }
     return;
@@ -405,5 +512,46 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
         c.stroke();
       }
     }
+  }
+}
+
+/**
+ * Солнечные блики «Лета»: полупрозрачные светлые пятна и мягкие косые лучи. Один статичный тайл (рисуется один раз),
+ * поверх земли кладётся паттерном; без анимации и blur. Сторона больше тайла земли, чтобы повторы не совпадали.
+ */
+export const SUNLIGHT_SPAN = 960;
+export function paintSunlight(c: CanvasRenderingContext2D, span: number) {
+  const r = rng(131);
+  // мягкие лучи: широкие косые полосы с градиентом поперёк
+  for (let i = 0; i < 5; i++) {
+    const x = r() * span;
+    const w = 70 + r() * 90;
+    for (const dx of [0, -span]) {
+      c.save();
+      c.translate(x + dx, 0);
+      c.rotate(-0.55);
+      const g = c.createLinearGradient(-w, 0, w, 0);
+      g.addColorStop(0, "rgba(255,244,190,0)");
+      g.addColorStop(0.5, "rgba(255,244,190,0.14)");
+      g.addColorStop(1, "rgba(255,244,190,0)");
+      c.fillStyle = g;
+      c.fillRect(-w, -span, w * 2, span * 3);
+      c.restore();
+    }
+  }
+  // светлые пятна
+  for (let i = 0; i < 16; i++) {
+    const x = r() * span;
+    const y = r() * span;
+    const w = 40 + r() * 70;
+    wrapped(span, x, y, w, (px, py) => {
+      const g = c.createRadialGradient(px, py, 0, px, py, w);
+      g.addColorStop(0, "rgba(255,248,205,0.2)");
+      g.addColorStop(1, "rgba(255,248,205,0)");
+      c.fillStyle = g;
+      c.beginPath();
+      c.ellipse(px, py, w, w * 0.7, 0.4, 0, TAU);
+      c.fill();
+    });
   }
 }

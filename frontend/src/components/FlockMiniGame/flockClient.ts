@@ -203,6 +203,7 @@ export class FlockClient {
         this.mode = cfg.mode === "circle" ? "circle" : "normal";
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.model.applyRain(cfg.rain, performance.now());
+        this.model.applyWind(cfg.wind, performance.now());
         this.model.applyCircle(cfg.circle, performance.now());
         this.stored = {
           token: cfg.resumeToken,
@@ -260,6 +261,10 @@ export class FlockClient {
     // «Дощ»: один раз на подію (тривалість, підсихання, калюжі); далі час рахує модель
     socket.on("rn", (msg: { l?: number; d?: number; p?: unknown }) => {
       this.later(() => this.model?.applyRain(msg, performance.now()));
+    });
+    // «Вітер»: попередження й початок одним повідомленням (напрям, до початку, тривалість)
+    socket.on("wd", (msg: { a?: number; w?: number; l?: number }) => {
+      this.later(() => this.model?.applyWind(msg, performance.now()));
     });
     socket.on("qt", (msg: unknown) => {
       this.later(() => this.model?.applyText(msg, performance.now()));

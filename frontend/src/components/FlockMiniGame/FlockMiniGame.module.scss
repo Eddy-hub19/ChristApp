@@ -1241,3 +1241,84 @@
   border: 1.5px solid var(--surface-elevated);
   background: var(--accent);
 }
+
+
+/* «Вітер»: попередження по центру з великою стрілкою напрямку, потім компактная плашка; назва карты и «сопілка» - короткие подсказки. */
+.windBanner {
+  position: absolute;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 92vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-weight: 800;
+  color: #eaf6ff;
+  text-shadow: 0 2px 10px rgba(30, 90, 150, 0.85), 0 0 3px rgba(0, 0, 0, 0.7);
+}
+.windWarn {
+  top: 24%;
+  padding: 8px 18px;
+  border-radius: 16px;
+  background: color-mix(in srgb, #2f6fa8 55%, var(--surface-elevated));
+  font-size: 24px;
+  animation: windBlink 0.9s ease-in-out infinite;
+}
+.windChip {
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 100px);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #2f6fa8 50%, var(--surface-elevated));
+  font-size: 13px;
+}
+.windArrow {
+  display: inline-block;
+  font-size: 1.3em;
+  line-height: 1;
+  color: #bfe3ff;
+}
+@keyframes windBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.pipeCall {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  z-index: 6;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #c58b2a 55%, var(--surface-elevated));
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff3cf;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.mapToast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 150px);
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: mapToastIn 0.25s ease-out;
+}
+@keyframes mapToastIn {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .windWarn { animation: none; }
+  .mapToast { animation: none; }
+}

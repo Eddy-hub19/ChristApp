@@ -131,7 +131,15 @@ export type AdminFlockArena = {
   hz: number;
   load: { lateMs: number; loopP99Ms: number; cpuPct: number } | null;
   decisions: AdminFlockDecision[];
+  /** Номер карты арены (0 луг, 1 гай, 2 мороз, 3 вулкан), режим арены и когда она перестанет принимать новых игроков (мс; 0 - уже закрыта; null - режим без смены). */
+  mapId?: number;
+  mode?: "normal" | "circle";
+  startedAt?: number;
+  mapChangesAt?: number | null;
 };
+
+/** Карта «Отари» для админки: что назначено следующей арене (null - случайная) и как часто меняется. */
+export type AdminFlockMaps = { nextMap: number | null; lastMap: number; rotateMs: number };
 
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
 export type AdminServerStatus = {
@@ -170,7 +178,7 @@ export type AdminServerStatus = {
   };
   realtime: { connectedSockets: number; onlineUsers: number; activeRooms: number };
   /** Нет в старых версиях бекенда. */
-  flock?: { arenas: AdminFlockArena[]; says?: AdminFlockSay[] };
+  flock?: { arenas: AdminFlockArena[]; says?: AdminFlockSay[]; maps?: AdminFlockMaps };
   users: { total: number; active: number };
 };
 
@@ -314,3 +322,7 @@ export const setAdminFlockMute = (memberId: string, minutes: number) =>
 /** Усі чинні муті «Отари» одним запитом (userId -> until): фільтр «Заглушені» й значок у картці. */
 export const adminFlockMutesQueryKey = () => ["admin", "flock-mutes"] as const;
 export const fetchAdminFlockMutes = () => adminJson<{ mutes: Record<string, number> }>("/flock-mutes");
+
+/** Назначить карту следующей созданной арене (mapId = null - случайная) и/или закрыть текущие арены для новых игроков. */
+export const setAdminFlockNextMap = (body: { mapId?: number | null; retire?: boolean }) =>
+  adminJson<AdminFlockMaps>("/flock/next-map", { method: "POST", body: JSON.stringify(body) });

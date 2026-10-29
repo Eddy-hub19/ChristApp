@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 import FlockSheet from "./FlockSheet";
 import { configValue } from "./flockInfoData";
 import styles from "./FlockInfo.module.scss";
-import game_ from "./FlockMiniGame.module.scss";
 
 type Props = {
   game: Record<string, unknown> | undefined;
@@ -33,20 +32,24 @@ export default function FlockModes({ game, canPlay, onPlay, onClose }: Props) {
   return (
     <FlockSheet title={t("title")} closeLabel={t("close")} onClose={onClose} testId="flock-modes">
       {() => (
-        <section className={styles.entry} aria-label={t("circleTitle")}>
-          <h3 className={styles.sectionTitle}>{t("circleTitle")}</h3>
-          <p>{t("circleIntro", params)}</p>
-          <ul>
-            <li>{t("rule1", params)}</li>
-            <li>{t("rule2", params)}</li>
-            <li>{t("rule3", params)}</li>
-            <li>{t("rule4", params)}</li>
-          </ul>
-          <p>{t("hint")}</p>
-          <button type="button" className={game_.primary} onClick={onPlay} disabled={!canPlay}>
-            {canPlay ? t("play") : t("connecting")}
-          </button>
-        </section>
+        <>
+          <section className={styles.modeCard} aria-label={t("circleTitle")}>
+            <h3 className={styles.modeTitle}>{t("circleTitle")}</h3>
+            <p className={styles.modeText}>{t("circleIntro", params)}</p>
+            <ul className={styles.modeRules}>
+              <li>{t("rule1", params)}</li>
+              <li>{t("rule2", params)}</li>
+              <li>{t("rule3", params)}</li>
+              <li>{t("rule4", params)}</li>
+            </ul>
+            <p className={styles.modeHint}>{t("hint")}</p>
+          </section>
+          <div className={styles.modeFooter}>
+            <button type="button" className={styles.modePlay} onClick={onPlay} disabled={!canPlay}>
+              {canPlay ? t("play") : t("connecting")}
+            </button>
+          </div>
+        </>
       )}
     </FlockSheet>
   );

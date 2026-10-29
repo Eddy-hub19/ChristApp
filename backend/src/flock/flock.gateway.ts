@@ -12,6 +12,7 @@ import type { Namespace, Socket } from 'socket.io';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin } from './flock.config';
+import { speedOf } from './flock.engine';
 import { FlockManager } from './flock.manager';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
@@ -222,6 +223,12 @@ export class FlockGateway
       stars: res.stars,
       /** «Дощ» на момент входу: { l, y, d, p: [[id, x, y, r]] }; без поля - дощу нема. */
       rain: res.rain,
+      /** «Вітер» на момент входу: { a, w, l }; без поля - вітру нема. Сила й формула для передбачення - windSpeed0/windMassHalf. */
+      wind: res.wind,
+      windSpeed0: speedOf(FLOCK_CONFIG.startMass) * FLOCK_CONFIG.wind.strength,
+      windMassHalf: FLOCK_CONFIG.wind.massHalf,
+      /** «Сопілка пастуха»: радіус дії в радіусах клітини власника. */
+      pipeRadius: FLOCK_CONFIG.pipe.radiusCells,
       /** Режим арени ('circle' - «Звужуване коло») і стан кола: { x, y, r0, r1, hold, shrink, stage, stages }. */
       mode: res.mode,
       circle: res.circle,
@@ -330,7 +337,22 @@ export class FlockGateway
       hz: a.hz,
       load: a.load,
       decisions: a.decisions.slice(-10),
+      mapId: a.mapId,
+      mode: a.mode,
+      startedAt: a.startedAt,
+      mapChangesAt: a.mapChangesAt,
     }));
+  }
+
+  /** Адмінка: примусова карта наступної арени й параметри чергування. */
+  mapAdmin() {
+    return this.manager.mapAdmin();
+  }
+  setNextMap(id: number | null) {
+    return this.manager.setNextMap(id);
+  }
+  retireArenas() {
+    this.manager.retireArenas();
   }
 
   onModuleDestroy() {

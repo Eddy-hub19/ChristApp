@@ -1,5 +1,5 @@
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
-import { GROUND_SPAN, paintGround, type Ground } from "./flockGround";
+import { GROUND_SPAN, SUNLIGHT_SPAN, paintGround, paintSunlight, type Ground } from "./flockGround";
 import { ARTIFACT_EXTENT, anchorFor, drawArtifact, drawArtifactShape } from "./flockArtifacts";
 import { animFrame, skinOf } from "./flockSkins";
 import { specialExtent } from "./flockSpecialDeco";
@@ -636,46 +636,13 @@ export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUn
   const q = Math.max(0.25, Math.round(pxPerUnit * 4) / 4);
   const key = `${theme.dark ? "d" : "l"}|${theme.bg}|${q}|${ground}`;
   if (tile && tile.key === key) return tile.pattern;
-  const span = ground === "meadow" ? GRID * TILE_CELLS : GROUND_SPAN;
+  const span = GROUND_SPAN;
   const size = Math.round(span * q);
   const cv = makeCanvas(size, size);
   const c = cv.getContext("2d");
-  if (c && ground !== "meadow") {
+  if (c) {
     c.scale(size / span, size / span);
     paintGround(c, span, ground, theme.bg, theme.grid, GRID);
-  } else if (c) {
-    c.scale(size / span, size / span);
-    c.fillStyle = theme.bg;
-    c.fillRect(0, 0, span, span);
-    c.strokeStyle = theme.grid;
-    c.lineWidth = 1.2 / q;
-    c.beginPath();
-    for (let i = 0; i <= TILE_CELLS; i++) {
-      c.moveTo(i * GRID, 0);
-      c.lineTo(i * GRID, span);
-      c.moveTo(0, i * GRID);
-      c.lineTo(span, i * GRID);
-    }
-    c.stroke();
-    c.strokeStyle = theme.tuft;
-    c.lineWidth = 2 / q;
-    c.lineCap = "round";
-    c.beginPath();
-    for (let gx = 0; gx < TILE_CELLS; gx++) {
-      for (let gy = 0; gy < TILE_CELLS; gy++) {
-        const h = hash(gx, gy);
-        if (h > 0.55) continue;
-        const tx = gx * GRID + 20 + h * 120 * 0.5;
-        const ty = gy * GRID + 24 + hash(gy, gx) * 50;
-        c.moveTo(tx, ty);
-        c.lineTo(tx - 4, ty - 9);
-        c.moveTo(tx, ty);
-        c.lineTo(tx + 1, ty - 11);
-        c.moveTo(tx, ty);
-        c.lineTo(tx + 5, ty - 8);
-      }
-    }
-    c.stroke();
   }
   const pattern = ctx.createPattern(cv, "repeat");
   // піксель тайла -> світова одиниця (тайл покриває span одиниць, а не size)
@@ -684,7 +651,26 @@ export function pastureTile(ctx: CanvasRenderingContext2D, theme: Theme, pxPerUn
   return pattern;
 }
 
+/** Солнечные блики лета: статичный тайл (кэш), накладывается поверх земли паттерном. */
+let sunTile: { q: number; pattern: CanvasPattern | null } | null = null;
+export function sunlightPattern(ctx: CanvasRenderingContext2D, pxPerUnit: number): CanvasPattern | null {
+  const q = Math.max(0.25, Math.min(1, Math.round(pxPerUnit * 4) / 4));
+  if (sunTile && sunTile.q === q) return sunTile.pattern;
+  const size = Math.round(SUNLIGHT_SPAN * q);
+  const cv = makeCanvas(size, size);
+  const c = cv.getContext("2d");
+  if (c) {
+    c.scale(size / SUNLIGHT_SPAN, size / SUNLIGHT_SPAN);
+    paintSunlight(c, SUNLIGHT_SPAN);
+  }
+  const pattern = ctx.createPattern(cv, "repeat");
+  pattern?.setTransform(new DOMMatrix([SUNLIGHT_SPAN / size, 0, 0, SUNLIGHT_SPAN / size, 0, 0]));
+  sunTile = { q, pattern };
+  return pattern;
+}
+
 export function clearSpriteCaches() {
+  sunTile = null;
   creatures.clear();
   layerSprites.clear();
   texts.clear();

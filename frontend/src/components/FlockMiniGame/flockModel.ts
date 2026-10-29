@@ -56,6 +56,13 @@ export interface FlockCfg {
   rainSlow?: number;
   /** «Дощ», що йде на момент входу: l - лишилось дощу (мс), y - підсихання після нього, d - повне підсихання, p - калюжі [id, x, y, r]. */
   rain?: { l: number; y?: number; d: number; p: [number, number, number, number][] };
+  /** «Вітер» на момент входу: a - напрям (рад), w - мс до початку, l - скільки лишилось сносу. */
+  wind?: { a: number; w: number; l: number };
+  /** Формула сносу (дзеркало сервера): швидкість = windSpeed0 / (1 + маса / windMassHalf). Без полів - вітру нема. */
+  /** «Сопілка пастуха»: радіус дії в радіусах клітини власника (без поля - візуал не малюється). */
+  pipeRadius?: number;
+  windSpeed0?: number;
+  windMassHalf?: number;
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
 }
@@ -197,6 +204,10 @@ export class FlockModel {
   circle: RCircle | null = null;
   /** Поточний «Дощ» (null - нема). */
   rain: RRain | null = null;
+  /** Коли (локальний час, мс) своя клітина востаннє була під «Сопілкою»: HUD коротко показує «Тебе кличе сопілка!». */
+  pipeCalledAt = -Infinity;
+  /** «Вітер»: напрям і локальні мітки початку/кінця сносу (мс); null - нема. */
+  wind: { angle: number; startAt: number; endsAt: number } | null = null;
   /** «Прискорення» своєї клітини діє цього кадру (для сліду й індикатора). */
   sprintActive = false;
   bonuses: { id: number; kind: string; x: number; y: number }[] = [];
@@ -310,6 +321,38 @@ export class FlockModel {
         Array.isArray(q) && q.length >= 4 ? [{ id: Number(q[0]), x: Number(q[1]), y: Number(q[2]), r: Number(q[3]) }] : [],
       ),
     };
+  }
+
+  /** Події «Вітру»: msg з welcome (wind) або події "wd": { a, w, l }. */
+  applyWind(msg: { a?: number; w?: number; l?: number } | null | undefined, recvMs: number = this.localNow) {
+    if (!msg || !Number.isFinite(msg.a)) return;
+    const w = Math.max(0, Number(msg.w) || 0);
+    const l = Math.max(0, Number(msg.l) || 0);
+    this.wind = { angle: Number(msg.a), startAt: recvMs + w, endsAt: recvMs + w + l };
+  }
+
+  /** Стан вітру для HUD: попередження (warn), снос іде (active) або нічого (null); leftMs - до зміни фази. */
+  windStatus(now: number = this.localNow): { phase: "warn" | "active"; angle: number; leftMs: number } | null {
+    const w = this.wind;
+    if (!w || now >= w.endsAt) return null;
+    return now < w.startAt ? { phase: "warn", angle: w.angle, leftMs: w.startAt - now } : { phase: "active", angle: w.angle, leftMs: w.endsAt - now };
+  }
+
+  /** Швидкість сносу клітини маси mass (од./с): та сама формула, що на сервері. */
+  windSpeed(mass: number): number {
+    const s0 = this.cfg.windSpeed0;
+    if (!s0) return 0;
+    return s0 / (1 + mass / (this.cfg.windMassHalf ?? 600));
+  }
+
+  /** Клітина всередині куща (менша за кущ, центр у його межах): вітер її не зносить. */
+  private insideBush(x: number, y: number, mass: number): boolean {
+    const r = this.radiusOf(mass);
+    for (const t of this.thorns) {
+      const tr = this.radiusOf(t.mass);
+      if (r <= tr && Math.hypot(x - t.x, y - t.y) < tr) return true;
+    }
+    return false;
   }
 
   /** Сила калюж: 1 - дощ іде, до 0 - підсихають, 0 - немає. */
@@ -593,6 +636,10 @@ export class FlockModel {
     const dy = Math.sin(input.angle);
     const world = this.cfg.world;
     if (this.rain && this.localNow >= this.rain.dryEndsAt) this.rain = null;
+    if (this.wind && this.localNow >= this.wind.endsAt) this.wind = null;
+    const windOn = this.wind !== null && this.localNow >= this.wind.startAt;
+    const wdx = this.wind ? Math.cos(this.wind.angle) : 0;
+    const wdy = this.wind ? Math.sin(this.wind.angle) : 0;
     const sprinting = Boolean(input.sprint) && !frozen && this.sprintReady();
     this.sprintActive = sprinting;
     for (const c of this.cells.values()) {
@@ -602,6 +649,12 @@ export class FlockModel {
           const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
+        }
+        // снос вітром (ту саму формулу рахує сервер); на паузі й у кущі не діє
+        if (windOn && !this.insideBush(c.x, c.y, c.mass)) {
+          const wv = this.windSpeed(c.mass) * dt;
+          c.x = Math.min(world, Math.max(0, c.x + wdx * wv));
+          c.y = Math.min(world, Math.max(0, c.y + wdy * wv));
         }
         // ціль: знімок сервера, екстрапольований до "зараз" за його ж швидкістю (враховує поділ/імпульси)
         const age = Math.min(250, Math.max(0, srvNow - c.t1));

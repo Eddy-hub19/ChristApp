@@ -172,6 +172,41 @@ export const FLOCK_CONFIG = {
     golden: 0,
     scissors: 0,
     eagle: 10_000,
+    pipe: 10_000,
+  },
+  /**
+   * Бонус «Сопілка пастуха» (kind pipe): поки діє, усі клітини гравців і ботів у радіусі radiusCells × радіус клітини
+   * власника, що МЕНШІ за його клітину, плавно тягнуться до нього зі швидкістю pullFraction × їхньої власної швидкості
+   * (тому ціль, що активно тікає, вириветься). Не діє на тих, хто на паузі чи під стартовим щитом, на «Вожака», чудовиськ
+   * і біля лави (береговий запас). Рідкісний: на полі не більше одного, spawnChance - шанс чергового бонуса.
+   */
+  pipe: {
+    radiusCells: 3.5,
+    pullFraction: 0.6,
+    spawnChance: 0.06,
+  },
+  /**
+   * Подія «Вітер» (карти зі списку maps; на «Вулкані» вимкнено, щоб не зносило в лаву): раз на interval, триває duration;
+   * за warnMs до початку всім показується «Вітер!» зі стрілкою. Дме в один бік; усім клітинам (гравці, боти, чудовиська)
+   * додається снос: strength × швидкість клітини стартової маси / (1 + маса / massHalf) - великі зносить слабше.
+   * Не зносить на паузі, під стартовим щитом і всередині куща; їжа й бонуси не рухаються. «Зорепад» і вітер не йдуть разом.
+   */
+  wind: {
+    maps: [0, 1, 2] as readonly number[],
+    intervalMinMs: 180_000,
+    intervalMaxMs: 300_000,
+    durationMinMs: 15_000,
+    durationMaxMs: 20_000,
+    warnMs: 3000,
+    strength: 0.25,
+    massHalf: 600,
+  },
+  /**
+   * Зміна карт: нова арена бере карту за вагами FLOCK_MAPS, але не ту ж, що була попередньою. Арена, що живе довше
+   * rotateMs, нових гравців більше не приймає (вони потрапляють на нову арену з іншою картою); тих, хто вже грає, не чіпаємо.
+   */
+  mapRotation: {
+    rotateMs: 30 * 60_000,
   },
   /**
    * Бонус «Орлиний зір»: гравець бачить більше карти. Сервер шле йому область ×viewMultiplier, клієнт відсуває
@@ -648,6 +683,16 @@ export function clientGameConfig() {
       slowFraction: c.rain.slowFraction,
       dryMs: c.rain.dryMs,
     },
+    pipe: { ...c.pipe, durationMs: c.bonusDurations.pipe },
+    wind: {
+      intervalMinMs: c.wind.intervalMinMs,
+      intervalMaxMs: c.wind.intervalMaxMs,
+      durationMinMs: c.wind.durationMinMs,
+      durationMaxMs: c.wind.durationMaxMs,
+      warnMs: c.wind.warnMs,
+      strengthPct: Math.round(c.wind.strength * 100),
+    },
+    mapRotation: { rotateMin: Math.round(c.mapRotation.rotateMs / 60_000) },
     spawnShieldMs: c.spawnShieldMs,
     resumePauseMs: c.resumePauseMs,
     resumeShieldMs: c.resumeShieldMs,

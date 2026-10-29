@@ -20,4 +20,6 @@ export {
   LavaIcon,
   FenceIcon,
   AlphaIcon,
+  PipeIcon,
+  WindIcon,
 } from "./icons";
