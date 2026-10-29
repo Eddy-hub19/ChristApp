@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { bibleHref } from "./guessBible";
@@ -35,6 +36,7 @@ type Props = {
 
 const LEVELS: GuessLevel[] = [1, 2, 3];
 const ANSWER_GLYPH: Record<TraitAnswer, string> = { yes: "✓", no: "✕", unknown: "?" };
+const NO_IDS: string[] = [];
 const modeKey = (roomId: string) => `christapp:guess:mode:${roomId}`;
 
 function readMode(roomId: string): GuessMode {
@@ -60,10 +62,11 @@ type PickerProps = {
   confirmLabel: (name: string) => string;
   onConfirm: (id: string) => void;
   onCancel?: () => void;
+  busy?: boolean;
 };
 
 /** Список персонажів із пошуком: тап вибирає, окрема кнопка підтверджує — випадково не загадаєш і не вгадаєш. */
-function CharacterPicker({ characters, lang, excludeIds = [], confirmLabel, onConfirm, onCancel }: PickerProps) {
+function CharacterPicker({ characters, lang, excludeIds = NO_IDS, confirmLabel, onConfirm, onCancel, busy = false }: PickerProps) {
   const t = useTranslations("guessCharacter");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -75,16 +78,42 @@ function CharacterPicker({ characters, lang, excludeIds = [], confirmLabel, onCo
 
   return (
     <div className={styles.picker}>
-      <input
-        type="search"
-        className={styles.search}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={t("searchPlaceholder")}
-        aria-label={t("searchPlaceholder")}
-        autoComplete="off"
-        enterKeyHint="search"
-      />
+      <div className={styles.searchWrap}>
+        <input
+          type="search"
+          className={styles.search}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter ховає клавіатуру, щоб кнопка підтвердження не лишалась під нею.
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+          onFocus={(event) => {
+            const el = event.currentTarget;
+            window.setTimeout(() => el.scrollIntoView({ block: "nearest", behavior: "smooth" }), 300);
+          }}
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchPlaceholder")}
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="done"
+        />
+        {query ? (
+          <button
+            type="button"
+            className={styles.searchClear}
+            aria-label={t("clearSearch")}
+            onClick={(event) => {
+              setQuery("");
+              (event.currentTarget.previousElementSibling as HTMLInputElement | null)?.focus();
+            }}
+          >
+            ×
+          </button>
+        ) : null}
+      </div>
       <ul className={styles.pickList} role="listbox" aria-label={t("searchPlaceholder")}>
         {list.map((c) => (
           <li key={c.id} role="presentation">
@@ -110,7 +139,8 @@ function CharacterPicker({ characters, lang, excludeIds = [], confirmLabel, onCo
         <button
           type="button"
           className={styles.primaryButton}
-          disabled={!chosen}
+          disabled={!chosen || busy}
+          aria-busy={busy}
           onClick={() => chosen && onConfirm(chosen.id)}
         >
           {chosen ? confirmLabel(chosen.name[lang]) : t("searchPlaceholder")}
@@ -132,7 +162,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
   );
   const [modeChoice, setModeChoice] = useState<{ roomId: string; mode: GuessMode } | null>(null);
   const mode = modeChoice && modeChoice.roomId === roomId ? modeChoice.mode : storedMode;
-  const { session, catalog, selectLevel, setReady, pick, ask, guess, next, abort } = useGuessSession({
+  const { session, catalog, busy, stalled, retry, selectLevel, setReady, pick, ask, guess, next, abort, respond } = useGuessSession({
     socket,
     roomId,
     open,
@@ -155,14 +185,41 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
     [session, userId],
   );
 
+  // Escape закриває спершу найвнутрішній шар: фокус у пошуку → підтвердження виходу → панель здогадки → сама гра.
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement) {
+        active.blur();
+        return;
+      }
+      if (confirmAbort) {
+        setConfirmAbortAt(null);
+        return;
+      }
+      if (guessing) {
+        setGuessingAt(null);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, confirmAbort, guessing]);
+
+  // iOS: екранна клавіатура не зменшує layout viewport, тож підганяємо висоту картки під visualViewport.
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setViewportHeight(Math.round(vv.height));
+    update();
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, [open]);
 
   // Статистика з журналу матчів сервера: матч, що закінчився поки гравця не було в грі, теж зарахується — один раз.
   const matches = session?.matches;
@@ -202,6 +259,12 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
     return map;
   }, [catalog]);
 
+  const historyForIds = session?.history;
+  const guessedIds = useMemo(
+    () => (historyForIds ?? []).flatMap((h) => (h.kind === "guess" ? [h.character] : [])),
+    [historyForIds],
+  );
+
   if (!open) return null;
 
   const solo = mode === "solo";
@@ -217,7 +280,9 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
   const askedTraits = new Set(
     (session?.history ?? []).flatMap((h) => (h.kind === "question" ? [h.trait] : [])),
   );
-  const guessedIds = (session?.history ?? []).flatMap((h) => (h.kind === "guess" ? [h.character] : []));
+  const pending = session?.pending ?? null;
+  const incoming = !solo && pending && pending.from !== userId ? pending : null;
+  const outgoing = !solo && pending && pending.from === userId ? pending : null;
 
   const answerLabel = (answer: TraitAnswer) =>
     answer === "yes" ? t("answerYes") : answer === "no" ? t("answerNo") : t("answerUnknown");
@@ -347,7 +412,11 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
   const renderPicking = () => {
     if (!session) return null;
     if (!isHider) {
-      return <p className={styles.waiting}>{t("waitingPick", { name: hiderName })}</p>;
+      return (
+        <p className={styles.waiting} role="status" aria-live="polite">
+          {t("waitingPick", { name: hiderName })}
+        </p>
+      );
     }
     return (
       <section className={styles.section}>
@@ -358,6 +427,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
           lang={lang}
           confirmLabel={(name) => t("confirmPick", { name })}
           onConfirm={pick}
+          busy={busy}
         />
       </section>
     );
@@ -381,7 +451,9 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
       return (
         <>
           {session.secretId ? <p className={styles.secretBanner}>{t("youHid", { name: nameOf(session.secretId) })}</p> : null}
-          <p className={styles.waiting}>{t("waitingGuess", { name: guesserName })}</p>
+          <p className={styles.waiting} role="status" aria-live="polite">
+            {t("waitingGuess", { name: guesserName })}
+          </p>
           {attemptsBar}
           {renderHistory(session.history)}
         </>
@@ -403,6 +475,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
               guess(id);
             }}
             onCancel={() => setGuessing(false)}
+            busy={busy}
           />
         </section>
       );
@@ -438,7 +511,8 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
                 key={id}
                 type="button"
                 className={styles.traitButton}
-                disabled={done}
+                disabled={done || busy}
+                aria-busy={busy}
                 onClick={() => ask(id)}
               >
                 <span>{t(`traits.${id}`)}</span>
@@ -506,13 +580,43 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
     );
   };
 
+  /** Запит суперника (наступний раунд / завершення матчу): приймаємо або відхиляємо. */
+  const renderIncoming = () =>
+    incoming ? (
+      <div className={styles.requestBox} role="alert">
+        <p className={styles.requestText}>
+          {incoming.kind === "next" ? t("nextRequest", { name: peerName }) : t("abortRequest", { name: peerName })}
+        </p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.primaryButton} disabled={busy} aria-busy={busy} onClick={() => respond(true)}>
+            {t("accept")}
+          </button>
+          <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => respond(false)}>
+            {t("decline")}
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   const renderRoundEnd = () => (
     <>
       {renderReveal()}
+      {renderIncoming()}
       <div className={styles.actions}>
-        <button type="button" className={styles.primaryButton} onClick={next}>
-          {t("nextRound")}
-        </button>
+        {outgoing?.kind === "next" ? (
+          <>
+            <span className={styles.muted} role="status" aria-live="polite">
+              {t("requestSent", { name: peerName })}
+            </span>
+            <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => respond(false)}>
+              {t("cancelRequest")}
+            </button>
+          </>
+        ) : (
+          <button type="button" className={styles.primaryButton} disabled={busy} aria-busy={busy} onClick={next}>
+            {t("nextRound")}
+          </button>
+        )}
       </div>
       {session ? renderHistory(session.history) : null}
     </>
@@ -568,6 +672,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
     <div className={styles.overlay} onClick={onClose}>
       <div
         className={styles.card}
+        style={viewportHeight ? ({ "--gc-vvh": `${viewportHeight}px` } as CSSProperties) : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={t("title")}
@@ -579,7 +684,16 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
             ×
           </button>
         </div>
-        {!session || !catalog ? <p className={styles.waiting}>{t("connecting")}</p> : null}
+        {!session || !catalog ? (
+          <div className={styles.waiting} role="status" aria-live="polite">
+            <p style={{ margin: 0 }}>{stalled ? t("connectFailed") : t("connecting")}</p>
+            {stalled ? (
+              <button type="button" className={styles.secondaryButton} style={{ marginTop: 8 }} onClick={retry}>
+                {t("retry")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {session && catalog ? (
           <>
             {header}
@@ -588,12 +702,22 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
             {session.phase === "asking" ? renderAsking() : null}
             {session.phase === "roundEnd" ? renderRoundEnd() : null}
             {session.phase === "matchEnd" ? renderMatchEnd() : null}
+            {inMatch && session?.phase !== "roundEnd" ? renderIncoming() : null}
             {inMatch ? (
               <div className={styles.abortRow}>
-                {confirmAbort ? (
+                {outgoing?.kind === "abort" ? (
+                  <>
+                    <span className={styles.muted} role="status" aria-live="polite">
+                      {t("requestSent", { name: peerName })}
+                    </span>
+                    <button type="button" className={styles.secondaryButton} disabled={busy} onClick={() => respond(false)}>
+                      {t("cancelRequest")}
+                    </button>
+                  </>
+                ) : confirmAbort ? (
                   <>
                     <span className={styles.muted}>{t("abortConfirm")}</span>
-                    <button type="button" className={styles.dangerButton} onClick={abort}>
+                    <button type="button" className={styles.dangerButton} disabled={busy} onClick={abort}>
                       {t("abortYes")}
                     </button>
                     <button type="button" className={styles.secondaryButton} onClick={() => setConfirmAbort(false)}>

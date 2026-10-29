@@ -11,6 +11,22 @@ export function isOppositeDir(a: Dir, b: Dir): boolean {
   );
 }
 
+/** Буфер керування Класики: до 2 поворотів у черзі, кожен перевіряється щодо останнього в черзі. */
+export type ClassicInput = { queue: Dir[]; current: Dir };
+
+export const CLASSIC_INPUT_BUFFER = 2;
+
+export function createClassicInput(): ClassicInput {
+  return { queue: [], current: "right" };
+}
+
+export function queueClassicDirection(input: ClassicInput, dir: Dir): void {
+  const reference = input.queue.length ? input.queue[input.queue.length - 1] : input.current;
+  if (dir === reference || isOppositeDir(dir, reference)) return;
+  if (input.queue.length >= CLASSIC_INPUT_BUFFER) return;
+  input.queue.push(dir);
+}
+
 export type SnakePhase =
   | "lobby"
   | "countdown"
@@ -53,6 +69,8 @@ export type SnakeSessionState = {
   endReason: "score" | "disconnect" | null;
   pausedFor: string | null;
   graceMs: number;
+  /** Параметри Дуелі з серверного реєстру рівнів (для опису рівня в лобі). */
+  duelConfig?: { targetScore: number; respawnSec: number } | null;
   duel: DuelSnapshot | null;
   serverTime: number;
 };

@@ -11,6 +11,7 @@ import {
 import {
   CLASSIC_LEVEL_ID,
   SELECTABLE_LEVEL_IDS,
+  DUEL_LEVEL_ID,
   getDuelLevel,
 } from './snake-duel.levels';
 
@@ -24,6 +25,8 @@ export type SnakePhase =
 /** Скільки чекаємо на повернення гравця, перш ніж зарахувати перемогу суперникові. */
 export const DISCONNECT_GRACE_MS = 5000;
 export const COUNTDOWN_SECONDS = 3;
+/** Через скільки після того, як обидва гравці покинули гру (не в живій фазі), сесія видаляється з памʼяті. */
+export const SESSION_TTL_MS = 5 * 60 * 1000;
 
 type Emit = (roomId: string, event: string, payload: unknown) => void;
 
@@ -44,6 +47,7 @@ type Session = {
   tickTimer: ReturnType<typeof setTimeout> | null;
   phaseTimer: ReturnType<typeof setTimeout> | null;
   graceTimer: ReturnType<typeof setTimeout> | null;
+  cleanupTimer: ReturnType<typeof setTimeout> | null;
 };
 
 /**
@@ -79,6 +83,7 @@ export class SnakeDuelManager {
         tickTimer: null,
         phaseTimer: null,
         graceTimer: null,
+        cleanupTimer: null,
       };
       this.sessions.set(roomId, s);
     }
@@ -122,8 +127,15 @@ export class SnakeDuelManager {
     if (s.phase !== 'lobby' && s.phase !== 'matchEnd') return;
     // «Готовий» потрібен лише для серверної Дуелі; Класика стартує локально без підтвердження.
     if (s.level === CLASSIC_LEVEL_ID) return;
+    // Відсутній гравець не може бути «готовим»: матч не стартує проти того, хто закрив гру.
+    if (ready && !s.present[userId]) return;
     s.ready[userId] = ready;
-    if (s.ready[s.players[0]] && s.ready[s.players[1]]) {
+    if (
+      s.ready[s.players[0]] &&
+      s.ready[s.players[1]] &&
+      s.present[s.players[0]] &&
+      s.present[s.players[1]]
+    ) {
       s.ready = { [s.players[0]]: false, [s.players[1]]: false };
       this.start(s);
       return;
@@ -151,11 +163,26 @@ export class SnakeDuelManager {
       this.pause(s, userId);
       return;
     }
+    if (!present && (s.phase === 'lobby' || s.phase === 'matchEnd')) {
+      s.ready[userId] = false;
+    }
     if (present && s.phase === 'paused' && s.pausedFor === userId) {
       this.resume(s);
       return;
     }
+    this.scheduleCleanup(s);
     this.broadcast(s);
+  }
+
+  /** Якщо в сесії нікого немає й вона не «жива» — видаляємо її через TTL; поява гравця скасовує. */
+  private scheduleCleanup(s: Session) {
+    if (s.cleanupTimer) clearTimeout(s.cleanupTimer);
+    s.cleanupTimer = null;
+    const idle = s.phase === 'lobby' || s.phase === 'matchEnd';
+    if (!idle || s.players.some((id) => s.present[id])) return;
+    s.cleanupTimer = setTimeout(() => this.dispose(s.roomId), SESSION_TTL_MS);
+    // Таймер не має тримати процес живим.
+    (s.cleanupTimer as { unref?: () => void }).unref?.();
   }
 
   /** Зʼєднання користувача впало (усі його сокети): зараховуємо як відхід із гри в усіх його сесіях. */
@@ -171,6 +198,8 @@ export class SnakeDuelManager {
     const s = this.sessions.get(roomId);
     if (!s) return;
     this.clearTimers(s);
+    if (s.cleanupTimer) clearTimeout(s.cleanupTimer);
+    s.cleanupTimer = null;
     this.sessions.delete(roomId);
   }
 
@@ -193,6 +222,8 @@ export class SnakeDuelManager {
   private start(s: Session) {
     const level = this.levelOf(s);
     if (!level) return;
+    if (s.cleanupTimer) clearTimeout(s.cleanupTimer);
+    s.cleanupTimer = null;
     this.resetMatchState(s);
     s.match = createMatch(level, this.rng);
     this.runCountdown(s, COUNTDOWN_SECONDS);
@@ -252,6 +283,7 @@ export class SnakeDuelManager {
     s.phase = 'matchEnd';
     s.matchWinner = winnerId;
     s.endReason = 'score';
+    this.scheduleCleanup(s);
     this.broadcast(s);
   }
 
@@ -284,6 +316,9 @@ export class SnakeDuelManager {
     s.endReason = 'disconnect';
     s.pausedFor = null;
     s.resumePhase = null;
+    // Той, хто відпав, не може лишатися «готовим».
+    s.ready = { [s.players[0]]: false, [s.players[1]]: false };
+    this.scheduleCleanup(s);
     this.broadcast(s);
   }
 
@@ -300,6 +335,14 @@ export class SnakeDuelManager {
 
   private broadcast(s: Session) {
     this.emit(s.roomId, 'snake-session', this.serialize(s));
+  }
+
+  /** Параметри Дуелі для опису рівня в лобі (клієнт не хардкодить цифри). */
+  private duelConfig() {
+    const lvl = getDuelLevel(DUEL_LEVEL_ID);
+    return lvl
+      ? { targetScore: lvl.targetScore, respawnSec: Math.round(lvl.respawnMs / 1000) }
+      : null;
   }
 
   private serialize(s: Session) {
@@ -351,6 +394,7 @@ export class SnakeDuelManager {
       endReason: s.endReason,
       pausedFor: s.pausedFor,
       graceMs: DISCONNECT_GRACE_MS,
+      duelConfig: this.duelConfig(),
       duel,
       serverTime: Date.now(),
     };

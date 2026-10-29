@@ -3569,17 +3569,29 @@ export default function ChatPageDetails() {
    * `handleOpen*`, що й меню ігор DM. Параметр знімаємо одразу, щоб оновлення сторінки не перезапускало гру.
    */
   const autoGameHandledRef = useRef(false);
+  /** Є `?game=`, але сокет ще не підключився: показуємо «З'єднання…», поки гра не відкриється. */
+  const [autoGamePending, setAutoGamePending] = useState(false);
+  // Новий чат (інший співрозмовник) — нове «?game=» знову має спрацювати.
   useEffect(() => {
-    if (autoGameHandledRef.current) return;
-    if (!directChatTargetUserId) {
-      autoGameHandledRef.current = false;
+    autoGameHandledRef.current = false;
+  }, [roomId, directChatTargetUserId]);
+  useEffect(() => {
+    if (autoGameHandledRef.current || !directChatTargetUserId) {
+      setAutoGamePending(false);
       return;
     }
-    if (!effectiveSocketRoomId || !isSocketConnected) return;
     const params = new URLSearchParams(window.location.search);
     const game = params.get("game");
-    if (!isPairGame(game)) return;
+    if (!isPairGame(game)) {
+      setAutoGamePending(false);
+      return;
+    }
+    if (!effectiveSocketRoomId || !isSocketConnected) {
+      setAutoGamePending(true);
+      return;
+    }
     autoGameHandledRef.current = true;
+    setAutoGamePending(false);
     params.delete("game");
     const rest = params.toString();
     window.history.replaceState(
@@ -4194,6 +4206,7 @@ export default function ChatPageDetails() {
                   <GlobalGamesMenu
                     currentUserId={user?.id}
                     participants={participants}
+                    peopleLoading={loading}
                     wrapClassName={styles.gameMenuWrap}
                     buttonClassName={styles.gameButton}
                     menuClassName={styles.gameMenu}
@@ -4404,6 +4417,10 @@ export default function ChatPageDetails() {
             />
             {sendNotice ? (
               <p className={styles.sendNotice}>{sendNotice}</p>
+            ) : autoGamePending ? (
+              <p className={styles.sendNotice} role="status">
+                {t("gameConnecting")}
+              </p>
             ) : null}
           </div>
         </div>

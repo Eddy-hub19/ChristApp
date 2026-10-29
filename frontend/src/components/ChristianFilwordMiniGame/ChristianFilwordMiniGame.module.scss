@@ -90,7 +90,8 @@
 }
 
 .resetButton {
-  height: 30px;
+  min-height: 44px;
+  height: 44px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
   border-radius: 999px;
@@ -127,7 +128,9 @@
 }
 
 .cell {
-  min-height: 30px;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 93%, var(--background));
@@ -140,6 +143,7 @@
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 .cellSelected {
@@ -148,9 +152,65 @@
 }
 
 .cellFound {
-  border-color: #e5d3b3;
-  background: #e5d3b3;
-  color: #4d3f2d;
+  border-color: color-mix(in srgb, #e5d3b3 80%, var(--foreground));
+  background: color-mix(in srgb, #e5d3b3 62%, var(--surface-elevated));
+  color: var(--foreground);
+}
+
+.cellPop {
+  animation: cellPop 0.4s ease-out;
+}
+
+.cellMiss {
+  animation: cellShake 0.35s ease-in-out;
+}
+
+@keyframes cellPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@keyframes cellShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cellPop,
+  .cellMiss {
+    animation: none;
+  }
+}
+
+.confirmGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.confirmText {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #e5d3b3 70%, var(--line-soft));
+  background: color-mix(in srgb, #e5d3b3 30%, var(--surface-elevated));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bannerTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .selectionPreview {
@@ -204,7 +264,6 @@
 
 @media (max-width: 640px) {
   .cell {
-    min-height: 28px;
     font-size: 13px;
   }
 

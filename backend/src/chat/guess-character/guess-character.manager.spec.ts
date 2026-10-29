@@ -45,8 +45,15 @@ function setup(rng: () => number = () => 0, now: () => number = () => 1000) {
     pick: (u: string, c: unknown) => manager.pick(ROOM, PLAYERS, u, false, c),
     ask: (u: string, t: unknown) => manager.ask(ROOM, PLAYERS, u, false, t),
     guess: (u: string, c: unknown) => manager.guess(ROOM, PLAYERS, u, false, c),
-    next: (u: string) => manager.next(ROOM, PLAYERS, u, false),
-    abort: (u: string) => manager.abort(ROOM, PLAYERS, u, false),
+    // У дуелі next/abort — запит, що потребує згоди суперника: хелпери одразу погоджуються за нього.
+    next: (u: string) => {
+      manager.next(ROOM, PLAYERS, u, false);
+      manager.respond(ROOM, PLAYERS, u === A ? B : A, false, true);
+    },
+    abort: (u: string) => {
+      manager.abort(ROOM, PLAYERS, u, false);
+      manager.respond(ROOM, PLAYERS, u === A ? B : A, false, true);
+    },
   };
   const solo = {
     sync: (u: string) => manager.sync(ROOM, PLAYERS, u, true),

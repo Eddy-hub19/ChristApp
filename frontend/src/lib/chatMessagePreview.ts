@@ -18,7 +18,7 @@ export type ChatMessagePreviewInput = {
 
 /**
  * Текст прев'ю для списку чатів і сповіщень. `t` — перекладач `chatShared`
- * (без нього підписи беруться українською).
+ * (без нього — нейтральні емодзі без мовного тексту).
  */
 export function chatMessagePreview(
   m: ChatMessagePreviewInput,
@@ -29,13 +29,13 @@ export function chatMessagePreview(
   // Старі відповіді несуть цитату префіксом [[reply:…]] — у превʼю йде лише сам текст.
   const text = stripLegacyReplyPrefix(m.content).trim();
   if (parseStickerMessagePayload(text)) {
-    return t ? t("previewSticker") : "Стікер";
+    return t ? t("previewSticker") : "🙂";
   }
   if (parseFlockInvite(text)) {
-    return t ? t("previewFlockInvite") : "🐑 Запрошення в Отару";
+    return t ? t("previewFlockInvite") : "🐑";
   }
   if (parseGameInvite(text)) {
-    return t ? t("previewGameInvite") : "🎮 Запрошення в гру";
+    return t ? t("previewGameInvite") : "🎮";
   }
   const verseShare = parseVerseSharePayload(text);
   if (verseShare.payload) {

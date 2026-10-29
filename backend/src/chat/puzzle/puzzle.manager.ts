@@ -5,7 +5,8 @@ import {
   charactersWithImages,
   getPuzzleImage,
   imagesOfCharacter,
-  USER_IMAGE_WEIGHT,
+  userImageWeight,
+  userPickWeight,
   userPuzzleImageList,
   type PuzzleImage,
 } from './data/puzzle-images';
@@ -27,7 +28,7 @@ import {
 
 export type PuzzlePhase = 'lobby' | 'playing' | 'done';
 export type PuzzleMode = 'duel' | 'solo';
-export type SelectionMode = 'random' | 'byName';
+export type SelectionMode = 'random' | 'byName' | 'byImage';
 
 /** Скільки сесія може простоювати без дій, перш ніж сервер її забуде. */
 export const IDLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -167,10 +168,12 @@ export class PuzzleManager {
   sync(roomId: string, players: Players, userId: string, solo: boolean) {
     const s = this.find(roomId, players, userId, solo);
     if (!s) return;
+    const presenceChanged = !s.present[userId];
     s.present[userId] = true;
-    this.expireHolds(s);
+    const holdsChanged = this.expireHolds(s);
     this.emit(userId, 'puzzle-session', this.serialize(s));
-    this.broadcast(s, userId);
+    // Решті гравців знімок потрібен, лише якщо змінилась присутність або знялись замки.
+    if (presenceChanged || holdsChanged) this.broadcast(s, userId);
   }
 
   setPresence(
@@ -217,11 +220,13 @@ export class PuzzleManager {
       character = candidate.id;
     } else if (mode === 'random') {
       // частина випадкових виборів - картинка користувача (вага в USER_IMAGE_WEIGHT), не та сама підряд
-      const mine = userPuzzleImageList().filter(
-        (i) => i.id !== s.selection?.imageId,
-      );
-      if (mine.length > 0 && this.rng() < USER_IMAGE_WEIGHT) {
-        const picked = this.pickOf(mine);
+      const allMine = userPuzzleImageList();
+      const mine = allMine.filter((i) => i.id !== s.selection?.imageId);
+      // вероятность группы растёт с «эффективным числом» картинок (новые весят x3), внутри группы - выбор по весу
+      const now = this.now();
+      const effective = allMine.reduce((sum, i) => sum + userPickWeight(i, now), 0);
+      if (mine.length > 0 && this.rng() < userImageWeight(effective)) {
+        const picked = this.pickWeighted(mine, (i) => userPickWeight(i, now));
         s.extra.set(picked.id, picked);
         s.selection = { mode: 'random', characterId: '', imageId: picked.id };
         this.broadcast(s);
@@ -245,6 +250,29 @@ export class PuzzleManager {
       characterId: character,
       imageId: image.id,
     };
+    this.broadcast(s);
+  }
+
+  /**
+   * Сразу играть конкретной картинкой по id (своя только что загруженная или из «Мої картинки»). Картинка должна
+   * существовать в каталоге/реестре (удалённую выбрать нельзя); число кусочков - по желанию. «Випадкова» и «За ім'ям» не меняются.
+   */
+  playImage(
+    roomId: string,
+    players: Players,
+    userId: string,
+    solo: boolean,
+    imageId: unknown,
+    count?: unknown,
+  ) {
+    const s = this.find(roomId, players, userId, solo);
+    if (!s || !this.canSetup(s, userId)) return;
+    const image = getPuzzleImage(imageId);
+    if (!image) return;
+    if (isPieceCount(count)) s.count = count;
+    s.extra.set(image.id, image);
+    s.selection = { mode: 'byImage', characterId: '', imageId: image.id };
+    this.begin(s, image);
     this.broadcast(s);
   }
 
@@ -610,16 +638,30 @@ export class PuzzleManager {
   }
 
   /** Знімає застарілі блокування (власник зник, не відпустивши кусочок). */
-  private expireHolds(s: Session) {
+  private expireHolds(s: Session): boolean {
     const puzzle = s.puzzle;
-    if (!puzzle) return;
+    if (!puzzle) return false;
+    let changed = false;
     const cutoff = this.now() - HOLD_TTL_MS;
     for (const group of puzzle.groups.values()) {
       if (group.heldBy && group.heldAt < cutoff) {
         group.lastHolder = group.heldBy;
         group.heldBy = null;
+        changed = true;
       }
     }
+    return changed;
+  }
+
+  private pickWeighted<T>(items: T[], weight: (item: T) => number): T {
+    let total = 0;
+    for (const item of items) total += weight(item);
+    let r = this.rng() * total;
+    for (const item of items) {
+      r -= weight(item);
+      if (r < 0) return item;
+    }
+    return items[items.length - 1];
   }
 
   private pickOf<T>(items: T[]): T {

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, ImagePlus, Trash2, X } from "lucide-react";
+import { Camera, ImagePlus, Images, Trash2, X } from "lucide-react";
+import type { PieceCount } from "./puzzleTypes";
 import {
   PuzzleImageError,
   deletePuzzleImage,
@@ -16,6 +17,7 @@ import styles from "./PuzzleCustomImage.module.scss";
 
 const VIEW = 280;
 const MAX_ZOOM = 3;
+const MAX_MINE = 5; // ліміт на сервері: старіші видаляються автоматично
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 type Props = {
@@ -23,7 +25,13 @@ type Props = {
   onClose: () => void;
   /** Картинка завантажена: гра може одразу запропонувати випадковий вибір. */
   onUploaded: () => void;
+  /** Можно ли прямо сейчас запустить партию (есть связь, лобби, право выбирать). */
+  canPlay: boolean;
+  /** Начать партию этой картинкой с count кусочков. */
+  onPlay: (imageId: string, count: PieceCount) => void;
 };
+
+const PIECE_COUNTS: PieceCount[] = [12, 24, 48, 96];
 
 type Loaded = { img: HTMLImageElement; url: string };
 
@@ -35,17 +43,22 @@ function errorKey(err: unknown): string {
 }
 
 /** Вікно «Своя картинка» (вибір фото, квадратна обрізка, прев'ю) і «Мої картинки» (список, видалення, ім'я автора). */
-export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) {
+export default function PuzzleCustomImage({ mode, onClose, onUploaded, canPlay, onPlay }: Props) {
   const t = useTranslations("puzzle.custom");
   const [view, setView] = useState<"upload" | "mine">(mode);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [showAuthor, setShowAuthor] = useState(true);
+  const [playNow, setPlayNow] = useState(true);
+  const [pieces, setPieces] = useState<PieceCount>(24);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mine, setMine] = useState<MyPuzzleImage[] | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; zoom: number } | null>(null);
 
   useEffect(() => {
     // Escape закрывает только это окно, а не всю игру под ним
@@ -74,7 +87,8 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
       });
   }, []);
   useEffect(() => {
-    if (view === "mine") loadMine();
+    // кількість «N з 5» потрібна й у вкладці додавання — вантажимо при відкритті
+    loadMine();
   }, [view, loadMine]);
 
   // базовий масштаб: зображення покриває квадрат; zoom додає до нього
@@ -90,6 +104,8 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
     },
     [loaded, base],
   );
+
+  const atLimit = mine !== null && mine.length >= MAX_MINE;
 
   const onFile = (file: File | undefined) => {
     setError(null);
@@ -110,17 +126,39 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
     img.src = url;
   };
 
+  const pointerDistance = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  };
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size >= 2) {
+      // два пальці: щіпок змінює масштаб (додатково до повзунка)
+      drag.current = null;
+      pinch.current = { dist: pointerDistance(), zoom };
+      return;
+    }
     drag.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      const z = Math.min(MAX_ZOOM, Math.max(1, (pinch.current.zoom * pointerDistance()) / pinch.current.dist));
+      setZoom(z);
+      setOffset((o) => clamp(o.x, o.y, z));
+      return;
+    }
     const d = drag.current;
     if (!d) return;
     setOffset(clamp(d.ox + e.clientX - d.x, d.oy + e.clientY - d.y, zoom));
   };
-  const onPointerUp = () => {
-    drag.current = null;
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    const rest = [...pointers.current.values()][0];
+    // лишився один палець — продовжуємо перетягування від його позиції
+    drag.current = rest ? { x: rest.x, y: rest.y, ox: offset.x, oy: offset.y } : null;
   };
 
   const submit = async () => {
@@ -134,9 +172,15 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
       const sx = img.naturalWidth / 2 - offset.x / scale - side / 2;
       const sy = img.naturalHeight / 2 - offset.y / scale - side / 2;
       const blob = await encodeSquareWebp(img, Math.max(0, sx), Math.max(0, sy), Math.min(side, img.naturalWidth, img.naturalHeight));
-      await uploadPuzzleImage(blob, showAuthor);
+      const created = await uploadPuzzleImage(blob, showAuthor);
       setLoaded(null);
       onUploaded();
+      if (playNow && canPlay) {
+        // партия стартует сразу этой картинкой; окно закрываем, чтобы показать игру
+        onPlay(created.id, pieces);
+        onClose();
+        return;
+      }
       setView("mine");
     } catch (err) {
       setError(errorKey(err));
@@ -146,7 +190,7 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm(t("deleteConfirm"))) return;
+    setPendingDelete(null);
     try {
       await deletePuzzleImage(id);
       setMine((prev) => prev?.filter((i) => i.id !== id) ?? null);
@@ -163,6 +207,24 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
       setError("generic");
     }
   };
+
+  const pieceRow = (
+    <div className={styles.pieces} role="radiogroup" aria-label={t("pieces")}>
+      <span className={styles.hint}>{t("pieces")}</span>
+      {PIECE_COUNTS.map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={pieces === n}
+          className={`${styles.pieceBtn} ${pieces === n ? styles.pieceBtnActive : ""}`}
+          onClick={() => setPieces(n)}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className={styles.backdrop} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -253,15 +315,32 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
               <input type="checkbox" checked={showAuthor} onChange={(e) => setShowAuthor(e.target.checked)} />
               {t("showAuthor")}
             </label>
+            <label className={styles.check}>
+              <input type="checkbox" checked={playNow} onChange={(e) => setPlayNow(e.target.checked)} />
+              {t("playNow")}
+            </label>
+            {playNow ? pieceRow : null}
+            {playNow && !canPlay ? <p className={styles.hint}>{t("playUnavailable")}</p> : null}
             <p className={styles.hint}>{t("publicNote")}</p>
-            <button type="button" className={styles.primary} disabled={!loaded || busy} onClick={() => void submit()}>
+            {mine !== null ? (
+              <p className={styles.hint}>{t("count", { count: mine.length, max: MAX_MINE })}</p>
+            ) : null}
+            {atLimit ? <p className={styles.hint}>{t("limitReached")}</p> : null}
+            <button type="button" className={styles.primary} disabled={!loaded || busy || atLimit} onClick={() => void submit()}>
               {busy ? t("uploading") : t("upload")}
             </button>
           </div>
         ) : (
           <div className={styles.body}>
             {mine === null ? <p className={styles.hint}>{t("loading")}</p> : null}
-            {mine?.length === 0 ? <p className={styles.hint}>{t("empty")}</p> : null}
+            {mine && mine.length > 0 ? pieceRow : null}
+            {mine?.length === 0 ? (
+              <div className={styles.empty}>
+                <Images size={30} aria-hidden />
+                <p>{t("empty")}</p>
+              </div>
+            ) : null}
+            {mine && mine.length > 0 ? <p className={styles.hint}>{t("count", { count: mine.length, max: MAX_MINE })}</p> : null}
             <ul className={styles.list}>
               {mine?.map((img) => (
                 <li key={img.id} className={styles.item}>
@@ -274,9 +353,32 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
                       {t("showAuthor")}
                     </label>
                   </div>
-                  <button type="button" className={styles.danger} onClick={() => void remove(img.id)} aria-label={t("delete")} title={t("delete")}>
-                    <Trash2 size={16} aria-hidden />
+                  <button
+                    type="button"
+                    className={styles.assemble}
+                    disabled={!canPlay}
+                    title={canPlay ? undefined : t("playUnavailable")}
+                    onClick={() => {
+                      onPlay(img.id, pieces);
+                      onClose();
+                    }}
+                  >
+                    {t("assemble")}
                   </button>
+                  {pendingDelete === img.id ? (
+                    <span className={styles.confirm} role="group" aria-label={t("deleteConfirm")}>
+                      <button type="button" className={styles.danger} onClick={() => void remove(img.id)}>
+                        {t("deleteYes")}
+                      </button>
+                      <button type="button" className={styles.danger} onClick={() => setPendingDelete(null)}>
+                        {t("cancel")}
+                      </button>
+                    </span>
+                  ) : (
+                    <button type="button" className={styles.danger} onClick={() => setPendingDelete(img.id)} aria-label={t("delete")} title={t("delete")}>
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

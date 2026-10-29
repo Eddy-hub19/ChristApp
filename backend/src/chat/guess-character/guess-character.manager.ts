@@ -60,8 +60,12 @@ type Session = {
   /// навіть якщо в момент завершення був не в грі.
   matchLog: MatchLogEntry[];
   matchCount: number;
+  /// Дуель: запит одного гравця на «наступний раунд» / «завершити матч», що чекає згоди суперника.
+  pending: PendingRequest | null;
   lastTouch: number;
 };
+
+export type PendingRequest = { kind: 'next' | 'abort'; from: string };
 
 export type MatchLogEntry = {
   n: number;
@@ -113,6 +117,7 @@ export class GuessCharacterManager {
         matchWinner: null,
         matchLog: [],
         matchCount: 0,
+        pending: null,
         lastTouch: this.now(),
       };
       this.sessions.set(key, s);
@@ -220,6 +225,7 @@ export class GuessCharacterManager {
     const character = getCharacter(characterId);
     if (!character || !this.pool(s).some((c) => c.id === character.id)) return;
     s.secret = character.id;
+    s.pending = null;
     s.phase = 'asking';
     this.broadcast(s);
   }
@@ -279,7 +285,10 @@ export class GuessCharacterManager {
     this.broadcast(s);
   }
 
-  /** Після картки персонажа — наступний раунд (або кінець матчу вже оголошено сервером). */
+  /**
+   * Після картки персонажа — наступний раунд. У дуелі це запит: раунд починається лише
+   * коли суперник погодиться (`respond`); якщо суперник уже просив те саме — це згода.
+   */
   next(
     roomId: string,
     players: [string, string],
@@ -288,10 +297,17 @@ export class GuessCharacterManager {
   ) {
     const s = this.find(roomId, players, userId, solo);
     if (!s || s.phase !== 'roundEnd') return;
-    this.beginRound(s);
+    if (s.mode === 'solo') {
+      this.beginRound(s);
+      return;
+    }
+    this.request(s, userId, 'next');
   }
 
-  /** Скинути матч і повернутися в лобі (без запису результату). */
+  /**
+   * Скинути матч і повернутися в лобі (без запису результату). У дуелі посеред матчу — запит,
+   * що потребує згоди суперника; з лобі/підсумку матчу й у соло — одразу.
+   */
   abort(
     roomId: string,
     players: [string, string],
@@ -300,7 +316,52 @@ export class GuessCharacterManager {
   ) {
     const s = this.find(roomId, players, userId, solo);
     if (!s) return;
-    this.resetMatch(s);
+    if (s.mode === 'solo' || s.phase === 'lobby' || s.phase === 'matchEnd') {
+      this.resetMatch(s);
+      this.broadcast(s);
+      return;
+    }
+    this.request(s, userId, 'abort');
+  }
+
+  /** Відповідь на запит суперника (accept) або скасування власного запиту (будь-яке `accept`). */
+  respond(
+    roomId: string,
+    players: [string, string],
+    userId: string,
+    solo: boolean,
+    accept: boolean,
+  ) {
+    const s = this.find(roomId, players, userId, solo);
+    const pending = s?.pending;
+    if (!s || !pending) return;
+    if (pending.from === userId) {
+      s.pending = null;
+      this.broadcast(s);
+      return;
+    }
+    s.pending = null;
+    if (!accept) {
+      this.broadcast(s);
+      return;
+    }
+    if (pending.kind === 'next') {
+      if (s.phase === 'roundEnd') this.beginRound(s);
+      else this.broadcast(s);
+    } else {
+      this.resetMatch(s);
+      this.broadcast(s);
+    }
+  }
+
+  private request(s: Session, userId: string, kind: 'next' | 'abort') {
+    const pending = s.pending;
+    if (pending && pending.from !== userId && pending.kind === kind) {
+      // Суперник уже просив те саме — це згода.
+      this.respond(s.roomId, s.players as [string, string], userId, false, true);
+      return;
+    }
+    s.pending = { kind, from: userId };
     this.broadcast(s);
   }
 
@@ -338,6 +399,7 @@ export class GuessCharacterManager {
   }
 
   private resetMatch(s: Session) {
+    s.pending = null;
     s.phase = 'lobby';
     s.round = 0;
     s.secret = null;
@@ -350,6 +412,7 @@ export class GuessCharacterManager {
 
   private beginRound(s: Session) {
     s.round += 1;
+    s.pending = null;
     s.history = [];
     if (s.mode === 'solo') {
       s.secret = pickRandom(this.pool(s), this.rng).id;
@@ -362,6 +425,7 @@ export class GuessCharacterManager {
   }
 
   private finishRound(s: Session, guessed: boolean) {
+    s.pending = null;
     const attempts = s.history.length;
     const points = pointsFor(attempts, guessed);
     const guesserId = this.guesserOf(s);
@@ -440,6 +504,7 @@ export class GuessCharacterManager {
         over && secret && last ? { ...last, card: characterCard(secret) } : null,
       results: s.results,
       matchWinner: s.matchWinner,
+      pending: s.pending,
       matches: s.matchLog,
       serverTime: this.now(),
     };

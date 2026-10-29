@@ -26,7 +26,7 @@ describe('pushMessageText', () => {
     );
     expect(pushMessageText('TEXT', '[[flock-invite:0]]')).not.toContain('[[');
     expect(pushMessageText('TEXT', '[[game-invite:snake]]')).toBe(
-      '🎮 Запрошення в гру',
+      '🎮 Snake',
     );
   });
   it('strips verse-share meta and HTML', () => {

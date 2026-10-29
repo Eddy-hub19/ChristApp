@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Dices, Frame, ImagePlus, Images, Lightbulb, LogOut, Magnet, Maximize2, Search, Trash2, Volume2, VolumeX } from "lucide-react";
+import { Dices, Frame, ImagePlus, Images, Lightbulb, LogOut, Magnet, Maximize2, Plus, Minus, Search, SearchX, Trash2, Volume2, VolumeX, WifiOff } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { bibleHref } from "@/components/GuessCharacterMiniGame/guessBible";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -28,6 +28,10 @@ type Props = {
 };
 
 const COUNTS: PieceCount[] = [12, 24, 48, 96];
+/** Картинка пользователя считается новой первые 24 часа (как на сервере: NEW_IMAGE_WINDOW_MS). */
+const NEW_IMAGE_MS = 24 * 60 * 60 * 1000;
+const isNewUserImage = (image: { userMade?: boolean; createdAt?: number }) =>
+  Boolean(image.userMade && image.createdAt && Date.now() - image.createdAt < NEW_IMAGE_MS);
 const modeKey = (roomId: string) => `christapp:puzzle:mode:${roomId}`;
 const SOUND_KEY = "christapp:puzzle:sound";
 
@@ -55,6 +59,43 @@ function readSound(): boolean {
   }
 }
 
+/** Секундомір партії: свій стан, щоб щосекундний тік не перемальовував усю сцену. Відлік від часу сервера. */
+function StageTimer({
+  startedAt,
+  finishedAt,
+  serverTime,
+  running,
+  label,
+}: {
+  startedAt: number;
+  finishedAt: number | null | undefined;
+  serverTime: number | undefined;
+  running: boolean;
+  label: string;
+}) {
+  const offsetRef = useRef(0);
+  const [clock, setClock] = useState(0);
+  useEffect(() => {
+    if (serverTime !== undefined) offsetRef.current = serverTime - Date.now();
+  }, [serverTime]);
+  useEffect(() => {
+    if (!running) return;
+    const tick = () => setClock(Date.now() + offsetRef.current);
+    const first = window.setTimeout(tick, 0);
+    const id = window.setInterval(tick, 1000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, [running]);
+  const elapsed = Math.max(0, (finishedAt ?? (clock || startedAt)) - startedAt);
+  return (
+    <span className={styles.timer} aria-label={label}>
+      {formatDuration(elapsed)}
+    </span>
+  );
+}
+
 const initialOf = (name: string | undefined) => (name?.trim()[0] ?? "").toUpperCase();
 
 export default function PuzzleMiniGame({
@@ -76,7 +117,7 @@ export default function PuzzleMiniGame({
   const storedMode = useMemo<PuzzleMode>(() => (open && roomId ? readMode(roomId) : "duel"), [open, roomId]);
   const [modeChoice, setModeChoice] = useState<{ roomId: string; mode: PuzzleMode } | null>(null);
   const mode = modeChoice && modeChoice.roomId === roomId ? modeChoice.mode : storedMode;
-  const { session, catalog, select, setCount, start, again, toLobby, gather, grab, move, drop, cursor } =
+  const { session, catalog, connected, select, playImage, setCount, start, again, toLobby, gather, grab, move, drop, cursor } =
     usePuzzleSession({ socket, roomId, open, mode });
 
   const boardRef = useRef<PuzzleBoardHandle>(null);
@@ -87,7 +128,7 @@ export default function PuzzleMiniGame({
   const [summaryHidden, setSummaryHidden] = useState(false);
   const [query, setQuery] = useState("");
   const [pickTab, setPickTab] = useState<"random" | "byName">("random");
-  const [clock, setClock] = useState(0);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const toggleSound = useCallback(() => {
     setSoundOn((prev) => {
@@ -112,23 +153,6 @@ export default function PuzzleMiniGame({
 
   const phase = session?.phase ?? "lobby";
   const playing = phase === "playing";
-
-  // Секундомір: тікає лише під час партії; відлік іде від часу сервера, щоб у обох був однаковий.
-  const serverTime = session?.serverTime;
-  const offsetRef = useRef(0);
-  useEffect(() => {
-    if (serverTime !== undefined) offsetRef.current = serverTime - Date.now();
-  }, [serverTime]);
-  useEffect(() => {
-    if (!open || !playing) return;
-    const tick = () => setClock(Date.now() + offsetRef.current);
-    const first = window.setTimeout(tick, 0);
-    const id = window.setInterval(tick, 1000);
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(id);
-    };
-  }, [open, playing]);
 
   // Підсумок і підтвердження виходу прив'язані до партії: нова партія скидає їх самі.
   const matchKey = session?.puzzle ? `${session.puzzle.seed}:${session.puzzle.startedAt}` : "none";
@@ -179,7 +203,6 @@ export default function PuzzleMiniGame({
   const puzzleImage = puzzle ? imagesById.get(puzzle.imageId) : undefined;
   const total = puzzle ? puzzle.cols * puzzle.rows : 0;
   const placed = puzzle ? placedCount(puzzle.groups) : 0;
-  const elapsed = puzzle ? Math.max(0, (puzzle.finishedAt ?? (clock || puzzle.startedAt)) - puzzle.startedAt) : 0;
   const reveal = session?.reveal ?? null;
 
   const imageCaption = (image: { title: string; author: string; year: number; dateLabel?: string; userMade?: boolean; authorName?: string | null }) =>
@@ -191,7 +214,7 @@ export default function PuzzleMiniGame({
 
   /** Адмін видаляє чужу (чи будь-яку) картинку прямо з гри й одразу обирає іншу випадкову. */
   const adminDelete = async (id: string) => {
-    if (!window.confirm(t("custom.deleteConfirm"))) return;
+    setPendingDelete(null);
     try {
       await deletePuzzleImage(id);
       if (phase === "lobby") select("random");
@@ -201,12 +224,30 @@ export default function PuzzleMiniGame({
     }
   };
 
+  /** Видалення в два кроки прямо в інтерфейсі (без window.confirm). */
+  const renderAdminDelete = (id: string) =>
+    pendingDelete === id ? (
+      <span className={styles.inlineConfirm} role="group" aria-label={t("custom.deleteConfirm")}>
+        <span>{t("custom.deleteConfirm")}</span>
+        <button type="button" className={styles.linkButton} onClick={() => void adminDelete(id)}>
+          {t("custom.deleteYes")}
+        </button>
+        <button type="button" className={styles.linkButton} onClick={() => setPendingDelete(null)}>
+          {t("back")}
+        </button>
+      </span>
+    ) : (
+      <button type="button" className={styles.linkButton} onClick={() => setPendingDelete(id)}>
+        <Trash2 size={13} aria-hidden /> {t("custom.adminDelete")}
+      </button>
+    );
+
   // ───────────── лобі ─────────────
 
   const renderLobby = () => {
     if (!session || !catalog) return null;
     return (
-      <div className={styles.lobby}>
+      <div className={`${styles.lobby} ${!connected ? styles.disabledArea : ""}`} aria-disabled={!connected}>
         <div className={styles.modeSwitch} role="radiogroup" aria-label={t("modeLabel")}>
           {(["duel", "solo"] as const).map((m) => (
             <button
@@ -293,7 +334,10 @@ export default function PuzzleMiniGame({
                         </button>
                       </li>
                     ))}
-                    {suggestions.length === 0 ? <li className={styles.muted}>{t("noResults")}</li> : null}
+                    {suggestions.length === 0 ? <li className={styles.emptyState}>
+                        <SearchX size={22} aria-hidden />
+                        <span>{t("noResults")}</span>
+                      </li> : null}
                   </ul>
                 ) : null}
               </div>
@@ -306,12 +350,13 @@ export default function PuzzleMiniGame({
             {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю картинки користувача */}
             <img src={selectedImage.url} alt={t("custom.previewAlt")} className={styles.previewImage} />
             <figcaption>
-              <span className={styles.muted}>{imageCaption(selectedImage)}</span>
-              {isAdmin ? (
-                <button type="button" className={styles.linkButton} onClick={() => void adminDelete(selectedImage.id)}>
-                  <Trash2 size={13} aria-hidden /> {t("custom.adminDelete")}
-                </button>
+              {selection?.mode === "random" && isNewUserImage(selectedImage) ? (
+                <span className={styles.newBadge}>
+                  {selectedImage.authorName ? t("custom.newFrom", { author: selectedImage.authorName }) : t("custom.newAnonymous")}
+                </span>
               ) : null}
+              <span className={styles.muted}>{imageCaption(selectedImage)}</span>
+              {isAdmin ? renderAdminDelete(selectedImage.id) : null}
             </figcaption>
           </figure>
         ) : null}
@@ -374,9 +419,16 @@ export default function PuzzleMiniGame({
         <div className={styles.stageBar}>
           <div className={styles.stageInfo}>
             <span className={styles.progress}>{t("progress", { placed, total })}</span>
-            <span className={styles.timer} aria-label={t("timeLabel")}>
-              {formatDuration(elapsed)}
-            </span>
+            <StageTimer
+              startedAt={puzzle.startedAt}
+              finishedAt={puzzle.finishedAt}
+              serverTime={session.serverTime}
+              running={open && playing}
+              label={t("timeLabel")}
+            />
+            {puzzleImage?.userMade && puzzleImage.authorName ? (
+              <span className={styles.authorNote}>{t("custom.byAuthor", { author: puzzleImage.authorName })}</span>
+            ) : null}
             {!solo && peerId ? (
               <span className={`${styles.peer} ${peerPresent ? styles.peerOnline : ""}`}>
                 <i aria-hidden /> {peerName}
@@ -388,8 +440,10 @@ export default function PuzzleMiniGame({
           </button>
         </div>
 
+        <div className={styles.boardArea}>
         <PuzzleBoard
           ref={boardRef}
+          locked={!connected}
           socket={socket}
           roomId={roomId}
           puzzle={puzzle}
@@ -413,6 +467,21 @@ export default function PuzzleMiniGame({
           onDrop={drop}
           onCursor={cursor}
         />
+        <div className={styles.zoomControls}>
+          <button type="button" className={styles.zoomButton} onClick={() => boardRef.current?.zoomBy(1.4)} aria-label={t("zoomIn")}>
+            <Plus size={20} aria-hidden />
+          </button>
+          <button type="button" className={styles.zoomButton} onClick={() => boardRef.current?.zoomBy(1 / 1.4)} aria-label={t("zoomOut")}>
+            <Minus size={20} aria-hidden />
+          </button>
+        </div>
+        </div>
+
+        {!connected ? (
+          <p className={styles.offline} role="alert">
+            <WifiOff size={14} aria-hidden /> {t("offline")}
+          </p>
+        ) : null}
 
         {!isDone && !solo && !peerPresent ? <p className={styles.notice}>{t("peerAway", { name: peerName })}</p> : null}
 
@@ -436,7 +505,7 @@ export default function PuzzleMiniGame({
               <Frame size={18} aria-hidden />
               <span>{t("edgesOnly")}</span>
             </button>
-            <button type="button" className={styles.tool} onClick={gather}>
+            <button type="button" className={styles.tool} disabled={!connected} onClick={gather}>
               <Magnet size={18} aria-hidden />
               <span>{t("gather")}</span>
             </button>
@@ -448,22 +517,32 @@ export default function PuzzleMiniGame({
               {soundOn ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
               <span>{soundOn ? t("soundOn") : t("soundOff")}</span>
             </button>
-            {confirmLeave ? (
-              <span className={styles.confirmLeave}>
-                <span>{t("leaveConfirm")}</span>
-                <button type="button" className={styles.dangerButton} onClick={toLobby}>
+            <button type="button" className={styles.tool} disabled={!connected} onClick={() => setConfirmLeave(true)}>
+              <LogOut size={18} aria-hidden />
+              <span>{t("leave")}</span>
+            </button>
+          </div>
+        ) : null}
+
+        {confirmLeave && !isDone ? (
+          <div className={styles.sheetBackdrop} onClick={() => setConfirmLeave(false)}>
+            <div
+              className={styles.sheet}
+              role="alertdialog"
+              aria-modal="true"
+              aria-label={t("leave")}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p>{t("leaveConfirm")}</p>
+              <div className={styles.actions}>
+                <button type="button" className={styles.dangerButton} disabled={!connected} onClick={toLobby}>
                   {t("leaveYes")}
                 </button>
                 <button type="button" className={styles.secondaryButton} onClick={() => setConfirmLeave(false)}>
                   {t("back")}
                 </button>
-              </span>
-            ) : (
-              <button type="button" className={styles.tool} onClick={() => setConfirmLeave(true)}>
-                <LogOut size={18} aria-hidden />
-                <span>{t("leave")}</span>
-              </button>
-            )}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -518,9 +597,7 @@ export default function PuzzleMiniGame({
                 {reveal.image.userMade && isAdmin ? (
                   <>
                     {" "}
-                    <button type="button" className={styles.linkButton} onClick={() => void adminDelete(reveal.image.id)}>
-                      <Trash2 size={13} aria-hidden /> {t("custom.adminDelete")}
-                    </button>
+                    {renderAdminDelete(reveal.image.id)}
                   </>
                 ) : null}
               </p>
@@ -561,11 +638,22 @@ export default function PuzzleMiniGame({
             ×
           </button>
         </div>
+        {!connected ? (
+          <p className={styles.offline} role="alert">
+            <WifiOff size={14} aria-hidden /> {t("offline")}
+          </p>
+        ) : null}
         {!session || !catalog ? <p className={styles.waiting}>{t("connecting")}</p> : renderLobby()}
       </div>
     </div>
     {customView ? (
-      <PuzzleCustomImage mode={customView} onClose={() => setCustomView(null)} onUploaded={() => undefined} />
+      <PuzzleCustomImage
+        mode={customView}
+        onClose={() => setCustomView(null)}
+        onUploaded={() => undefined}
+        canPlay={connected && canPick && phase === "lobby"}
+        onPlay={playImage}
+      />
     ) : null}
     </>
   );

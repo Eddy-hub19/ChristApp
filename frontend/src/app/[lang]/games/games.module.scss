@@ -117,3 +117,38 @@
   font-weight: 700;
   font-size: 14px;
 }
+
+.cardWrap {
+  display: grid;
+  gap: 6px;
+}
+
+.inviteLink {
+  justify-self: end;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.connecting {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+}

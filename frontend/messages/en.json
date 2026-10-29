@@ -173,17 +173,40 @@
     "openChat": "Open chat"
   },
   "admin": {
-    "puzzleImages": {"tab": "Puzzles", "hint": "All pictures added by players (public at once, no moderation).", "loadFailed": "Could not load the list.", "loading": "Loading…", "empty": "No pictures yet.", "delete": "Delete", "deleteConfirm": "Delete this picture for everyone?", "block": "Block uploads", "unblock": "Unblock", "blockedTitle": "Blocked"},
-    "flockMap": {"title": "Flock map", "current": "Now: {map}", "changes": "Changes for new players at {time}", "changed": "New players already go to a new arena", "noArena": "No arenas right now", "next": "Next map", "nextNone": "Next map: random", "nextSet": "Next map: {map}", "clear": "Random", "switchNow": "Switch map now", "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only."},
+    "puzzleImages": {
+      "tab": "Puzzles",
+      "hint": "All pictures added by players (public at once, no moderation).",
+      "loadFailed": "Could not load the list.",
+      "loading": "Loading…",
+      "empty": "No pictures yet.",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this picture for everyone?",
+      "block": "Block uploads",
+      "unblock": "Unblock",
+      "blockedTitle": "Blocked"
+    },
+    "flockMap": {
+      "title": "Flock map",
+      "current": "Now: {map}",
+      "changes": "Changes for new players at {time}",
+      "changed": "New players already go to a new arena",
+      "noArena": "No arenas right now",
+      "next": "Next map",
+      "nextNone": "Next map: random",
+      "nextSet": "Next map: {map}",
+      "clear": "Random",
+      "switchNow": "Switch map now",
+      "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only."
+    },
     "flockMute": {
-          "title": "Flock: custom text",
-          "notMuted": "not muted",
-          "mutedUntil": "muted until {time}",
-          "minutes": "Minutes",
-          "mute": "Mute",
-          "min": "{count} min",
-          "hours": "{count} h",
-          "unmute": "Unmute"
+      "title": "Flock: custom text",
+      "notMuted": "not muted",
+      "mutedUntil": "muted until {time}",
+      "minutes": "Minutes",
+      "mute": "Mute",
+      "min": "{count} min",
+      "hours": "{count} h",
+      "unmute": "Unmute"
     },
     "rubies": {
       "title": "Rubies",
@@ -480,7 +503,7 @@
     "level1Name": "Level 1: Classic",
     "level1Desc": "Everyone plays on their own board at their own pace: eat, grow, don't crash. Starts right away, no waiting for the other player.",
     "level2Name": "Level 2: Duel",
-    "level2Desc": "One shared board and a race to 30 pieces. Each piece: +1 score and +1 length. Crash and you respawn in 3 seconds, the score stays. First to 30 wins.",
+    "level2Desc": "One shared board and a race to {n} pieces. Each piece: +1 score and +1 length. Crash and you respawn in {s} seconds, the score stays. First to {n} wins.",
     "chooseLevel": "Choose a level",
     "ready": "Ready",
     "cancelReady": "Cancel",
@@ -488,6 +511,8 @@
     "notReady": "not ready",
     "waitingState": "waiting",
     "connecting": "Connecting…",
+    "reconnecting": "Reconnecting…",
+    "newRecord": "NEW!",
     "me": "Me",
     "versus": "Vs {name}: {wins}–{losses}",
     "best": "Best score: {n}",
@@ -520,6 +545,7 @@
     "dirRight": "Right"
   },
   "doodle": {
+    "title": "Doodle",
     "gameOver": "Game over",
     "score": "Score: {score}",
     "close": "Close",
@@ -537,7 +563,19 @@
     "themeNight": "Stars",
     "themeHeaven": "Heavens"
   },
-  "filword": {"title": "Christian word search", "close": "Close", "found": "Found: {found}/{total}", "newGrid": "New grid", "selection": "Selection: {word}"},
+  "filword": {
+    "title": "Christian word search",
+    "close": "Close",
+    "found": "Found: {found}/{total}",
+    "newGrid": "New grid",
+    "selection": "Selection: {word}",
+    "won": "All words found! 🎉",
+    "playAgain": "Play again",
+    "empty": "Could not build a grid. Please try again.",
+    "resetConfirm": "Reset progress?",
+    "yes": "Yes",
+    "no": "No"
+  },
   "chat": {
     "peerFallback": "Chat partner",
     "globalChatTitle": "Global chat for everyone",
@@ -736,7 +774,8 @@
       }
     },
     "gamesAria": "Games",
-    "gamesTitle": "Games"
+    "gamesTitle": "Games",
+    "gameConnecting": "Connecting to the game…"
   },
   "randomVerse": {
     "cardLabel": "Verse for you",
@@ -990,7 +1029,19 @@
     "download": "Download",
     "previewFlockInvite": "🐑 Flock invitation",
     "previewGameInvite": "🎮 Game invitation",
-    "gameInvite": {"title": "{name} invites you to play: {game}", "titleOwn": "You invited to play: {game}", "play": "Play", "games": {"snake": "Snake", "doodle": "Doodle", "guess": "Guess the Character", "puzzle": "Puzzles"}},
+    "gameInvite": {
+      "title": "{name} invites you to play: {game}",
+      "titleOwn": "You invited to play: {game}",
+      "play": "Play",
+      "games": {
+        "snake": "Snake",
+        "doodle": "Doodle",
+        "guess": "Guess the Character",
+        "puzzle": "Puzzles",
+        "filword": "Wordsearch"
+      },
+      "expired": "Expired"
+    },
     "readersTitle": "Seen by",
     "readersReactions": "Reactions",
     "readersEmpty": "No one has seen this yet",
@@ -1166,7 +1217,16 @@
       "children": "Does the Bible mention their children?",
       "parentOfHero": "Was the parent of a well-known Bible character?",
       "childOfHero": "Was the child of a well-known Bible character?"
-    }
+    },
+    "retry": "Retry",
+    "connectFailed": "Could not connect to the game.",
+    "clearSearch": "Clear search",
+    "nextRequest": "{name} wants to skip to the next round",
+    "abortRequest": "{name} wants to end the match",
+    "accept": "Accept",
+    "decline": "Decline",
+    "requestSent": "Waiting for {name}…",
+    "cancelRequest": "Cancel request"
   },
   "puzzle": {
     "title": "Puzzles",
@@ -1188,7 +1248,56 @@
     "imagesCount": "{count, plural, one {# picture} other {# pictures}}",
     "anotherImage": "Another picture",
     "imageCaption": "{author}, “{title}”, {year}",
-    "custom": {"button": "Your own picture", "mine": "My pictures", "title": "Your own picture", "mineTitle": "My pictures", "tabUpload": "Add", "tabMine": "Mine", "close": "Close", "gallery": "Gallery", "camera": "Camera", "pickHint": "Pick a photo from your gallery or take one. Then crop a square.", "cropHint": "Drag the photo and zoom: only this square becomes the puzzle.", "cropAria": "Square photo crop", "zoom": "Zoom", "showAuthor": "Show me as the author", "publicNote": "Your picture is shared with all players at once and joins the random puzzles. Only upload what is fine to show everyone.", "upload": "Add to puzzles", "uploading": "Uploading…", "loading": "Loading…", "empty": "You haven't added any pictures yet", "limitNote": "You can keep up to 5 pictures: the oldest are removed automatically.", "delete": "Delete", "deleteConfirm": "Delete this picture from the puzzles?", "byAuthor": "By {author}", "anonymous": "A player's picture", "previewAlt": "A player's picture", "adminDelete": "Delete (admin)", "errors": {"unsupported_type": "Only JPEG, PNG and WebP are supported", "too_large": "The picture is too large (up to 2 MB after compression)", "rate_limited": "Wait 10 seconds before the next upload", "upload_blocked": "You are not allowed to add pictures", "storage_unavailable": "Storage is temporarily unavailable", "upload_failed": "Could not upload the picture", "no_file": "No file selected", "cannotRead": "Could not read the photo. Try JPEG or PNG", "tooBigFile": "The file is too large (up to 20 MB)", "generic": "Something went wrong. Please try again"}},
+    "custom": {
+      "button": "Your own picture",
+      "mine": "My pictures",
+      "title": "Your own picture",
+      "mineTitle": "My pictures",
+      "tabUpload": "Add",
+      "tabMine": "Mine",
+      "close": "Close",
+      "gallery": "Gallery",
+      "camera": "Camera",
+      "pickHint": "Pick a photo from your gallery or take one. Then crop a square.",
+      "cropHint": "Drag the photo and zoom: only this square becomes the puzzle.",
+      "cropAria": "Square photo crop",
+      "zoom": "Zoom",
+      "showAuthor": "Show me as the author",
+      "publicNote": "Your picture is shared with all players at once and joins the random puzzles. Only upload what is fine to show everyone.",
+      "upload": "Add to puzzles",
+      "uploading": "Uploading…",
+      "loading": "Loading…",
+      "empty": "You haven't added any pictures yet. Add the first one!",
+      "limitNote": "You can keep up to 5 pictures: the oldest are removed automatically.",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this picture from the puzzles?",
+      "byAuthor": "By {author}",
+      "anonymous": "A player's picture",
+      "previewAlt": "A player's picture",
+      "adminDelete": "Delete (admin)",
+      "errors": {
+        "unsupported_type": "Only JPEG, PNG and WebP are supported",
+        "too_large": "The picture is too large (up to 2 MB after compression)",
+        "rate_limited": "Wait 10 seconds before the next upload",
+        "upload_blocked": "You are not allowed to add pictures",
+        "storage_unavailable": "Storage is temporarily unavailable",
+        "upload_failed": "Could not upload the picture",
+        "no_file": "No file selected",
+        "cannotRead": "Could not read the photo. Try JPEG or PNG",
+        "tooBigFile": "The file is too large (up to 20 MB)",
+        "generic": "Something went wrong. Please try again"
+      },
+      "count": "{count} of {max} pictures",
+      "limitReached": "Limit reached: delete one of your pictures in “Mine” first, otherwise the oldest one would be replaced.",
+      "deleteYes": "Delete",
+      "cancel": "Cancel",
+      "playNow": "Play right away",
+      "pieces": "Pieces",
+      "assemble": "Assemble",
+      "playUnavailable": "You can only start a game from the game lobby while connected. The picture will be saved.",
+      "newFrom": "New from {author}",
+      "newAnonymous": "A new player's picture"
+    },
     "piecesTitle": "Number of pieces",
     "start": "Start",
     "waitingPick": "{name} is choosing a picture…",
@@ -1218,7 +1327,10 @@
     "other": "Another picture",
     "viewPicture": "View the picture",
     "showSummary": "Show summary",
-    "creditLineSource": "{author}, “{title}”, {year}. Collection: {source}; source: Wikimedia Commons. Licence: {license}."
+    "creditLineSource": "{author}, “{title}”, {year}. Collection: {source}; source: Wikimedia Commons. Licence: {license}.",
+    "offline": "No connection. Reconnecting… Pieces can't be moved until it's back.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
   },
   "flock": {
     "title": "Flock",
@@ -1238,13 +1350,34 @@
       "takeOff": "Take off",
       "worn": "Worn",
       "items": {
-        "1": { "name": "Winged Sandals", "desc": "+8% speed" },
-        "2": { "name": "Priest's Hat", "desc": "Mass doesn't fade for the first minute of life and the first minute of every {hatPeriod} min" },
-        "3": { "name": "Royal Crown", "desc": "+10% mass from food" },
-        "4": { "name": "Magnet", "desc": "Food is pulled in {magnetPct}% faster" },
-        "5": { "name": "Hourglass", "desc": "Pickups last 30% longer" },
-        "6": { "name": "Cross", "desc": "Second life: once per life you revive on the spot with {revivePct}% mass" },
-        "7": { "name": "Censer", "desc": "Bots and the Alpha keep away from you" }
+        "1": {
+          "name": "Winged Sandals",
+          "desc": "+8% speed"
+        },
+        "2": {
+          "name": "Priest's Hat",
+          "desc": "Mass doesn't fade for the first minute of life and the first minute of every {hatPeriod} min"
+        },
+        "3": {
+          "name": "Royal Crown",
+          "desc": "+10% mass from food"
+        },
+        "4": {
+          "name": "Magnet",
+          "desc": "Food is pulled in {magnetPct}% faster"
+        },
+        "5": {
+          "name": "Hourglass",
+          "desc": "Pickups last 30% longer"
+        },
+        "6": {
+          "name": "Cross",
+          "desc": "Second life: once per life you revive on the spot with {revivePct}% mass"
+        },
+        "7": {
+          "name": "Censer",
+          "desc": "Bots and the Alpha keep away from you"
+        }
       }
     },
     "premium": "Premium",
@@ -1314,9 +1447,19 @@
       "eaten": "Eaten",
       "top1": "Time at #1"
     },
-    "wind": {"warn": "Wind!"},
-    "pipe": {"hint": "Shepherd's pipe: smaller sheep nearby are pulled towards you", "pull": "The pipe is calling you!"},
-    "mapNames": {"meadow": "Summer meadow", "grove": "Autumn grove", "frost": "Winter frost", "volcano": "Volcano"},
+    "wind": {
+      "warn": "Wind!"
+    },
+    "pipe": {
+      "hint": "Shepherd's pipe: smaller sheep nearby are pulled towards you",
+      "pull": "The pipe is calling you!"
+    },
+    "mapNames": {
+      "meadow": "Summer meadow",
+      "grove": "Autumn grove",
+      "frost": "Winter frost",
+      "volcano": "Volcano"
+    },
     "hud": {
       "mass": "Mass",
       "leaderboard": "Top 10",
@@ -1503,7 +1646,36 @@
       "title": "Flock",
       "desc": "A shared arena: graze, grow and hide from wolves behind bushes",
       "cta": "Play"
-    }
+    },
+    "doodle": {
+      "title": "Doodle",
+      "desc": "Jump across platforms and beat your record",
+      "cta": "Play"
+    },
+    "snake": {
+      "title": "Snake",
+      "desc": "Classic snake or a duel with a friend",
+      "cta": "Invite"
+    },
+    "filword": {
+      "title": "Christian Wordsearch",
+      "desc": "Find Christian words in a letter grid",
+      "cta": "Play"
+    },
+    "guess": {
+      "title": "Guess the Character",
+      "desc": "Guess a Bible hero by asking questions",
+      "cta": "Invite"
+    },
+    "puzzle": {
+      "title": "Puzzles",
+      "desc": "Assemble pictures of Bible heroes on your own",
+      "cta": "Play"
+    },
+    "solo": "Play solo",
+    "invite": "Invite a friend",
+    "connecting": "Connecting…",
+    "fail": "Couldn't start the game. Please try again."
   },
   "globalGames": {
     "open": "Games",
@@ -1519,7 +1691,10 @@
     "flockSent": "Flock invitation sent to the global chat",
     "inviteFailed": "Couldn't send the invitation",
     "rateLimited": "Invitations to the global chat are limited to one per minute. Try again in {seconds, plural, one {# second} other {# seconds}}.",
-    "sending": "Sending…"
+    "sending": "Sending…",
+    "soloHeader": "Solo",
+    "puzzleSolo": "Puzzles (solo)",
+    "loadingPeople": "Loading people…"
   },
   "pwaInstall": {
     "title": "Install Christ App",
@@ -1531,33 +1706,33 @@
     "iosHint": "Share → Add to Home Screen"
   },
   "bibleSection": {
-      "tabSearch": "Search",
+    "tabSearch": "Search",
     "backToChat": "Back to chat",
-      "searchPlaceholder": "Search: “John 3:16” or words",
-      "searchLabel": "Search the Bible",
-      "clearSearch": "Clear",
-      "found": "{count, plural, one {Found # verse} other {Found # verses}}",
-      "noResults": "Nothing found for “{query}”",
-      "tooShort": "Type at least 3 characters",
-      "searching": "Searching…",
-      "searchError": "Search failed",
-      "retry": "Try again",
-      "loadMore": "Show more",
-      "openReference": "Open {ref}",
-      "openBook": "Open {book}",
-      "filterAll": "All",
-      "filterOld": "Old Testament",
-      "filterNew": "New Testament",
-      "filterBook": "Book",
-      "filterBookAny": "All books",
-      "recent": "Recent searches",
-      "clearHistory": "Clear",
-      "removeFromHistory": "Remove from history",
-      "examplesTitle": "Try",
-      "exampleRef": "By reference",
-      "exampleWords": "By words",
-      "examplePhrase": "Phrase in quotes",
-      "emptyHint": "Find a verse by reference (John 3:16, 1 Cor 13:4-7) or by words."
+    "searchPlaceholder": "Search: “John 3:16” or words",
+    "searchLabel": "Search the Bible",
+    "clearSearch": "Clear",
+    "found": "{count, plural, one {Found # verse} other {Found # verses}}",
+    "noResults": "Nothing found for “{query}”",
+    "tooShort": "Type at least 3 characters",
+    "searching": "Searching…",
+    "searchError": "Search failed",
+    "retry": "Try again",
+    "loadMore": "Show more",
+    "openReference": "Open {ref}",
+    "openBook": "Open {book}",
+    "filterAll": "All",
+    "filterOld": "Old Testament",
+    "filterNew": "New Testament",
+    "filterBook": "Book",
+    "filterBookAny": "All books",
+    "recent": "Recent searches",
+    "clearHistory": "Clear",
+    "removeFromHistory": "Remove from history",
+    "examplesTitle": "Try",
+    "exampleRef": "By reference",
+    "exampleWords": "By words",
+    "examplePhrase": "Phrase in quotes",
+    "emptyHint": "Find a verse by reference (John 3:16, 1 Cor 13:4-7) or by words."
   },
   "auth": {
     "tagline": "Read. Share. Stay connected.",

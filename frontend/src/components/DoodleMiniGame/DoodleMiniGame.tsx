@@ -64,6 +64,31 @@ const BREAKABLE_HITS_TO_BREAK = 2;
 const CRACK_WOBBLE_FRAMES = 18;
 /** Минимум кадров между двумя засчитанными приземлениями на одну платформу. */
 const HIT_COOLDOWN_FRAMES = 8;
+/** Физика считается фиксированными шагами по 1/60 с — константы выше заданы «на шаг». */
+const STEP_MS = 1000 / 60;
+const MAX_STEPS_PER_FRAME = 5;
+/** Не чаще ~15 раз/с отправляем счёт и состояние наружу (или при приросте счёта >= 5). */
+const EMIT_INTERVAL_MS = 66;
+const EMIT_SCORE_DELTA = 5;
+const MAX_DPR = 2;
+const BEST_KEY = "christapp:doodle:best";
+
+function readBest(): number {
+  try {
+    const value = Number(window.localStorage.getItem(BEST_KEY));
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeBest(value: number) {
+  try {
+    window.localStorage.setItem(BEST_KEY, String(value));
+  } catch {
+    // приватный режим / переполненное хранилище — рекорд просто не сохранится
+  }
+}
 
 export default function DoodleMiniGame({
   open,
@@ -84,9 +109,16 @@ export default function DoodleMiniGame({
   const touchXRef = useRef<number | null>(null);
   const peerStateRef = useRef<DoodleRuntimeState | null>(peerState);
   const peerNameRef = useRef(peerName);
+  const tRef = useRef(t);
+  const onScoreChangeRef = useRef(onScoreChange);
+  const onStateChangeRef = useRef(onStateChange);
+  tRef.current = t;
+  onScoreChangeRef.current = onScoreChange;
+  onStateChangeRef.current = onStateChange;
 
   const [bestScore, setBestScore] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
+  const [hintDismissed, setHintDismissed] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   /** Короткая подпись при достижении порога фона; key перезапускает CSS-анимацию. */
   const [themeToast, setThemeToast] = useState<{ key: number; label: string } | null>(null);
@@ -104,6 +136,10 @@ export default function DoodleMiniGame({
   }, []);
   const gravity = isDesktop ? DESKTOP_GRAVITY : MOBILE_GRAVITY;
   const jumpVelocity = isDesktop ? DESKTOP_JUMP_VELOCITY : MOBILE_JUMP_VELOCITY;
+
+  useEffect(() => {
+    setBestScore(readBest());
+  }, []);
 
   useEffect(() => {
     peerStateRef.current = peerState;
@@ -139,10 +175,18 @@ export default function DoodleMiniGame({
       return;
     }
 
+    const dpr = Math.min(MAX_DPR, Math.max(1, window.devicePixelRatio || 1));
+    canvas.width = Math.round(WORLD_W * dpr);
+    canvas.height = Math.round(WORLD_H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // Фон у каждого игрока свой — по его собственному счёту; новая игра пересоздаёт его с начальной темы.
     const background = new DoodleBackground(WORLD_W, WORLD_H, reducedMotion);
     let lastTs: number | null = null;
+    let accumulator = 0;
+    let lastEmitTs = -Infinity;
+    let lastEmittedScore = 0;
     let toastTimer: number | null = null;
     setThemeToast(null);
 
@@ -375,11 +419,8 @@ export default function DoodleMiniGame({
       }
     };
 
-    const update = (ts: number = performance.now()) => {
-      if (!alive) return;
+    const step = () => {
       frame += 1;
-      background.update(lastTs === null ? 0 : (ts - lastTs) / 1000);
-      lastTs = ts;
 
       const targetPeer = peerStateRef.current;
       if (targetPeer) {
@@ -485,51 +526,80 @@ export default function DoodleMiniGame({
       const nextScore = Math.max(0, Math.floor(-cameraY));
       if (nextScore !== score) {
         score = nextScore;
-        onScoreChange(score);
         if (background.setScore(score)) {
           const labelKey = DOODLE_THEMES[background.themeIndex].labelKey;
           if (labelKey) {
-            setThemeToast({ key: background.themeIndex, label: t(labelKey) });
+            setThemeToast({ key: background.themeIndex, label: tRef.current(labelKey) });
             if (toastTimer !== null) window.clearTimeout(toastTimer);
             toastTimer = window.setTimeout(() => setThemeToast(null), THEME_TOAST_MS);
           }
         }
       }
-      onStateChange?.({
+
+      if (player.y - cameraY > WORLD_H + 40) {
+        alive = false;
+      }
+    };
+
+    const emit = (ts: number, force: boolean) => {
+      if (
+        !force &&
+        ts - lastEmitTs < EMIT_INTERVAL_MS &&
+        Math.abs(score - lastEmittedScore) < EMIT_SCORE_DELTA
+      ) {
+        return;
+      }
+      lastEmitTs = ts;
+      if (score !== lastEmittedScore || force) {
+        lastEmittedScore = score;
+        onScoreChangeRef.current(score);
+      }
+      onStateChangeRef.current?.({
         x: player.x,
         y: player.y,
         cameraY,
         score,
         alive,
       });
-      setBestScore((prev) => (score > prev ? score : prev));
+    };
 
-      if (player.y - cameraY > WORLD_H + 40) {
-        alive = false;
-        setIsGameOver(true);
-        setIsStarted(false);
-        onStateChange?.({
-          x: player.x,
-          y: player.y,
-          cameraY,
-          score,
-          alive: false,
-        });
+    const update = (ts: number = performance.now()) => {
+      if (!alive) return;
+      const dtMs = lastTs === null ? 0 : ts - lastTs;
+      lastTs = ts;
+      background.update(dtMs / 1000);
+
+      // Фиксированный шаг: на 90/120/144 Гц скорость игры такая же, как на 60 Гц.
+      accumulator = Math.min(accumulator + dtMs, STEP_MS * MAX_STEPS_PER_FRAME);
+      while (accumulator >= STEP_MS && alive) {
+        step();
+        accumulator -= STEP_MS;
       }
 
       draw();
 
       if (!alive) {
+        emit(ts, true);
+        setBestScore((prev) => {
+          if (score > prev) {
+            writeBest(score);
+            return score;
+          }
+          return prev;
+        });
+        setIsGameOver(true);
+        setIsStarted(false);
         ctx.fillStyle = "rgba(0,0,0,0.62)";
         ctx.fillRect(0, 0, WORLD_W, WORLD_H);
         ctx.fillStyle = "#fff1cf";
         ctx.font = "700 20px Inter, sans-serif";
-        ctx.fillText(t("gameOver"), 84, 208);
+        ctx.fillText(tRef.current("gameOver"), 84, 208);
         ctx.font = "600 14px Inter, sans-serif";
-        ctx.fillText(t("score", { score }), 126, 238);
+        ctx.fillText(tRef.current("score", { score }), 126, 238);
         return;
       }
 
+      emit(ts, false);
       frameRef.current = requestAnimationFrame(update);
     };
 
@@ -542,7 +612,7 @@ export default function DoodleMiniGame({
         frameRef.current = null;
       }
     };
-  }, [gravity, isStarted, jumpVelocity, onScoreChange, onStateChange, open, t]);
+  }, [gravity, isStarted, jumpVelocity, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -584,11 +654,11 @@ export default function DoodleMiniGame({
         className={styles.card}
         role="dialog"
         aria-modal="true"
-        aria-label="Doodle"
+        aria-label={t("title")}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.topRow}>
-          <p className={styles.title}>Doodle</p>
+          <p className={styles.title}>{t("title")}</p>
           <button
             type="button"
             className={styles.close}
@@ -606,7 +676,7 @@ export default function DoodleMiniGame({
         <p className={styles.bestLine}>
           {t("ping")}: {pingMs != null ? t("pingValue", { ms: pingMs }) : "—"}
         </p>
-        <p className={styles.hint}>{t("hint")}</p>
+        {hintDismissed ? null : <p className={styles.hint}>{t("hint")}</p>}
         <div className={styles.canvasWrap}>
           <canvas
             ref={canvasRef}
@@ -643,6 +713,7 @@ export default function DoodleMiniGame({
                 onClick={() => {
                   onScoreChange(0);
                   setIsGameOver(false);
+                  setHintDismissed(true);
                   setIsStarted(true);
                 }}
               >

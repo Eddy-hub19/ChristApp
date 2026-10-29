@@ -3,8 +3,11 @@ import {
   parseGameActivityMode,
 } from './game-activity.registry';
 
-/** Без heartbeat (клієнт шле раз на ~15 с) статус знімається за цей час — щоб не «залипав». */
-export const ACTIVITY_TTL_MS = 30_000;
+/**
+ * Без heartbeat (клієнт шле раз на ~15 с) статус знімається за цей час — щоб не «залипав».
+ * Запас у 4 інтервали: фонова вкладка з throttled-таймерами не має «блимати».
+ */
+export const ACTIVITY_TTL_MS = 60_000;
 /** Не більше стількох подій `presence:activity` від одного сокета за вікно (heartbeat сюди теж входить). */
 export const ACTIVITY_RATE_LIMIT = 8;
 export const ACTIVITY_RATE_WINDOW_MS = 10_000;
@@ -37,19 +40,60 @@ type Entry = {
 export class GameActivityService {
   private readonly bySocket = new Map<string, Entry>();
   private readonly rate = new Map<string, number[]>();
+  /** Скільки подій відкинуто лімітом (для діагностики; логуємо не частіше разу на вікно). */
+  private droppedTotal = 0;
+  private lastDropLogAt = 0;
 
-  /** false — сокет перевищив ліміт, подію слід відкинути. */
-  allow(socketId: string, now: number): boolean {
+  /** Скільки подій `presence:activity` відкинуто лімітом від старту процесу. */
+  get droppedCount(): number {
+    return this.droppedTotal;
+  }
+
+  /**
+   * Реєструє відкинуту подію; true — час записати в лог (не частіше разу на вікно), щоб не засипати логи.
+   */
+  noteDropped(now: number): boolean {
+    this.droppedTotal += 1;
+    if (now - this.lastDropLogAt < ACTIVITY_RATE_WINDOW_MS) return false;
+    this.lastDropLogAt = now;
+    return true;
+  }
+
+  /**
+   * false — сокет перевищив ліміт, подію слід відкинути. `critical` (зміна гри/режиму, зняття статусу)
+   * не відкидається ніколи, але теж записується у вікно, тож heartbeat-и після нього притримуються.
+   */
+  allow(socketId: string, now: number, critical = false): boolean {
     const recent = (this.rate.get(socketId) ?? []).filter(
       (ts) => now - ts < ACTIVITY_RATE_WINDOW_MS,
     );
     if (recent.length >= ACTIVITY_RATE_LIMIT) {
+      if (critical) {
+        recent.push(now);
+        this.rate.set(socketId, recent);
+        return true;
+      }
       this.rate.set(socketId, recent);
       return false;
     }
     recent.push(now);
     this.rate.set(socketId, recent);
     return true;
+  }
+
+  /** true — подія змінює видимий стан (нова гра/кімната/режим або зняття статусу), а не просто heartbeat. */
+  isStateChange(
+    socketId: string,
+    roomId: string,
+    game: string | null,
+    rawMode?: unknown,
+  ): boolean {
+    const prev = this.bySocket.get(socketId);
+    if (game === null) return Boolean(prev);
+    const def = getGameActivityDef(game);
+    if (!def) return false;
+    if (!prev || prev.roomId !== roomId || prev.game !== def.id) return true;
+    return prev.mode !== parseGameActivityMode(def.id, rawMode);
   }
 
   /**

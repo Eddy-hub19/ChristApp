@@ -16,13 +16,23 @@ export const PUSH_LABELS = {
   video: '🎥 Відео',
   sticker: 'Стікер',
   flockInvite: '🐑 Запрошення в Отару',
-  gameInvite: '🎮 Запрошення в гру',
+  /** Мови одержувача в БД немає, тому запрошення в гру — без мовного речення: «🎮 <назва гри>». */
+  gameInvite: '🎮',
 } as const;
+
+/** Назви ігор — власні імена, однакові в усіх мовах (як і в пушах «Отари»). */
+const GAME_PUSH_NAMES: Record<string, string> = {
+  snake: 'Snake',
+  doodle: 'Doodle',
+  guess: 'Guess the Character',
+  puzzle: 'Puzzle',
+  filword: 'Wordsearch',
+};
 
 const STICKER_META_PREFIX = '[[sticker:';
 const VERSE_SHARE_META_PREFIX = '[[verse-share:';
 const FLOCK_INVITE_RE = /^\[\[flock-invite:\d{1,9}\]\]$/;
-const GAME_INVITE_RE = /^\[\[game-invite:[a-z]{1,16}\]\]$/;
+const GAME_INVITE_RE = /^\[\[game-invite:([a-z]{1,16})\]\]$/;
 const META_SUFFIX = ']]';
 
 export const PUSH_BODY_MAX_LEN = 220;
@@ -72,7 +82,11 @@ export function pushMessageText(
   const withoutReply = stripLegacyReplyPrefix(raw).trim();
   if (withoutReply.startsWith(STICKER_META_PREFIX)) return PUSH_LABELS.sticker;
   if (FLOCK_INVITE_RE.test(withoutReply)) return PUSH_LABELS.flockInvite;
-  if (GAME_INVITE_RE.test(withoutReply)) return PUSH_LABELS.gameInvite;
+  const gameInvite = GAME_INVITE_RE.exec(withoutReply);
+  if (gameInvite) {
+    const name = GAME_PUSH_NAMES[gameInvite[1]];
+    return name ? `${PUSH_LABELS.gameInvite} ${name}` : PUSH_LABELS.gameInvite;
+  }
   if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
     const end = withoutReply.indexOf(
       META_SUFFIX,

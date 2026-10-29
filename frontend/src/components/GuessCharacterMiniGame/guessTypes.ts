@@ -63,6 +63,8 @@ export type GuessSessionState = {
   results: Array<Omit<RoundReveal, "card">>;
   matchWinner: string | null;
   matches: MatchLogEntry[];
+  /** Дуель: запит суперника «наступний раунд» / «завершити матч», що чекає відповіді. */
+  pending?: { kind: "next" | "abort"; from: string } | null;
   serverTime: number;
 };
 

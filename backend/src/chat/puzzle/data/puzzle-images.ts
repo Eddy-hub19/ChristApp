@@ -31,6 +31,8 @@ export type PuzzleImage = {
   userMade?: boolean;
   /** Нік автора для підпису під час гри (null - автор сховав себе). Лише для `userMade`. */
   authorName?: string | null;
+  /** Когда картинка загружена (мс, epoch): первые 24 часа она выпадает чаще (см. userPickWeight). Лишь для `userMade`. */
+  createdAt?: number;
 };
 
 /**
@@ -49,6 +51,28 @@ export function userPuzzleImageList(): PuzzleImage[] {
 
 /** Частка випадкових виборів, у яких береться картинка користувача (якщо вони є). */
 export const USER_IMAGE_WEIGHT = 0.3;
+
+/** Скільки «умовних» картинок каталогу гасять вагу, коли власних мало: n=1 -> ~0.09, 2 -> ~0.17, 3 -> ~0.23, 5+ -> кап. */
+const USER_IMAGE_WEIGHT_K = 10;
+
+/** Новая картинка пользователя первые NEW_IMAGE_WINDOW_MS весит в NEW_IMAGE_BOOST раз больше, чтобы её успели увидеть. */
+export const NEW_IMAGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const NEW_IMAGE_BOOST = 3;
+
+export function isNewUserImage(image: PuzzleImage, now: number = Date.now()): boolean {
+  return Boolean(image.userMade && image.createdAt && now - image.createdAt < NEW_IMAGE_WINDOW_MS);
+}
+
+/** Вес одной картинки пользователя внутри группы: новая x NEW_IMAGE_BOOST, остальные 1. */
+export function userPickWeight(image: PuzzleImage, now: number = Date.now()): number {
+  return isNewUserImage(image, now) ? NEW_IMAGE_BOOST : 1;
+}
+
+/** Вага картинок користувача залежить від їхньої кількості: min(USER_IMAGE_WEIGHT, n / (n + k)). */
+export function userImageWeight(count: number): number {
+  if (!(count > 0)) return 0;
+  return Math.min(USER_IMAGE_WEIGHT, count / (count + USER_IMAGE_WEIGHT_K));
+}
 
 export const PUZZLE_IMAGES: PuzzleImage[] = (
   imagesJson as { images: PuzzleImage[] }

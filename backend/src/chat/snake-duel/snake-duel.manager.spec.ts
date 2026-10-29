@@ -35,6 +35,8 @@ afterEach(() => jest.useRealTimers());
 describe('lobby', () => {
   it('shows the selected level to both and starts the duel only when both are ready', () => {
     const { manager, last } = setup();
+    manager.setPresence(ROOM, PLAYERS, A, true);
+    manager.setPresence(ROOM, PLAYERS, B, true);
     manager.selectLevel(ROOM, PLAYERS, A, 2);
     expect(last().level).toBe(2);
     manager.setReady(ROOM, PLAYERS, A, true);
@@ -67,6 +69,7 @@ describe('lobby', () => {
   it('one player in Classic does not stop the other from waiting in the Duel lobby', () => {
     const { manager, last } = setup();
     manager.setPresence(ROOM, PLAYERS, A, true); // A играет в Классику, сервер о ней не знает
+    manager.setPresence(ROOM, PLAYERS, B, true);
     manager.selectLevel(ROOM, PLAYERS, B, 2);
     manager.setReady(ROOM, PLAYERS, B, true);
     expect(last().level).toBe(2);
