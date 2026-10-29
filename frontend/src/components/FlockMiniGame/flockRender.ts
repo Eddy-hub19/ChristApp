@@ -6,7 +6,8 @@ import { drawGroundFood, groundOf, type Ground } from "./flockGround";
 import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, lavaDistance } from "./flockLava";
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { BOSS_SKIN, MONSTER_SKIN } from "./flockSkins";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
+import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
+import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -50,6 +51,7 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   golden: { color: "#ffc93c", icon: "🌟" },
   scissors: { color: "#ff5c8a", icon: "✂️" },
   eagle: { color: "#ffb02e", icon: "👁" },
+  pipe: { color: "#e0a14a", icon: "🎶" },
   boost: { color: "#ff9f43", icon: "🚀" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
@@ -133,13 +135,15 @@ function sprite(key: string, size: number, draw: (c: CanvasRenderingContext2D, s
 /** Спрайт їжі малюється в системі координат 40×40 (як раніше) і масштабується під FOOD_PX: чітко й на великому екрані. */
 const FOOD_DESIGN = 40;
 const FOOD_PX = 64;
-const foodCache: (HTMLCanvasElement | undefined)[] = [];
-const GROUNDS: Ground[] = ["meadow", "autumn", "snow", "volcano"];
+const foodCache = new Map<string, HTMLCanvasElement>();
 function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
   // шерсть (kind 3) однакова на всіх картах; на не-лугових картах трава/квітка/колосок - свої спрайти, без залежності від теми
   const gk = kind === 3 ? "meadow" : ground;
-  const i = kind * 2 + (dark && gk === "meadow" ? 1 : 0) + (gk === "meadow" ? 0 : 8 + GROUNDS.indexOf(gk) * 4);
-  return (foodCache[i] ??= sprite(`food2-${i}`, FOOD_PX, (c, s) => {
+  // ключ включает карту и вид: раньше числовые индексы разных карт пересекались (листья «просачивались» на мороз)
+  const i = `${gk}-${kind}-${dark && gk === "meadow" ? "d" : "l"}`;
+  const cached = foodCache.get(i);
+  if (cached) return cached;
+  const made = sprite(`food3-${i}`, FOOD_PX, (c, s) => {
     c.translate(s / 2, s / 2);
     c.scale(s / FOOD_DESIGN, s / FOOD_DESIGN);
     c.lineCap = "round";
@@ -186,23 +190,27 @@ function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
       c.arc(0, 7, 6, 0, TAU);
       c.fill();
     } else {
-      // колосок
-      c.strokeStyle = dark ? "#e9cd7c" : "#c99a2e";
-      c.fillStyle = c.strokeStyle;
-      c.lineWidth = 3;
-      c.beginPath();
-      c.moveTo(0, 16);
-      c.lineTo(0, -10);
-      c.stroke();
-      for (let i = 0; i < 4; i++) {
-        for (const side of [-1, 1]) {
-          c.beginPath();
-          c.ellipse(side * 5, -12 + i * 6, 3.2, 6, side * 0.6, 0, TAU);
-          c.fill();
-        }
+      // ромашка: белые лепестки и жёлтая серединка (на лугу еда - трава и цветы)
+      c.fillStyle = dark ? "#f4f1ea" : "#ffffff";
+      c.strokeStyle = dark ? "#b9b2a4" : "#cfc9b8";
+      c.lineWidth = 1.2;
+      for (let i = 0; i < 8; i++) {
+        c.save();
+        c.rotate((i / 8) * TAU);
+        c.beginPath();
+        c.ellipse(0, -10, 3.6, 8, 0, 0, TAU);
+        c.fill();
+        c.stroke();
+        c.restore();
       }
+      c.fillStyle = "#f3b92a";
+      c.beginPath();
+      c.arc(0, 0, 5, 0, TAU);
+      c.fill();
     }
-  }));
+  });
+  foodCache.set(i, made);
+  return made;
 }
 
 // ---------- «Прискорення»: слід; «Дощ»: калюжі, краплі, затемнення (усе з кешованих спрайтів, без blur) ----------
@@ -378,6 +386,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // пасовище: колір + сітка-трава + пучки одним готовим патерном (тайл у кеші), а не лініями щокадру
   ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
   ctx.fillRect(0, 0, world, world);
+  // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
+  if (groundOf(m.cfg.map) === "meadow") {
+    const sun = sunlightPattern(ctx, scale * dpr);
+    if (sun) {
+      ctx.globalAlpha = theme.dark ? 0.55 : 1;
+      ctx.fillStyle = sun;
+      ctx.fillRect(0, 0, world, world);
+      ctx.globalAlpha = 1;
+    }
+  }
   // межа світу
   ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
@@ -491,6 +509,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // вид берем у сервера (welcome.thornStyle); старый сервер без поля - по номеру карты
   const style = m.cfg.thornStyle;
   const thornKind: ThornKind = style === "charred" ? "charred" : style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
+  // «Сопілка пастуха»: хвилі, ноти й лінії до притягнутих лежать на землі під клітинами
+  drawPipeEffects(ctx, m, VISIBLE, o.time, scale, prefersReducedMotion());
   const drawnUnder: boolean[] = [];
   for (let i = 0; i < VISIBLE.length; i++) {
     drawnUnder[i] = hidden(VISIBLE[i]);
@@ -548,6 +568,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   }
   ctx.restore();
   drawRainOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
+  drawWindOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   // червоне світіння біля краю екрана, коли гравець наближається до лави
   if (m.cfg.lava) {
     let near = Infinity;

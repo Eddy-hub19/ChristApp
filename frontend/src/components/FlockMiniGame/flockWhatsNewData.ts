@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -436,6 +436,36 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Новий режим «Звужуване коло» (лобі → «Режими»): карта стискається, поза колом тане маса, переможець отримує рубіни в межах добового ліміту",
           ru: "Новый режим «Сужающийся круг» (лобби → «Режимы»): карта сжимается, вне круга тает масса, победитель получает рубины в пределах дневного лимита",
           en: "New “Shrinking circle” mode (lobby → “Modes”): the map shrinks, mass melts outside the circle, and the winner earns rubies within the daily limit",
+        },
+      },
+    ],
+  },
+  {
+    version: 18,
+    date: "2026-11-02",
+    items: [
+      {
+        icon: "wind",
+        text: {
+          ua: "Подія «Вітер» (Луг, Гай, Мороз): за 3 с з'являється попередження «Вітер!» зі стрілкою, потім 15–20 с усіх зносить в один бік. На «Вулкані» вітру немає",
+          ru: "Событие «Ветер» (Луг, Роща, Мороз): за 3 с появляется предупреждение «Ветер!» со стрелкой, потом 15–20 с всех сносит в одну сторону. На «Вулкане» ветра нет",
+          en: "New “Wind” event (Meadow, Grove, Frost): a “Wind!” warning with an arrow shows 3 s ahead, then for 15–20 s everyone drifts one way. There is no wind on the “Volcano”",
+        },
+      },
+      {
+        icon: "pipe",
+        text: {
+          ua: "Новий рідкісний бонус «Сопілка пастуха»: 10 с притягує до тебе менших овечок поруч, але ті, хто активно тікає, можуть вирватись",
+          ru: "Новый редкий бонус «Свирель пастуха»: 10 с притягивает к тебе меньших овечек рядом, но те, кто активно убегает, могут вырваться",
+          en: "New rare “Shepherd's pipe” bonus: for 10 s it pulls smaller sheep nearby towards you, but those who run hard can break free",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "Карти змінюються: нова арена бере іншу карту, ніж попередня. На кожній карті свій вигляд землі, їжі й декору; на вході на 3 с показується назва карти",
+          ru: "Карты меняются: новая арена берёт другую карту, чем предыдущая. У каждой карты свой вид земли, еды и декора; при входе на 3 с показывается название карты",
+          en: "Maps now rotate: a new arena never repeats the previous map. Each map has its own ground, food and decor, and the map name shows for 3 s when you enter",
         },
       },
     ],

@@ -293,6 +293,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
         params: { sec: sec("bonusDurations.eagle"), pct: num("eagle.zoomPct") },
       },
+      {
+        id: "pipe",
+        icon: "bonus:pipe",
+        title: { ua: "Сопілка пастуха", ru: "Свирель пастуха", en: "Shepherd's pipe" },
+        text: {
+          ua: "Рідкісний, на полі не більше одного. {sec} с усі гравці й боти, що менші за тебе і знаходяться в радіусі ~{radius} твоїх радіусів, плавно тягнуться до тебе. Сила тяги — {pull}% їхньої швидкості, тому той, хто активно тікає, може вирватись. Не діє на більших і рівних, на новачків під щитом, гравців на паузі, «Вожака», лавових чудовиськ і біля лави. Якщо ти розділився, кожна частина тягне окремо.",
+          ru: "Редкий, на поле не больше одного. {sec} с все игроки и боты, что меньше тебя и находятся в радиусе ~{radius} твоих радиусов, плавно тянутся к тебе. Сила тяги — {pull}% их скорости, поэтому тот, кто активно убегает, может вырваться. Не действует на больших и равных, на новичков под щитом, игроков на паузе, «Вожака», лавовых чудовищ и у лавы. Если ты разделился, каждая часть тянет отдельно.",
+          en: "Rare, at most one on the field. For {sec} s every player and bot smaller than you within ~{radius} of your radii is gently pulled towards you. The pull is {pull}% of their speed, so anyone running hard can break free. It does not affect bigger or equal cells, shielded newcomers, paused players, the Alpha, lava monsters or cells near lava. If you split, each part pulls on its own.",
+        },
+        params: { sec: sec("bonusDurations.pipe"), radius: num("pipe.radiusCells"), pull: { path: "pipe.pullFraction", as: "pct" } },
+      },
     ],
   },
   {
@@ -334,6 +345,34 @@ export const INFO_SECTIONS: InfoSection[] = [
           slow: pct("rain.slowFraction"),
           dry: sec("rain.dryMs"),
         },
+      },
+      {
+        id: "wind",
+        icon: "wind",
+        title: { ua: "Вітер", ru: "Ветер", en: "Wind" },
+        text: {
+          ua: "На картах «Літній луг», «Осінній гай» і «Зимовий мороз» раз на {minEvery}–{maxEvery} хв дме вітер ({minDur}–{maxDur} с). За 3 с з'являється попередження «Вітер!» зі стрілкою напрямку. Вітер зносить усіх (гравців, ботів) в один бік приблизно на {pct}% базової швидкості; великі клітини зносить трохи слабше. Не зносить усередині куща, гравців на паузі й новачків під стартовим щитом; біля краю карти упирається в межу. Їжа й бонуси не рухаються. На «Вулкані» вітру немає, і він не збігається із «Зорепадом».",
+          ru: "На картах «Летний луг», «Осенняя роща» и «Зимний мороз» раз в {minEvery}–{maxEvery} мин дует ветер ({minDur}–{maxDur} с). За 3 с появляется предупреждение «Ветер!» со стрелкой направления. Ветер сносит всех (игроков, ботов) в одну сторону примерно на {pct}% базовой скорости; крупные клетки сносит чуть слабее. Не сносит внутри куста, игроков на паузе и новичков под стартовым щитом; у края карты упирается в границу. Еда и бонусы не двигаются. На «Вулкане» ветра нет, и он не совпадает со «Зорепадом».",
+          en: "On the “Summer meadow”, “Autumn grove” and “Winter frost” maps a wind blows every {minEvery}–{maxEvery} min ({minDur}–{maxDur} s). A “Wind!” warning with a direction arrow shows 3 s ahead. The wind pushes everyone (players and bots) one way at about {pct}% of base speed; big cells are pushed a little less. It does not move cells inside a bush, paused players or newcomers under the start shield, and stops at the map edge. Food and bonuses stay put. There is no wind on the “Volcano”, and it never overlaps Starfall.",
+        },
+        params: {
+          minEvery: min("wind.intervalMinMs"),
+          maxEvery: min("wind.intervalMaxMs"),
+          minDur: sec("wind.durationMinMs"),
+          maxDur: sec("wind.durationMaxMs"),
+          pct: num("wind.strengthPct"),
+        },
+      },
+      {
+        id: "maps",
+        icon: "leaf",
+        title: { ua: "Зміна карт", ru: "Смена карт", en: "Map rotation" },
+        text: {
+          ua: "Нова арена бере іншу карту, ніж попередня: «Літній луг», «Осінній гай», «Зимовий мороз» або «Вулкан». Арена, що йде довше {rotate} хв, нових гравців не приймає: вони потрапляють на нову карту, а тих, хто вже грає, ніхто не викидає.",
+          ru: "Новая арена берёт другую карту, чем предыдущая: «Летний луг», «Осенняя роща», «Зимний мороз» или «Вулкан». Арена, идущая дольше {rotate} мин, новых игроков не принимает: они попадают на новую карту, а тех, кто уже играет, никто не выкидывает.",
+          en: "A new arena picks a different map than the previous one: “Summer meadow”, “Autumn grove”, “Winter frost” or “Volcano”. An arena running longer than {rotate} min stops taking new players: they join a new map, and nobody who is already playing gets kicked.",
+        },
+        params: { rotate: num("mapRotation.rotateMin") },
       },
       {
         id: "monsters",

@@ -24,6 +24,8 @@ export const FX_MAGNET = 16;
 export const FX_PAUSED = 32;
 /** Клітина зараз у «Прискоренні» (клієнт малює слід). */
 export const FX_SPRINT = 64;
+/** Клітина грає на «Сопілці пастуха» (клієнт малює ноти й хвилю радіуса). */
+export const FX_PIPE = 128;
 
 export const BONUS_CODE = [
   'speed',
@@ -37,6 +39,7 @@ export const BONUS_CODE = [
   'boost',
   'scissors',
   'eagle',
+  'pipe',
 ] as const;
 
 export interface DecodedFood {

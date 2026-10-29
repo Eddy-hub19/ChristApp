@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
+import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, PipeIcon, WindIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
 import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang } from "./flockWhatsNewData";
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
@@ -28,6 +28,8 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   lava: (p) => <LavaIcon {...p} />,
   fence: (p) => <FenceIcon {...p} />,
   alpha: (p) => <AlphaIcon {...p} />,
+  pipe: (p) => <PipeIcon {...p} />,
+  wind: (p) => <WindIcon {...p} />,
   rain: (p) => (
     <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true">
       <path d="M7 15a4 4 0 0 1-.4-8 5.5 5.5 0 0 1 10.6 1.3A3.4 3.4 0 0 1 17 15z" fill="#9db4d6" stroke="#5f7aa3" strokeWidth="1.2" strokeLinejoin="round" />

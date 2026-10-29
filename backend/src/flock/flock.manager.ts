@@ -38,6 +38,7 @@ import {
   FX_GHOST,
   FX_MAGNET,
   FX_PAUSED,
+  FX_PIPE,
   FX_SHIELD,
   FX_SPEED,
   FX_SPRINT,
@@ -159,8 +160,11 @@ class Arena {
   private readonly tmpSeen = new Set<number>();
   /** Кущі не рухаються й не зникають: список будується один раз і йде клієнтам у `welcome`. */
   readonly thornList: StateInput['thorns'];
-  /** Вид карти арени (FLOCK_MAPS), випадковий при створенні; йде клієнтам у `welcome`. */
+  /** Вид карти арени (FLOCK_MAPS), обирається при створенні; йде клієнтам у `welcome`. */
   readonly mapId: number;
+  /** Коли арена створена (годинник менеджера) і чи її знято з прийому нових гравців (адмін: «змінити карту зараз»). */
+  readonly createdAt: number;
+  retired = false;
   /** Поточна частота (знижується запобіжником, коли CPU не встигає). */
   readonly rate = new AdaptiveRate();
   /** Боти за навантаженням: регулятор, боти «на виході», журнал рішень для адмінки. */
@@ -191,11 +195,15 @@ class Arena {
     /** Лаг loop і CPU процесу (у тестах підміняється). За замовчуванням міряє сама арена. */
     private readonly loadProbe?: () => Pick<LoadSample, 'loopP99Ms' | 'cpuPct'>,
     readonly mode: ArenaMode = 'normal',
+    /** Карта, задана менеджером (чергування карт, «наступна карта» від адміна); без неї - випадкова. */
+    mapOverride?: number,
   ) {
+    this.createdAt = now();
     this.mapId =
-      mode === 'circle'
+      mapOverride ??
+      (mode === 'circle'
         ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
-        : pickMapId(rng);
+        : pickMapId(rng));
     this.world = new FlockWorld(rng, this.mapId);
     this.monsterTarget =
       C.monsters.min + Math.floor(rng() * (C.monsters.max - C.monsters.min + 1));
@@ -841,6 +849,8 @@ class Arena {
     const starMsg = w.starEvents.length ? { e: w.starEvents } : null;
     // «Дощ»: старт одним повідомленням (тривалість, підсихання, калюжі); далі клієнти рахують час самі
     const rainMsg = w.rainEvents.length ? w.rainEvents[0] : null;
+    // «Вітер»: попередження й початок одним повідомленням (напрям, до початку, тривалість)
+    const windMsg = w.windEvents.length ? w.windEvents[0] : null;
     // «Ножиці»: усім - анімація хвилі; клієнт сам вирішує, чи він серед постраждалих
     const scissorsMsgs = w.scissorsEvents.map((e) => ({
       x: e.x,
@@ -870,6 +880,7 @@ class Arena {
       }
       if (starMsg) send(key, 'z', starMsg);
       if (rainMsg) send(key, 'rn', rainMsg);
+      if (windMsg) send(key, 'wd', windMsg);
       if (lavaMsg) send(key, 'lv', lavaMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       // «Хрест»: «Друге життя» - лише самому гравцеві
@@ -945,6 +956,7 @@ class Arena {
       if (w.hasEffect(o, 'speed')) fx |= FX_SPEED;
       if (o.sprinting) fx |= FX_SPRINT;
       if (w.hasEffect(o, 'magnet')) fx |= FX_MAGNET;
+      if (w.hasEffect(o, 'pipe')) fx |= FX_PIPE;
       sh.fx.set(o.id, fx);
     }
     // списки переиспользуем (без новых массивов на каждый тик)
@@ -1184,6 +1196,8 @@ export interface JoinResult {
   mode?: ArenaMode;
   circle?: CircleMsg;
   rain?: { l: number; y: number; d: number; p: [number, number, number, number][] };
+  /** «Вітер» на момент входу: a - напрям (рад), w - мс до початку (0 - уже дме), l - скільки лишилось сносу. */
+  wind?: { a: number; w: number; l: number };
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
   /** Продовжили ту саму овечку (масу, частини, позицію, статистику). */
@@ -1209,6 +1223,9 @@ export class FlockManager {
   private readonly byConn = new Map<string, Session>();
   private readonly byUser = new Map<string, Session>();
   private nextArenaId = 1;
+  /** Чергування карт: остання вибрана звичайною ареною і карта, яку адмін призначив наступній. */
+  private lastMapId = -1;
+  private forcedNextMap: number | null = null;
   /** Заглушені гравці (userId -> до коли, годинник менеджера); без БД. */
   private readonly mutes = new Map<string, { until: number; name: string }>();
   /** Останні свої тексти (пам'ять процесу, не БД). */
@@ -1319,6 +1336,7 @@ export class FlockManager {
       lava: s.arena.world.lava ?? undefined,
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
+      wind: s.arena.world.windSnapshot(),
       mode: s.arena.mode,
       circle: s.arena.circleSnapshot(),
       streak: this.streakInfo(s.arena) ?? undefined,
@@ -1345,18 +1363,51 @@ export class FlockManager {
     for (const a of this.arenas.values()) this.pushStreak(a);
   }
 
+  /** Арена прожила довше за rotateMs (або знята адміном): нових гравців вона не приймає, вони йдуть на нову карту. */
+  private mapExpired(a: Arena) {
+    return a.mode === 'normal' && (a.retired || this.now() - a.createdAt >= C.mapRotation.rotateMs);
+  }
+
+  /** Карта для нової звичайної арени: задана адміном або випадкова за вагами, не та ж, що була попередньою. */
+  private nextMapId(): number {
+    const id = this.forcedNextMap ?? pickMapId(this.rng, this.lastMapId);
+    this.forcedNextMap = null;
+    this.lastMapId = id;
+    return id;
+  }
+
+  /** Адмін: карта для наступної створеної арени (null - зняти примус). */
+  setNextMap(id: number | null): boolean {
+    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id)) return false;
+    this.forcedNextMap = id;
+    return true;
+  }
+
+  /** Адмін: нові гравці більше не потрапляють на чинні звичайні арени (ті, хто грає, лишаються до виходу). */
+  retireArenas() {
+    for (const a of this.arenas.values()) if (a.mode === 'normal') a.retired = true;
+  }
+
+  mapAdmin() {
+    return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs };
+  }
+
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
   private pickArena(requested?: number, mode: ArenaMode = 'normal'): Arena | null {
-    const has = (a: Arena) => a.mode === mode && a.humans < C.maxHumansPerArena;
+    const roomy = (a: Arena) => a.mode === mode && a.humans < C.maxHumansPerArena;
+    const fresh = (a: Arena) => roomy(a) && !this.mapExpired(a);
     const wanted = requested ? this.arenas.get(requested) : undefined;
-    if (wanted && has(wanted)) return wanted;
-    const any = [...this.arenas.values()].find(has);
+    if (wanted && fresh(wanted)) return wanted;
+    const any = [...this.arenas.values()].find(fresh);
     if (any) return any;
     // ліміт арен - окремо для звичайних і для режиму «Звужуване коло» (звичайна арена від режиму не залежить)
     const sameMode = [...this.arenas.values()].filter((a) => a.mode === mode).length;
-    if (mode === 'circle') {
-      if (!C.circle.enabled || sameMode >= C.circle.maxArenas) return null;
-    } else if (sameMode >= C.maxArenas) return null;
+    const atLimit = mode === 'circle' ? !C.circle.enabled || sameMode >= C.circle.maxArenas : sameMode >= C.maxArenas;
+    if (atLimit) {
+      // нову карту завести нема де: краще стара карта, ніж відмова
+      if (mode === 'circle') return null;
+      return (wanted && roomy(wanted) ? wanted : undefined) ?? [...this.arenas.values()].find(roomy) ?? null;
+    }
     const arena = new Arena(
       this.nextArenaId++,
       this.rng,
@@ -1365,6 +1416,7 @@ export class FlockManager {
       this.hooks,
       this.opts.loadProbe,
       mode,
+      mode === 'normal' ? this.nextMapId() : undefined,
     );
     this.arenas.set(arena.id, arena);
     return arena;
@@ -1589,6 +1641,11 @@ export class FlockManager {
       packets: a.packets,
       phase: { ...a.phase },
       lateness: { ...a.lateness },
+      mapId: a.mapId,
+      mode: a.mode,
+      startedAt: a.createdAt,
+      /** Коли чинна арена перестане приймати нових гравців (карта зміниться для них); null - вже закрита адміном/часом. */
+      mapChangesAt: a.mode === 'normal' ? (a.retired ? 0 : a.createdAt + C.mapRotation.rotateMs) : null,
     }));
   }
 

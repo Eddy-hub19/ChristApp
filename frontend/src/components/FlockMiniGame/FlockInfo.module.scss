@@ -296,3 +296,71 @@
     transition: none;
   }
 }
+
+/* --- Окно «Режими»: карточка режима (колонка, не строка как .entry) + липкая кнопка входа --- */
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.modeTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.modeText {
+  margin: 0;
+}
+
+.modeRules {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modeHint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.modeFooter {
+  position: sticky;
+  bottom: -18px;
+  flex: none;
+  margin: auto -14px -18px;
+  padding: 10px 14px 14px;
+  background: var(--surface-elevated);
+  border-top: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+}
+
+.modePlay {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}

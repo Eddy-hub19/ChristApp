@@ -83,7 +83,7 @@ export class AdminController {
       },
       realtime: this.chatGateway.getRealtimeStats(),
       /** Арени «Отари»: люди, боти, нагрузка и последние решения регулятора ботов. */
-      flock: { arenas: this.flockGateway.getAdminStats(), says: this.flockGateway.recentSays() },
+      flock: { arenas: this.flockGateway.getAdminStats(), says: this.flockGateway.recentSays(), maps: this.flockGateway.mapAdmin() },
       users: { total: usersTotal, active: usersActive },
     };
   }
@@ -164,6 +164,19 @@ export class AdminController {
       id,
       typeof body?.artifact === 'number' ? body.artifact : NaN,
     );
+  }
+
+  /** Карта «Отари»: призначити наступній створеній арені (mapId = null - зняти) і/або закрити чинні арени для нових гравців. */
+  @Post('flock/next-map')
+  setFlockNextMap(@Body() body: { mapId?: unknown; retire?: unknown }) {
+    if (body?.mapId !== undefined) {
+      const id = body.mapId === null ? null : typeof body.mapId === 'number' ? body.mapId : NaN;
+      if (!this.flockGateway.setNextMap(Number.isInteger(id as number) || id === null ? (id as number | null) : null)) {
+        throw new BadRequestException('invalid_map');
+      }
+    }
+    if (body?.retire === true) this.flockGateway.retireArenas();
+    return this.flockGateway.mapAdmin();
   }
 
   /** Усі чинні муті «Отари» (userId -> until): для фільтра «Заглушені». Маршрут окремий від `members/:id/...`. */

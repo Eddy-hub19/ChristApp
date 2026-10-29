@@ -6,7 +6,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { EagleEyeIcon, StarfallIcon } from "@/components/icons/game";
+import { EagleEyeIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
 import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
@@ -65,9 +65,16 @@ type Hud = {
   sprintActive: boolean;
   /** Режим «Звужуване коло»: стадія/фаза кола (null - звичайна арена). */
   circle: { phase: "warmup" | "hold" | "shrink" | "final"; leftMs: number; stage: number; stages: number } | null;
+  /** «Вітер»: попередження (warn) або снос (active) з напрямком (рад); null - вітру нема. */
+  wind: { phase: "warn" | "active"; angle: number } | null;
+  /** Своя клітина зараз під «Сопілкою пастуха» (коротка підказка «Тебе кличе сопілка!»). */
+  pipeCalled: boolean;
 };
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null };
+/** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano"] as const;
+
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -184,6 +191,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number; gain: number } | null>(null);
   /** Подсказка при подборе «Орлиного зору» (id - чтобы анимация стартовала снова). */
   const [eagleHint, setEagleHint] = useState<number | null>(null);
+  /** Підказка при підборі «Сопілки пастуха» і назва карти при вході (3 с). */
+  const [pipeHint, setPipeHint] = useState<number | null>(null);
+  const [mapToast, setMapToast] = useState<string | null>(null);
   const [reviveMsg, setReviveMsg] = useState<number | null>(null);
   const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2 | 3; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
@@ -423,6 +433,26 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (eagleOn && !eagleWasOn.current) setEagleHint(Date.now());
     eagleWasOn.current = eagleOn;
   }, [eagleOn]);
+  const pipeOn = hud.effects.some((e) => e.kind === "pipe");
+  const pipeWasOn = useRef(false);
+  useEffect(() => {
+    if (pipeOn && !pipeWasOn.current) setPipeHint(Date.now());
+    pipeWasOn.current = pipeOn;
+  }, [pipeOn]);
+  useEffect(() => {
+    if (pipeHint === null) return;
+    const id = setTimeout(() => setPipeHint(null), 2600);
+    return () => clearTimeout(id);
+  }, [pipeHint]);
+  // назва карти на 3 с при кожному вході на арену (за id арени, а не за кадром)
+  const entryArenaId = hud.arenaId;
+  useEffect(() => {
+    if (entryArenaId === null) return;
+    const map = clientRef.current?.model?.cfg.map ?? 0;
+    setMapToast(MAP_KEYS[map] ?? MAP_KEYS[0]);
+    const id = setTimeout(() => setMapToast(null), 3000);
+    return () => clearTimeout(id);
+  }, [entryArenaId]);
   useEffect(() => {
     if (eagleHint === null) return;
     const id = setTimeout(() => setEagleHint(null), 2600);
@@ -676,6 +706,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         sprintReady: model.sprintReady(),
         sprintActive: model.sprintActive,
         circle: model.cfg.mode === "circle" ? model.circleStatus(performance.now()) : null,
+        wind: (() => {
+          const w = model.windStatus(performance.now());
+          return w ? { phase: w.phase, angle: w.angle } : null;
+        })(),
+        pipeCalled: performance.now() - model.pipeCalledAt < 1500,
       });
     }, 250);
 
@@ -934,6 +969,29 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <EagleEyeIcon size={30} /> {t("events.eagle", { sec: Math.round((hud.effects.find((e) => e.kind === "eagle")?.totalMs ?? 10000) / 1000) })}
             </div>
           ) : null}
+          {pipeHint !== null ? (
+            <div key={pipeHint} className={styles.eagleBanner} role="status">
+              <PipeIcon size={30} /> {t("pipe.hint")}
+            </div>
+          ) : null}
+          {hud.pipeCalled ? (
+            <div className={styles.pipeCall} role="status">
+              {t("pipe.pull")}
+            </div>
+          ) : null}
+          {hud.wind ? (
+            <div className={`${styles.windBanner} ${hud.wind.phase === "warn" ? styles.windWarn : styles.windChip}`} role="status">
+              <span className={styles.windArrow} style={{ transform: `rotate(${hud.wind.angle}rad)` }} aria-hidden>
+                ➜
+              </span>
+              <WindIcon size={hud.wind.phase === "warn" ? 28 : 20} /> {t("wind.warn")}
+            </div>
+          ) : null}
+          {mapToast ? (
+            <div key={entryArenaId} className={styles.mapToast} role="status">
+              {t(`mapNames.${mapToast}`)}
+            </div>
+          ) : null}
           {zorepad !== null ? (
             <div key={zorepad} className={styles.zorepadBanner} role="status">
               <StarfallIcon size={40} /> {t("events.zorepad")}
@@ -1037,7 +1095,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   title={t(`bonuses.${e.kind}`)}
                   className={[e.kind === "boost" || e.kind === "freeze" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
                 >
-                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : BONUS_ICON[e.kind]}</span>
+                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : BONUS_ICON[e.kind]}</span>
                   {e.kind === "boost" || e.kind === "freeze" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
