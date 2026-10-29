@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import {
   FLOCK_CONFIG,
   BONUS_KINDS,
-  BOSS_SKIN,
+  bossSkinForMap,
   FLOCK_MAPS,
   type ThornStyle,
   FREE_SKIN_IDS,
@@ -631,7 +631,7 @@ class Arena {
         this.bossCeilAt = w.now + B.ceilRefreshMs;
         const p = w.addPlayer({
           name: B.name,
-          skin: BOSS_SKIN,
+          skin: bossSkinForMap(this.mapId),
           bot: true,
           boss: true,
           bossMass: m.spawn,

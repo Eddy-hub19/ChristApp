@@ -213,6 +213,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Разовый бонус за первый вход (показывается один раз в лобби). */
   const [entryBonus, setEntryBonus] = useState(0);
   const [streakAward, setStreakAward] = useState(0);
+  const [streakAwardDay, setStreakAwardDay] = useState(0);
   const [reconnectLeft, setReconnectLeft] = useState(0);
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const announcedRef = useRef(false);
@@ -324,7 +325,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       setMe(data);
       if (data.entryBonus) setEntryBonus(data.entryBonus);
-      if (data.streakAward) setStreakAward(data.streakAward);
+      if (data.streakAward) {
+        setStreakAward(data.streakAward);
+        setStreakAwardDay(data.streakAwardDay ?? 0);
+      }
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
       setSkin((cur) => (!isSelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
@@ -568,6 +572,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
+
+  /** Ряды особых скинов без пустых ячеек: делим поровну (8 -> 4+4, 10 -> 5+5), по возможности без «хвоста». */
+  const splitRows = (ids: readonly number[]): number[][] => {
+    const n = ids.length;
+    let cols = Math.min(6, n);
+    for (let c = Math.min(6, n); c >= 3; c--) {
+      if (n % c === 0) {
+        cols = c;
+        break;
+      }
+    }
+    const rows: number[][] = [];
+    for (let k = 0; k < n; k += cols) rows.push(ids.slice(k, k + cols));
+    return rows;
+  };
 
   const priceOf = (i: number) =>
     isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 40) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20);
@@ -1456,9 +1475,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {specialIds.length > 0 ? (
               <>
                 <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
-                <div className={styles.skins} style={rowCols(specialIds)} role="radiogroup" aria-label={t("special")}>
-                  {specialIds.map((i) => skinButton(i))}
-                </div>
+                {splitRows(specialIds).map((row, n) => (
+                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("special")}>
+                    {row.map((i) => skinButton(i))}
+                  </div>
+                ))}
               </>
             ) : null}
             {previewSkin !== null ? (
@@ -1520,7 +1541,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
             <FlockDailyBoard initial={me?.daily} />
 
-            {streakAward > 0 ? <p className={styles.notice}>{t("status.streakAward", { days: me?.daily?.config.streakDays ?? 3, count: streakAward })}</p> : null}
+            {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}

@@ -3,6 +3,7 @@ import {
   FREE_SKINS,
   FREE_SKIN_IDS,
   BOSS_SKIN,
+  MONSTER_SKIN,
   isSelectableSkin,
   EXTRA_PAID_FROM,
   NUM_SKINS,
@@ -21,8 +22,8 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(47);
-    for (let id = 41; id < NUM_SKINS; id++) {
+    expect(NUM_SKINS).toBe(50);
+    for (let id = 41; id < MONSTER_SKIN; id++) {
       expect(isPremiumSkin(id)).toBe(true);
       expect(isPaidSkin(id)).toBe(true);
       expect(skinPriceOf(id)).toBe(C.rubies.premiumSkinPrice);
@@ -69,7 +70,7 @@ describe('скіни: ціни й діапазони', () => {
 
   it('зняті з продажу скіни: дзвіночок, вовк в шкурі, Давид, полярний вовк, кришталева, грибок, лава, робот, суші', () => {
     const hidden = Array.from({ length: NUM_SKINS }, (_, i) => i).filter(isHiddenSkin);
-    expect(hidden).toEqual([13, 16, 22, 23, 24, 26, 27, 30, 31]);
+    expect(hidden).toEqual([13, 16, 22, 23, 24, 26, 30, 31]);
   });
 
   it('номер скіна по мережі - u8: усі 36 (і до 255) проходять кодек без змін формату', () => {

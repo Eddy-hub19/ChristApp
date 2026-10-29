@@ -287,7 +287,7 @@ export const FLOCK_CONFIG = {
    * Повтор не частіше за cooldown (випадково між cooldownMinMs і cooldownMaxMs), поки хтось тримає triggerMass+.
    */
   zorepad: {
-    triggerMass: 1000,
+    triggerMass: 1500,
     durationMs: 10_000,
     /** Інтервал між зірками під час події (~22 зірки за подію). */
     spawnEveryMs: 450,
@@ -304,7 +304,7 @@ export const FLOCK_CONFIG = {
     /** Мінімум живих гравців на арені (разом із ботами), щоб подія стартувала. */
     minAlive: 2,
     /** Скільки разів «Зорепад» може запустити один гравець за своє життя (від входу/відродження до смерті). */
-    maxPerPlayerLife: 2,
+    maxPerPlayerLife: 1,
     cooldownMinMs: 60_000,
     cooldownMaxMs: 90_000,
     /** Навколо лідера зірок немає; до leaderSparseRadius вони рідкі (ймовірність росте лінійно). */
@@ -380,19 +380,19 @@ export const FLOCK_CONFIG = {
     maxArenas: 1,
     /** Карти, на яких може бути режим (без лави й дощу). */
     maps: [0, 2] as readonly number[],
-    warmupMs: 15_000,
+    warmupMs: 24_000,
     startRadius: 2500,
     /** Центр не ближче до краю світу, ніж centerMargin (щоб круг лишався в межах карти). */
     centerMargin: 1000,
     stages: [
-      { holdMs: 12_000, shrinkMs: 25_000, radius: 1150 },
-      { holdMs: 10_000, shrinkMs: 20_000, radius: 700 },
-      { holdMs: 8_000, shrinkMs: 15_000, radius: 380 },
-      { holdMs: 6_000, shrinkMs: 12_000, radius: 150 },
+      { holdMs: 19_200, shrinkMs: 40_000, radius: 1150 },
+      { holdMs: 16_000, shrinkMs: 32_000, radius: 700 },
+      { holdMs: 12_800, shrinkMs: 24_000, radius: 380 },
+      { holdMs: 9_600, shrinkMs: 19_200, radius: 150 },
     ] as readonly { holdMs: number; shrinkMs: number; radius: number }[],
-    finalHoldMs: 10_000,
-    outsideLossPerSec: 0.12,
-    outsideMinLossPerSec: 6,
+    finalHoldMs: 16_000,
+    outsideLossPerSec: 0.084,
+    outsideMinLossPerSec: 4.2,
     dieBelowMass: 8,
     endHoldMs: 10_000,
     winReward: 5,
@@ -451,10 +451,11 @@ export const FLOCK_CONFIG = {
 
   // --- «Рекорди дня» і нагорода за серію днів на 1-му місці (доба за rubies.dailyTimeZone) ---
   dailyRecords: {
-    /** Скільки днів поспіль треба бути №1 за день. */
-    streakDays: 3,
-    /** Нагорода за серію (поза rubies.dailyLimit). */
-    streakReward: 20,
+    /**
+     * Нагорода за кожну ЗАКРИТУ добу поспіль на 1-му місці (поза rubies.dailyLimit): день N серії = streakRewards[N-1].
+     * Після останнього елемента серія починається заново (довжина циклу = streakRewards.length).
+     */
+    streakRewards: [10, 20, 30] as readonly number[],
     /** Мінімальна маса, з якою день зараховується переможцю (щоб не виграти день порожньою грою). */
     minMass: 1000,
     /** Не частіше ніж раз на стільки мс пишемо рекорд одного гравця в БД. */
@@ -729,8 +730,10 @@ export function clientGameConfig() {
       specialSkinPrice: c.rubies.specialSkinPrice,
     },
     dailyRecords: {
-      streakDays: c.dailyRecords.streakDays,
-      streakReward: c.dailyRecords.streakReward,
+      streakRewards: [...c.dailyRecords.streakRewards],
+      streakDays: c.dailyRecords.streakRewards.length,
+      streakFirstReward: c.dailyRecords.streakRewards[0],
+      streakLastReward: c.dailyRecords.streakRewards[c.dailyRecords.streakRewards.length - 1],
       minMass: c.dailyRecords.minMass,
       topSize: c.dailyRecords.topSize,
     },
@@ -764,11 +767,20 @@ export const BONUS_KINDS = Object.keys(
  * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки, 41-46 другий ряд преміум (анімовані). Групи задано явними списками.
  */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 47;
+export const NUM_SKINS = 50;
+/** Нові «особливі» скіни в кінці нумерації: 48 «Медова овечка», 49 «Небесна овечка» (47 зарезервовано під MONSTER_SKIN). */
+export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49];
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
 /** Скін «Лавового чудовиська»: поза NUM_SKINS, гравець його вибрати не може (клієнт малює темне створіння з вогняними тріщинами). */
 export const MONSTER_SKIN = 47;
+/**
+ * Скіни «Вожака» за картою арени (поза NUM_SKINS, у лобі й випадкових пулах їх нема; по мережі валідні):
+ * 36 - луг (map 0), 50 - гай (1), 51 - мороз (2), 52 - вулкан (3).
+ */
+export const BOSS_SKINS: readonly number[] = [BOSS_SKIN, 50, 51, 52];
+export const isBossSkin = (id: number) => BOSS_SKINS.includes(id);
+export const bossSkinForMap = (mapId: number) => BOSS_SKINS[mapId] ?? BOSS_SKIN;
 /** Перший номер платних скінів у старій нумерації (лише для зворотної сумісності; безкоштовні - FREE_SKIN_IDS). */
 export const FREE_SKINS = FLOCK_CONFIG.rubies.freeSkins;
 /**
@@ -788,7 +800,12 @@ export const isRemovedSkin = (id: number) => REMOVED_SKINS.includes(id);
 export const isFreeSkin = (id: number) => FREE_SKIN_IDS.includes(id);
 /** Скін, який гравець узагалі може обрати (не «Вожак», у межах нумерації). */
 export const isSelectableSkin = (id: number) =>
-  Number.isInteger(id) && id >= 0 && id < NUM_SKINS && id !== BOSS_SKIN && !isRemovedSkin(id);
+  Number.isInteger(id) &&
+  id >= 0 &&
+  id < NUM_SKINS &&
+  id !== MONSTER_SKIN &&
+  !isBossSkin(id) &&
+  !isRemovedSkin(id);
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
 /** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
 export const PREMIUM_SKIN_IDS: readonly number[] = [
@@ -797,7 +814,8 @@ export const PREMIUM_SKIN_IDS: readonly number[] = [
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
-export const isSpecialSkin = (id: number) => id >= SPECIAL_FROM && id < EXTRA_PAID_FROM;
+export const isSpecialSkin = (id: number) =>
+  (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
 /** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
   isSpecialSkin(id)
@@ -810,11 +828,11 @@ export const skinPriceOf = (id: number) =>
  * Зняті з продажу скіни: не показуються в лобі (крім тих, хто їх вже купив) і не продаються (сервер відхиляє
  * `skin_hidden`). Куплені лишаються в гравця й доступні для гри. Щоб відкрити скіни - спорожнити масив.
  * Зараз: 13 «Барашек із дзвіночком», 16 «Вовк в овечій шкурі», 22 «Пастушок Давид», 23 «Полярний вовк»,
- * 24 «Кришталева вівця», 26 «Вівця-грибок», 27 «Лавова вівця», 30 «Вівця-робот», 31 «Вівця-суші».
+ * 24 «Кришталева вівця», 26 «Вівця-грибок» (27 «Лавова вівця» знову в продажу), 30 «Вівця-робот», 31 «Вівця-суші».
  * Нумерація не змінюється; дзеркало для клієнта - HIDDEN_SKIN_IDS у frontend/src/lib/rubies.ts (до завантаження профілю).
  * Покупки на момент зняття (2026-10-24, читання БД): 13 - 1, 23 - 1, 24 - 1, 27 - 2, 31 - 2: спрайти лишаються в коді.
  */
-export const HIDDEN_SKINS: readonly number[] = [13, 16, 22, 23, 24, 26, 27, 30, 31];
+export const HIDDEN_SKINS: readonly number[] = [13, 16, 22, 23, 24, 26, 30, 31];
 export const isHiddenSkin = (id: number) => HIDDEN_SKINS.includes(id);
 
 /** Артефакти: номер по мережі (u8) і в БД; 0 - нічого не надіто. Ціна - FLOCK_CONFIG.artifacts.price. */

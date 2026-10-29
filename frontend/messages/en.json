@@ -1439,8 +1439,9 @@
       "emptyHint": "Nobody has played today yet — become the record holder",
       "streakShort": "Streak: {days} d",
       "yourBest": "Your best today",
-      "streak": "Streak at #1: {days} of {total} days",
-      "hint": "{days} days in a row at #1 = {reward} rubies (mass {mass}+)"
+      "streak": "#1 streak: {days} of {total} days, today +{reward} rubies",
+      "hint": "For each day in a row in 1st place (from {mass} mass): {list} rubies, then it starts over",
+      "hintItem": "day {day} = {reward}"
     },
     "stats": {
       "best": "Biggest size",
@@ -1499,7 +1500,8 @@
       "skinLocked": "This skin hasn't been bought yet",
       "artifactLocked": "This artifact hasn't been bought yet",
       "entryBonus": "Entry bonus: +{count} 💎",
-      "streakAward": "You were #1 for {days} days in a row! +{count} rubies"
+      "streakAward": "You were #1 for {days} days in a row! +{count} rubies",
+      "streakAwardSum": "#1 streak reward: +{count} rubies"
     },
     "bonuses": {
       "pipe": "Shepherd's pipe",
@@ -1560,7 +1562,9 @@
       "43": "Blooming Sheep",
       "44": "New Year Sheep",
       "45": "Butterfly Sheep",
-      "46": "Thunder Ram"
+      "46": "Thunder Ram",
+      "48": "Honey sheep",
+      "49": "Sky sheep"
     },
     "rubies": {
       "name": "Rubies",

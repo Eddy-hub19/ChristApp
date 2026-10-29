@@ -6,10 +6,14 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   | "crystal" | "cactus" | "mushroom" | "lava" | "galaxy" | "storm" | "robot" | "sushi" | "leaves" | "candy"
   // платные обычные (34, 35), статичные
   | "hearts" | "mint"
+  // особливі 48, 49 (в кінці нумерації), статичні
+  | "honey" | "sky"
   // преміум-ряд 2 (анімовані, шари-спрайти)
   | "phoenix" | "moon" | "bloom" | "newyear" | "butterfly" | "thunder"
   // «Вожак» (36): бот-босс, вне NUM_SKINS - игрок его выбрать не может
   | "alpha"
+  // «Вожак» по картах: гай (50), мороз (51), вулкан (52)
+  | "alphaGrove" | "alphaFrost" | "alphaVolcano"
   // «Лавове чудовисько» (47): орда карты «Вулкан», тоже вне NUM_SKINS
   | "magma";
 
@@ -96,6 +100,13 @@ export const SKINS: Skin[] = [
   { kind: "ram", deco: "thunder", anim: { frames: 4, fps: 5 }, fur: "#8e9ab4", light: "#c7d0e4", face: "#262b3a", accent: "#ffd23f" },
   // --- «Лавове чудовисько» (47): тёмный камень с огненными трещинами; игрок его выбрать не может ---
   { kind: "wolf", deco: "magma", fur: "#2a1c19", light: "#4a2f27", face: "#120a08", accent: "#ff6a1a" },
+  // --- особливі (48, 49), по 40 рубінів, статичні ---
+  { kind: "sheep", deco: "honey", fur: "#f7dd8a", light: "#fff0b8", face: "#4a3310", accent: "#f2a03a" },
+  { kind: "sheep", deco: "sky", fur: "#cfe8fb", light: "#ffffff", face: "#2c3f5a", accent: "#f6a9c0" },
+  // --- «Вожак» по картах: 50 гай (рыже-золотая грива из листьев), 51 мороз (белый ледяной, синие глаза), 52 вулкан (обугленный, лава) ---
+  { kind: "wolf", deco: "alphaGrove", fur: "#4a3a2c", light: "#7a5a3a", face: "#a58a64", accent: "#ffb62e" },
+  { kind: "wolf", deco: "alphaFrost", fur: "#e6f2fb", light: "#ffffff", face: "#c3dcef", accent: "#2f8dff" },
+  { kind: "wolf", deco: "alphaVolcano", fur: "#241a18", light: "#3f2a24", face: "#4a3a36", accent: "#ff7a1a" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
@@ -103,6 +114,9 @@ export const SKIN_COUNT = SKINS.length;
 export const BOSS_SKIN = 36;
 /** Скин «Лавового чудовиська» (орда карты «Вулкан»); в лобби его нет (дзеркало MONSTER_SKIN на сервере). */
 export const MONSTER_SKIN = 47;
+/** Скины «Вожака» по картам арены: 36 луг, 50 гай, 51 мороз, 52 вулкан (дзеркало BOSS_SKINS на сервере); в лобби их нет. */
+export const BOSS_SKINS: readonly number[] = [BOSS_SKIN, 50, 51, 52];
+export const isBossSkin = (id: number) => BOSS_SKINS.includes(id);
 
 export function skinOf(id: number): Skin {
   return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];

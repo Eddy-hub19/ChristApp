@@ -327,6 +327,102 @@ function drawDeco(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: numbe
       c.fill();
       break;
     }
+    case "alphaGrove": {
+      // «Вожак» гая: красно-золотая осенняя грива из листьев вокруг головы и тонкое золотое кольцо
+      c.strokeStyle = "#e0a21c";
+      c.lineWidth = Math.max(1.5, r * 0.07);
+      circle(c, 0, 0, r * 0.96);
+      c.stroke();
+      const cols = ["#c0391b", "#e8892a", "#f0b43a", "#a52a14", "#d9531e"];
+      for (let i = 0; i < 13; i++) {
+        const a = ang + Math.PI + (i - 6) * 0.42;
+        const bx = Math.cos(a) * r * 0.72;
+        const by = Math.sin(a) * r * 0.72;
+        const len = r * (0.5 + (i % 3) * 0.08);
+        c.save();
+        c.translate(bx, by);
+        c.rotate(a + ((i % 2) - 0.5) * 0.5);
+        c.fillStyle = cols[i % cols.length];
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.bezierCurveTo(len * 0.25, -len * 0.4, len * 0.8, -len * 0.36, len, 0);
+        c.bezierCurveTo(len * 0.8, len * 0.36, len * 0.25, len * 0.4, 0, 0);
+        c.fill();
+        c.strokeStyle = "rgba(70,25,8,0.5)";
+        c.lineWidth = Math.max(0.8, len * 0.04);
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(len * 0.88, 0);
+        c.stroke();
+        c.restore();
+      }
+      break;
+    }
+    case "alphaFrost": {
+      // «Вожак» мороза: белый ледяной волк, голубое кольцо, ледяные шипы по краю и снежинки
+      c.strokeStyle = "#7cc4f4";
+      c.lineWidth = Math.max(1.5, r * 0.09);
+      circle(c, 0, 0, r * 0.96);
+      c.stroke();
+      c.fillStyle = "#bfe6ff";
+      c.strokeStyle = "rgba(70,140,200,0.6)";
+      c.lineWidth = Math.max(0.8, r * 0.03);
+      c.lineJoin = "round";
+      for (let i = 0; i < 11; i++) {
+        const a = ang + 0.9 + (i / 10) * (Math.PI * 2 - 1.8);
+        const l = r * (i % 2 === 0 ? 1.22 : 1.1);
+        c.beginPath();
+        c.moveTo(Math.cos(a - 0.14) * r * 0.92, Math.sin(a - 0.14) * r * 0.92);
+        c.lineTo(Math.cos(a) * l, Math.sin(a) * l);
+        c.lineTo(Math.cos(a + 0.14) * r * 0.92, Math.sin(a + 0.14) * r * 0.92);
+        c.closePath();
+        c.fill();
+        c.stroke();
+      }
+      c.fillStyle = "rgba(140,200,245,0.6)";
+      for (const [dx, dy, rr] of [
+        [-0.5, -0.45, 0.08],
+        [-0.35, 0.5, 0.07],
+        [-0.75, 0.05, 0.06],
+        [-0.05, -0.72, 0.05],
+      ] as const) {
+        star(c, dx * r, dy * r, rr * r, 6, 0.4);
+        c.fill();
+      }
+      break;
+    }
+    case "alphaVolcano": {
+      // «Вожак» вулкана: обугленный волк с трещинами лавы и огненной гривой позади головы
+      for (let i = 0; i < 7; i++) {
+        const a = ang + Math.PI + (i - 3) * 0.5;
+        flame(c, Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * (0.42 + (i % 3) * 0.08), r * 0.26, a, true);
+      }
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      for (const pass of [0, 1]) {
+        c.strokeStyle = pass === 0 ? "#ff6a1a" : "#ffd36b";
+        c.lineWidth = Math.max(pass === 0 ? 1.2 : 0.6, r * (pass === 0 ? 0.07 : 0.03));
+        c.beginPath();
+        for (const a0 of [0.35, 1.45, 2.4, 3.55, 4.5, 5.55]) {
+          let px = Math.cos(a0) * r * 0.22;
+          let py = Math.sin(a0) * r * 0.22;
+          c.moveTo(px, py);
+          for (let k = 1; k <= 3; k++) {
+            const a = a0 + (k % 2 === 0 ? 0.2 : -0.2);
+            const d = r * (0.22 + k * 0.2);
+            px = Math.cos(a) * d;
+            py = Math.sin(a) * d;
+            c.lineTo(px, py);
+          }
+        }
+        c.stroke();
+      }
+      c.strokeStyle = "rgba(255,110,20,0.55)";
+      c.lineWidth = Math.max(1.2, r * 0.06);
+      circle(c, 0, 0, r * 0.96);
+      c.stroke();
+      break;
+    }
     case "stars": {
       c.fillStyle = skin.accent;
       for (const [dx, dy, rr] of [
