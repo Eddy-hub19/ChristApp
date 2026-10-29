@@ -43,74 +43,122 @@
   backdrop-filter: blur(6px);
 }
 
+/* Верхній ряд HUD: хрестик, праворуч від нього «Маса» з місцем у таблиці, у правому куті - «Топ-10». */
 .massBadge {
   position: absolute;
-  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 50px);
-  left: max(12px, env(safe-area-inset-left, 0px));
-  display: flex;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: calc(max(12px, env(safe-area-inset-left, 0px)) + 50px);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "label label"
+    "value rank";
   align-items: baseline;
-  gap: 8px;
-  padding: 6px 12px;
+  column-gap: 8px;
+  min-height: 40px;
+  padding: 3px 12px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
   pointer-events: none;
 
   .massLabel {
-    font-size: 11px;
+    grid-area: label;
+    font-size: 10px;
+    line-height: 1.1;
     opacity: 0.7;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .massValue {
+    grid-area: value;
     font-size: 22px;
+    line-height: 1.1;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
   .rank {
+    grid-area: rank;
     font-size: 12px;
     opacity: 0.75;
+    white-space: nowrap;
   }
 }
 
+/* «Топ-10»: уся плашка - кнопка згортання. Розгорнуто: заголовок і таблиця; згорнуто: один рядок «Топ-10 #6/8 · лідер маса». */
 .board {
   position: absolute;
   top: max(12px, env(safe-area-inset-top, 0px));
   right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
   width: min(190px, 44vw);
   padding: 8px 10px;
+  border: 0;
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
-  pointer-events: none;
+  color: var(--foreground);
+  font: inherit;
   font-size: 12px;
+  text-align: left;
+  cursor: pointer;
 
-  h3 {
-    margin: 0 0 4px;
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .boardHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .boardTitle {
+    flex: none;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.7;
   }
-  ol {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    counter-reset: rank;
+  .boardChevron {
+    flex: none;
+    margin-left: auto;
+    opacity: 0.7;
+    transition: transform 0.16s ease;
   }
-  li {
+  .boardSummary {
     display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+  }
+  .boardSummaryRank {
+    flex: none;
+    font-weight: 800;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .boardRows {
+    display: flex;
+    flex-direction: column;
+    margin-top: 4px;
+    animation: flockBoardIn 0.16s ease-out;
+  }
+  .boardRow {
+    display: flex;
+    align-items: baseline;
     justify-content: space-between;
     gap: 8px;
     padding: 1px 0;
-    counter-increment: rank;
-
-    &::before {
-      content: counter(rank) ".";
-      width: 18px;
-      opacity: 0.6;
-      flex: none;
-    }
+  }
+  .boardPos {
+    width: 18px;
+    flex: none;
+    opacity: 0.6;
   }
   .boardName {
     flex: 1;
@@ -120,6 +168,7 @@
     white-space: nowrap;
   }
   .boardMass {
+    flex: none;
     font-variant-numeric: tabular-nums;
     opacity: 0.85;
   }
@@ -139,6 +188,36 @@
   }
 }
 
+.boardCollapsed {
+  width: auto;
+  /* Не заходить під «Масу»: хрестик 40 + проміжок 10 + плашка маси ~120 + поля. */
+  max-width: calc(100vw - 210px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+
+  .boardChevron {
+    transform: rotate(-90deg);
+  }
+}
+
+@keyframes flockBoardIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board .boardRows {
+    animation: none;
+  }
+  .board .boardChevron {
+    transition: none;
+  }
+}
+
 .minimap {
   position: absolute;
   right: max(12px, env(safe-area-inset-right, 0px));
@@ -150,7 +229,7 @@
 
 .effects {
   position: absolute;
-  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 100px);
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 50px);
   left: max(12px, env(safe-area-inset-left, 0px));
   margin: 0;
   padding: 0;
@@ -258,7 +337,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: calc(100vw - 150px);
+  /* Між «Масою» зліва й «Топ-10» справа. */
+  max-width: calc(100vw - 400px);
   padding: 6px 14px;
   border-radius: 999px;
   background: color-mix(in srgb, #c8281e 38%, var(--surface-elevated));
@@ -274,6 +354,25 @@
   span {
     opacity: 0.85;
     white-space: nowrap;
+  }
+}
+
+/* Вузький екран: стан кола - під верхнім рядом ліворуч (місце лишається «Топ-10» справа), бонуси нижче. */
+@media (max-width: 560px) {
+  .circleBanner {
+    top: calc(max(12px, env(safe-area-inset-top, 0px)) + 50px);
+    left: max(12px, env(safe-area-inset-left, 0px));
+    transform: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    max-width: calc(100vw - 210px);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+  .effectsBelowBanner {
+    top: calc(max(12px, env(safe-area-inset-top, 0px)) + 106px);
   }
 }
 
@@ -667,13 +766,6 @@
 
 .lobbyInvite {
   align-self: flex-start;
-}
-
-.hudInvite {
-  position: absolute;
-  top: max(12px, env(safe-area-inset-top, 0px));
-  left: calc(max(12px, env(safe-area-inset-left, 0px)) + 50px);
-  z-index: 3;
 }
 
 .reconnect {

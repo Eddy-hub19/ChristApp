@@ -1280,6 +1280,7 @@
     "hud": {
       "mass": "Маса",
       "leaderboard": "Топ-10",
+      "boardToggle": "Згорнути або розгорнути «Топ-10»",
       "streakDays": "{days} дн.",
       "streakTitle": "Серія першого місця: {days} дн. поспіль"
     },
