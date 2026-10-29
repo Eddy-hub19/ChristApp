@@ -8,7 +8,7 @@ export const GLOBAL_CHAT_TITLE = "Общий чат для всех";
 export const GLOBAL_CHAT_AVATAR_SRC = "/ava-chat.jpeg";
 export const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:";
 export const SHARE_WITH_JESUS_CHAT_ID = "__share_with_jesus__";
-export const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом";
+export const SHARE_WITH_JESUS_CHAT_TITLE = "Уголок";
 export const SHARE_WITH_JESUS_SLUG = "share-with-jesus";
 
 export type RoomSocketItem = {
