@@ -1,217 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/navigation";
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
-import {
-  AdminHttpError,
-  adminMembersQueryKey,
-  adminMembersQueryOptions,
-  deleteAdminMember,
-  type AdminMember,
-} from "@/lib/queries/adminQueries";
-import AdminMemberRubies from "./AdminMemberRubies";
-import AdminFlockMute from "./AdminFlockMute";
-import AdminProcesses from "./AdminProcesses";
-import styles from "./admin.module.scss";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
-type AdminTab = "users" | "processes";
+/** Код админки грузится лише для адміна: решта користувачів його не завантажує. */
+const AdminDashboard = dynamic(() => import("./AdminDashboard"), { ssr: false });
 
-const EMPTY_MEMBERS: AdminMember[] = [];
-const NEW_MS = 7 * 24 * 60 * 60 * 1000;
-
+/**
+ * Оболонка `/admin`: поки роль невідома - порожньо (без «Завантаження» й мигання); не-адмін одразу
+ * переходить на головний екран, неавторизований - на вхід. Сервер перевіряє права окремо (`AdminGuard`).
+ */
 export default function AdminPage() {
-  const t = useTranslations("admin");
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const queryClient = useQueryClient();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [tab, setTab] = useState<AdminTab>("users");
-  const isAdmin =
-    !loading && Boolean(user) && canSeeAdminPanelNav(user?.username);
-
-  const membersQuery = useQuery(
-    adminMembersQueryOptions(isAdmin && tab === "users"),
-  );
-  const members = membersQuery.data ?? EMPTY_MEMBERS;
-  const loadingList = membersQuery.isFetching;
-  const loadError = membersQuery.error
-    ? membersQuery.error instanceof AdminHttpError &&
-      membersQuery.error.status === 401
-      ? t("noToken")
-      : membersQuery.error instanceof AdminHttpError
-        ? membersQuery.error.message ||
-          t("loadFailed", { status: membersQuery.error.status })
-        : t("loadFailedGeneric")
-    : null;
-
-  /** Видалення — оптимістично: рядок зникає одразу, при помилці повертається. */
-  const deleteMutation = useMutation({
-    mutationFn: (member: AdminMember) => deleteAdminMember(member.id),
-    onMutate: async (member) => {
-      await queryClient.cancelQueries({ queryKey: adminMembersQueryKey() });
-      const previous = queryClient.getQueryData<AdminMember[]>(
-        adminMembersQueryKey(),
-      );
-      queryClient.setQueryData<AdminMember[]>(adminMembersQueryKey(), (old) =>
-        (old ?? []).filter((row) => row.id !== member.id),
-      );
-      setDeletingId(member.id);
-      return { previous };
-    },
-    onError: (error, _member, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(adminMembersQueryKey(), context.previous);
-      }
-      window.alert(
-        error instanceof AdminHttpError
-          ? t("deleteFailed", { status: error.status })
-          : t("deleteFailedGeneric"),
-      );
-    },
-    onSettled: () => setDeletingId(null),
-  });
+  const { user } = useAuth();
+  const isAdmin = useIsAdmin();
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace("/");
-      return;
-    }
-    if (!canSeeAdminPanelNav(user.username)) {
-      router.replace("/chat");
-    }
-  }, [user, loading, router]);
+    if (isAdmin === null || isAdmin) return;
+    router.replace(user ? "/chat" : "/");
+  }, [isAdmin, user, router]);
 
-  const deleteMember = useCallback(
-    (member: AdminMember) => {
-      const displayName = member.nickname?.trim() || member.username;
-      const confirmed = window.confirm(
-        t("deleteConfirm", {
-          name: displayName,
-          username: member.username,
-        }),
-      );
-      if (confirmed) deleteMutation.mutate(member);
-    },
-    [deleteMutation, t],
-  );
-
-  const sorted = useMemo(
-    () =>
-      [...members].sort(
-        (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-      ),
-    [members],
-  );
-
-  if (loading || !user || !canSeeAdminPanelNav(user.username)) {
-    return (
-      <div className={styles.page} aria-busy="true">
-        <p className={styles.meta}>{t("loading")}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.page}>
-      <div className={styles.topBar}>
-        <Link href="/chat" className={styles.backLink} prefetch>
-          {t("backToChat")}
-        </Link>
-      </div>
-      <h1 className={styles.title}>{t("title")}</h1>
-      <p className={styles.meta}>{t("subtitle")}</p>
-
-      <div className={styles.tabs} role="tablist" aria-label={t("tabsAria")}>
-        {(["users", "processes"] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {id === "users" ? t("tabUsers") : t("tabProcesses")}
-          </button>
-        ))}
-      </div>
-
-      {tab === "processes" ? <AdminProcesses active={isAdmin} /> : null}
-
-      {tab === "users" && loadError ? (
-        <p className={styles.error}>{loadError}</p>
-      ) : null}
-      {tab === "users" && loadingList ? (
-        <p className={styles.meta}>{t("loadingList")}</p>
-      ) : null}
-
-      {tab === "users" ? (
-        <ul className={styles.list}>
-          {sorted.map((m) => {
-            const created = new Date(m.createdAt);
-            const isNew =
-              !Number.isNaN(created.getTime()) &&
-              Date.now() - created.getTime() < NEW_MS;
-            const lastSeenLabel = m.lastSeenAt
-              ? new Date(m.lastSeenAt).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })
-              : t("neverOnline");
-
-            return (
-              <li key={m.id} className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <div className={styles.nameRow}>
-                    <span className={styles.displayName}>
-                      {m.nickname?.trim() || m.username}
-                    </span>
-                    <span className={styles.handle}>@{m.username}</span>
-                  </div>
-                  <div className={styles.badgeRow}>
-                    {isNew ? (
-                      <span className={`${styles.badge} ${styles.badgeNew}`}>
-                        {t("badgeNew")}
-                      </span>
-                    ) : null}
-                    <span
-                      className={`${styles.badge} ${m.isActive ? "" : styles.badgeOff}`}
-                    >
-                      {m.isActive ? t("statusActive") : t("statusInactive")}
-                    </span>
-                  </div>
-                </div>
-                <p className={styles.meta}>
-                  <strong>{t("labelId")}</strong> {m.id}
-                  <br />
-                  <strong>{t("labelEmail")}</strong> {m.email}
-                  <br />
-                  <strong>{t("labelJoined")}</strong> {created.toLocaleString()}
-                  <br />
-                  <strong>{t("labelLastSeen")}</strong> {lastSeenLabel}
-                </p>
-                <AdminMemberRubies memberId={m.id} />
-                <AdminFlockMute memberId={m.id} />
-                <div className={styles.actions}>
-                  <button
-                    type="button"
-                    className={styles.deleteBtn}
-                    disabled={deletingId === m.id}
-                    onClick={() => void deleteMember(m)}
-                  >
-                    {deletingId === m.id ? t("deleting") : t("deleteMember")}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </div>
-  );
+  if (!isAdmin) return null;
+  return <AdminDashboard />;
 }

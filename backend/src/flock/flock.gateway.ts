@@ -292,6 +292,9 @@ export class FlockGateway
   muteUser(userId: string, minutes: number) {
     return this.manager.muteUser(userId, minutes);
   }
+  activeMutes() {
+    return this.manager.activeMutes();
+  }
   mutedUntil(userId: string) {
     return this.manager.mutedUntil(userId);
   }

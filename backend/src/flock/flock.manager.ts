@@ -1497,6 +1497,16 @@ export class FlockManager {
     return until;
   }
 
+  /** Усі чинні муті (userId -> until) одним списком: фільтр «Заглушені» в адмінці без запиту на кожного учасника. */
+  activeMutes(): Record<string, number> {
+    const t = this.now();
+    const out: Record<string, number> = {};
+    for (const [userId, m] of this.mutes) {
+      if (m.until > t) out[userId] = m.until;
+    }
+    return out;
+  }
+
   mutedUntil(userId: string): number | null {
     const m = this.mutes.get(userId);
     return m && m.until > this.now() ? m.until : null;

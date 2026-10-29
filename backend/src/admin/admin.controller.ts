@@ -162,6 +162,12 @@ export class AdminController {
     );
   }
 
+  /** Усі чинні муті «Отари» (userId -> until): для фільтра «Заглушені». Маршрут окремий від `members/:id/...`. */
+  @Get('flock-mutes')
+  flockMutes() {
+    return { mutes: this.flockGateway.activeMutes() };
+  }
+
   /** Чи заглушений учасник у своєму тексті «Отари» (пам'ять процесу). */
   @Get('members/:id/flock-mute')
   memberFlockMute(@Param('id') id: string) {

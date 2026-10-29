@@ -504,18 +504,18 @@ const ChatList = ({
                 className={styles.newChatIcon}
               />
             </Link>
-            <Link
-              href="/admin"
-              className={`${styles.adminButton} ${!adminDashboardVisible ? styles.headerActionHidden : ""}`}
-              aria-label={t("adminDashboardAria")}
-              title={t("adminDashboardTitle")}
-              aria-hidden={!adminDashboardVisible}
-              tabIndex={adminDashboardVisible ? 0 : -1}
-            >
-              <span className={styles.adminButtonGlyph} aria-hidden>
-                A
-              </span>
-            </Link>
+            {adminDashboardVisible ? (
+              <Link
+                href="/admin"
+                className={styles.adminButton}
+                aria-label={t("adminDashboardAria")}
+                title={t("adminDashboardTitle")}
+              >
+                <span className={styles.adminButtonGlyph} aria-hidden>
+                  A
+                </span>
+              </Link>
+            ) : null}
             <button
               className={styles.newChatButton}
               onClick={openUserPicker}

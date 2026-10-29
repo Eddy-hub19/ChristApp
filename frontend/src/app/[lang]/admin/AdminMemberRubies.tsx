@@ -68,7 +68,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
 
   const data = query.data;
   return (
-    <div className={styles.rubies}>
+    <section className={styles.section}>
       <button type="button" className={styles.rubiesToggle} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <RubyIcon size={16} /> {t("title")}
         {data ? <strong>{data.rubies}</strong> : null}
@@ -100,20 +100,21 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                   grant.mutate(grantId);
                 }}
               >
-                <select value={grantId} onChange={(e) => setGrantId(Number(e.target.value))} aria-label={t("pickArtifact")}>
+                <select className={styles.field} value={grantId} onChange={(e) => setGrantId(Number(e.target.value))} aria-label={t("pickArtifact")}>
                   {ARTIFACT_IDS.map((id) => (
                     <option key={id} value={id}>
                       {tf(`artifacts.items.${id}.name`)}
                     </option>
                   ))}
                 </select>
-                <button type="submit" disabled={grant.isPending}>
+                <button type="submit" className={styles.btn} disabled={grant.isPending}>
                   {t("grantBtn")}
                 </button>
               </form>
               <form className={styles.rubiesForm} onSubmit={submit}>
                 <input
                   type="number"
+                  className={`${styles.field} ${styles.fieldNarrow}`}
                   step={1}
                   inputMode="numeric"
                   value={amount}
@@ -123,6 +124,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 />
                 <input
                   type="text"
+                  className={`${styles.field} ${styles.fieldGrow}`}
                   maxLength={300}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
@@ -130,7 +132,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                   aria-label={t("reasonLabel")}
                   required
                 />
-                <button type="submit" disabled={adjust.isPending}>
+                <button type="submit" className={styles.btn} disabled={adjust.isPending}>
                   {adjust.isPending ? t("applying") : t("apply")}
                 </button>
               </form>
@@ -164,6 +166,6 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
           ) : null}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }

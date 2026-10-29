@@ -310,3 +310,7 @@ export const setAdminFlockMute = (memberId: string, minutes: number) =>
     method: "POST",
     body: JSON.stringify({ minutes }),
   });
+
+/** Усі чинні муті «Отари» одним запитом (userId -> until): фільтр «Заглушені» й значок у картці. */
+export const adminFlockMutesQueryKey = () => ["admin", "flock-mutes"] as const;
+export const fetchAdminFlockMutes = () => adminJson<{ mutes: Record<string, number> }>("/flock-mutes");
