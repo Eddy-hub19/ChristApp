@@ -2,7 +2,7 @@ import { isDefaultFontPrefs, normalizeFontPrefs } from "@/lib/chatFonts";
 
 /** Приклади з налаштувань (можна зберегти в профілі). */
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF";
-export const SUGGESTED_THEME_BACKGROUND = "#2E2D2D";
+export const SUGGESTED_THEME_BACKGROUND = "#17151A";
 
 export const THEME_FONT_KEYS = ["inter", "achiko", "bodoni-moda"] as const;
 export type ThemeFontKey = (typeof THEME_FONT_KEYS)[number];

@@ -14,7 +14,7 @@ const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("them
  * розпарситься основний stylesheet — без нього перший кадр малюється білим за замовчуванням.
  * Дублює `--background` з `globals.scss` (dark = дефолт, light — під атрибутом теми).
  */
-const CRITICAL_THEME_CSS = `html,body{background:#2e2d2d;color-scheme:dark}html[data-theme="light"],html[data-theme="light"] body{background:#f8f2e9;color-scheme:light}`;
+const CRITICAL_THEME_CSS = `html,body{background:#17151a;color-scheme:dark}html[data-theme="light"],html[data-theme="light"] body{background:#f8f2e9;color-scheme:light}`;
 
 /**
  * Health-check бекенду стартує тут, у <head>, ще до завантаження React-бандла —

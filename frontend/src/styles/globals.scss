@@ -12,12 +12,14 @@
 }
 
 :root {
-  --background: #2e2d2dc8;
+  --background: #17151ac8;
   --foreground: #ffffff;
   --book-title-color: #f1efef;
-  --surface: #2f2e31;
-  --surface-elevated: #343336;
-  --line-soft: rgba(232, 220, 200, 0.5);
+  --surface: #1d1b21;
+  --surface-elevated: #232128;
+  --line-soft: rgba(232, 220, 200, 0.32);
+  /* Затемнение поверх личных фонов чата (chatBackgrounds.scss): прежний серо-коричневый, чтобы фоны выглядели как раньше. */
+  --chat-bg-dim: #2e2d2dc8;
   --accent: #ddb468;
   --accent-soft: #e8dcc8;
   --my-bubble-dark-bg: #4c4740;
@@ -41,6 +43,7 @@
 
 [data-theme="light"] {
   --background: #f8f2e9d2;
+  --chat-bg-dim: #f8f2e9d2;
   // --background: #00239625;
   --foreground: #2e2c2c;
   --book-title-color: #3a2a1e;
