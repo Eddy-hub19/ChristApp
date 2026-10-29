@@ -470,6 +470,44 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 19,
+    date: "2026-11-05",
+    items: [
+      {
+        icon: "skins",
+        text: {
+          ua: "«Лавова овечка» знову в магазині за ціною особливих (хто купив раніше, лишає її). Нові особливі скіни: «Медова овечка» і «Небесна овечка». Вожак тепер виглядає по-різному на кожній карті",
+          ru: "«Лавовая овечка» снова в магазине по цене особых (кто купил раньше, сохраняет её). Новые особые скины: «Медовая овечка» и «Небесная овечка». Вожак теперь выглядит по-разному на каждой карте",
+          en: "The “Lava sheep” is back in the shop at the special-skin price (earlier buyers keep it). New special skins: “Honey sheep” and “Sky sheep”. The Alpha now looks different on every map",
+        },
+      },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Серія першого місця: за 1-й день поспіль 10 рубінів, за 2-й 20, за 3-й 30, після чого серія починається знову з 10",
+          ru: "Серия первого места: за 1-й день подряд 10 рубинов, за 2-й 20, за 3-й 30, после чего серия начинается заново с 10",
+          en: "First-place streak: 10 rubies for the 1st day in a row, 20 for the 2nd, 30 for the 3rd, then the streak starts over from 10",
+        },
+      },
+      {
+        icon: "starfall",
+        text: {
+          ua: "«Зорепад» починається від маси 1500 і не частіше одного разу за життя запускача (воскресіння дає нове життя)",
+          ru: "«Зорепад» начинается от массы 1500 и не чаще одного раза за жизнь запускающего (воскрешение даёт новую жизнь)",
+          en: "Starfall now triggers from 1500 mass, once per life of the player who starts it (a revive counts as a new life)",
+        },
+      },
+      {
+        icon: "shield",
+        text: {
+          ua: "Режим «Звужуване коло» повільніший: усі фази довші приблизно в 1,6 раза, а маса поза колом тане на 30% м'якше",
+          ru: "Режим «Сужающийся круг» медленнее: все фазы длиннее примерно в 1,6 раза, а масса вне круга тает на 30% мягче",
+          en: "“Shrinking circle” is slower: every phase is about 1.6x longer and mass outside the circle melts 30% more gently",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

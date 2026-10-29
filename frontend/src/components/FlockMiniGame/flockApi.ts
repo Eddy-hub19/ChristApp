@@ -11,15 +11,17 @@ export interface FlockDailyBoard {
   /** Лучший результат игрока за сегодня и место (null - сегодня не играл). */
   me: { rank: number; mass: number } | null;
   /** Заполнено только у текущего лидера дня: сколько дней подряд (с сегодняшним). */
-  streak: { days: number } | null;
+  streak: { days: number; reward: number } | null;
   resetsInMs: number;
-  config: { streakDays: number; streakReward: number; minMass: number };
+  config: { streakRewards: number[]; streakDays: number; minMass: number };
 }
 
 export interface FlockMe {
   daily?: FlockDailyBoard;
   /** Рубины за серию дней на 1-м месте, выданные сервером, пока игрока не было (приходят один раз). */
   streakAward?: number;
+  /** Какой день серии дал эту награду (1..N); 0 - сумма нескольких непоказанных наград. */
+  streakAwardDay?: number;
   rubies: number;
   ownedSkins: number[];
   selectedSkin: number;

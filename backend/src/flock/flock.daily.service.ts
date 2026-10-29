@@ -12,6 +12,8 @@ import { dayKeyInZone, nextDayStartInZone, shiftDayKey } from './flock.time';
 const R = FLOCK_CONFIG.rubies;
 const D = FLOCK_CONFIG.dailyRecords;
 const TZ = R.dailyTimeZone;
+/** Довжина циклу нагород серії (днів до скидання). */
+const CYCLE = D.streakRewards.length;
 const SWEEP_MS = 60_000;
 /** Скільки пропущених діб максимум наздоганяємо за один прохід. */
 const MAX_CATCH_UP = 40;
@@ -136,11 +138,12 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
         me = { rank: above + 1, mass: rec.maxMass };
       }
     }
-    let streak: { days: number } | null = null;
+    let streak: { days: number; reward: number } | null = null;
     if (inTop === 0 && top[0].mass >= D.minMass) {
       const s = await this.prisma.flockStreak.findUnique({ where: { userId } });
       const prev = s && s.lastDay === shiftDayKey(day, -1) ? s.days : 0;
-      streak = { days: Math.min(D.streakDays, prev + 1) };
+      const days = (prev % CYCLE) + 1;
+      streak = { days, reward: D.streakRewards[days - 1] };
     }
     return {
       top: top.map((r, i) => ({
@@ -162,8 +165,8 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
         nextDayStartInZone(now, TZ).getTime() - now.getTime(),
       ),
       config: {
-        streakDays: D.streakDays,
-        streakReward: D.streakReward,
+        streakRewards: [...D.streakRewards],
+        streakDays: CYCLE,
         minMass: D.minMass,
       },
     };
@@ -184,6 +187,11 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
       });
     }
     return amount;
+  }
+
+  /** Який день серії дав таку суму (1..CYCLE) або 0, якщо суму склали кілька непоказаних нагород. */
+  streakAwardDay(amount: number): number {
+    return D.streakRewards.indexOf(amount) + 1;
   }
 
   /** Закриває всі незакриті доби до вчорашньої включно, по порядку. Безпечно викликати повторно й паралельно. */
@@ -236,13 +244,18 @@ export class FlockDailyService implements OnModuleInit, OnModuleDestroy {
           where: { userId: top.userId },
         });
         const continues = !!prev && prev.lastDay === shiftDayKey(day, -1);
-        let days = (continues ? prev.days : 0) + 1;
-        let award = 0;
-        if (days >= D.streakDays) {
-          award = D.streakReward;
-          days = 0;
-          await this.rubies.grantStreakInTx(tx, top.userId, award);
+        // день серії: 1..CYCLE; кожна закрита доба №1 платить streakRewards[день-1], після останньої серія з нуля
+        let days = ((continues ? prev.days : 0) % CYCLE) + 1;
+        const award = D.streakRewards[days - 1];
+        if (award > 0) {
+          await this.rubies.grantStreakInTx(
+            tx,
+            top.userId,
+            award,
+            `streak day ${days}/${CYCLE}, ${day}`,
+          );
         }
+        if (days >= CYCLE) days = 0;
         await tx.flockStreak.upsert({
           where: { userId: top.userId },
           create: { userId: top.userId, days, lastDay: day, pendingAward: award },

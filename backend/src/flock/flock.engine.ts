@@ -5,9 +5,9 @@ import {
   FLOCK_CONFIG,
   FLOCK_MAPS,
   NUM_SKINS,
-  BOSS_SKIN,
+  bossSkinForMap,
   MONSTER_SKIN,
-  isRemovedSkin,
+  isSelectableSkin,
   ARTIFACT,
   isArtifactId,
   type MapLayout,
@@ -411,7 +411,7 @@ export class FlockWorld {
   /** Номер скіна не-боса: у межах нумерації, без зарезервованого скіна «Вожака». */
   private humanSkin(skin: number) {
     const id = Math.max(0, Math.min(NUM_SKINS - 1, Math.floor(skin) || 0));
-    return id === BOSS_SKIN || isRemovedSkin(id) ? 0 : id;
+    return !isSelectableSkin(id) ? 0 : id;
   }
 
   addPlayer(opts: {
@@ -433,7 +433,7 @@ export class FlockWorld {
       id,
       name: opts.name,
       skin: opts.boss
-        ? BOSS_SKIN
+        ? bossSkinForMap(this.mapId)
         : opts.monster
           ? MONSTER_SKIN
           : this.humanSkin(opts.skin),
@@ -1160,6 +1160,8 @@ export class FlockWorld {
     if (victim.reviveUsed || !this.hasArtifact(victim, ARTIFACT.cross)) return false;
     const A = C.artifacts;
     victim.reviveUsed = true;
+    // воскресіння = нове життя: «Зорепад» цього гравця знову доступний
+    victim.zorepadCount = 0;
     const mass = Math.max(C.startMass, victim.total * A.reviveMassFraction);
     const cell = this.addCell(victim, last.x, last.y, mass);
     cell.thornImmuneUntil = this.now + A.reviveShieldMs;

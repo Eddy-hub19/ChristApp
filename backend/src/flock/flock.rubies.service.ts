@@ -242,11 +242,17 @@ export class FlockRubiesService {
   }
 
   /** Нагорода за серію днів на 1-му місці: у транзакції закриття доби, поза добовим лімітом арени. */
-  async grantStreakInTx(tx: Tx, userId: string, amount: number) {
+  async grantStreakInTx(
+    tx: Tx,
+    userId: string,
+    amount: number,
+    note?: string,
+  ) {
     const balance = await this.lockProfile(tx, userId);
     return this.apply(tx, userId, balance, {
       delta: amount,
       reason: RubyReason.ARENA_STREAK,
+      ...(note ? { note } : {}),
     });
   }
 

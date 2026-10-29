@@ -45,7 +45,7 @@ export default function FlockDailyBoard({ initial }: Props) {
   const leftMs = Math.max(0, board.resetsInMs - (Date.now() - fetchedAt));
   const hours = Math.floor(leftMs / 3_600_000);
   const time = hours >= 1 ? t("hours", { count: hours }) : t("minutes", { count: Math.max(1, Math.ceil(leftMs / 60_000)) });
-  const { streakDays, streakReward, minMass } = board.config;
+  const { streakRewards, streakDays, minMass } = board.config;
   const outside = board.me && !board.top.some((r) => r.me) ? board.me : null;
 
   return (
@@ -86,8 +86,8 @@ export default function FlockDailyBoard({ initial }: Props) {
         </ol>
       )}
 
-      {board.streak ? <p className={styles.streak}>{t("streak", { days: board.streak.days, total: streakDays })}</p> : null}
-      <p className={styles.hint}>{t("hint", { days: streakDays, reward: streakReward, mass: minMass })}</p>
+      {board.streak ? <p className={styles.streak}>{t("streak", { days: board.streak.days, total: streakDays, reward: board.streak.reward })}</p> : null}
+      <p className={styles.hint}>{t("hint", { list: streakRewards.map((r, i) => t("hintItem", { day: i + 1, reward: r })).join(", "), mass: minMass })}</p>
     </section>
   );
 }

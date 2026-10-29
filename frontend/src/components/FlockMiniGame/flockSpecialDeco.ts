@@ -6,7 +6,7 @@ import type { Skin, SkinDeco } from "./flockSkins";
  * Частини, що виступають за тіло, - позаду (`drawSpecialBehind`) або поверх нього (`drawSpecialFront`).
  * Усе лише в кеш-спрайт: жодних анімацій і ніякого малювання на кадр.
  */
-export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi", "leaves", "candy"];
+export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi", "leaves", "candy", "honey", "sky"];
 
 export const isSpecialDeco = (d: SkinDeco | undefined): boolean => !!d && SPECIAL_DECOS.includes(d);
 
@@ -24,6 +24,8 @@ export function specialExtent(skin: Skin): number {
     case "galaxy":
       return 1.4;
     case "leaves":
+    case "honey":
+    case "sky":
       return 1.4;
     case "candy":
       return 1.65;
@@ -123,6 +125,43 @@ function heart(c: CanvasRenderingContext2D, x: number, y: number, size: number, 
   c.bezierCurveTo(size * 0.45, -size * 0.85, size * 0.95, -size * 0.2, 0, size * 0.35);
   c.closePath();
   c.restore();
+}
+
+/** Шестиугольник (сота) с центром (x, y) и радиусом rr, повёрнут на rot. */
+function hexagon(c: CanvasRenderingContext2D, x: number, y: number, rr: number, rot: number) {
+  c.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = rot + (i * Math.PI) / 3;
+    if (i === 0) c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    else c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath();
+}
+
+/** Капля: круглое тело в (x, y) и острый кончик в сторону dir. */
+function drop(c: CanvasRenderingContext2D, x: number, y: number, dir: number, rr: number) {
+  c.beginPath();
+  c.arc(x, y, rr, dir + 0.6, dir + TAU - 0.6);
+  c.lineTo(x + Math.cos(dir) * rr * 2.1, y + Math.sin(dir) * rr * 2.1);
+  c.closePath();
+}
+
+/** Маленькое облачко из трёх кругов с центром (x, y). */
+function puffCloud(c: CanvasRenderingContext2D, x: number, y: number, rr: number, fill: string, shade: string) {
+  for (const [col, dy] of [
+    [shade, 0.1],
+    [fill, 0],
+  ] as const) {
+    c.fillStyle = col;
+    for (const [dx, k] of [
+      [-0.7, 0.75],
+      [0, 1],
+      [0.7, 0.75],
+    ] as const) {
+      circle(c, x + dx * rr, y + dy * rr + (1 - k) * rr * 0.4, rr * k * 0.7);
+      c.fill();
+    }
+  }
 }
 
 function spiral(c: CanvasRenderingContext2D, x: number, y: number, size: number, rot: number) {
@@ -258,6 +297,43 @@ export function drawSpecialBehind(c: CanvasRenderingContext2D, skin: Skin, r: nu
       for (const side of [-1, 1]) {
         const a = ang + side * (Math.PI / 2);
         candyTwist(c, Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, a, r * 0.95);
+      }
+      break;
+    }
+    case "honey": {
+      // соты позади и по бокам: три шестиугольника
+      const { pt } = frame(r, ang);
+      for (const [f, s2, rr] of [
+        [-1.0, -0.45, 0.3],
+        [-1.05, 0.2, 0.3],
+        [-0.65, 0.85, 0.27],
+        [-0.45, -1.0, 0.26],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        hexagon(c, x, y, rr * r, ang);
+        c.fillStyle = "#f2b43a";
+        c.fill();
+        c.strokeStyle = "#b9791a";
+        c.lineWidth = Math.max(1, r * 0.045);
+        c.lineJoin = "round";
+        c.stroke();
+        hexagon(c, x, y, rr * r * 0.55, ang);
+        c.fillStyle = "#ffe08a";
+        c.fill();
+      }
+      break;
+    }
+    case "sky": {
+      // облачка позади и по бокам
+      const { pt } = frame(r, ang);
+      for (const [f, s2, rr] of [
+        [-0.95, -0.5, 0.34],
+        [-1.0, 0.35, 0.36],
+        [-0.2, -1.0, 0.27],
+        [0.05, 1.0, 0.25],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        puffCloud(c, x, y, rr * r, "#ffffff", "#cfdff2");
       }
       break;
     }
@@ -407,6 +483,50 @@ export function drawSpecialFront(c: CanvasRenderingContext2D, skin: Skin, r: num
       }
       c.stroke();
       c.restore();
+      break;
+    }
+    case "honey": {
+      // капли мёда на шерсти и сотовая «шапочка» на макушке
+      const [cx, cy] = pt(-0.45, 0);
+      hexagon(c, cx, cy, r * 0.27, ang);
+      c.fillStyle = "#f2b43a";
+      c.fill();
+      c.strokeStyle = "#b9791a";
+      c.lineWidth = Math.max(1, r * 0.05);
+      c.lineJoin = "round";
+      c.stroke();
+      hexagon(c, cx, cy, r * 0.14, ang);
+      c.fillStyle = "#ffe08a";
+      c.fill();
+      for (const [f, s2, dir, rr] of [
+        [-0.1, -0.6, 2.2, 0.09],
+        [-0.7, 0.45, 1.2, 0.1],
+        [-0.15, 0.62, 1.0, 0.075],
+        [-0.85, -0.3, 2.9, 0.08],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        drop(c, x, y, ang + dir, rr * r);
+        c.fillStyle = "#f0a21f";
+        c.fill();
+        c.fillStyle = "rgba(255,240,190,0.85)";
+        circle(c, x - rr * r * 0.3, y - rr * r * 0.3, rr * r * 0.3);
+        c.fill();
+      }
+      break;
+    }
+    case "sky": {
+      // радуга дугой над макушкой и крошечное облачко
+      const [cx, cy] = pt(-0.5, 0);
+      c.lineCap = "round";
+      ["#ff6b6b", "#ffb84a", "#ffe45c", "#6fd38a", "#5aa9ff", "#9a7bf0"].forEach((col, i) => {
+        c.strokeStyle = col;
+        c.lineWidth = Math.max(1, r * 0.06);
+        c.beginPath();
+        c.arc(cx, cy, r * (0.4 - i * 0.055), ang + Math.PI * 0.5, ang + Math.PI * 1.5);
+        c.stroke();
+      });
+      const [px, py] = pt(-0.78, 0.5);
+      puffCloud(c, px, py, r * 0.17, "#ffffff", "#cfdff2");
       break;
     }
     case "leaves": {

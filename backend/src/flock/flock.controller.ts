@@ -40,7 +40,12 @@ export class FlockController {
       ...me,
       daily,
       ...(bonus ? { entryBonus: bonus.amount } : {}),
-      ...(streakAward > 0 ? { streakAward } : {}),
+      ...(streakAward > 0
+        ? {
+            streakAward,
+            streakAwardDay: this.daily.streakAwardDay(streakAward),
+          }
+        : {}),
     };
   }
 
