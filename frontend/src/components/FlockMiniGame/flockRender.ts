@@ -618,18 +618,8 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
   const paused = (c.fx & FX_PAUSED) !== 0;
   if (ghost) ctx.globalAlpha = 0.45;
   if (paused) ctx.globalAlpha = 0.42;
-  // «Прискорення»: слід за клітиною (своя - за передбаченням моделі, чужі - за бітом від сервера); без сліду при «зменшити рух»
-  if (((own && m.sprintActive) || (c.fx & FX_SPRINT) !== 0) && !prefersReducedMotion()) drawSprintTrail(ctx, c.x, c.y, r, ang);
-  if ((c.fx & FX_SPEED) !== 0) {
-    ctx.strokeStyle = "rgba(255,210,74,0.7)";
-    ctx.lineWidth = r * 0.08;
-    for (let i = 1; i <= 3; i++) {
-      ctx.beginPath();
-      ctx.moveTo(c.x - Math.cos(ang) * r * (1.05 + i * 0.22), c.y - Math.sin(ang) * r * (1.05 + i * 0.22) - r * 0.2);
-      ctx.lineTo(c.x - Math.cos(ang) * r * (1.4 + i * 0.22), c.y - Math.sin(ang) * r * (1.4 + i * 0.22) - r * 0.2);
-      ctx.stroke();
-    }
-  }
+  // «Прискорення» (кнопка) і бонус «Прискорення»: однаковий світлий слід за клітиною (своя - за передбаченням, чужі - за бітом від сервера); без сліду при «зменшити рух»
+  if (((own && m.sprintActive) || (c.fx & (FX_SPRINT | FX_SPEED)) !== 0) && !prefersReducedMotion()) drawSprintTrail(ctx, c.x, c.y, r, ang);
   const artifact = meta?.artifact && LARGEST.get(c.pid) === c.id ? meta.artifact : 0;
   drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr, o.time, artifact);
   if ((c.fx & FX_FROZEN) !== 0) {
