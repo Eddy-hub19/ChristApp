@@ -1290,7 +1290,13 @@
       "count": "{count} of {max} pictures",
       "limitReached": "Limit reached: delete one of your pictures in “Mine” first, otherwise the oldest one would be replaced.",
       "deleteYes": "Delete",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "playNow": "Play right away",
+      "pieces": "Pieces",
+      "assemble": "Assemble",
+      "playUnavailable": "You can only start a game from the game lobby while connected. The picture will be saved.",
+      "newFrom": "New from {author}",
+      "newAnonymous": "A new player's picture"
     },
     "piecesTitle": "Number of pieces",
     "start": "Start",

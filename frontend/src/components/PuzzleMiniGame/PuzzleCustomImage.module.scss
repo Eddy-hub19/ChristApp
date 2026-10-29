@@ -247,3 +247,41 @@
     line-height: 1.45;
   }
 }
+
+.pieces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pieceBtn,
+.assemble {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.pieceBtnActive {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+}
+
+.assemble {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}

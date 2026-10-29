@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { setUserPuzzleImages, type PuzzleImage } from '../data/puzzle-images';
+import {
+  getPuzzleImage,
+  setUserPuzzleImages,
+  userPuzzleImageList,
+  type PuzzleImage,
+} from '../data/puzzle-images';
 
 /** Скільки активних своїх картинок може мати користувач (старіші видаляються). */
 export const USER_PUZZLE_MAX_ACTIVE = 5;
@@ -102,10 +107,25 @@ export class PuzzleUserImagesService implements OnModuleInit, OnModuleDestroy {
       commonsTitle: '',
       sourceUrl: '',
       userMade: true,
+      createdAt: row.createdAt.getTime(),
       authorName: row.showAuthor
         ? row.owner.nickname?.trim() || row.owner.username
         : null,
     };
+  }
+
+  /** Картинка по id уже в реестре? Если нет (другой инстанс, свежая загрузка) - подтянуть одну строку из БД. */
+  async ensureLoaded(id: unknown) {
+    if (typeof id !== 'string' || getPuzzleImage(id)) return;
+    try {
+      const row = await this.prisma.userPuzzleImage.findUnique({
+        where: { id },
+        include: { owner: { select: { username: true, nickname: true } } },
+      });
+      if (row) setUserPuzzleImages([...userPuzzleImageList(), this.toGameImage(row)]);
+    } catch (err) {
+      this.logger.warn(`puzzle image ensureLoaded failed: ${String(err)}`);
+    }
   }
 
   /** Перечитати всі картинки з БД у реєстр гри (після змін і раз на хвилину: працює й для кількох інстансів). */

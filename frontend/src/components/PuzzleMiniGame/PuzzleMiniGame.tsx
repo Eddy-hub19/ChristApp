@@ -28,6 +28,10 @@ type Props = {
 };
 
 const COUNTS: PieceCount[] = [12, 24, 48, 96];
+/** Картинка пользователя считается новой первые 24 часа (как на сервере: NEW_IMAGE_WINDOW_MS). */
+const NEW_IMAGE_MS = 24 * 60 * 60 * 1000;
+const isNewUserImage = (image: { userMade?: boolean; createdAt?: number }) =>
+  Boolean(image.userMade && image.createdAt && Date.now() - image.createdAt < NEW_IMAGE_MS);
 const modeKey = (roomId: string) => `christapp:puzzle:mode:${roomId}`;
 const SOUND_KEY = "christapp:puzzle:sound";
 
@@ -113,7 +117,7 @@ export default function PuzzleMiniGame({
   const storedMode = useMemo<PuzzleMode>(() => (open && roomId ? readMode(roomId) : "duel"), [open, roomId]);
   const [modeChoice, setModeChoice] = useState<{ roomId: string; mode: PuzzleMode } | null>(null);
   const mode = modeChoice && modeChoice.roomId === roomId ? modeChoice.mode : storedMode;
-  const { session, catalog, connected, select, setCount, start, again, toLobby, gather, grab, move, drop, cursor } =
+  const { session, catalog, connected, select, playImage, setCount, start, again, toLobby, gather, grab, move, drop, cursor } =
     usePuzzleSession({ socket, roomId, open, mode });
 
   const boardRef = useRef<PuzzleBoardHandle>(null);
@@ -346,6 +350,11 @@ export default function PuzzleMiniGame({
             {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю картинки користувача */}
             <img src={selectedImage.url} alt={t("custom.previewAlt")} className={styles.previewImage} />
             <figcaption>
+              {selection?.mode === "random" && isNewUserImage(selectedImage) ? (
+                <span className={styles.newBadge}>
+                  {selectedImage.authorName ? t("custom.newFrom", { author: selectedImage.authorName }) : t("custom.newAnonymous")}
+                </span>
+              ) : null}
               <span className={styles.muted}>{imageCaption(selectedImage)}</span>
               {isAdmin ? renderAdminDelete(selectedImage.id) : null}
             </figcaption>
@@ -417,6 +426,9 @@ export default function PuzzleMiniGame({
               running={open && playing}
               label={t("timeLabel")}
             />
+            {puzzleImage?.userMade && puzzleImage.authorName ? (
+              <span className={styles.authorNote}>{t("custom.byAuthor", { author: puzzleImage.authorName })}</span>
+            ) : null}
             {!solo && peerId ? (
               <span className={`${styles.peer} ${peerPresent ? styles.peerOnline : ""}`}>
                 <i aria-hidden /> {peerName}
@@ -635,7 +647,13 @@ export default function PuzzleMiniGame({
       </div>
     </div>
     {customView ? (
-      <PuzzleCustomImage mode={customView} onClose={() => setCustomView(null)} onUploaded={() => undefined} />
+      <PuzzleCustomImage
+        mode={customView}
+        onClose={() => setCustomView(null)}
+        onUploaded={() => undefined}
+        canPlay={connected && canPick && phase === "lobby"}
+        onPlay={playImage}
+      />
     ) : null}
     </>
   );

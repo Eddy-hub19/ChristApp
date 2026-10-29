@@ -58,6 +58,8 @@ export function usePuzzleSession({ socket, roomId, open, mode }: Options) {
       (selectionMode: SelectionMode, character?: string) => send("puzzle-select", { mode: selectionMode, character }),
       [send],
     ),
+    /** Сразу играть картинкой по id (своя только что загруженная или из «Мої картинки»), kусочков - count. */
+    playImage: useCallback((imageId: string, count: PieceCount) => send("puzzle-play-image", { imageId, count }), [send]),
     setCount: useCallback((count: PieceCount) => send("puzzle-count", { count }), [send]),
     start: useCallback(() => send("puzzle-start"), [send]),
     again: useCallback(() => send("puzzle-again"), [send]),

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Camera, ImagePlus, Images, Trash2, X } from "lucide-react";
+import type { PieceCount } from "./puzzleTypes";
 import {
   PuzzleImageError,
   deletePuzzleImage,
@@ -24,7 +25,13 @@ type Props = {
   onClose: () => void;
   /** Картинка завантажена: гра може одразу запропонувати випадковий вибір. */
   onUploaded: () => void;
+  /** Можно ли прямо сейчас запустить партию (есть связь, лобби, право выбирать). */
+  canPlay: boolean;
+  /** Начать партию этой картинкой с count кусочков. */
+  onPlay: (imageId: string, count: PieceCount) => void;
 };
+
+const PIECE_COUNTS: PieceCount[] = [12, 24, 48, 96];
 
 type Loaded = { img: HTMLImageElement; url: string };
 
@@ -36,13 +43,15 @@ function errorKey(err: unknown): string {
 }
 
 /** Вікно «Своя картинка» (вибір фото, квадратна обрізка, прев'ю) і «Мої картинки» (список, видалення, ім'я автора). */
-export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) {
+export default function PuzzleCustomImage({ mode, onClose, onUploaded, canPlay, onPlay }: Props) {
   const t = useTranslations("puzzle.custom");
   const [view, setView] = useState<"upload" | "mine">(mode);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [showAuthor, setShowAuthor] = useState(true);
+  const [playNow, setPlayNow] = useState(true);
+  const [pieces, setPieces] = useState<PieceCount>(24);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mine, setMine] = useState<MyPuzzleImage[] | null>(null);
@@ -163,9 +172,15 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
       const sx = img.naturalWidth / 2 - offset.x / scale - side / 2;
       const sy = img.naturalHeight / 2 - offset.y / scale - side / 2;
       const blob = await encodeSquareWebp(img, Math.max(0, sx), Math.max(0, sy), Math.min(side, img.naturalWidth, img.naturalHeight));
-      await uploadPuzzleImage(blob, showAuthor);
+      const created = await uploadPuzzleImage(blob, showAuthor);
       setLoaded(null);
       onUploaded();
+      if (playNow && canPlay) {
+        // партия стартует сразу этой картинкой; окно закрываем, чтобы показать игру
+        onPlay(created.id, pieces);
+        onClose();
+        return;
+      }
       setView("mine");
     } catch (err) {
       setError(errorKey(err));
@@ -192,6 +207,24 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
       setError("generic");
     }
   };
+
+  const pieceRow = (
+    <div className={styles.pieces} role="radiogroup" aria-label={t("pieces")}>
+      <span className={styles.hint}>{t("pieces")}</span>
+      {PIECE_COUNTS.map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={pieces === n}
+          className={`${styles.pieceBtn} ${pieces === n ? styles.pieceBtnActive : ""}`}
+          onClick={() => setPieces(n)}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className={styles.backdrop} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -282,6 +315,12 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
               <input type="checkbox" checked={showAuthor} onChange={(e) => setShowAuthor(e.target.checked)} />
               {t("showAuthor")}
             </label>
+            <label className={styles.check}>
+              <input type="checkbox" checked={playNow} onChange={(e) => setPlayNow(e.target.checked)} />
+              {t("playNow")}
+            </label>
+            {playNow ? pieceRow : null}
+            {playNow && !canPlay ? <p className={styles.hint}>{t("playUnavailable")}</p> : null}
             <p className={styles.hint}>{t("publicNote")}</p>
             {mine !== null ? (
               <p className={styles.hint}>{t("count", { count: mine.length, max: MAX_MINE })}</p>
@@ -294,6 +333,7 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
         ) : (
           <div className={styles.body}>
             {mine === null ? <p className={styles.hint}>{t("loading")}</p> : null}
+            {mine && mine.length > 0 ? pieceRow : null}
             {mine?.length === 0 ? (
               <div className={styles.empty}>
                 <Images size={30} aria-hidden />
@@ -313,6 +353,18 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
                       {t("showAuthor")}
                     </label>
                   </div>
+                  <button
+                    type="button"
+                    className={styles.assemble}
+                    disabled={!canPlay}
+                    title={canPlay ? undefined : t("playUnavailable")}
+                    onClick={() => {
+                      onPlay(img.id, pieces);
+                      onClose();
+                    }}
+                  >
+                    {t("assemble")}
+                  </button>
                   {pendingDelete === img.id ? (
                     <span className={styles.confirm} role="group" aria-label={t("deleteConfirm")}>
                       <button type="button" className={styles.danger} onClick={() => void remove(img.id)}>

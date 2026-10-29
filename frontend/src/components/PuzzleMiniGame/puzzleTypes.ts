@@ -4,7 +4,7 @@ export type PuzzleLang = "ua" | "ru" | "en";
 export type Localized = Record<PuzzleLang, string>;
 export type PuzzleMode = "duel" | "solo";
 export type PuzzlePhase = "lobby" | "playing" | "done";
-export type SelectionMode = "random" | "byName";
+export type SelectionMode = "random" | "byName" | "byImage";
 export type PieceCount = 12 | 24 | 48 | 96;
 
 export type PuzzleImage = {
@@ -26,6 +26,8 @@ export type PuzzleImage = {
   /** Своя картинка користувача: без персонажів і ліцензійного підпису; authorName - нік автора або null (сховав). */
   userMade?: boolean;
   authorName?: string | null;
+  /** Когда картинка загружена (мс, epoch): первые 24 часа она помечается «Нове від …». */
+  createdAt?: number;
 };
 
 export type CatalogCharacter = { id: string; name: Localized; imageIds: string[] };

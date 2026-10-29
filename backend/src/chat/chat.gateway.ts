@@ -37,6 +37,7 @@ import {
   guessCatalog,
 } from './guess-character/guess-character.manager';
 import { PuzzleManager, puzzleCatalog } from './puzzle/puzzle.manager';
+import { PuzzleUserImagesService } from './puzzle/user-images/puzzle-user-images.service';
 import { GameActivityService } from './game-activity/game-activity.service';
 import {
   canUserPostToRoom,
@@ -273,6 +274,7 @@ export class ChatGateway
     private prisma: PrismaService,
     private messagesService: MessagesService,
     private pushService: PushService,
+    private puzzleImages: PuzzleUserImagesService,
   ) {}
 
   // userId → timestamps of suspicious attempts
@@ -1613,6 +1615,27 @@ export class ChatGateway
       body?.solo === true,
       body?.mode,
       body?.character,
+    );
+  }
+
+  /** Сразу играть выбранной картинкой по id (своя только что загруженная или из «Мої картинки»). */
+  @SubscribeMessage('puzzle-play-image')
+  async handlePuzzlePlayImage(
+    @MessageBody()
+    body: { roomId?: string; solo?: boolean; imageId?: unknown; count?: unknown },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.puzzleContext(client, body?.roomId);
+    if (!ctx) return;
+    // реестр обновляется после загрузки, но при нескольких инстансах картинки может ещё не быть: подтягиваем её из БД
+    await this.puzzleImages.ensureLoaded(body?.imageId);
+    this.puzzle.playImage(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.imageId,
+      body?.count,
     );
   }
 
