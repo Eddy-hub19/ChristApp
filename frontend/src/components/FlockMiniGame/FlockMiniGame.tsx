@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
-import { Crown, Lock, X } from "lucide-react";
+import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EagleEyeIcon, StarfallIcon } from "@/components/icons/game";
 import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
@@ -38,6 +38,8 @@ import {
   type FlockStats,
 } from "./flockStats";
 import styles from "./FlockMiniGame.module.scss";
+
+const BOARD_COLLAPSED_KEY = "christapp:flockBoardCollapsed";
 
 type Props = {
   open: boolean;
@@ -194,6 +196,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Текущее время для секунд на карточке итогов и подсказке «раунд ещё идёт» (обновляется таймером, не при рендере). */
   const [nowMs, setNowMs] = useState(0);
   const [isTouch, setIsTouch] = useState(false);
+  /** «Топ-10» згорнуто в плашку: вибір зберігається локально, за замовчуванням - згорнуто на телефоні й розгорнуто на ПК. */
+  const [boardCollapsed, setBoardCollapsed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<FlockNotice>(null);
   /** Разовый бонус за первый вход (показывается один раз в лобби). */
@@ -270,8 +274,27 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   useEffect(() => {
     setSkin(loadSkin());
-    setIsTouch(window.matchMedia?.("(pointer: coarse)").matches ?? false);
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    setIsTouch(coarse);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(BOARD_COLLAPSED_KEY);
+    } catch {
+      /* сховище недоступне - беремо значення за замовчуванням */
+    }
+    setBoardCollapsed(stored === null ? coarse : stored === "1");
   }, [userId]);
+
+  const toggleBoard = useCallback(() => {
+    setBoardCollapsed((prev) => {
+      try {
+        localStorage.setItem(BOARD_COLLAPSED_KEY, prev ? "0" : "1");
+      } catch {
+        /* не критично: стан просто не запам'ятається */
+      }
+      return !prev;
+    });
+  }, []);
 
   /** Баланс, куплені скіни й статистика - з сервера; стара статистика з localStorage переноситься один раз. */
   const refreshMe = useCallback(async () => {
@@ -895,7 +918,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
       {playing ? (
         <>
-          <FlockInvite arenaId={() => clientRef.current?.model?.cfg.arenaId ?? hud.arenaId} className={styles.hudInvite} />
           {reconnecting ? (
             <div className={styles.reconnect} role="status">
               <span className={styles.spinner} aria-hidden />
@@ -950,11 +972,33 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <span className={styles.rank}>{rank}</span>
           </div>
 
-          <aside className={styles.board} aria-label={t("hud.leaderboard")}>
-            <h3>{t("hud.leaderboard")}</h3>
-            <ol>
-              {hud.top.map((p) => (
-                <li key={p.pid} className={p.pid === hud.selfPid ? styles.me : undefined}>
+          <button
+            type="button"
+            className={`${styles.board} ${boardCollapsed ? styles.boardCollapsed : ""}`}
+            aria-expanded={!boardCollapsed}
+            title={t("hud.boardToggle")}
+            onClick={toggleBoard}
+          >
+            <span className={styles.boardHead}>
+              <span className={styles.boardTitle}>{t("hud.leaderboard")}</span>
+              {boardCollapsed ? (
+                <span className={styles.boardSummary}>
+                  {hud.rank > 0 ? <span className={styles.boardSummaryRank}>{rank}</span> : null}
+                  {hud.top[0] ? (
+                    <>
+                      <span className={styles.boardName}>{hud.top[0].name}</span>
+                      <span className={styles.boardMass}>{Math.round(hud.top[0].mass)}</span>
+                    </>
+                  ) : null}
+                </span>
+              ) : null}
+              <ChevronDown size={14} aria-hidden className={styles.boardChevron} />
+            </span>
+            {boardCollapsed ? null : (
+            <span className={styles.boardRows}>
+              {hud.top.map((p, i) => (
+                <span key={p.pid} className={`${styles.boardRow} ${p.pid === hud.selfPid ? styles.me : ""}`}>
+                  <span className={styles.boardPos}>{i + 1}.</span>
                   <span className={styles.boardName}>{p.name}</span>
                   {hud.streak && hud.streak.pid === p.pid ? (
                     <span className={styles.boardStreak} title={t("hud.streakTitle", { days: hud.streak.days })}>
@@ -962,10 +1006,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                     </span>
                   ) : null}
                   <span className={styles.boardMass}>{Math.round(p.mass)}</span>
-                </li>
+                </span>
               ))}
-            </ol>
-          </aside>
+            </span>
+            )}
+          </button>
 
           {hud.circle ? (
             <div className={styles.circleBanner} role="status" aria-live="polite">
@@ -985,7 +1030,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           <canvas ref={miniRef} className={styles.minimap} style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE }} aria-hidden />
 
           {hud.effects.length > 0 ? (
-            <ul className={styles.effects}>
+            <ul className={`${styles.effects} ${hud.circle ? styles.effectsBelowBanner : ""}`}>
               {hud.effects.map((e) => (
                 <li
                   key={e.kind}

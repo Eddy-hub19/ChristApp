@@ -1280,6 +1280,7 @@
     "hud": {
       "mass": "Mass",
       "leaderboard": "Top 10",
+      "boardToggle": "Collapse or expand “Top 10”",
       "streakDays": "{days} d",
       "streakTitle": "1st-place streak: {days} days in a row"
     },
