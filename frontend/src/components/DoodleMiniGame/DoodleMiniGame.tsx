@@ -524,9 +524,9 @@ export default function DoodleMiniGame({
         ctx.fillRect(0, 0, WORLD_W, WORLD_H);
         ctx.fillStyle = "#fff1cf";
         ctx.font = "700 20px Inter, sans-serif";
-        ctx.fillText("Игра окончена", 84, 208);
+        ctx.fillText(t("gameOver"), 84, 208);
         ctx.font = "600 14px Inter, sans-serif";
-        ctx.fillText(`Очки: ${score}`, 126, 238);
+        ctx.fillText(t("score", { score }), 126, 238);
         return;
       }
 
@@ -548,19 +548,19 @@ export default function DoodleMiniGame({
     if (!open) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+      if (event.code === "ArrowLeft" || event.code === "KeyA") {
         keyLeftRef.current = true;
       }
-      if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+      if (event.code === "ArrowRight" || event.code === "KeyD") {
         keyRightRef.current = true;
       }
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+      if (event.code === "ArrowLeft" || event.code === "KeyA") {
         keyLeftRef.current = false;
       }
-      if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+      if (event.code === "ArrowRight" || event.code === "KeyD") {
         keyRightRef.current = false;
       }
     };
@@ -593,20 +593,20 @@ export default function DoodleMiniGame({
             type="button"
             className={styles.close}
             onClick={onClose}
-            aria-label="Закрыть"
+            aria-label={t("close")}
           >
             ×
           </button>
         </div>
         <p className={styles.scoreLine}>
-          Я: {myScore} {isMyWinner ? "👑" : ""} · {peerName}: {peerScore}{" "}
+          {t("me")}: {myScore} {isMyWinner ? "👑" : ""} · {peerName}: {peerScore}{" "}
           {isPeerWinner ? "👑" : ""}
         </p>
-        <p className={styles.bestLine}>Лучший результат: {bestScore}</p>
+        <p className={styles.bestLine}>{t("best", { score: bestScore })}</p>
         <p className={styles.bestLine}>
           {t("ping")}: {pingMs != null ? t("pingValue", { ms: pingMs }) : "—"}
         </p>
-        <p className={styles.hint}>Управление: ← → или свайп</p>
+        <p className={styles.hint}>{t("hint")}</p>
         <div className={styles.canvasWrap}>
           <canvas
             ref={canvasRef}
@@ -646,7 +646,7 @@ export default function DoodleMiniGame({
                   setIsStarted(true);
                 }}
               >
-                {isGameOver ? "Рестарт" : "Старт"}
+                {isGameOver ? t("restart") : t("start")}
               </button>
             </div>
           ) : null}
@@ -655,7 +655,7 @@ export default function DoodleMiniGame({
           <button
             type="button"
             className={styles.controlButton}
-            aria-label="Двигаться влево"
+            aria-label={t("moveLeft")}
             onTouchStart={() => setMoveDirection("left")}
             onTouchEnd={() => setMoveDirection(null)}
             onTouchCancel={() => setMoveDirection(null)}
@@ -668,7 +668,7 @@ export default function DoodleMiniGame({
           <button
             type="button"
             className={styles.controlButton}
-            aria-label="Двигаться вправо"
+            aria-label={t("moveRight")}
             onTouchStart={() => setMoveDirection("right")}
             onTouchEnd={() => setMoveDirection(null)}
             onTouchCancel={() => setMoveDirection(null)}

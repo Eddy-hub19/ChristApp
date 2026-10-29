@@ -520,6 +520,16 @@
     "dirRight": "Right"
   },
   "doodle": {
+    "gameOver": "Game over",
+    "score": "Score: {score}",
+    "close": "Close",
+    "me": "Me",
+    "best": "Best score: {score}",
+    "hint": "Controls: ← → or swipe",
+    "start": "Start",
+    "restart": "Restart",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
     "ping": "Ping",
     "pingValue": "{ms} ms",
     "themeDawn": "Dawn",
@@ -527,7 +537,9 @@
     "themeNight": "Stars",
     "themeHeaven": "Heavens"
   },
+  "filword": {"title": "Christian word search", "close": "Close", "found": "Found: {found}/{total}", "newGrid": "New grid", "selection": "Selection: {word}"},
   "chat": {
+    "peerFallback": "Chat partner",
     "globalChatTitle": "Global chat for everyone",
     "shareWithJesusTitle": "Corner",
     "directChatWith": "Chat with {name}",
@@ -1181,6 +1193,7 @@
     "start": "Start",
     "waitingPick": "{name} is choosing a picture…",
     "loadingImage": "Loading the picture…",
+    "imageFailed": "Could not load the picture. Go back and pick another one.",
     "progress": "{placed} of {total} placed",
     "timeLabel": "Play time",
     "peerAway": "{name} left the game. The puzzle is saved — you can continue later.",

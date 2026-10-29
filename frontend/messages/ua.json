@@ -520,6 +520,16 @@
     "dirRight": "Вправо"
   },
   "doodle": {
+    "gameOver": "Гру закінчено",
+    "score": "Очки: {score}",
+    "close": "Закрити",
+    "me": "Я",
+    "best": "Найкращий результат: {score}",
+    "hint": "Керування: ← → або свайп",
+    "start": "Старт",
+    "restart": "Рестарт",
+    "moveLeft": "Рухатись ліворуч",
+    "moveRight": "Рухатись праворуч",
     "ping": "Пінг",
     "pingValue": "{ms} мс",
     "themeDawn": "Світанок",
@@ -527,7 +537,9 @@
     "themeNight": "Зорі",
     "themeHeaven": "Небеса"
   },
+  "filword": {"title": "Християнський філворд", "close": "Закрити", "found": "Знайдено: {found}/{total}", "newGrid": "Нова сітка", "selection": "Виділення: {word}"},
   "chat": {
+    "peerFallback": "Співрозмовник",
     "globalChatTitle": "Загальний чат для всіх",
     "shareWithJesusTitle": "Куточок",
     "directChatWith": "Чат з {name}",
@@ -1181,6 +1193,7 @@
     "start": "Почати",
     "waitingPick": "{name} обирає картинку…",
     "loadingImage": "Завантаження картини…",
+    "imageFailed": "Не вдалося завантажити картину. Поверніться до вибору та оберіть іншу.",
     "progress": "Зібрано {placed} із {total}",
     "timeLabel": "Час гри",
     "peerAway": "{name} вийшов(-ла) з гри. Пазл збережено — можна продовжити пізніше.",

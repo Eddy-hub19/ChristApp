@@ -48,11 +48,14 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
   useEffect(() => {
+    // Escape закрывает только это окно, а не всю игру под ним
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      onClose();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
   useEffect(
@@ -65,7 +68,10 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
   const loadMine = useCallback(() => {
     fetchMyPuzzleImages()
       .then(setMine)
-      .catch(() => setError("generic"));
+      .catch(() => {
+        setMine([]);
+        setError("generic");
+      });
   }, []);
   useEffect(() => {
     if (view === "mine") loadMine();
@@ -230,11 +236,17 @@ export default function PuzzleCustomImage({ mode, onClose, onUploaded }: Props) 
             <div className={styles.pickRow}>
               <label className={styles.btn}>
                 <ImagePlus size={16} aria-hidden /> {t("gallery")}
-                <input type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+                <input type="file" accept="image/*" hidden onChange={(e) => {
+                    onFile(e.target.files?.[0]);
+                    e.target.value = "";
+                  }} />
               </label>
               <label className={styles.btn}>
                 <Camera size={16} aria-hidden /> {t("camera")}
-                <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+                <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => {
+                    onFile(e.target.files?.[0]);
+                    e.target.value = "";
+                  }} />
               </label>
             </div>
             <label className={styles.check}>

@@ -520,6 +520,16 @@
     "dirRight": "Вправо"
   },
   "doodle": {
+    "gameOver": "Игра окончена",
+    "score": "Очки: {score}",
+    "close": "Закрыть",
+    "me": "Я",
+    "best": "Лучший результат: {score}",
+    "hint": "Управление: ← → или свайп",
+    "start": "Старт",
+    "restart": "Рестарт",
+    "moveLeft": "Двигаться влево",
+    "moveRight": "Двигаться вправо",
     "ping": "Пинг",
     "pingValue": "{ms} мс",
     "themeDawn": "Рассвет",
@@ -527,7 +537,9 @@
     "themeNight": "Звёзды",
     "themeHeaven": "Небеса"
   },
+  "filword": {"title": "Христианский филворд", "close": "Закрыть", "found": "Найдено: {found}/{total}", "newGrid": "Новая сетка", "selection": "Выделение: {word}"},
   "chat": {
+    "peerFallback": "Собеседник",
     "globalChatTitle": "Общий чат для всех",
     "shareWithJesusTitle": "Уголок",
     "directChatWith": "Чат с {name}",
@@ -1181,6 +1193,7 @@
     "start": "Начать",
     "waitingPick": "{name} выбирает картинку…",
     "loadingImage": "Загрузка картины…",
+    "imageFailed": "Не удалось загрузить картину. Вернитесь к выбору и выберите другую.",
     "progress": "Собрано {placed} из {total}",
     "timeLabel": "Время игры",
     "peerAway": "{name} вышел(-ла) из игры. Пазл сохранён — можно продолжить позже.",

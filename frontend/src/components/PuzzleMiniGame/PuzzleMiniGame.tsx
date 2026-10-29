@@ -406,6 +406,8 @@ export default function PuzzleMiniGame({
           meAvatarUrl={myAvatarUrl}
           peerAvatarUrl={peerAvatarUrl}
           loadingLabel={t("loadingImage")}
+          errorLabel={t("imageFailed")}
+          ariaLabel={t("title")}
           onGrab={grab}
           onMove={move}
           onDrop={drop}

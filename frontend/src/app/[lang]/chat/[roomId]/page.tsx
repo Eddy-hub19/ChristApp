@@ -4679,7 +4679,7 @@ export default function ChatPageDetails() {
             peerName={
               directChatTargetUser?.nickname ??
               directChatTargetUser?.username ??
-              "Собеседник"
+              t("peerFallback")
             }
             peerState={peerDoodleState}
             pingMs={gamePingMs}
@@ -4700,7 +4700,7 @@ export default function ChatPageDetails() {
             peerName={
               directChatTargetUser?.nickname ??
               directChatTargetUser?.username ??
-              "Собеседник"
+              t("peerFallback")
             }
             peerState={peerSnakeState}
             pingMs={gamePingMs}
@@ -4726,7 +4726,7 @@ export default function ChatPageDetails() {
             peerName={
               directChatTargetUser?.nickname ??
               directChatTargetUser?.username ??
-              "Собеседник"
+              t("peerFallback")
             }
             onClose={() => setIsGuessOpen(false)}
           />
@@ -4741,7 +4741,7 @@ export default function ChatPageDetails() {
             peerName={
               directChatTargetUser?.nickname ??
               directChatTargetUser?.username ??
-              "Собеседник"
+              t("peerFallback")
             }
             myName={user?.nickname ?? user?.username}
             myAvatarUrl={resolvePublicAvatarUrl(user?.avatarUrl)}
