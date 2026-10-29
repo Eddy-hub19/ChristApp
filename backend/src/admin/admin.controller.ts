@@ -17,6 +17,7 @@ import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
+import { activeMemberWhere, isRecentlyActive } from './member-activity';
 import { ServerMetricsService } from './server-metrics.service';
 import { CpuBenchmarkService } from './cpu-benchmark.service';
 import { DbLatencyService } from './db-latency.service';
@@ -52,7 +53,7 @@ export class AdminController {
         () => false,
       ),
       this.prisma.user.count(),
-      this.prisma.user.count({ where: { isActive: true } }),
+      this.prisma.user.count({ where: activeMemberWhere() }),
     ]);
     const dbPingMs = Math.round((performance.now() - dbStartedAt) * 10) / 10;
     const { pool } = this.prisma;
@@ -108,7 +109,7 @@ export class AdminController {
   /** Усі учасники: максимум полів для огляду в адмінці. */
   @Get('members')
   async listMembers() {
-    return this.prisma.user.findMany({
+    const rows = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -121,6 +122,9 @@ export class AdminController {
         avatarUrl: true,
       },
     });
+    // «Активний» в адмінці: акаунт увімкнено й заходив за останні 2 місяці (прапорець у БД не змінюємо).
+    const now = Date.now();
+    return rows.map((m) => ({ ...m, isActive: isRecentlyActive(m, now) }));
   }
 
   /** Рубіни, куплені скіни, статистика й історія транзакцій учасника. */
@@ -160,6 +164,12 @@ export class AdminController {
       id,
       typeof body?.artifact === 'number' ? body.artifact : NaN,
     );
+  }
+
+  /** Усі чинні муті «Отари» (userId -> until): для фільтра «Заглушені». Маршрут окремий від `members/:id/...`. */
+  @Get('flock-mutes')
+  flockMutes() {
+    return { mutes: this.flockGateway.activeMutes() };
   }
 
   /** Чи заглушений учасник у своєму тексті «Отари» (пам'ять процесу). */
