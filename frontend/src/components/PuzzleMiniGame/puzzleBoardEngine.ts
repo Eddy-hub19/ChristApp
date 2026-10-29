@@ -49,6 +49,9 @@ type Drag = {
   startedAt: number;
   lastSent: number;
   lastGrabAttempt: number;
+  /** Позиція групи до початку перетягування — щоб скасувати жест (пінч) без склейки. */
+  origX: number;
+  origY: number;
 };
 
 const MY_COLOR = "#3b82f6";
@@ -59,6 +62,9 @@ const CURSOR_TTL_MS = 2500;
 const MAX_SPRITE_PX = 640;
 const DONE_FADE_MS = 1000;
 const CAM_ANIM_MS = 700;
+const HEARTBEAT_MS = 3000; // сервер тримає замок 8 с; нерухомий палець продовжує його сам
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_DIST = 28;
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
@@ -81,6 +87,13 @@ export class PuzzleBoardEngine {
   private sprites: HTMLCanvasElement[] = [];
   private spriteMargin = 0;
   private image: HTMLImageElement | null = null;
+  /** true між зміною картини й завантаженням нової: нічого не малюємо (щоб не було старої картини). */
+  private imagePending = false;
+  /** Нема зв'язку з сервером: кусочки не беруться (камера працює). */
+  private locked = false;
+  private orderCache: RenderGroup[] | null = null;
+  private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private lastTap: { x: number; y: number; at: number } | null = null;
 
   private groups = new Map<number, RenderGroup>();
   private pieceGroup: number[] = [];
@@ -128,6 +141,7 @@ export class PuzzleBoardEngine {
 
   destroy() {
     this.destroyed = true;
+    this.stopHeartbeat();
     cancelAnimationFrame(this.raf);
     const c = this.canvas;
     c.removeEventListener("pointerdown", this.onPointerDown);
@@ -150,9 +164,11 @@ export class PuzzleBoardEngine {
     this.requestDraw();
   }
 
-  setImage(image: HTMLImageElement) {
+  setImage(image: HTMLImageElement | null) {
     this.image = image;
-    this.buildSprites();
+    this.imagePending = image === null;
+    if (image) this.buildSprites();
+    else this.sprites = [];
     this.requestDraw();
   }
 
@@ -167,6 +183,21 @@ export class PuzzleBoardEngine {
       img.onload = () => this.requestDraw();
       img.src = url;
       this.avatars.set(id, img);
+    }
+    this.requestDraw();
+  }
+
+  setLocked(locked: boolean) {
+    if (this.locked === locked) return;
+    this.locked = locked;
+    if (locked && this.drag) {
+      // Сервер нас не чує: повертаємо кусочок на місце, нічого не надсилаючи.
+      const g = this.groups.get(this.drag.groupId);
+      if (g) {
+        g.tx = this.drag.origX;
+        g.ty = this.drag.origY;
+      }
+      this.setDrag(null);
     }
     this.requestDraw();
   }
@@ -195,7 +226,7 @@ export class PuzzleBoardEngine {
       this.pieceSignature = new Array(total).fill("");
       this.offX = new Float32Array(total);
       this.offY = new Float32Array(total);
-      this.drag = null;
+      this.setDrag(null);
       this.pan = null;
       this.pinch = null;
       this.pointers.clear();
@@ -246,6 +277,7 @@ export class PuzzleBoardEngine {
       next.set(g.id, rg);
     });
     this.groups = next;
+    this.orderCache = null;
     for (const g of next.values()) for (const piece of g.pieces) this.pieceGroup[piece] = g.id;
 
     // Кусочок, який перейшов в іншу групу (склейка), «довозиться» зі старого місця до нового.
@@ -267,7 +299,7 @@ export class PuzzleBoardEngine {
     if (this.drag) {
       const server = puzzle.groups.find((g) => g.id === this.drag!.groupId);
       if (!server || server.placed || (server.heldBy && server.heldBy !== this.players.meId)) {
-        this.drag = null;
+        this.setDrag(null);
       } else if (!server.heldBy && now - this.drag.startedAt > 400 && now - this.drag.lastGrabAttempt > 400) {
         // Сервер уже не вважає кусочок нашим (замок протух): беремо знову.
         this.drag.lastGrabAttempt = now;
@@ -297,9 +329,14 @@ export class PuzzleBoardEngine {
   }
 
   zoomBy(factor: number) {
+    this.zoomAtPoint(factor, this.cssW / 2, this.cssH / 2);
+  }
+
+  private zoomAtPoint(factor: number, sx: number, sy: number) {
+    this.camAnim = null;
     this.userMovedCamera = true;
     this.cam = clampCamera(
-      zoomAt(this.cam, factor, this.cssW / 2, this.cssH / 2, this.fit),
+      zoomAt(this.cam, factor, sx, sy, this.fit),
       this.worldRect(),
       this.cssW,
       this.cssH,
@@ -452,9 +489,10 @@ export class PuzzleBoardEngine {
         probes.push([Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6], [Math.cos(a) * r, Math.sin(a) * r]);
       }
     }
-    const ordered = this.drawOrder().reverse();
+    const ordered = this.drawOrder();
     for (const [dx, dy] of probes) {
-      for (const g of ordered) {
+      for (let i = ordered.length - 1; i >= 0; i -= 1) {
+        const g = ordered[i];
         if (g.placed) continue;
         for (const piece of g.pieces) {
           const o = this.pieceOrigin(g, piece);
@@ -465,14 +503,42 @@ export class PuzzleBoardEngine {
     return null;
   }
 
+  /** Порядок малювання (знизу вгору); кешується, скидається при новому знімку й початку/кінці перетягування. */
   private drawOrder(): RenderGroup[] {
+    if (this.orderCache) return this.orderCache;
     const all = [...this.groups.values()];
     all.sort((a, b) => Number(b.placed) - Number(a.placed) || a.order - b.order);
+    let result = all;
     if (this.drag) {
       const dragged = this.groups.get(this.drag.groupId);
-      if (dragged) return [...all.filter((g) => g !== dragged), dragged];
+      if (dragged) result = [...all.filter((g) => g !== dragged), dragged];
     }
-    return all;
+    this.orderCache = result;
+    return result;
+  }
+
+  private setDrag(drag: Drag | null) {
+    this.drag = drag;
+    this.orderCache = null;
+    if (!drag) this.stopHeartbeat();
+    else if (!this.heartbeat) {
+      // Палець тримає кусочок без руху: без пульсу сервер знімає замок через TTL.
+      this.heartbeat = setInterval(() => {
+        const d = this.drag;
+        if (!d) return;
+        const g = this.groups.get(d.groupId);
+        const now = performance.now();
+        if (g && now - d.lastSent >= HEARTBEAT_MS - 200) {
+          d.lastSent = now;
+          this.cb.move(g.id, g.x, g.y);
+        }
+      }, 1000);
+    }
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeat) clearInterval(this.heartbeat);
+    this.heartbeat = null;
   }
 
   private onContextMenu = (event: Event) => event.preventDefault();
@@ -484,7 +550,7 @@ export class PuzzleBoardEngine {
     this.pointers.set(event.pointerId, pos);
 
     if (this.pointers.size >= 2) {
-      this.finishDrag();
+      this.cancelDrag();
       this.pan = null;
       const [a, b] = [...this.pointers.values()];
       this.pinch = {
@@ -495,8 +561,10 @@ export class PuzzleBoardEngine {
       return;
     }
 
+    // Подвійний тап/клік по порожньому місцю — зум (або повернення до огляду).
+    const nowTap = performance.now();
     const forcePan = event.pointerType === "mouse" && event.button !== 0;
-    const g = forcePan || this.options.done ? null : this.hit(pos.x, pos.y, event.pointerType === "touch" ? 22 : 6);
+    const g = forcePan || this.options.done || this.locked ? null : this.hit(pos.x, pos.y, event.pointerType === "touch" ? 22 : 6);
     if (g) {
       if (g.heldBy && g.heldBy !== this.players.meId) {
         this.denied = { groupId: g.id, until: performance.now() + 450 };
@@ -504,7 +572,8 @@ export class PuzzleBoardEngine {
         return;
       }
       const w = screenToWorld(this.cam, pos.x, pos.y);
-      this.drag = {
+      this.lastTap = null;
+      this.setDrag({
         groupId: g.id,
         pointerId: event.pointerId,
         offX: w.x - g.x,
@@ -512,12 +581,22 @@ export class PuzzleBoardEngine {
         startedAt: performance.now(),
         lastSent: 0,
         lastGrabAttempt: performance.now(),
-      };
+        origX: g.x,
+        origY: g.y,
+      });
       g.heldBy = this.players.meId;
       this.cb.grab(g.id);
       this.requestDraw();
       return;
     }
+    const tap = this.lastTap;
+    if (tap && nowTap - tap.at < DOUBLE_TAP_MS && Math.hypot(pos.x - tap.x, pos.y - tap.y) < DOUBLE_TAP_DIST) {
+      this.lastTap = null;
+      if (this.cam.scale > this.fit.scale * 2.5) this.resetCamera();
+      else this.zoomAtPoint(2, pos.x, pos.y);
+      return;
+    }
+    this.lastTap = { x: pos.x, y: pos.y, at: nowTap };
     this.pan = { lastX: pos.x, lastY: pos.y, pointerId: event.pointerId };
   };
 
@@ -595,9 +674,23 @@ export class PuzzleBoardEngine {
   private finishDrag() {
     const drag = this.drag;
     if (!drag) return;
-    this.drag = null;
+    this.setDrag(null);
     const g = this.groups.get(drag.groupId);
     if (g) this.cb.drop(g.id, g.x, g.y);
+    this.requestDraw();
+  }
+
+  /** Скасування перетягування (другий палець): група повертається туди, де була, і відпускається там. */
+  private cancelDrag() {
+    const drag = this.drag;
+    if (!drag) return;
+    this.setDrag(null);
+    const g = this.groups.get(drag.groupId);
+    if (g) {
+      g.tx = drag.origX;
+      g.ty = drag.origY;
+      this.cb.drop(g.id, drag.origX, drag.origY);
+    }
     this.requestDraw();
   }
 
@@ -681,7 +774,7 @@ export class PuzzleBoardEngine {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = "#23272e";
     ctx.fillRect(0, 0, this.cssW, this.cssH);
-    if (!p) return;
+    if (!p || this.imagePending) return;
     ctx.setTransform(this.dpr * this.cam.scale, 0, 0, this.dpr * this.cam.scale, this.dpr * this.cam.x, this.dpr * this.cam.y);
     ctx.imageSmoothingQuality = "high";
     const px = 1 / this.cam.scale;

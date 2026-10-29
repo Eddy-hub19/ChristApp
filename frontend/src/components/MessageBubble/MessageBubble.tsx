@@ -507,6 +507,7 @@ function MessageBubble({
               game={gameInvite.game}
               senderName={senderName}
               isOwn={isOwnMessage}
+              createdAt={message.createdAt}
               onPlay={onPlayGameInvite}
             />
           );

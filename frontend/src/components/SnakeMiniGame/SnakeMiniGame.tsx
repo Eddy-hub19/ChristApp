@@ -16,7 +16,13 @@ import {
   recordBestScore,
   recordDuelResult,
 } from "./snakeStats";
-import type { Dir, SnakeSocket } from "./snakeTypes";
+import {
+  createClassicInput,
+  queueClassicDirection,
+  type ClassicInput,
+  type Dir,
+  type SnakeSocket,
+} from "./snakeTypes";
 import { useKeyboardDirection, useSwipeDirection } from "./useSnakeControls";
 import { useSnakeSession } from "./useSnakeSession";
 import styles from "./SnakeMiniGame.module.scss";
@@ -62,7 +68,7 @@ export default function SnakeMiniGame({
   onModeChange,
 }: SnakeMiniGameProps) {
   const t = useTranslations("snake");
-  const { session, selectLevel, setReady, sendDirection } = useSnakeSession({
+  const { session, connected, selectLevel, setReady, sendDirection } = useSnakeSession({
     socket,
     roomId,
     open,
@@ -75,7 +81,8 @@ export default function SnakeMiniGame({
 
   // ── Класика (рівень 1): локальна гра ──
   const classicCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const classicDirRef = useRef<Dir>("right");
+  const classicInputRef = useRef<ClassicInput>(createClassicInput());
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const [classicView, setClassicView] = useState(false);
   const [classicRunId, setClassicRunId] = useState(0);
   const [classicRunning, setClassicRunning] = useState(false);
@@ -90,6 +97,8 @@ export default function SnakeMiniGame({
   const [lobbyOverride, setLobbyOverride] = useState(false);
   const [record, setRecord] = useState({ wins: 0, losses: 0 });
   const recordedMatchRef = useRef(false);
+  const [classicNewRecord, setClassicNewRecord] = useState(false);
+  const [duelNewRecord, setDuelNewRecord] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -110,8 +119,9 @@ export default function SnakeMiniGame({
   // очікування другого в лобі Дуелі), лише знімаємо власну «готовність» до Дуелі, щоб вона не стартувала за спиною.
   const startClassic = useCallback(() => {
     if (session?.ready[userId]) setReady(false);
-    classicDirRef.current = "right";
+    classicInputRef.current = createClassicInput();
     setClassicResult(null);
+    setClassicNewRecord(false);
     setLobbyOverride(false);
     setClassicView(true);
     setClassicRunning(true);
@@ -133,23 +143,28 @@ export default function SnakeMiniGame({
     }
     if (recordedMatchRef.current || !peerId || !session.matchWinner) return;
     recordedMatchRef.current = true;
-    setRecord(recordDuelResult(userId, peerId, session.matchWinner === userId ? "win" : "loss"));
+    const before = getDuelRecord(userId, peerId);
+    const won = session.matchWinner === userId;
+    const after = recordDuelResult(userId, peerId, won ? "win" : "loss");
+    setRecord(after);
+    // «NEW!»: перемога вивела мене на лідерство в особистих зустрічах.
+    setDuelNewRecord(won && before.wins <= before.losses && after.wins > after.losses);
   }, [session, peerId, userId]);
 
   const handleClassicGameOver = useCallback(
     (score: number) => {
       setClassicRunning(false);
       setClassicResult(score);
+      setClassicNewRecord(score > 0 && score > getBestScore(userId, 1));
       setBests((prev) => ({ ...prev, 1: recordBestScore(userId, 1, score) }));
     },
     [userId],
   );
 
   const onClassicDirection = useCallback((dir: Dir) => {
-    classicDirRef.current = dir;
+    queueClassicDirection(classicInputRef.current, dir);
   }, []);
   useKeyboardDirection(open && classicRunning, onClassicDirection);
-  useSwipeDirection(classicCanvasRef, open && classicRunning, onClassicDirection);
 
   const onDuelInput = useCallback(
     (dir: Dir) => sendDirection(dir),
@@ -177,9 +192,37 @@ export default function SnakeMiniGame({
   const raceTarget = session?.duel?.targetScore ?? 30;
   const duelSelected = (session?.level ?? 1) !== 1;
 
-  const pressDirection = (dir: Dir) => {
-    if (view === "duel") duelDirectionRef.current?.(dir);
-    else classicDirRef.current = dir;
+  const pressDirection = useCallback(
+    (dir: Dir) => {
+      if (view === "duel") duelDirectionRef.current?.(dir);
+      else queueClassicDirection(classicInputRef.current, dir);
+    },
+    [view],
+  );
+
+  // Свайп ловимо на всій картці (не лише на canvas); поріг — ~0.6 клітинки в CSS-пікселях.
+  const swipeMinPx = useCallback(() => {
+    const canvas = classicCanvasRef.current ?? cardRef.current?.querySelector("canvas");
+    const width = canvas?.clientWidth ?? 0;
+    return width > 0 ? (width / CLASSIC_BOARD_CELLS_X) * 0.6 : 11;
+  }, []);
+  const duelLive = session?.phase === "playing" || session?.phase === "countdown";
+  useSwipeDirection(
+    cardRef,
+    open && (view === "classic" ? classicRunning : view === "duel" && duelLive),
+    pressDirection,
+    swipeMinPx,
+  );
+
+  const pressControl = (dir: Dir) => {
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(8);
+      }
+    } catch {
+      // вібрація недоступна — просто без відгуку
+    }
+    pressDirection(dir);
   };
 
   const handleChangeLevelFromResult = () => {
@@ -203,9 +246,13 @@ export default function SnakeMiniGame({
         {t("me")}: {myScore} {myScore > peerScore ? "👑" : ""} · {peerName}: {peerScore}{" "}
         {peerScore > myScore ? "👑" : ""}
       </>
-    ) : peerId ? (
-      <>{t("versus", { name: peerName, wins: record.wins, losses: record.losses })}</>
     ) : null;
+  const versusLabel = peerId
+    ? t("versus", { name: peerName, wins: record.wins, losses: record.losses })
+    : null;
+  const metaLeft = view === "classic" ? t("best", { n: bests[1] ?? 0 }) : versusLabel;
+  const duelCfg = session?.duelConfig;
+  const levelDescParams = { n: duelCfg?.targetScore ?? 30, s: duelCfg?.respawnSec ?? 3 };
 
   // Режим для статусу «грає у Snake»: Класика/Дуель, або Дуель, якщо гравець чекає в її лобі.
   const mode: "classic" | "duel" | null =
@@ -222,6 +269,7 @@ export default function SnakeMiniGame({
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div
+        ref={cardRef}
         className={styles.card}
         role="dialog"
         aria-modal="true"
@@ -264,17 +312,19 @@ export default function SnakeMiniGame({
         ) : scoreLine ? (
           <p className={styles.scoreLine}>{scoreLine}</p>
         ) : null}
-        {view === "classic" ? (
-          <p className={styles.bestLine}>{t("best", { n: bests[1] ?? 0 })}</p>
+        {metaLeft || pingMs != null ? (
+          <div className={styles.metaRow}>
+            <span>{metaLeft}</span>
+            {pingMs != null ? (
+              <span className={styles.pingText}>
+                {t("ping")}: {t("pingValue", { ms: pingMs })}
+              </span>
+            ) : null}
+          </div>
         ) : null}
-        {view === "duel" && peerId ? (
-          <p className={styles.bestLine}>
-            {t("versus", { name: peerName, wins: record.wins, losses: record.losses })}
-          </p>
-        ) : null}
-        {pingMs != null ? (
-          <p className={styles.bestLine}>
-            {t("ping")}: {t("pingValue", { ms: pingMs })}
+        {socket && !connected ? (
+          <p className={styles.reconnect} role="status" aria-live="polite">
+            {t("reconnecting")}
           </p>
         ) : null}
 
@@ -295,7 +345,7 @@ export default function SnakeMiniGame({
                   onClick={() => (def.kind === "classic" ? startClassic() : selectLevel(def.id))}
                 >
                   <span className={styles.levelName}>{t(def.nameKey)}</span>
-                  <span className={styles.levelDesc}>{t(def.descKey)}</span>
+                  <span className={styles.levelDesc}>{t(def.descKey, levelDescParams)}</span>
                 </button>
               ))}
             </div>
@@ -337,7 +387,7 @@ export default function SnakeMiniGame({
                   <SnakeClassicBoard
                     runId={classicRunId}
                     running={classicRunning}
-                    directionRef={classicDirRef}
+                    inputRef={classicInputRef}
                     peerState={peerState}
                     peerName={peerName}
                     onScoreChange={onScoreChange}
@@ -349,6 +399,7 @@ export default function SnakeMiniGame({
                     <div className={styles.resultPanel}>
                       <span className={styles.overlayTitle}>{t("gameOver")}</span>
                       <span className={styles.overlaySub}>{t("score", { n: classicResult })}</span>
+                      {classicNewRecord ? <span className={styles.newRecord}>{t("newRecord")}</span> : null}
                       <div className={styles.overlayActions}>
                         <button type="button" className={styles.startButton} onClick={handlePlayAgainClassic}>
                           {t("playAgain")}
@@ -373,11 +424,9 @@ export default function SnakeMiniGame({
                   onDirection={onDuelInput}
                   onRematch={handleRematchDuel}
                   onChangeLevel={handleChangeLevelFromResult}
-                  myRecordLabel={t("versus", {
-                    name: peerName,
-                    wins: record.wins,
-                    losses: record.losses,
-                  })}
+                  myRecordLabel={null}
+                  newRecord={duelNewRecord}
+                  newRecordLabel={t("newRecord")}
                   registerDirectionHandler={registerDirectionHandler}
                 />
               ) : null}
@@ -402,7 +451,7 @@ export default function SnakeMiniGame({
                 className={`${styles.controlButton} ${cls}`}
                 onPointerDown={(event) => {
                   event.preventDefault();
-                  pressDirection(dir);
+                  pressControl(dir);
                 }}
               >
                 {glyph}

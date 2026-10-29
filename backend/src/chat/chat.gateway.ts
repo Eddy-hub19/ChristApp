@@ -12,6 +12,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import {
@@ -192,6 +193,8 @@ export class ChatGateway
     OnModuleInit,
     OnModuleDestroy
 {
+  private readonly logger = new Logger(ChatGateway.name);
+
   @WebSocketServer()
   server!: Server;
 
@@ -863,12 +866,26 @@ export class ChatGateway
     const user = await this.resolveSocketUser(client);
     if (!user) return;
     const now = Date.now();
-    if (!this.gameActivity.allow(client.id, now)) return;
-
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    if (!roomId || roomId === this.GLOBAL_ROOM) return;
     const game = body?.game ?? null;
     if (game !== null && typeof game !== 'string') return;
+    // Зміну гри/режиму й зняття статусу ліміт не відкидає — лише надлишкові heartbeat-и.
+    const critical = this.gameActivity.isStateChange(
+      client.id,
+      roomId,
+      game,
+      body?.mode,
+    );
+    if (!this.gameActivity.allow(client.id, now, critical)) {
+      if (this.gameActivity.noteDropped(now)) {
+        this.logger.warn(
+          `presence:activity: події відкидаються лімітом (разом ${this.gameActivity.droppedCount})`,
+        );
+      }
+      return;
+    }
+
+    if (!roomId || roomId === this.GLOBAL_ROOM) return;
     if (
       game !== null &&
       !(await this.roomAccess.resolve(this.prisma, user.id, roomId))
@@ -1502,6 +1519,23 @@ export class ChatGateway
     );
   }
 
+  /** Відповідь на запит суперника «наступний раунд» / «завершити матч» (або скасування власного). */
+  @SubscribeMessage('guess-respond')
+  async handleGuessRespond(
+    @MessageBody() body: { roomId?: string; solo?: boolean; accept?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    if (!ctx) return;
+    this.guessCharacter.respond(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+      body?.accept === true,
+    );
+  }
+
   // ───────────── «Пазли» ─────────────
 
   /** Контекст гри для сокета: перевіряється в БД один раз (при `puzzle-session-sync`), далі береться з пам'яті сокета. */
@@ -1509,9 +1543,29 @@ export class ChatGateway
     const roomId = typeof rawRoomId === 'string' ? rawRoomId.trim() : '';
     const cached = client.data.puzzleCtx;
     if (cached && cached.roomId === roomId) return cached;
-    const ctx = await this.snakeDuelContext(client, roomId);
+    const ctx =
+      (await this.snakeDuelContext(client, roomId)) ??
+      (await this.selfRoomContext(client, roomId));
     if (ctx) client.data.puzzleCtx = ctx;
     return ctx;
+  }
+
+  /**
+   * Одиночні «Пазли» поза особистим чатом (сторінка «Ігри»): власна кімната «Поділися з Ісусом» як контейнер.
+   * Доступна лише власнику; сесія solo ключується `<room>:solo:<user>`, тож чужих гравців немає.
+   */
+  private async selfRoomContext(client: SocketWithUser, roomId: string) {
+    const user = await this.resolveSocketUser(client);
+    if (!user || !roomId) return null;
+    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    if (!access || access.title !== this.getShareWithJesusRoomTitle(user.id)) {
+      return null;
+    }
+    return {
+      userId: user.id,
+      roomId,
+      players: [user.id, user.id] as [string, string],
+    };
   }
 
   /** Відкрили гру / реконект: присутність, актуальний стан і каталог картин. */

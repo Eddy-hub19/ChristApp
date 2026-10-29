@@ -50,6 +50,15 @@ export function userPuzzleImageList(): PuzzleImage[] {
 /** Частка випадкових виборів, у яких береться картинка користувача (якщо вони є). */
 export const USER_IMAGE_WEIGHT = 0.3;
 
+/** Скільки «умовних» картинок каталогу гасять вагу, коли власних мало: n=1 -> ~0.09, 2 -> ~0.17, 3 -> ~0.23, 5+ -> кап. */
+const USER_IMAGE_WEIGHT_K = 10;
+
+/** Вага картинок користувача залежить від їхньої кількості: min(USER_IMAGE_WEIGHT, n / (n + k)). */
+export function userImageWeight(count: number): number {
+  if (!(count > 0)) return 0;
+  return Math.min(USER_IMAGE_WEIGHT, count / (count + USER_IMAGE_WEIGHT_K));
+}
+
 export const PUZZLE_IMAGES: PuzzleImage[] = (
   imagesJson as { images: PuzzleImage[] }
 ).images;

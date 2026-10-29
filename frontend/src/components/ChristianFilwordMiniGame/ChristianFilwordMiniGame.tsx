@@ -121,22 +121,37 @@ function isStraightLine(start: Point, end: Point) {
   return dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc);
 }
 
-function lineFromPoints(start: Point, end: Point): Point[] {
-  if (!isStraightLine(start, end)) {
-    return [start];
-  }
-
-  const dr = Math.sign(end.row - start.row);
-  const dc = Math.sign(end.col - start.col);
-  const length =
+function lineFromPoints(start: Point, end: Point, gridSize: number): Point[] {
+  let dr = Math.sign(end.row - start.row);
+  let dc = Math.sign(end.col - start.col);
+  let length =
     Math.max(Math.abs(end.row - start.row), Math.abs(end.col - start.col)) + 1;
+
+  if (!isStraightLine(start, end)) {
+    // Снапимся к ближайшему из 8 направлений: угол вокруг старта, длина по проекции.
+    const vr = end.row - start.row;
+    const vc = end.col - start.col;
+    const step = Math.round(Math.atan2(vr, vc) / (Math.PI / 4));
+    dr = Math.round(Math.sin((step * Math.PI) / 4));
+    dc = Math.round(Math.cos((step * Math.PI) / 4));
+    const steps = Math.max(
+      0,
+      Math.round((vr * dr + vc * dc) / (dr * dr + dc * dc)),
+    );
+    length = steps + 1;
+  }
 
   const points: Point[] = [];
   for (let i = 0; i < length; i += 1) {
-    points.push({ row: start.row + dr * i, col: start.col + dc * i });
+    const row = start.row + dr * i;
+    const col = start.col + dc * i;
+    if (row < 0 || col < 0 || row >= gridSize || col >= gridSize) break;
+    points.push({ row, col });
   }
   return points;
 }
+
+const NO_CELLS: ReadonlySet<string> = new Set();
 
 function canPlaceWord(
   grid: string[][],
@@ -271,8 +286,16 @@ export default function ChristianFilwordMiniGame({
 }: ChristianFilwordMiniGameProps) {
   const [seed, setSeed] = useState(0);
   const [selectedPath, setSelectedPath] = useState<Point[]>([]);
-  const [foundWords, setFoundWords] = useState<Set<string>>(() => new Set());
-  const [foundCells, setFoundCells] = useState<Set<string>>(() => new Set());
+  const [found, setFound] = useState<{
+    puzzle: GeneratedPuzzle | null;
+    words: ReadonlySet<string>;
+    cells: ReadonlySet<string>;
+  }>({ puzzle: null, words: NO_CELLS, cells: NO_CELLS });
+  const [flash, setFlash] = useState<{
+    kind: "found" | "miss";
+    keys: ReadonlySet<string>;
+  } | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [gridSize, setGridSize] = useState(DESKTOP_GRID_SIZE);
   const t = useTranslations("filword");
   const locale = useLocale();
@@ -280,6 +303,8 @@ export default function ChristianFilwordMiniGame({
   const words = WORDS[lang];
 
   const dragActiveRef = useRef(false);
+  const backdropDownRef = useRef(false);
+  const flashTimerRef = useRef<number | null>(null);
   const startPointRef = useRef<Point | null>(null);
   const lastVibrationSelectionLenRef = useRef(0);
 
@@ -312,6 +337,9 @@ export default function ChristianFilwordMiniGame({
 
   const grid = puzzle.grid;
   const puzzleEntries = puzzle.entries;
+  // Прогресс привязан к конкретной сгенерированной сетке: новая сетка → пусто.
+  const foundWords = found.puzzle === puzzle ? found.words : NO_CELLS;
+  const foundCells = found.puzzle === puzzle ? found.cells : NO_CELLS;
 
   const unresolvedWords = useMemo(
     () =>
@@ -338,9 +366,34 @@ export default function ChristianFilwordMiniGame({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    },
+    [],
+  );
+
+  const showFlash = (kind: "found" | "miss", keys: ReadonlySet<string>) => {
+    setFlash({ kind, keys });
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 450);
+    if (typeof window.navigator?.vibrate === "function") {
+      window.navigator.vibrate(kind === "found" ? [18, 40, 18] : 40);
+    }
+  };
+
   const resetGame = () => {
-    setFoundWords(new Set());
-    setFoundCells(new Set());
+    setConfirmReset(false);
+    setFlash(null);
     setSelectedPath([]);
     startPointRef.current = null;
     dragActiveRef.current = false;
@@ -398,7 +451,7 @@ export default function ChristianFilwordMiniGame({
       return;
     }
 
-    const nextPath = lineFromPoints(startPoint, endPoint);
+    const nextPath = lineFromPoints(startPoint, endPoint, gridSize);
     setSelectedPath(nextPath);
 
     const nextWord = nextPath
@@ -425,22 +478,27 @@ export default function ChristianFilwordMiniGame({
       (word) => word === candidate || word === reverse,
     );
     if (!matchedWord) {
+      // Одиночная клетка (простой тап) — не промах.
+      if (selectedPath.length > 1) {
+        showFlash("miss", new Set(selectedPath.map((point) => keyOf(point))));
+      }
       setSelectedPath([]);
       return;
     }
 
-    setFoundWords((prev) => {
-      const next = new Set(prev);
-      next.add(matchedWord);
-      return next;
+    const pathKeys = selectedPath.map((point) => keyOf(point));
+    setFound((prev) => {
+      const base =
+        prev.puzzle === puzzle
+          ? prev
+          : { puzzle, words: NO_CELLS, cells: NO_CELLS };
+      const words = new Set(base.words);
+      words.add(matchedWord);
+      const cells = new Set(base.cells);
+      for (const key of pathKeys) cells.add(key);
+      return { puzzle, words, cells };
     });
-    setFoundCells((prev) => {
-      const next = new Set(prev);
-      for (const point of selectedPath) {
-        next.add(keyOf(point));
-      }
-      return next;
-    });
+    showFlash("found", new Set(pathKeys));
     setSelectedPath([]);
   };
 
@@ -449,6 +507,9 @@ export default function ChristianFilwordMiniGame({
   }
 
   const selectedCellKeys = new Set(selectedPath.map((point) => keyOf(point)));
+  const isWon =
+    puzzleEntries.length > 0 && foundWords.size >= puzzleEntries.length;
+  const isEmpty = puzzleEntries.length === 0;
 
   return (
     <div
@@ -461,14 +522,22 @@ export default function ChristianFilwordMiniGame({
       }}
       onPointerUp={completeSelection}
       onPointerCancel={completeSelection}
-      onClick={onClose}
+      onPointerDown={(event) => {
+        backdropDownRef.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        // Закрываем только если и нажатие, и отпускание были на самом фоне.
+        if (event.target === event.currentTarget && backdropDownRef.current) {
+          onClose();
+        }
+        backdropDownRef.current = false;
+      }}
     >
       <div
         className={styles.card}
         role="dialog"
         aria-modal="true"
         aria-label={t("title")}
-        onClick={(event) => event.stopPropagation()}
       >
         <div className={styles.topRow}>
           <p className={styles.title}>{t("title")}</p>
@@ -486,13 +555,32 @@ export default function ChristianFilwordMiniGame({
           <span className={styles.progressLabel}>
             {t("found", { found: foundWords.size, total: puzzleEntries.length })}
           </span>
-          <button
-            type="button"
-            className={styles.resetButton}
-            onClick={resetGame}
-          >
-            {t("newGrid")}
-          </button>
+          {confirmReset ? (
+            <span className={styles.confirmGroup} role="group" aria-label={t("resetConfirm")}>
+              <span className={styles.confirmText}>{t("resetConfirm")}</span>
+              <button type="button" className={styles.resetButton} onClick={resetGame}>
+                {t("yes")}
+              </button>
+              <button
+                type="button"
+                className={styles.resetButton}
+                onClick={() => setConfirmReset(false)}
+              >
+                {t("no")}
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={styles.resetButton}
+              onClick={() => {
+                if (foundWords.size > 0 && !isWon) setConfirmReset(true);
+                else resetGame();
+              }}
+            >
+              {t("newGrid")}
+            </button>
+          )}
         </div>
         <div className={styles.progressTrack}>
           <div
@@ -500,6 +588,23 @@ export default function ChristianFilwordMiniGame({
             style={{ width: `${Math.max(3, progress * 100)}%` }}
           />
         </div>
+
+        {isWon ? (
+          <div className={styles.banner} role="status">
+            <p className={styles.bannerTitle}>{t("won")}</p>
+            <button type="button" className={styles.resetButton} onClick={resetGame}>
+              {t("playAgain")}
+            </button>
+          </div>
+        ) : null}
+        {isEmpty ? (
+          <div className={styles.banner} role="status">
+            <p className={styles.bannerTitle}>{t("empty")}</p>
+            <button type="button" className={styles.resetButton} onClick={resetGame}>
+              {t("newGrid")}
+            </button>
+          </div>
+        ) : null}
 
         <div className={styles.grid}>
           <div
@@ -514,6 +619,12 @@ export default function ChristianFilwordMiniGame({
                 const key = keyOf(point);
                 const isSelected = selectedCellKeys.has(key);
                 const isFound = foundCells.has(key);
+                const flashClass =
+                  flash?.keys.has(key)
+                    ? flash.kind === "found"
+                      ? ` ${styles.cellPop}`
+                      : ` ${styles.cellMiss}`
+                    : "";
 
                 return (
                   <button
@@ -522,7 +633,7 @@ export default function ChristianFilwordMiniGame({
                     data-filword-cell="1"
                     data-row={rowIndex}
                     data-col={colIndex}
-                    className={`${styles.cell}${isSelected ? ` ${styles.cellSelected}` : ""}${isFound ? ` ${styles.cellFound}` : ""}`}
+                    className={`${styles.cell}${isSelected ? ` ${styles.cellSelected}` : ""}${isFound ? ` ${styles.cellFound}` : ""}${flashClass}`}
                     onPointerDown={(event) => {
                       event.preventDefault();
                       dragActiveRef.current = true;
@@ -537,7 +648,6 @@ export default function ChristianFilwordMiniGame({
                       }
                       updatePath(point);
                     }}
-                    onPointerUp={completeSelection}
                   >
                     {letter}
                   </button>

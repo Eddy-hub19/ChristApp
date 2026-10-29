@@ -12,6 +12,10 @@ export interface QuickInviteClient {
   /** Відкриває (або створює) особисту кімнату з користувачем і повертає її id. */
   openDirect(targetUserId: string): Promise<string | null>;
   send(roomId: string, content: string): Promise<InviteSendResult>;
+  /** Id власної кімнати «Поділися з Ісусом» (контейнер для одиночних ігор із сервером, напр. Пазлів). */
+  resolveSelfRoom(): Promise<string | null>;
+  /** Сам сокет — для ігор, що працюють поверх нього (закривається разом із `close`). */
+  readonly socket: Sock;
   close(): void;
 }
 
@@ -42,6 +46,27 @@ export function openQuickInvite(token: string): QuickInviteClient {
     });
 
   return {
+    socket,
+    async resolveSelfRoom() {
+      try {
+        await whenConnected();
+      } catch {
+        return null;
+      }
+      return new Promise<string | null>((resolve) => {
+        const timer = setTimeout(() => {
+          socket.off("shareWithJesusRoomIdResolved", onResolved);
+          resolve(null);
+        }, 8000);
+        const onResolved = (p: { ok?: boolean; roomId?: string }) => {
+          clearTimeout(timer);
+          socket.off("shareWithJesusRoomIdResolved", onResolved);
+          resolve(p?.ok && p.roomId ? p.roomId : null);
+        };
+        socket.on("shareWithJesusRoomIdResolved", onResolved);
+        socket.emit("resolveShareWithJesusRoomId");
+      });
+    },
     async openDirect(targetUserId) {
       try {
         await whenConnected();

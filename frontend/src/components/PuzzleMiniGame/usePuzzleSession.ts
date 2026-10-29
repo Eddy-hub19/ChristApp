@@ -40,14 +40,19 @@ export function usePuzzleSession({ socket, roomId, open, mode }: Options) {
   }, [open, socket, roomId, mode, solo]);
 
   const send = useCallback(
-    (event: string, extra: Record<string, unknown> = {}) => {
-      if (socket && roomId) socket.emit(event, { roomId, solo, ...extra });
+    (event: string, extra: Record<string, unknown> = {}): boolean => {
+      // Без з'єднання команда не губиться мовчки: UI бачить `connected: false` і блокує керування.
+      if (!socket || !roomId) return false;
+      socket.emit(event, { roomId, solo, ...extra });
+      return true;
     },
     [socket, roomId, solo],
   );
 
   return {
     session,
+    /** Сокет є (батько передає null, коли зв'язок втрачено). */
+    connected: socket !== null,
     catalog,
     select: useCallback(
       (selectionMode: SelectionMode, character?: string) => send("puzzle-select", { mode: selectionMode, character }),

@@ -30,7 +30,7 @@ describe("flock invite message", () => {
 
   it("raw prefix never reaches chat-list previews or notifications", () => {
     const raw = buildFlockInviteMessage(4);
-    expect(chatMessagePreview({ content: raw })).toBe("🐑 Запрошення в Отару");
+    expect(chatMessagePreview({ content: raw })).toBe("🐑");
     expect(chatMessagePreview({ content: raw }, ((k: string) => (k === "previewFlockInvite" ? "Invite" : k)))).toBe("Invite");
     expect(normalizeNotificationBody(raw)).not.toContain("[[");
   });

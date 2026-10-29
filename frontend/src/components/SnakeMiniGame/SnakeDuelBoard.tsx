@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { interpolateBody, type Cell } from "./snakeInterp";
 import { findLabelSpot } from "./snakeLabel";
-import { useKeyboardDirection, useSwipeDirection } from "./useSnakeControls";
+import { useKeyboardDirection } from "./useSnakeControls";
 import { isOppositeDir, type Dir, type DuelSnapshot, type SnakeSessionState } from "./snakeTypes";
 import styles from "./SnakeMiniGame.module.scss";
 
@@ -20,6 +20,9 @@ type Props = {
   onRematch: () => void;
   onChangeLevel: () => void;
   myRecordLabel: string | null;
+  /** Перемога вивела на лідерство в особистих зустрічах із цим суперником. */
+  newRecord?: boolean;
+  newRecordLabel?: string;
   /** Реєстр кнопок-стрілок знизу керує напрямком через цей самий обробник. */
   registerDirectionHandler: (handler: ((dir: Dir) => void) | null) => void;
 };
@@ -40,6 +43,8 @@ export default function SnakeDuelBoard({
   onRematch,
   onChangeLevel,
   myRecordLabel,
+  newRecord,
+  newRecordLabel,
   registerDirectionHandler,
 }: Props) {
   const t = useTranslations("snake");
@@ -103,7 +108,6 @@ export default function SnakeDuelBoard({
 
   const active = session.phase === "playing" || session.phase === "countdown";
   useKeyboardDirection(active, handleDirection);
-  useSwipeDirection(canvasRef, active, handleDirection);
 
   // ── відмальовка ──
   useEffect(() => {
@@ -138,10 +142,12 @@ export default function SnakeDuelBoard({
       const board = cur?.board ?? s.duel?.board ?? { w: 24, h: 16 };
       const w = board.w * CELL;
       const h = board.h * CELL;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+      const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
       }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const bg = ctx.createLinearGradient(0, 0, 0, h);
       bg.addColorStop(0, "#181a22");
@@ -315,6 +321,9 @@ export default function SnakeDuelBoard({
                 : t("lossByDisconnect")
               : t("finalScore", { me: myScore, peer: peerScore, name: peerName, n: target })}
           </span>
+          {newRecord && newRecordLabel ? (
+            <span className={styles.newRecord}>{newRecordLabel}</span>
+          ) : null}
           {myRecordLabel ? <span className={styles.overlaySub}>{myRecordLabel}</span> : null}
           <div className={styles.overlayActions}>
             <button type="button" className={styles.startButton} onClick={onRematch}>

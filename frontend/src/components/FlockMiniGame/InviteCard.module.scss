@@ -105,6 +105,21 @@
   }
 }
 
+.playSecondary {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid color-mix(in srgb, var(--invite-border) 55%, var(--line-soft));
+}
+
+.expired {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* Мало місця: кнопка під текстом на всю ширину карточки. */
 @container (max-width: 270px) {
   .play {

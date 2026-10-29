@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { PuzzleBoardEngine } from "./puzzleBoardEngine";
 import { playDone, playSnap, unlockPuzzleAudio, vibrate } from "./puzzleSound";
 import type {
@@ -22,6 +22,8 @@ type Props = {
   puzzle: PuzzleState;
   image: PuzzleImage;
   done: boolean;
+  /** Нема зв'язку: кусочки не рухаються. */
+  locked?: boolean;
   showHint: boolean;
   edgesOnly: boolean;
   soundOn: boolean;
@@ -43,7 +45,7 @@ type Props = {
 };
 
 /** Полотно пазла: тонка React-обгортка над `PuzzleBoardEngine` (малювання й жести живуть у рушії). */
-export default function PuzzleBoard(props: Props) {
+function PuzzleBoard(props: Props) {
   const { ref, socket, roomId, puzzle, image, done, showHint, edgesOnly, soundOn, userId, peerId } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,6 +101,8 @@ export default function PuzzleBoard(props: Props) {
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
+    // Нова картина: старе зображення більше не малюємо й не ріжемо з нього спрайти.
+    engineRef.current?.setImage(null);
     const img = new Image();
     img.decoding = "async";
     // картинку удалили или CDN не ответил: не висим на «Завантаження…»
@@ -130,6 +134,10 @@ export default function PuzzleBoard(props: Props) {
   useEffect(() => {
     engineRef.current?.setPuzzle(puzzle);
   }, [puzzle]);
+
+  useEffect(() => {
+    engineRef.current?.setLocked(props.locked === true);
+  }, [props.locked]);
 
   useEffect(() => {
     engineRef.current?.setOptions({ showHint, edgesOnly, done });
@@ -175,3 +183,5 @@ export default function PuzzleBoard(props: Props) {
     </div>
   );
 }
+
+export default memo(PuzzleBoard);

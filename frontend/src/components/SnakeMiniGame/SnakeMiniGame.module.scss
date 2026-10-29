@@ -79,6 +79,50 @@
   margin-top: 2px;
 }
 
+// Рекорд/рахунок і пінг — в один рядок навіть на вузьких екранах.
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+
+  > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.pingText {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.reconnect {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 170, 60, 0.16);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.newRecord {
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: rgba(255, 215, 90, 0.2);
+  color: #ffd75a;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 // Гонка до N: рахунок угорі + дві смужки прогресу (моя — акцентна, суперника — блакитна).
 .raceHud {
   display: flex;
@@ -155,7 +199,7 @@
 
 .startButton {
   min-width: 120px;
-  height: 42px;
+  min-height: 44px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
   border-radius: 9999px;
   background: color-mix(in srgb, var(--surface-elevated) 78%, var(--accent-soft) 22%);
@@ -312,7 +356,7 @@
 
 .secondaryButton {
   min-width: 120px;
-  height: 42px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 9999px;

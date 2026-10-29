@@ -12,6 +12,20 @@ type Options = {
 /** Підписка на серверну сесію Snake + команди (рівень, «Готовий», напрямок). */
 export function useSnakeSession({ socket, roomId, open }: Options) {
   const [session, setSession] = useState<SnakeSessionState | null>(null);
+  const [connected, setConnected] = useState(true);
+
+  useEffect(() => {
+    if (!socket) return;
+    const up = () => setConnected(true);
+    const down = () => setConnected(false);
+    setConnected(socket.connected);
+    socket.on("connect", up);
+    socket.on("disconnect", down);
+    return () => {
+      socket.off("connect", up);
+      socket.off("disconnect", down);
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!open || !socket || !roomId) {
@@ -35,24 +49,26 @@ export function useSnakeSession({ socket, roomId, open }: Options) {
 
   const selectLevel = useCallback(
     (level: number) => {
-      if (socket && roomId) socket.emit("snake-level-select", { roomId, level });
+      if (socket && roomId && socket.connected) socket.emit("snake-level-select", { roomId, level });
     },
     [socket, roomId],
   );
 
   const setReady = useCallback(
     (ready: boolean) => {
-      if (socket && roomId) socket.emit("snake-ready", { roomId, ready });
+      if (socket && roomId && socket.connected) socket.emit("snake-ready", { roomId, ready });
     },
     [socket, roomId],
   );
 
   const sendDirection = useCallback(
     (dir: Dir) => {
-      if (socket && roomId) socket.emit("snake-input", { roomId, dir });
+      // Офлайн повороти не накопичуємо (інакше після реконекту прилетить «хвіст» старих натискань).
+      if (!socket || !roomId || !socket.connected) return;
+      socket.emit("snake-input", { roomId, dir });
     },
     [socket, roomId],
   );
 
-  return { session, selectLevel, setReady, sendDirection };
+  return { session, connected, selectLevel, setReady, sendDirection };
 }

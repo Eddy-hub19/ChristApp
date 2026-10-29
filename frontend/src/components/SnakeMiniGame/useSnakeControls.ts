@@ -41,7 +41,7 @@ const CODE_TO_DIR: Record<string, Dir> = {
   KeyD: "right",
 };
 
-const SWIPE_MIN_PX = 18;
+const SWIPE_FALLBACK_PX = 11;
 
 /**
  * Свайпи по полю: напрямок спрацьовує вже під час руху пальця, а точка відліку зсувається —
@@ -51,6 +51,8 @@ export function useSwipeDirection(
   target: RefObject<HTMLElement | null>,
   enabled: boolean,
   onDirection: (dir: Dir) => void,
+  /** Поріг свайпу в CSS-пікселях (~0.6 клітинки); рахується на початку жесту. */
+  getMinPx?: () => number,
 ) {
   useEffect(() => {
     const node = target.current;
@@ -58,6 +60,7 @@ export function useSwipeDirection(
     let startX = 0;
     let startY = 0;
     let active = false;
+    let minPx = SWIPE_FALLBACK_PX;
 
     const onStart = (event: TouchEvent) => {
       const touch = event.touches[0];
@@ -65,6 +68,8 @@ export function useSwipeDirection(
       startX = touch.clientX;
       startY = touch.clientY;
       active = true;
+      const measured = getMinPx?.();
+      minPx = measured && Number.isFinite(measured) ? Math.max(8, measured) : SWIPE_FALLBACK_PX;
     };
     const onMove = (event: TouchEvent) => {
       if (!active) return;
@@ -72,7 +77,7 @@ export function useSwipeDirection(
       if (!touch) return;
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_MIN_PX) return;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < minPx) return;
       onDirection(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up");
       startX = touch.clientX;
       startY = touch.clientY;
@@ -92,5 +97,5 @@ export function useSwipeDirection(
       node.removeEventListener("touchend", onEnd);
       node.removeEventListener("touchcancel", onEnd);
     };
-  }, [target, enabled, onDirection]);
+  }, [target, enabled, onDirection, getMinPx]);
 }

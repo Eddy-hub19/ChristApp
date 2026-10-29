@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { findLabelSpot } from "./snakeLabel";
-import { isOppositeDir, type Dir } from "./snakeTypes";
+import { type ClassicInput } from "./snakeTypes";
 import styles from "./SnakeMiniGame.module.scss";
 
 export type SnakeRuntimeState = {
@@ -27,8 +27,8 @@ type Props = {
   /** Змінюється при кожному новому запуску: перезапускає партію. */
   runId: number;
   running: boolean;
-  /** Бажаний напрямок: пишуть клавіатура, свайпи й кнопки. */
-  directionRef: MutableRefObject<Dir>;
+  /** Буфер напрямків: пишуть клавіатура, свайпи й кнопки (до 2 поворотів у черзі). */
+  inputRef: MutableRefObject<ClassicInput>;
   peerState: SnakeRuntimeState | null;
   peerName: string;
   onScoreChange: (score: number) => void;
@@ -53,7 +53,7 @@ function randomFood(exclude: Array<{ x: number; y: number }>) {
 export default function SnakeClassicBoard({
   runId,
   running,
-  directionRef,
+  inputRef,
   peerState,
   peerName,
   onScoreChange,
@@ -80,8 +80,13 @@ export default function SnakeClassicBoard({
     let score = 0;
     let lastTick = 0;
     let frame: number | null = null;
-    let currentDir: Dir = "right";
-    directionRef.current = "right";
+    const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    if (canvas.width !== WORLD_W * dpr || canvas.height !== WORLD_H * dpr) {
+      canvas.width = WORLD_W * dpr;
+      canvas.height = WORLD_H * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    inputRef.current = { queue: [], current: "right" };
 
     const midY = Math.floor(CLASSIC_BOARD_CELLS_Y / 2);
     const midX = Math.floor(CLASSIC_BOARD_CELLS_X / 2);
@@ -175,7 +180,10 @@ export default function SnakeClassicBoard({
 
     const tick = () => {
       if (!alive) return;
-      if (!isOppositeDir(directionRef.current, currentDir)) currentDir = directionRef.current;
+      const input = inputRef.current;
+      const queued = input.queue.shift();
+      if (queued) input.current = queued; // уже перевірено проти останнього в черзі при додаванні
+      const currentDir = input.current;
 
       const head = snake[0];
       const next = { x: head.x, y: head.y };
@@ -229,7 +237,7 @@ export default function SnakeClassicBoard({
       if (frame !== null) cancelAnimationFrame(frame);
     };
     // runId: новий запуск = нова партія
-  }, [running, runId, canvasRef, directionRef]);
+  }, [running, runId, canvasRef, inputRef]);
 
   return (
     <canvas

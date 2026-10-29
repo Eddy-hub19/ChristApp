@@ -5,7 +5,7 @@ import {
   charactersWithImages,
   getPuzzleImage,
   imagesOfCharacter,
-  USER_IMAGE_WEIGHT,
+  userImageWeight,
   userPuzzleImageList,
   type PuzzleImage,
 } from './data/puzzle-images';
@@ -167,10 +167,12 @@ export class PuzzleManager {
   sync(roomId: string, players: Players, userId: string, solo: boolean) {
     const s = this.find(roomId, players, userId, solo);
     if (!s) return;
+    const presenceChanged = !s.present[userId];
     s.present[userId] = true;
-    this.expireHolds(s);
+    const holdsChanged = this.expireHolds(s);
     this.emit(userId, 'puzzle-session', this.serialize(s));
-    this.broadcast(s, userId);
+    // Решті гравців знімок потрібен, лише якщо змінилась присутність або знялись замки.
+    if (presenceChanged || holdsChanged) this.broadcast(s, userId);
   }
 
   setPresence(
@@ -217,10 +219,9 @@ export class PuzzleManager {
       character = candidate.id;
     } else if (mode === 'random') {
       // частина випадкових виборів - картинка користувача (вага в USER_IMAGE_WEIGHT), не та сама підряд
-      const mine = userPuzzleImageList().filter(
-        (i) => i.id !== s.selection?.imageId,
-      );
-      if (mine.length > 0 && this.rng() < USER_IMAGE_WEIGHT) {
+      const allMine = userPuzzleImageList();
+      const mine = allMine.filter((i) => i.id !== s.selection?.imageId);
+      if (mine.length > 0 && this.rng() < userImageWeight(allMine.length)) {
         const picked = this.pickOf(mine);
         s.extra.set(picked.id, picked);
         s.selection = { mode: 'random', characterId: '', imageId: picked.id };
@@ -610,16 +611,19 @@ export class PuzzleManager {
   }
 
   /** Знімає застарілі блокування (власник зник, не відпустивши кусочок). */
-  private expireHolds(s: Session) {
+  private expireHolds(s: Session): boolean {
     const puzzle = s.puzzle;
-    if (!puzzle) return;
+    if (!puzzle) return false;
+    let changed = false;
     const cutoff = this.now() - HOLD_TTL_MS;
     for (const group of puzzle.groups.values()) {
       if (group.heldBy && group.heldAt < cutoff) {
         group.lastHolder = group.heldBy;
         group.heldBy = null;
+        changed = true;
       }
     }
+    return changed;
   }
 
   private pickOf<T>(items: T[]): T {

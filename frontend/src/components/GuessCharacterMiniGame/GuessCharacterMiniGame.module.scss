@@ -17,6 +17,11 @@
   /* Видима область (dvh), а не 100vh: на iOS vh більший за екран із панелями Safari. */
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  /* --gc-vvh задає visualViewport (iOS-клавіатура): картка не виходить за видиму область. */
+  max-height: min(
+    calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)),
+    calc(var(--gc-vvh, 100dvh) - 32px)
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: 16px;
@@ -315,10 +320,45 @@
   gap: 8px;
 }
 
+.searchWrap {
+  position: relative;
+}
+
+.searchClear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.requestBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 26%, transparent);
+}
+
+.requestText {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .search {
   width: 100%;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 44px 0 14px;
   border-radius: 12px;
   border: 1.5px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
@@ -372,6 +412,13 @@
 .pickActions {
   display: flex;
   gap: 8px;
+  /* Липка нижня панель: кнопка підтвердження завжди в межах видимої картки. */
+  position: sticky;
+  bottom: -12px;
+  z-index: 1;
+  margin-bottom: -12px;
+  padding: 8px 0 12px;
+  background: color-mix(in srgb, var(--surface-elevated) 95%, var(--background));
 
   .primaryButton {
     flex: 1;
@@ -407,8 +454,8 @@
   gap: 3px;
 
   i {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
   }
 }
@@ -502,7 +549,7 @@
   gap: 4px;
   padding: 3px 8px;
   border-radius: 9999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -553,7 +600,7 @@
 .chip {
   padding: 4px 10px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 13px;
   background: color-mix(in srgb, var(--line-soft) 28%, transparent);
 }
 
@@ -582,6 +629,7 @@
 }
 
 .historyNum {
+  font-size: 13px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
