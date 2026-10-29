@@ -10,6 +10,7 @@ import { ChatModule } from './chat/chat.module';
 import { VersesModule } from './verses/verses.module';
 import { PushModule } from './push/push.module';
 import { AdminModule } from './admin/admin.module';
+import { PuzzleUserImagesModule } from './chat/puzzle/user-images/puzzle-user-images.module';
 import { CallsModule } from './calls/calls.module';
 import { WatchPartyModule } from './watch-party/watch-party.module';
 import { FlockModule } from './flock/flock.module';
@@ -25,6 +26,7 @@ import { FlockModule } from './flock/flock.module';
     VersesModule,
     PushModule,
     AdminModule,
+    PuzzleUserImagesModule,
     CallsModule,
     WatchPartyModule,
     FlockModule,

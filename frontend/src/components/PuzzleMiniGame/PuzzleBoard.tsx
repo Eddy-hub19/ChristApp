@@ -33,6 +33,9 @@ type Props = {
   meAvatarUrl?: string | null;
   peerAvatarUrl?: string | null;
   loadingLabel: string;
+  /** Подпись, когда картинку не удалось загрузить (удалена или CDN недоступен). */
+  errorLabel: string;
+  ariaLabel: string;
   onGrab: (group: number) => void;
   onMove: (group: number, x: number, y: number) => void;
   onDrop: (group: number, x: number, y: number) => void;
@@ -93,10 +96,15 @@ export default function PuzzleBoard(props: Props) {
   }, []);
 
   // Картина: завантажуємо один раз на файл; кусочки малюються зі спрайтів, нарізаних з неї.
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     const img = new Image();
     img.decoding = "async";
+    // картинку удалили или CDN не ответил: не висим на «Завантаження…»
+    img.onerror = () => {
+      if (!cancelled) setLoadFailed(image.url);
+    };
     img.onload = () => {
       if (cancelled) return;
       engineRef.current?.setImage(img);
@@ -157,11 +165,13 @@ export default function PuzzleBoard(props: Props) {
     };
   }, [socket, roomId, userId, soundOn]);
 
-  const loading = loadedFile !== image.url;
+  const failed = loadFailed === image.url;
+  const loading = loadedFile !== image.url && !failed;
   return (
     <div ref={containerRef} className={styles.boardWrap}>
-      <canvas ref={canvasRef} className={styles.canvas} aria-label="Puzzle" />
+      <canvas ref={canvasRef} className={styles.canvas} aria-label={props.ariaLabel} />
       {loading ? <div className={styles.boardLoading}>{props.loadingLabel}</div> : null}
+      {failed ? <div className={styles.boardLoading} role="alert">{props.errorLabel}</div> : null}
     </div>
   );
 }

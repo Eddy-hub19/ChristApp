@@ -2,7 +2,10 @@
   "images": [
     {
       "id": "adam-1",
-      "characterIds": ["adam", "eve"],
+      "characterIds": [
+        "adam",
+        "eve"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392497/christapp/puzzles/adam-1-adam-and-eve-driven-from-paradise.webp",
       "cloudinaryId": "christapp/puzzles/adam-1-adam-and-eve-driven-from-paradise",
       "title": "Adam and Eve Driven from Paradise",
@@ -19,7 +22,10 @@
     },
     {
       "id": "adam-2",
-      "characterIds": ["adam", "eve"],
+      "characterIds": [
+        "adam",
+        "eve"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392499/christapp/puzzles/adam-2-adam-and-eve-after-titian.webp",
       "cloudinaryId": "christapp/puzzles/adam-2-adam-and-eve-after-titian",
       "title": "Adam and Eve (after Titian)",
@@ -36,7 +42,9 @@
     },
     {
       "id": "adam-3",
-      "characterIds": ["adam"],
+      "characterIds": [
+        "adam"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392502/christapp/puzzles/adam-3-man-made-in-the-image-of-god.webp",
       "cloudinaryId": "christapp/puzzles/adam-3-man-made-in-the-image-of-god",
       "title": "Man Made in the Image of God",
@@ -52,7 +60,10 @@
     },
     {
       "id": "cain-1",
-      "characterIds": ["cain", "abel"],
+      "characterIds": [
+        "cain",
+        "abel"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392505/christapp/puzzles/cain-1-cain-leadeth-abel-to-his-death.webp",
       "cloudinaryId": "christapp/puzzles/cain-1-cain-leadeth-abel-to-his-death",
       "title": "Cain Leadeth Abel to His Death",
@@ -68,25 +79,10 @@
       "height": 1600
     },
     {
-      "id": "cain-2",
-      "characterIds": ["cain", "abel"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392507/christapp/puzzles/cain-2-cain-slaying-abel.webp",
-      "cloudinaryId": "christapp/puzzles/cain-2-cain-slaying-abel",
-      "title": "Cain Slaying Abel",
-      "author": "Peter Paul Rubens",
-      "year": 1608,
-      "dateLabel": "1608–1609",
-      "source": "Courtauld Gallery, London",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Peter Paul Rubens (1577-1640) - Cain Slaying Abel - P.1978.PG.353 - Courtauld Gallery.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peter_Paul_Rubens_(1577-1640)_-_Cain_Slaying_Abel_-_P.1978.PG.353_-_Courtauld_Gallery.jpg",
-      "width": 872,
-      "height": 1200
-    },
-    {
       "id": "noah-1",
-      "characterIds": ["noah"],
+      "characterIds": [
+        "noah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392509/christapp/puzzles/noah-1-building-the-ark.webp",
       "cloudinaryId": "christapp/puzzles/noah-1-building-the-ark",
       "title": "Building the Ark",
@@ -103,7 +99,9 @@
     },
     {
       "id": "noah-2",
-      "characterIds": ["noah"],
+      "characterIds": [
+        "noah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392511/christapp/puzzles/noah-2-the-sacrifice-of-noah.webp",
       "cloudinaryId": "christapp/puzzles/noah-2-the-sacrifice-of-noah",
       "title": "The Sacrifice of Noah",
@@ -119,40 +117,11 @@
       "height": 651
     },
     {
-      "id": "abraham-1",
-      "characterIds": ["abraham"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392513/christapp/puzzles/abraham-1-abraham-serving-the-three-angels.webp",
-      "cloudinaryId": "christapp/puzzles/abraham-1-abraham-serving-the-three-angels",
-      "title": "Abraham Serving the Three Angels",
-      "author": "Rembrandt van Rijn",
-      "year": 1646,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Abraham serving the angels, Rembrandt van Rijn, 1646, private collection, USA.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Abraham_serving_the_angels,_Rembrandt_van_Rijn,_1646,_private_collection,_USA.jpg",
-      "width": 1569,
-      "height": 1200
-    },
-    {
-      "id": "abraham-2",
-      "characterIds": ["abraham"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392515/christapp/puzzles/abraham-2-the-sacrifice-of-abraham.webp",
-      "cloudinaryId": "christapp/puzzles/abraham-2-the-sacrifice-of-abraham",
-      "title": "The Sacrifice of Abraham",
-      "author": "Rembrandt van Rijn",
-      "year": 1635,
-      "source": "The Hermitage Museum",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt Abraham's Sacrifice (Hermitage).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_Abraham%27s_Sacrifice_(Hermitage).jpg",
-      "width": 1088,
-      "height": 1600
-    },
-    {
       "id": "abraham-3",
-      "characterIds": ["abraham", "sarah"],
+      "characterIds": [
+        "abraham",
+        "sarah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392517/christapp/puzzles/abraham-3-abram-s-counsel-to-sarai.webp",
       "cloudinaryId": "christapp/puzzles/abraham-3-abram-s-counsel-to-sarai",
       "title": "Abram's Counsel to Sarai",
@@ -169,7 +138,9 @@
     },
     {
       "id": "sarah-1",
-      "characterIds": ["sarah"],
+      "characterIds": [
+        "sarah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392520/christapp/puzzles/sarah-1-sarai-is-taken-to-pharaoh-s-palace.webp",
       "cloudinaryId": "christapp/puzzles/sarah-1-sarai-is-taken-to-pharaoh-s-palace",
       "title": "Sarai Is Taken to Pharaoh's Palace",
@@ -186,7 +157,9 @@
     },
     {
       "id": "lot-1",
-      "characterIds": ["lot"],
+      "characterIds": [
+        "lot"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392522/christapp/puzzles/lot-1-lot-and-his-daughters.webp",
       "cloudinaryId": "christapp/puzzles/lot-1-lot-and-his-daughters",
       "title": "Lot and His Daughters",
@@ -203,7 +176,9 @@
     },
     {
       "id": "lot-2",
-      "characterIds": ["lot"],
+      "characterIds": [
+        "lot"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392525/christapp/puzzles/lot-2-lot-and-his-family-leaving-sodom.webp",
       "cloudinaryId": "christapp/puzzles/lot-2-lot-and-his-family-leaving-sodom",
       "title": "Lot and His Family Leaving Sodom",
@@ -218,41 +193,11 @@
       "height": 938
     },
     {
-      "id": "isaac-1",
-      "characterIds": ["isaac"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392527/christapp/puzzles/isaac-1-the-sacrifice-of-isaac.webp",
-      "cloudinaryId": "christapp/puzzles/isaac-1-the-sacrifice-of-isaac",
-      "title": "The Sacrifice of Isaac",
-      "author": "Caravaggio",
-      "year": 1603,
-      "source": "Uffizi Gallery",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Sacrifice of Isaac-Caravaggio (Uffizi).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sacrifice_of_Isaac-Caravaggio_(Uffizi).jpg",
-      "width": 1600,
-      "height": 1233
-    },
-    {
-      "id": "isaac-2",
-      "characterIds": ["isaac", "jacob"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392529/christapp/puzzles/isaac-2-isaac-blessing-jacob.webp",
-      "cloudinaryId": "christapp/puzzles/isaac-2-isaac-blessing-jacob",
-      "title": "Isaac Blessing Jacob",
-      "author": "Bartolomé Esteban Murillo",
-      "year": 1665,
-      "dateLabel": "1665–1670",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Murillo-Isaac bendice a Jacob.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Murillo-Isaac_bendice_a_Jacob.jpg",
-      "width": 1600,
-      "height": 1085
-    },
-    {
       "id": "isaac-3",
-      "characterIds": ["isaac", "jacob"],
+      "characterIds": [
+        "isaac",
+        "jacob"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392532/christapp/puzzles/isaac-3-jacob-deceives-isaac.webp",
       "cloudinaryId": "christapp/puzzles/isaac-3-jacob-deceives-isaac",
       "title": "Jacob Deceives Isaac",
@@ -269,7 +214,9 @@
     },
     {
       "id": "rebekah-1",
-      "characterIds": ["rebekah"],
+      "characterIds": [
+        "rebekah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392534/christapp/puzzles/rebekah-1-rebecca-and-eliezer.webp",
       "cloudinaryId": "christapp/puzzles/rebekah-1-rebecca-and-eliezer",
       "title": "Rebecca and Eliezer",
@@ -285,7 +232,10 @@
     },
     {
       "id": "rebekah-2",
-      "characterIds": ["rebekah", "isaac"],
+      "characterIds": [
+        "rebekah",
+        "isaac"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392536/christapp/puzzles/rebekah-2-rebecca-meets-isaac-by-the-way.webp",
       "cloudinaryId": "christapp/puzzles/rebekah-2-rebecca-meets-isaac-by-the-way",
       "title": "Rebecca Meets Isaac by the Way",
@@ -302,7 +252,9 @@
     },
     {
       "id": "jacob-1",
-      "characterIds": ["jacob"],
+      "characterIds": [
+        "jacob"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392538/christapp/puzzles/jacob-1-jacob-and-rachel-at-the-well.webp",
       "cloudinaryId": "christapp/puzzles/jacob-1-jacob-and-rachel-at-the-well",
       "title": "Jacob and Rachel at the Well",
@@ -319,7 +271,9 @@
     },
     {
       "id": "jacob-2",
-      "characterIds": ["jacob"],
+      "characterIds": [
+        "jacob"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392540/christapp/puzzles/jacob-2-the-meeting-of-esau-and-jacob.webp",
       "cloudinaryId": "christapp/puzzles/jacob-2-the-meeting-of-esau-and-jacob",
       "title": "The Meeting of Esau and Jacob",
@@ -336,7 +290,9 @@
     },
     {
       "id": "joseph-1",
-      "characterIds": ["joseph"],
+      "characterIds": [
+        "joseph"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392542/christapp/puzzles/joseph-1-joseph-makes-himself-known-to-his-brethr.webp",
       "cloudinaryId": "christapp/puzzles/joseph-1-joseph-makes-himself-known-to-his-brethr",
       "title": "Joseph Makes Himself Known to His Brethren",
@@ -353,7 +309,9 @@
     },
     {
       "id": "joseph-2",
-      "characterIds": ["joseph"],
+      "characterIds": [
+        "joseph"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392545/christapp/puzzles/joseph-2-the-glory-of-joseph.webp",
       "cloudinaryId": "christapp/puzzles/joseph-2-the-glory-of-joseph",
       "title": "The Glory of Joseph",
@@ -370,7 +328,9 @@
     },
     {
       "id": "joseph-3",
-      "characterIds": ["joseph"],
+      "characterIds": [
+        "joseph"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392548/christapp/puzzles/joseph-3-joseph-accused-by-potiphar-s-wife.webp",
       "cloudinaryId": "christapp/puzzles/joseph-3-joseph-accused-by-potiphar-s-wife",
       "title": "Joseph Accused by Potiphar's Wife",
@@ -386,7 +346,10 @@
     },
     {
       "id": "pharaoh-1",
-      "characterIds": ["pharaoh", "joseph"],
+      "characterIds": [
+        "pharaoh",
+        "joseph"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392550/christapp/puzzles/pharaoh-1-joseph-interprets-pharaoh-s-dream.webp",
       "cloudinaryId": "christapp/puzzles/pharaoh-1-joseph-interprets-pharaoh-s-dream",
       "title": "Joseph Interprets Pharaoh's Dream",
@@ -403,7 +366,9 @@
     },
     {
       "id": "pharaoh-2",
-      "characterIds": ["pharaoh"],
+      "characterIds": [
+        "pharaoh"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392552/christapp/puzzles/pharaoh-2-pharaoh-and-the-midwives.webp",
       "cloudinaryId": "christapp/puzzles/pharaoh-2-pharaoh-and-the-midwives",
       "title": "Pharaoh and the Midwives",
@@ -419,24 +384,11 @@
       "height": 1600
     },
     {
-      "id": "moses-1",
-      "characterIds": ["moses"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392555/christapp/puzzles/moses-1-moses-with-the-ten-commandments.webp",
-      "cloudinaryId": "christapp/puzzles/moses-1-moses-with-the-ten-commandments",
-      "title": "Moses with the Ten Commandments",
-      "author": "Rembrandt van Rijn",
-      "year": 1659,
-      "source": "Gemäldegalerie, Berlin",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt - Moses with the Ten Commandments - Google Art Project.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_-_Moses_with_the_Ten_Commandments_-_Google_Art_Project.jpg",
-      "width": 1283,
-      "height": 1600
-    },
-    {
       "id": "moses-2",
-      "characterIds": ["moses", "pharaoh"],
+      "characterIds": [
+        "moses",
+        "pharaoh"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392557/christapp/puzzles/moses-2-moses-speaks-to-pharaoh.webp",
       "cloudinaryId": "christapp/puzzles/moses-2-moses-speaks-to-pharaoh",
       "title": "Moses Speaks to Pharaoh",
@@ -453,7 +405,9 @@
     },
     {
       "id": "moses-3",
-      "characterIds": ["moses"],
+      "characterIds": [
+        "moses"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392559/christapp/puzzles/moses-3-the-death-of-moses.webp",
       "cloudinaryId": "christapp/puzzles/moses-3-the-death-of-moses",
       "title": "The Death of Moses",
@@ -469,7 +423,9 @@
     },
     {
       "id": "aaron-1",
-      "characterIds": ["aaron"],
+      "characterIds": [
+        "aaron"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392561/christapp/puzzles/aaron-1-the-golden-calf.webp",
       "cloudinaryId": "christapp/puzzles/aaron-1-the-golden-calf",
       "title": "The Golden Calf",
@@ -486,7 +442,9 @@
     },
     {
       "id": "aaron-2",
-      "characterIds": ["aaron"],
+      "characterIds": [
+        "aaron"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392563/christapp/puzzles/aaron-2-the-sin-of-nadab-and-abihu.webp",
       "cloudinaryId": "christapp/puzzles/aaron-2-the-sin-of-nadab-and-abihu",
       "title": "The Sin of Nadab and Abihu",
@@ -502,7 +460,9 @@
     },
     {
       "id": "miriam-1",
-      "characterIds": ["miriam"],
+      "characterIds": [
+        "miriam"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392565/christapp/puzzles/miriam-1-the-song-of-the-prophetess-miriam.webp",
       "cloudinaryId": "christapp/puzzles/miriam-1-the-song-of-the-prophetess-miriam",
       "title": "The Song of the Prophetess Miriam",
@@ -518,7 +478,9 @@
     },
     {
       "id": "joshua-1",
-      "characterIds": ["joshua"],
+      "characterIds": [
+        "joshua"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392568/christapp/puzzles/joshua-1-moses-and-joshua-in-the-tabernacle.webp",
       "cloudinaryId": "christapp/puzzles/joshua-1-moses-and-joshua-in-the-tabernacle",
       "title": "Moses and Joshua in the Tabernacle",
@@ -535,7 +497,9 @@
     },
     {
       "id": "joshua-2",
-      "characterIds": ["joshua"],
+      "characterIds": [
+        "joshua"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392570/christapp/puzzles/joshua-2-the-two-reports-of-the-spies.webp",
       "cloudinaryId": "christapp/puzzles/joshua-2-the-two-reports-of-the-spies",
       "title": "The Two Reports of the Spies",
@@ -551,7 +515,9 @@
     },
     {
       "id": "rahab-1",
-      "characterIds": ["rahab"],
+      "characterIds": [
+        "rahab"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392572/christapp/puzzles/rahab-1-the-harlot-of-jericho-and-the-two-spies.webp",
       "cloudinaryId": "christapp/puzzles/rahab-1-the-harlot-of-jericho-and-the-two-spies",
       "title": "The Harlot of Jericho and the Two Spies",
@@ -568,7 +534,9 @@
     },
     {
       "id": "deborah-1",
-      "characterIds": ["deborah"],
+      "characterIds": [
+        "deborah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392574/christapp/puzzles/deborah-1-jael-deborah-and-barak.webp",
       "cloudinaryId": "christapp/puzzles/deborah-1-jael-deborah-and-barak",
       "title": "Jael, Deborah and Barak",
@@ -583,24 +551,11 @@
       "height": 1175
     },
     {
-      "id": "ruth-1",
-      "characterIds": ["ruth"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392578/christapp/puzzles/ruth-1-ruth-and-naomi.webp",
-      "cloudinaryId": "christapp/puzzles/ruth-1-ruth-and-naomi",
-      "title": "Ruth and Naomi",
-      "author": "Jan Victors",
-      "year": 1653,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:'Ruth and Naomi' by Jan Victors, 1653.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:%27Ruth_and_Naomi%27_by_Jan_Victors,_1653.jpg",
-      "width": 1156,
-      "height": 931
-    },
-    {
       "id": "ruth-2",
-      "characterIds": ["ruth", "boaz"],
+      "characterIds": [
+        "ruth",
+        "boaz"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392580/christapp/puzzles/ruth-2-ruth-and-boaz.webp",
       "cloudinaryId": "christapp/puzzles/ruth-2-ruth-and-boaz",
       "title": "Ruth and Boaz",
@@ -616,7 +571,9 @@
     },
     {
       "id": "samuel-1",
-      "characterIds": ["samuel"],
+      "characterIds": [
+        "samuel"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392583/christapp/puzzles/samuel-1-hannah-and-samuel-in-the-temple.webp",
       "cloudinaryId": "christapp/puzzles/samuel-1-hannah-and-samuel-in-the-temple",
       "title": "Hannah and Samuel in the Temple",
@@ -632,7 +589,10 @@
     },
     {
       "id": "saul-1",
-      "characterIds": ["saul", "david"],
+      "characterIds": [
+        "saul",
+        "david"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392586/christapp/puzzles/saul-1-saul-and-david.webp",
       "cloudinaryId": "christapp/puzzles/saul-1-saul-and-david",
       "title": "Saul and David",
@@ -648,42 +608,11 @@
       "height": 1263
     },
     {
-      "id": "david-1",
-      "characterIds": ["david"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392588/christapp/puzzles/david-1-david-with-the-head-of-goliath.webp",
-      "cloudinaryId": "christapp/puzzles/david-1-david-with-the-head-of-goliath",
-      "title": "David with the Head of Goliath",
-      "author": "Caravaggio",
-      "year": 1600,
-      "dateLabel": "1600–1601",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:CaravaggioDavidGoliathVienna.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:CaravaggioDavidGoliathVienna.jpg",
-      "width": 1600,
-      "height": 1238
-    },
-    {
-      "id": "david-2",
-      "characterIds": ["david"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392590/christapp/puzzles/david-2-king-david-playing-the-harp.webp",
-      "cloudinaryId": "christapp/puzzles/david-2-king-david-playing-the-harp",
-      "title": "King David Playing the Harp",
-      "author": "Peter Paul Rubens and Jan Boeckhorst",
-      "year": 1619,
-      "dateLabel": "1619–1640",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rubens and Jan Boeckhorst - King David playing the Harp.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rubens_and_Jan_Boeckhorst_-_King_David_playing_the_Harp.jpg",
-      "width": 823,
-      "height": 1024
-    },
-    {
       "id": "goliath-1",
-      "characterIds": ["goliath", "david"],
+      "characterIds": [
+        "goliath",
+        "david"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392593/christapp/puzzles/goliath-1-david-slaying-goliath.webp",
       "cloudinaryId": "christapp/puzzles/goliath-1-david-slaying-goliath",
       "title": "David Slaying Goliath",
@@ -698,24 +627,10 @@
       "height": 1600
     },
     {
-      "id": "goliath-2",
-      "characterIds": ["goliath"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392595/christapp/puzzles/goliath-2-david-and-goliath.webp",
-      "cloudinaryId": "christapp/puzzles/goliath-2-david-and-goliath",
-      "title": "David and Goliath",
-      "author": "Caravaggio",
-      "year": 1600,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:David and Goliath by Caravaggio.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:David_and_Goliath_by_Caravaggio.jpg",
-      "width": 1419,
-      "height": 1600
-    },
-    {
       "id": "bathsheba-1",
-      "characterIds": ["bathsheba"],
+      "characterIds": [
+        "bathsheba"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392597/christapp/puzzles/bathsheba-1-bathsheba-at-her-bath.webp",
       "cloudinaryId": "christapp/puzzles/bathsheba-1-bathsheba-at-her-bath",
       "title": "Bathsheba at Her Bath",
@@ -731,7 +646,9 @@
     },
     {
       "id": "bathsheba-2",
-      "characterIds": ["bathsheba"],
+      "characterIds": [
+        "bathsheba"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392599/christapp/puzzles/bathsheba-2-bathsheba-at-the-fountain.webp",
       "cloudinaryId": "christapp/puzzles/bathsheba-2-bathsheba-at-the-fountain",
       "title": "Bathsheba at the Fountain",
@@ -747,7 +664,9 @@
     },
     {
       "id": "solomon-1",
-      "characterIds": ["solomon"],
+      "characterIds": [
+        "solomon"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392602/christapp/puzzles/solomon-1-the-judgement-of-solomon.webp",
       "cloudinaryId": "christapp/puzzles/solomon-1-the-judgement-of-solomon",
       "title": "The Judgement of Solomon",
@@ -762,25 +681,10 @@
       "height": 1278
     },
     {
-      "id": "solomon-2",
-      "characterIds": ["solomon"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392603/christapp/puzzles/solomon-2-the-wisdom-of-solomon.webp",
-      "cloudinaryId": "christapp/puzzles/solomon-2-the-wisdom-of-solomon",
-      "title": "The Wisdom of Solomon",
-      "author": "James Tissot",
-      "year": 1896,
-      "dateLabel": "1896–1902",
-      "source": "The Jewish Museum, New York",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Tissot The Wisdom of Solomon.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tissot_The_Wisdom_of_Solomon.jpg",
-      "width": 1000,
-      "height": 715
-    },
-    {
       "id": "elijah-1",
-      "characterIds": ["elijah"],
+      "characterIds": [
+        "elijah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392605/christapp/puzzles/elijah-1-the-prophet-elijah-receiving-bread-and-w.webp",
       "cloudinaryId": "christapp/puzzles/elijah-1-the-prophet-elijah-receiving-bread-and-w",
       "title": "The Prophet Elijah Receiving Bread and Water from an Angel",
@@ -797,7 +701,9 @@
     },
     {
       "id": "elisha-1",
-      "characterIds": ["elisha"],
+      "characterIds": [
+        "elisha"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392608/christapp/puzzles/elisha-1-elisha-raising-the-son-of-the-shunamite.webp",
       "cloudinaryId": "christapp/puzzles/elisha-1-elisha-raising-the-son-of-the-shunamite",
       "title": "Elisha Raising the Son of the Shunamite",
@@ -812,25 +718,10 @@
       "height": 988
     },
     {
-      "id": "elisha-2",
-      "characterIds": ["elisha"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392610/christapp/puzzles/elisha-2-elisha-and-the-widow-pouring-the-flasks-.webp",
-      "cloudinaryId": "christapp/puzzles/elisha-2-elisha-and-the-widow-pouring-the-flasks-",
-      "title": "Elisha and the Widow Pouring the Flasks of Oil",
-      "author": "Arent de Gelder",
-      "year": 1690,
-      "dateLabel": "1690s",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Arent de Gelder - Elisha and the Widow of the Prophet Pouring the Flasks of Oil, 1690s.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arent_de_Gelder_-_Elisha_and_the_Widow_of_the_Prophet_Pouring_the_Flasks_of_Oil,_1690s.jpg",
-      "width": 1445,
-      "height": 1080
-    },
-    {
       "id": "naaman-1",
-      "characterIds": ["naaman"],
+      "characterIds": [
+        "naaman"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392612/christapp/puzzles/naaman-1-elisha-refuses-naaman-s-gifts.webp",
       "cloudinaryId": "christapp/puzzles/naaman-1-elisha-refuses-naaman-s-gifts",
       "title": "Elisha Refuses Naaman's Gifts",
@@ -846,7 +737,9 @@
     },
     {
       "id": "jezebel-1",
-      "characterIds": ["jezebel"],
+      "characterIds": [
+        "jezebel"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392614/christapp/puzzles/jezebel-1-jezebel-and-ahab.webp",
       "cloudinaryId": "christapp/puzzles/jezebel-1-jezebel-and-ahab",
       "title": "Jezebel and Ahab",
@@ -862,7 +755,9 @@
     },
     {
       "id": "isaiah-1",
-      "characterIds": ["isaiah"],
+      "characterIds": [
+        "isaiah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392616/christapp/puzzles/isaiah-1-the-prophet-isaiah.webp",
       "cloudinaryId": "christapp/puzzles/isaiah-1-the-prophet-isaiah",
       "title": "The Prophet Isaiah",
@@ -879,7 +774,9 @@
     },
     {
       "id": "jeremiah-1",
-      "characterIds": ["jeremiah"],
+      "characterIds": [
+        "jeremiah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392618/christapp/puzzles/jeremiah-1-jeremiah-lamenting-the-destruction-of-je.webp",
       "cloudinaryId": "christapp/puzzles/jeremiah-1-jeremiah-lamenting-the-destruction-of-je",
       "title": "Jeremiah Lamenting the Destruction of Jerusalem",
@@ -895,7 +792,9 @@
     },
     {
       "id": "ezekiel-1",
-      "characterIds": ["ezekiel"],
+      "characterIds": [
+        "ezekiel"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392620/christapp/puzzles/ezekiel-1-ezekiel-s-vision.webp",
       "cloudinaryId": "christapp/puzzles/ezekiel-1-ezekiel-s-vision",
       "title": "Ezekiel's Vision",
@@ -911,7 +810,9 @@
     },
     {
       "id": "daniel-1",
-      "characterIds": ["daniel"],
+      "characterIds": [
+        "daniel"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392623/christapp/puzzles/daniel-1-belshazzar-s-feast.webp",
       "cloudinaryId": "christapp/puzzles/daniel-1-belshazzar-s-feast",
       "title": "Belshazzar's Feast",
@@ -926,24 +827,12 @@
       "height": 1281
     },
     {
-      "id": "daniel-2",
-      "characterIds": ["daniel"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392625/christapp/puzzles/daniel-2-daniel-and-cyrus-before-the-idol-bel.webp",
-      "cloudinaryId": "christapp/puzzles/daniel-2-daniel-and-cyrus-before-the-idol-bel",
-      "title": "Daniel and Cyrus before the Idol Bel",
-      "author": "Rembrandt van Rijn",
-      "year": 1633,
-      "source": "J. Paul Getty Museum",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt - Daniel and Cyrus before the Idol Bel, 1633.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_-_Daniel_and_Cyrus_before_the_Idol_Bel,_1633.jpg",
-      "width": 1600,
-      "height": 1223
-    },
-    {
       "id": "esther-1",
-      "characterIds": ["esther", "haman", "mordecai"],
+      "characterIds": [
+        "esther",
+        "haman",
+        "mordecai"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392627/christapp/puzzles/esther-1-ahasuerus-haman-and-esther.webp",
       "cloudinaryId": "christapp/puzzles/esther-1-ahasuerus-haman-and-esther",
       "title": "Ahasuerus, Haman and Esther",
@@ -958,24 +847,10 @@
       "height": 1219
     },
     {
-      "id": "haman-1",
-      "characterIds": ["haman", "esther"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392629/christapp/puzzles/haman-1-haman-begs-esther-for-his-life.webp",
-      "cloudinaryId": "christapp/puzzles/haman-1-haman-begs-esther-for-his-life",
-      "title": "Haman Begs Esther for His Life",
-      "author": "Rembrandt van Rijn (studio)",
-      "year": 1660,
-      "source": "National Museum of Art of Romania",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Haman begs Esther for his life, Rembrandt studio, 1660s, National Museum of Art of Romania.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haman_begs_Esther_for_his_life,_Rembrandt_studio,_1660s,_National_Museum_of_Art_of_Romania.jpg",
-      "width": 1257,
-      "height": 1600
-    },
-    {
       "id": "job-1",
-      "characterIds": ["job"],
+      "characterIds": [
+        "job"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392631/christapp/puzzles/job-1-job-and-his-friends.webp",
       "cloudinaryId": "christapp/puzzles/job-1-job-and-his-friends",
       "title": "Job and His Friends",
@@ -990,24 +865,10 @@
       "height": 1139
     },
     {
-      "id": "job-2",
-      "characterIds": ["job"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392633/christapp/puzzles/job-2-job-and-his-three-friends.webp",
-      "cloudinaryId": "christapp/puzzles/job-2-job-and-his-three-friends",
-      "title": "Job and His Three Friends",
-      "author": "Henry Ossawa Tanner",
-      "year": 1904,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Job and his Three Friends, by Henry Ossawa Tanner.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Job_and_his_Three_Friends,_by_Henry_Ossawa_Tanner.jpg",
-      "width": 1251,
-      "height": 1024
-    },
-    {
       "id": "jesus-1",
-      "characterIds": ["jesus"],
+      "characterIds": [
+        "jesus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392638/christapp/puzzles/jesus-1-christ-in-gethsemane.webp",
       "cloudinaryId": "christapp/puzzles/jesus-1-christ-in-gethsemane",
       "title": "Christ in Gethsemane",
@@ -1023,7 +884,9 @@
     },
     {
       "id": "jesus-2",
-      "characterIds": ["jesus"],
+      "characterIds": [
+        "jesus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392640/christapp/puzzles/jesus-2-the-sermon-on-the-mount.webp",
       "cloudinaryId": "christapp/puzzles/jesus-2-the-sermon-on-the-mount",
       "title": "The Sermon on the Mount",
@@ -1039,7 +902,11 @@
     },
     {
       "id": "jesus-3",
-      "characterIds": ["jesus", "lazarus", "martha"],
+      "characterIds": [
+        "jesus",
+        "lazarus",
+        "martha"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392642/christapp/puzzles/jesus-3-jesus-wept.webp",
       "cloudinaryId": "christapp/puzzles/jesus-3-jesus-wept",
       "title": "Jesus Wept",
@@ -1056,7 +923,9 @@
     },
     {
       "id": "jesus-4",
-      "characterIds": ["jesus"],
+      "characterIds": [
+        "jesus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392644/christapp/puzzles/jesus-4-jesus-teaching-on-the-sea-shore.webp",
       "cloudinaryId": "christapp/puzzles/jesus-4-jesus-teaching-on-the-sea-shore",
       "title": "Jesus Teaching on the Sea-Shore",
@@ -1072,57 +941,10 @@
       "height": 1600
     },
     {
-      "id": "jesus-5",
-      "characterIds": ["jesus"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392647/christapp/puzzles/jesus-5-the-taking-of-christ.webp",
-      "cloudinaryId": "christapp/puzzles/jesus-5-the-taking-of-christ",
-      "title": "The Taking of Christ",
-      "author": "Caravaggio",
-      "year": 1602,
-      "source": "National Gallery of Ireland",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Caravaggio - Taking of Christ - Dublin - 2.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caravaggio_-_Taking_of_Christ_-_Dublin_-_2.jpg",
-      "width": 1600,
-      "height": 1225
-    },
-    {
-      "id": "mary-1",
-      "characterIds": ["mary"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392649/christapp/puzzles/mary-1-the-magnificat.webp",
-      "cloudinaryId": "christapp/puzzles/mary-1-the-magnificat",
-      "title": "The Magnificat",
-      "author": "James Tissot",
-      "year": 1886,
-      "dateLabel": "1886–1894",
-      "source": "Brooklyn Museum",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Brooklyn Museum - The Magnificat (Le magnificat) - James Tissot - overall .jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Magnificat_(Le_magnificat)_-_James_Tissot_-_overall_.jpg",
-      "width": 600,
-      "height": 1285
-    },
-    {
-      "id": "mary-2",
-      "characterIds": ["mary"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392650/christapp/puzzles/mary-2-the-annunciation.webp",
-      "cloudinaryId": "christapp/puzzles/mary-2-the-annunciation",
-      "title": "The Annunciation",
-      "author": "James Tissot",
-      "year": 1894,
-      "source": "Brooklyn Museum",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:TissotAnnunciation.JPG",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:TissotAnnunciation.JPG",
-      "width": 1529,
-      "height": 1200
-    },
-    {
       "id": "mary-3",
-      "characterIds": ["mary"],
+      "characterIds": [
+        "mary"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392653/christapp/puzzles/mary-3-the-holy-family.webp",
       "cloudinaryId": "christapp/puzzles/mary-3-the-holy-family",
       "title": "The Holy Family",
@@ -1138,7 +960,10 @@
     },
     {
       "id": "johnBaptist-1",
-      "characterIds": ["johnBaptist", "jesus"],
+      "characterIds": [
+        "johnBaptist",
+        "jesus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392655/christapp/puzzles/johnBaptist-1-the-baptism-of-jesus.webp",
       "cloudinaryId": "christapp/puzzles/johnBaptist-1-the-baptism-of-jesus",
       "title": "The Baptism of Jesus",
@@ -1155,7 +980,9 @@
     },
     {
       "id": "johnBaptist-2",
-      "characterIds": ["johnBaptist"],
+      "characterIds": [
+        "johnBaptist"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392658/christapp/puzzles/johnBaptist-2-the-beheading-of-saint-john-the-baptist.webp",
       "cloudinaryId": "christapp/puzzles/johnBaptist-2-the-beheading-of-saint-john-the-baptist",
       "title": "The Beheading of Saint John the Baptist",
@@ -1170,24 +997,10 @@
       "height": 1600
     },
     {
-      "id": "johnBaptist-3",
-      "characterIds": ["johnBaptist"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392660/christapp/puzzles/johnBaptist-3-saint-john-the-baptist-youth-with-a-ram.webp",
-      "cloudinaryId": "christapp/puzzles/johnBaptist-3-saint-john-the-baptist-youth-with-a-ram",
-      "title": "Saint John the Baptist (Youth with a Ram)",
-      "author": "Caravaggio",
-      "year": 1602,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Michelangelo Merisi da Caravaggio, Saint John the Baptist (Youth with a Ram) (c. 1602).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Michelangelo_Merisi_da_Caravaggio,_Saint_John_the_Baptist_(Youth_with_a_Ram)_(c._1602).jpg",
-      "width": 1176,
-      "height": 1600
-    },
-    {
       "id": "johnBaptist-4",
-      "characterIds": ["johnBaptist"],
+      "characterIds": [
+        "johnBaptist"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392662/christapp/puzzles/johnBaptist-4-the-preaching-of-saint-john-the-baptist.webp",
       "cloudinaryId": "christapp/puzzles/johnBaptist-4-the-preaching-of-saint-john-the-baptist",
       "title": "The Preaching of Saint John the Baptist",
@@ -1203,24 +1016,10 @@
       "height": 1228
     },
     {
-      "id": "peter-1",
-      "characterIds": ["peter"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392665/christapp/puzzles/peter-1-the-denial-of-saint-peter.webp",
-      "cloudinaryId": "christapp/puzzles/peter-1-the-denial-of-saint-peter",
-      "title": "The Denial of Saint Peter",
-      "author": "Caravaggio",
-      "year": 1610,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:The Denial of Saint Peter-Caravaggio (1610).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Denial_of_Saint_Peter-Caravaggio_(1610).jpg",
-      "width": 1600,
-      "height": 1153
-    },
-    {
       "id": "peter-2",
-      "characterIds": ["peter"],
+      "characterIds": [
+        "peter"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392667/christapp/puzzles/peter-2-the-crucifixion-of-saint-peter.webp",
       "cloudinaryId": "christapp/puzzles/peter-2-the-crucifixion-of-saint-peter",
       "title": "The Crucifixion of Saint Peter",
@@ -1236,7 +1035,11 @@
     },
     {
       "id": "peter-3",
-      "characterIds": ["peter", "john", "paul"],
+      "characterIds": [
+        "peter",
+        "john",
+        "paul"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392670/christapp/puzzles/peter-3-the-four-apostles.webp",
       "cloudinaryId": "christapp/puzzles/peter-3-the-four-apostles",
       "title": "The Four Apostles",
@@ -1251,25 +1054,10 @@
       "height": 1600
     },
     {
-      "id": "paul-1",
-      "characterIds": ["paul"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392673/christapp/puzzles/paul-1-the-conversion-of-saint-paul.webp",
-      "cloudinaryId": "christapp/puzzles/paul-1-the-conversion-of-saint-paul",
-      "title": "The Conversion of Saint Paul",
-      "author": "Caravaggio",
-      "year": 1600,
-      "dateLabel": "1600–1601",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Conversion on the Way to Damascus-Caravaggio (c.1600-1).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Conversion_on_the_Way_to_Damascus-Caravaggio_(c.1600-1).jpg",
-      "width": 1218,
-      "height": 1600
-    },
-    {
       "id": "paul-2",
-      "characterIds": ["paul"],
+      "characterIds": [
+        "paul"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392675/christapp/puzzles/paul-2-saint-paul-in-prison.webp",
       "cloudinaryId": "christapp/puzzles/paul-2-saint-paul-in-prison",
       "title": "Saint Paul in Prison",
@@ -1284,24 +1072,11 @@
       "height": 1600
     },
     {
-      "id": "andrew-1",
-      "characterIds": ["andrew"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392677/christapp/puzzles/andrew-1-the-crucifixion-of-saint-andrew.webp",
-      "cloudinaryId": "christapp/puzzles/andrew-1-the-crucifixion-of-saint-andrew",
-      "title": "The Crucifixion of Saint Andrew",
-      "author": "Caravaggio",
-      "year": 1607,
-      "source": "Cleveland Museum of Art",
-      "license": "CC0",
-      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-      "commonsTitle": "File:Caravaggio - The Crucifixion of Saint Andrew - Post-Restoration.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caravaggio_-_The_Crucifixion_of_Saint_Andrew_-_Post-Restoration.jpg",
-      "width": 1206,
-      "height": 1600
-    },
-    {
       "id": "andrew-2",
-      "characterIds": ["andrew", "peter"],
+      "characterIds": [
+        "andrew",
+        "peter"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392679/christapp/puzzles/andrew-2-the-calling-of-saints-peter-and-andrew.webp",
       "cloudinaryId": "christapp/puzzles/andrew-2-the-calling-of-saints-peter-and-andrew",
       "title": "The Calling of Saints Peter and Andrew",
@@ -1318,7 +1093,9 @@
     },
     {
       "id": "james-1",
-      "characterIds": ["james"],
+      "characterIds": [
+        "james"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392682/christapp/puzzles/james-1-saint-james-the-apostle.webp",
       "cloudinaryId": "christapp/puzzles/james-1-saint-james-the-apostle",
       "title": "Saint James the Apostle",
@@ -1334,42 +1111,10 @@
       "height": 1600
     },
     {
-      "id": "john-1",
-      "characterIds": ["john"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392684/christapp/puzzles/john-1-the-apostle-john.webp",
-      "cloudinaryId": "christapp/puzzles/john-1-the-apostle-john",
-      "title": "The Apostle John",
-      "author": "Girolamo Troppa",
-      "year": 1665,
-      "dateLabel": "1665–1668",
-      "source": "Statens Museum for Kunst",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Girolamo Troppa - The Apostle John - KMSst141 - Statens Museum for Kunst.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Girolamo_Troppa_-_The_Apostle_John_-_KMSst141_-_Statens_Museum_for_Kunst.jpg",
-      "width": 1210,
-      "height": 1600
-    },
-    {
-      "id": "matthew-1",
-      "characterIds": ["matthew"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392686/christapp/puzzles/matthew-1-the-calling-of-saint-matthew.webp",
-      "cloudinaryId": "christapp/puzzles/matthew-1-the-calling-of-saint-matthew",
-      "title": "The Calling of Saint Matthew",
-      "author": "Caravaggio",
-      "year": 1599,
-      "dateLabel": "1599–1600",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Caravaggio, Michelangelo Merisi da - The Calling of Saint Matthew - 1599-1600 (hi res).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caravaggio,_Michelangelo_Merisi_da_-_The_Calling_of_Saint_Matthew_-_1599-1600_(hi_res).jpg",
-      "width": 1283,
-      "height": 1200
-    },
-    {
       "id": "matthew-2",
-      "characterIds": ["matthew"],
+      "characterIds": [
+        "matthew"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392688/christapp/puzzles/matthew-2-saint-matthew-and-the-angel.webp",
       "cloudinaryId": "christapp/puzzles/matthew-2-saint-matthew-and-the-angel",
       "title": "Saint Matthew and the Angel",
@@ -1384,24 +1129,10 @@
       "height": 1600
     },
     {
-      "id": "thomas-1",
-      "characterIds": ["thomas"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392690/christapp/puzzles/thomas-1-the-incredulity-of-saint-thomas.webp",
-      "cloudinaryId": "christapp/puzzles/thomas-1-the-incredulity-of-saint-thomas",
-      "title": "The Incredulity of Saint Thomas",
-      "author": "Caravaggio",
-      "year": 1600,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Caravaggio Doubting Thomas.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caravaggio_Doubting_Thomas.jpg",
-      "width": 1070,
-      "height": 776
-    },
-    {
       "id": "thomas-2",
-      "characterIds": ["thomas"],
+      "characterIds": [
+        "thomas"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392693/christapp/puzzles/thomas-2-the-incredulity-of-saint-thomas.webp",
       "cloudinaryId": "christapp/puzzles/thomas-2-the-incredulity-of-saint-thomas",
       "title": "The Incredulity of Saint Thomas",
@@ -1416,41 +1147,10 @@
       "height": 1600
     },
     {
-      "id": "thomas-3",
-      "characterIds": ["thomas"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392695/christapp/puzzles/thomas-3-the-disbelief-of-saint-thomas.webp",
-      "cloudinaryId": "christapp/puzzles/thomas-3-the-disbelief-of-saint-thomas",
-      "title": "The Disbelief of Saint Thomas",
-      "author": "James Tissot",
-      "year": 1886,
-      "dateLabel": "1886–1894",
-      "source": "Brooklyn Museum",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Brooklyn Museum - The Disbelief of Saint Thomas (Incredulité de Saint Thomas) - James Tissot.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brooklyn_Museum_-_The_Disbelief_of_Saint_Thomas_(Incredulit%C3%A9_de_Saint_Thomas)_-_James_Tissot.jpg",
-      "width": 1064,
-      "height": 1536
-    },
-    {
-      "id": "maryMagdalene-1",
-      "characterIds": ["maryMagdalene", "martha"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392697/christapp/puzzles/maryMagdalene-1-martha-and-mary-magdalene.webp",
-      "cloudinaryId": "christapp/puzzles/maryMagdalene-1-martha-and-mary-magdalene",
-      "title": "Martha and Mary Magdalene",
-      "author": "Caravaggio",
-      "year": 1598,
-      "source": "Detroit Institute of Arts",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Michelangelo Merisi da Caravaggio - Martha and Mary Magdalene - 73.268 - Detroit Institute of Arts.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Michelangelo_Merisi_da_Caravaggio_-_Martha_and_Mary_Magdalene_-_73.268_-_Detroit_Institute_of_Arts.jpg",
-      "width": 1600,
-      "height": 1189
-    },
-    {
       "id": "maryMagdalene-2",
-      "characterIds": ["maryMagdalene"],
+      "characterIds": [
+        "maryMagdalene"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392699/christapp/puzzles/maryMagdalene-2-christ-and-saint-mary-magdalen-at-the-to.webp",
       "cloudinaryId": "christapp/puzzles/maryMagdalene-2-christ-and-saint-mary-magdalen-at-the-to",
       "title": "Christ and Saint Mary Magdalen at the Tomb",
@@ -1466,7 +1166,9 @@
     },
     {
       "id": "martha-1",
-      "characterIds": ["martha"],
+      "characterIds": [
+        "martha"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392702/christapp/puzzles/martha-1-christ-in-the-house-of-martha-and-mary.webp",
       "cloudinaryId": "christapp/puzzles/martha-1-christ-in-the-house-of-martha-and-mary",
       "title": "Christ in the House of Martha and Mary",
@@ -1481,41 +1183,10 @@
       "height": 1600
     },
     {
-      "id": "lazarus-1",
-      "characterIds": ["lazarus"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392704/christapp/puzzles/lazarus-1-the-raising-of-lazarus.webp",
-      "cloudinaryId": "christapp/puzzles/lazarus-1-the-raising-of-lazarus",
-      "title": "The Raising of Lazarus",
-      "author": "Rembrandt van Rijn",
-      "year": 1630,
-      "dateLabel": "1630–1632",
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt Harmensz. van Rijn - The Raising of Lazarus - Google Art Project.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_Harmensz._van_Rijn_-_The_Raising_of_Lazarus_-_Google_Art_Project.jpg",
-      "width": 1341,
-      "height": 1600
-    },
-    {
-      "id": "lazarus-2",
-      "characterIds": ["lazarus"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392706/christapp/puzzles/lazarus-2-the-raising-of-lazarus.webp",
-      "cloudinaryId": "christapp/puzzles/lazarus-2-the-raising-of-lazarus",
-      "title": "The Raising of Lazarus",
-      "author": "Caravaggio",
-      "year": 1609,
-      "source": "Museo Regionale, Messina",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:The Raising of Lazarus-Caravaggio (c. 1609).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Raising_of_Lazarus-Caravaggio_(c._1609).jpg",
-      "width": 1171,
-      "height": 1600
-    },
-    {
       "id": "zacchaeus-1",
-      "characterIds": ["zacchaeus"],
+      "characterIds": [
+        "zacchaeus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392708/christapp/puzzles/zacchaeus-1-christ-and-zacchaeus.webp",
       "cloudinaryId": "christapp/puzzles/zacchaeus-1-christ-and-zacchaeus",
       "title": "Christ and Zacchaeus",
@@ -1532,7 +1203,9 @@
     },
     {
       "id": "zacchaeus-2",
-      "characterIds": ["zacchaeus"],
+      "characterIds": [
+        "zacchaeus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392710/christapp/puzzles/zacchaeus-2-zacchaeus.webp",
       "cloudinaryId": "christapp/puzzles/zacchaeus-2-zacchaeus",
       "title": "Zacchaeus",
@@ -1548,7 +1221,9 @@
     },
     {
       "id": "nicodemus-1",
-      "characterIds": ["nicodemus"],
+      "characterIds": [
+        "nicodemus"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392712/christapp/puzzles/nicodemus-1-nicodemus.webp",
       "cloudinaryId": "christapp/puzzles/nicodemus-1-nicodemus",
       "title": "Nicodemus",
@@ -1565,7 +1240,9 @@
     },
     {
       "id": "judas-1",
-      "characterIds": ["judas"],
+      "characterIds": [
+        "judas"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392714/christapp/puzzles/judas-1-the-kiss-of-judas.webp",
       "cloudinaryId": "christapp/puzzles/judas-1-the-kiss-of-judas",
       "title": "The Kiss of Judas",
@@ -1581,24 +1258,10 @@
       "height": 1126
     },
     {
-      "id": "judas-2",
-      "characterIds": ["judas"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392716/christapp/puzzles/judas-2-judas-returning-the-thirty-silver-pieces.webp",
-      "cloudinaryId": "christapp/puzzles/judas-2-judas-returning-the-thirty-silver-pieces",
-      "title": "Judas Returning the Thirty Silver Pieces",
-      "author": "Rembrandt van Rijn",
-      "year": 1629,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Judas Returning the Thirty Silver Pieces - Rembrandt.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Judas_Returning_the_Thirty_Silver_Pieces_-_Rembrandt.jpg",
-      "width": 1268,
-      "height": 998
-    },
-    {
       "id": "pilate-1",
-      "characterIds": ["pilate"],
+      "characterIds": [
+        "pilate"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392718/christapp/puzzles/pilate-1-jesus-before-pilate-first-interview.webp",
       "cloudinaryId": "christapp/puzzles/pilate-1-jesus-before-pilate-first-interview",
       "title": "Jesus Before Pilate, First Interview",
@@ -1615,7 +1278,9 @@
     },
     {
       "id": "herod-1",
-      "characterIds": ["herod"],
+      "characterIds": [
+        "herod"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392721/christapp/puzzles/herod-1-the-massacre-of-the-innocents.webp",
       "cloudinaryId": "christapp/puzzles/herod-1-the-massacre-of-the-innocents",
       "title": "The Massacre of the Innocents",
@@ -1632,7 +1297,9 @@
     },
     {
       "id": "stephen-1",
-      "characterIds": ["stephen"],
+      "characterIds": [
+        "stephen"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392723/christapp/puzzles/stephen-1-the-stoning-of-saint-stephen.webp",
       "cloudinaryId": "christapp/puzzles/stephen-1-the-stoning-of-saint-stephen",
       "title": "The Stoning of Saint Stephen",
@@ -1648,7 +1315,9 @@
     },
     {
       "id": "stephen-2",
-      "characterIds": ["stephen"],
+      "characterIds": [
+        "stephen"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392725/christapp/puzzles/stephen-2-the-martyrdom-of-saint-stephen.webp",
       "cloudinaryId": "christapp/puzzles/stephen-2-the-martyrdom-of-saint-stephen",
       "title": "The Martyrdom of Saint Stephen",
@@ -1665,7 +1334,9 @@
     },
     {
       "id": "barnabas-1",
-      "characterIds": ["barnabas"],
+      "characterIds": [
+        "barnabas"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392727/christapp/puzzles/barnabas-1-saints-paul-and-barnabas-at-lystra.webp",
       "cloudinaryId": "christapp/puzzles/barnabas-1-saints-paul-and-barnabas-at-lystra",
       "title": "Saints Paul and Barnabas at Lystra",
@@ -1681,7 +1352,9 @@
     },
     {
       "id": "lydia-1",
-      "characterIds": ["lydia"],
+      "characterIds": [
+        "lydia"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392729/christapp/puzzles/lydia-1-the-baptism-of-lydia.webp",
       "cloudinaryId": "christapp/puzzles/lydia-1-the-baptism-of-lydia",
       "title": "The Baptism of Lydia",
@@ -1697,7 +1370,9 @@
     },
     {
       "id": "cornelius-2",
-      "characterIds": ["cornelius"],
+      "characterIds": [
+        "cornelius"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392733/christapp/puzzles/cornelius-2-the-vision-of-cornelius-the-centurion.webp",
       "cloudinaryId": "christapp/puzzles/cornelius-2-the-vision-of-cornelius-the-centurion",
       "title": "The Vision of Cornelius the Centurion",
@@ -1713,7 +1388,10 @@
     },
     {
       "id": "samson-1",
-      "characterIds": ["samson", "delilah"],
+      "characterIds": [
+        "samson",
+        "delilah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392775/christapp/puzzles/samson-1-samson-and-delilah.webp",
       "cloudinaryId": "christapp/puzzles/samson-1-samson-and-delilah",
       "title": "Samson and Delilah",
@@ -1729,40 +1407,10 @@
       "height": 1600
     },
     {
-      "id": "samson-2",
-      "characterIds": ["samson"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392777/christapp/puzzles/samson-2-the-blinding-of-samson.webp",
-      "cloudinaryId": "christapp/puzzles/samson-2-the-blinding-of-samson",
-      "title": "The Blinding of Samson",
-      "author": "Rembrandt van Rijn",
-      "year": 1636,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt - The Blinding of Samson - WGA19097.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_-_The_Blinding_of_Samson_-_WGA19097.jpg",
-      "width": 1276,
-      "height": 957
-    },
-    {
-      "id": "delilah-1",
-      "characterIds": ["delilah", "samson"],
-      "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791392779/christapp/puzzles/delilah-1-samson-and-delilah.webp",
-      "cloudinaryId": "christapp/puzzles/delilah-1-samson-and-delilah",
-      "title": "Samson and Delilah",
-      "author": "Rembrandt van Rijn",
-      "year": 1628,
-      "source": "Wikimedia Commons",
-      "license": "Public domain",
-      "licenseUrl": null,
-      "commonsTitle": "File:Rembrandt - Samson and Delilah - WGA19098.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_-_Samson_and_Delilah_-_WGA19098.jpg",
-      "width": 828,
-      "height": 1001
-    },
-    {
       "id": "gideon-1",
-      "characterIds": ["gideon"],
+      "characterIds": [
+        "gideon"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791393152/christapp/puzzles/gideon-1-gideon-defeats-the-midianites.webp",
       "cloudinaryId": "christapp/puzzles/gideon-1-gideon-defeats-the-midianites",
       "title": "Gideon Defeats the Midianites",
@@ -1778,7 +1426,9 @@
     },
     {
       "id": "jonah-1",
-      "characterIds": ["jonah"],
+      "characterIds": [
+        "jonah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791393154/christapp/puzzles/jonah-1-jonah-and-the-whale.webp",
       "cloudinaryId": "christapp/puzzles/jonah-1-jonah-and-the-whale",
       "title": "Jonah and the Whale",
@@ -1794,7 +1444,9 @@
     },
     {
       "id": "jonah-2",
-      "characterIds": ["jonah"],
+      "characterIds": [
+        "jonah"
+      ],
       "url": "https://res.cloudinary.com/dfuu5idjp/image/upload/v1791393156/christapp/puzzles/jonah-2-jonah-leaves-the-whale-s-belly.webp",
       "cloudinaryId": "christapp/puzzles/jonah-2-jonah-leaves-the-whale-s-belly",
       "title": "Jonah Leaves the Whale's Belly",

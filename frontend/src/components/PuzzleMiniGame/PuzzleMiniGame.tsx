@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Dices, Frame, Lightbulb, LogOut, Magnet, Maximize2, Search, Volume2, VolumeX } from "lucide-react";
+import { Dices, Frame, ImagePlus, Images, Lightbulb, LogOut, Magnet, Maximize2, Search, Trash2, Volume2, VolumeX } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { bibleHref } from "@/components/GuessCharacterMiniGame/guessBible";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { deletePuzzleImage } from "@/lib/puzzleImages";
 import PuzzleBoard, { type PuzzleBoardHandle } from "./PuzzleBoard";
+import PuzzleCustomImage from "./PuzzleCustomImage";
 import { suggestCharacters } from "./puzzleSearch";
 import { formatDuration, placedCount } from "./puzzleView";
 import type { PieceCount, PuzzleLang, PuzzleMode, PuzzleSocket } from "./puzzleTypes";
@@ -147,7 +150,14 @@ export default function PuzzleMiniGame({
     [roomId],
   );
 
-  const imagesById = useMemo(() => new Map((catalog?.images ?? []).map((i) => [i.id, i])), [catalog]);
+  // каталог + картинки користувачів, вибрані чи складані в цій сесії (їх нема в каталозі)
+  const extraImages = session?.extraImages;
+  const imagesById = useMemo(
+    () => new Map([...(catalog?.images ?? []), ...(extraImages ?? [])].map((i) => [i.id, i])),
+    [catalog, extraImages],
+  );
+  const isAdmin = useIsAdmin() === true;
+  const [customView, setCustomView] = useState<"upload" | "mine" | null>(null);
   const charactersById = useMemo(() => new Map((catalog?.characters ?? []).map((c) => [c.id, c])), [catalog]);
   const suggestions = useMemo(
     () => suggestCharacters(catalog?.characters ?? [], query, lang),
@@ -172,8 +182,24 @@ export default function PuzzleMiniGame({
   const elapsed = puzzle ? Math.max(0, (puzzle.finishedAt ?? (clock || puzzle.startedAt)) - puzzle.startedAt) : 0;
   const reveal = session?.reveal ?? null;
 
-  const imageCaption = (image: { title: string; author: string; year: number; dateLabel?: string }) =>
-    t("imageCaption", { title: image.title, author: image.author, year: image.dateLabel ?? image.year });
+  const imageCaption = (image: { title: string; author: string; year: number; dateLabel?: string; userMade?: boolean; authorName?: string | null }) =>
+    image.userMade
+      ? image.authorName
+        ? t("custom.byAuthor", { author: image.authorName })
+        : t("custom.anonymous")
+      : t("imageCaption", { title: image.title, author: image.author, year: image.year ? (image.dateLabel ?? image.year) : "" });
+
+  /** Адмін видаляє чужу (чи будь-яку) картинку прямо з гри й одразу обирає іншу випадкову. */
+  const adminDelete = async (id: string) => {
+    if (!window.confirm(t("custom.deleteConfirm"))) return;
+    try {
+      await deletePuzzleImage(id);
+      if (phase === "lobby") select("random");
+      else toLobby();
+    } catch {
+      /* права перевіряє сервер; помилку не показуємо окремо */
+    }
+  };
 
   // ───────────── лобі ─────────────
 
@@ -220,6 +246,14 @@ export default function PuzzleMiniGame({
                 </button>
               ))}
             </div>
+            <div className={styles.customRow}>
+              <button type="button" className={styles.secondaryButton} onClick={() => setCustomView("upload")}>
+                <ImagePlus size={15} aria-hidden /> {t("custom.button")}
+              </button>
+              <button type="button" className={styles.secondaryButton} onClick={() => setCustomView("mine")}>
+                <Images size={15} aria-hidden /> {t("custom.mine")}
+              </button>
+            </div>
             {pickTab === "random" ? (
               <button type="button" className={styles.secondaryButton} onClick={() => select("random")}>
                 {selection?.mode === "random" ? t("randomAgain") : t("randomPick")}
@@ -265,6 +299,21 @@ export default function PuzzleMiniGame({
               </div>
             )}
           </>
+        ) : null}
+
+        {selectedImage?.userMade ? (
+          <figure className={styles.preview}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- прев'ю картинки користувача */}
+            <img src={selectedImage.url} alt={t("custom.previewAlt")} className={styles.previewImage} />
+            <figcaption>
+              <span className={styles.muted}>{imageCaption(selectedImage)}</span>
+              {isAdmin ? (
+                <button type="button" className={styles.linkButton} onClick={() => void adminDelete(selectedImage.id)}>
+                  <Trash2 size={13} aria-hidden /> {t("custom.adminDelete")}
+                </button>
+              ) : null}
+            </figcaption>
+          </figure>
         ) : null}
 
         {selectedImage && selectedCharacter ? (
@@ -357,6 +406,8 @@ export default function PuzzleMiniGame({
           meAvatarUrl={myAvatarUrl}
           peerAvatarUrl={peerAvatarUrl}
           loadingLabel={t("loadingImage")}
+          errorLabel={t("imageFailed")}
+          ariaLabel={t("title")}
           onGrab={grab}
           onMove={move}
           onDrop={drop}
@@ -448,16 +499,30 @@ export default function PuzzleMiniGame({
                 </div>
               ) : null}
               <p className={styles.credit}>
-                {t(reveal.image.source === "Wikimedia Commons" ? "creditLine" : "creditLineSource", {
-                  author: reveal.image.author,
-                  title: reveal.image.title,
-                  year: reveal.image.dateLabel ?? reveal.image.year,
-                  source: reveal.image.source,
-                  license: reveal.image.license,
-                })}{" "}
-                <a href={reveal.image.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  {t("creditLink")}
-                </a>
+                {reveal.image.userMade ? (
+                  imageCaption(reveal.image)
+                ) : (
+                  <>
+                    {t(reveal.image.source === "Wikimedia Commons" ? "creditLine" : "creditLineSource", {
+                      author: reveal.image.author,
+                      title: reveal.image.title,
+                      year: reveal.image.dateLabel ?? reveal.image.year,
+                      source: reveal.image.source,
+                      license: reveal.image.license,
+                    })}{" "}
+                    <a href={reveal.image.sourceUrl} target="_blank" rel="noopener noreferrer">
+                      {t("creditLink")}
+                    </a>
+                  </>
+                )}
+                {reveal.image.userMade && isAdmin ? (
+                  <>
+                    {" "}
+                    <button type="button" className={styles.linkButton} onClick={() => void adminDelete(reveal.image.id)}>
+                      <Trash2 size={13} aria-hidden /> {t("custom.adminDelete")}
+                    </button>
+                  </>
+                ) : null}
               </p>
               <div className={styles.actions}>
                 <button type="button" className={styles.primaryButton} onClick={again}>
@@ -481,6 +546,7 @@ export default function PuzzleMiniGame({
   if (showStage) return renderStage();
 
   return (
+    <>
     <div className={styles.overlay} onClick={onClose}>
       <div
         className={styles.modal}
@@ -498,5 +564,9 @@ export default function PuzzleMiniGame({
         {!session || !catalog ? <p className={styles.waiting}>{t("connecting")}</p> : renderLobby()}
       </div>
     </div>
+    {customView ? (
+      <PuzzleCustomImage mode={customView} onClose={() => setCustomView(null)} onUploaded={() => undefined} />
+    ) : null}
+    </>
   );
 }

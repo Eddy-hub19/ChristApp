@@ -17,6 +17,7 @@ import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
+import { PuzzleUserImagesService } from 'src/chat/puzzle/user-images/puzzle-user-images.service';
 import { activeMemberWhere, isRecentlyActive } from './member-activity';
 import { ServerMetricsService } from './server-metrics.service';
 import { CpuBenchmarkService } from './cpu-benchmark.service';
@@ -37,6 +38,7 @@ export class AdminController {
     private readonly dbLatency: DbLatencyService,
     private readonly flockRubies: FlockRubiesService,
     private readonly flockGateway: FlockGateway,
+    private readonly puzzleImages: PuzzleUserImagesService,
   ) {}
 
   private normalizeUsername(value: string | null | undefined): string {
@@ -179,6 +181,32 @@ export class AdminController {
     return this.flockGateway.mapAdmin();
   }
 
+  /** «Пазли»: все загруженные пользователями картинки (превью, автор, дата). */
+  @Get('puzzle-images')
+  listPuzzleImages() {
+    return this.puzzleImages.listAll();
+  }
+
+  /** Заблокированные для загрузки пазлов. Маршрут до `puzzle-images/:id`, чтобы не путаться с id. */
+  @Get('puzzle-image-blocks')
+  listPuzzleBlocks() {
+    return this.puzzleImages.listBlocks();
+  }
+
+  @Delete('puzzle-images/:id')
+  async deletePuzzleImage(@Param('id') id: string, @Req() req: Request) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    await this.puzzleImages.remove(id, actor.id, true);
+    return { deleted: true };
+  }
+
+  /** Заблокировать (blocked = true) или разблокировать пользователю загрузку своих картинок. */
+  @Post('puzzle-image-blocks/:userId')
+  setPuzzleBlock(@Param('userId') userId: string, @Body() body: { blocked?: unknown }) {
+    return this.puzzleImages.setBlocked(userId, body?.blocked !== false);
+  }
+
   /** Усі чинні муті «Отари» (userId -> until): для фільтра «Заглушені». Маршрут окремий від `members/:id/...`. */
   @Get('flock-mutes')
   flockMutes() {
@@ -228,6 +256,8 @@ export class AdminController {
       throw new ForbiddenException('Cannot delete another admin account');
     }
 
+    // файлы пользовательских пазлов в Cloudinary удаляем до каскадного удаления строк
+    await this.puzzleImages.removeAllOfUser(target.id);
     await this.prisma.user.delete({ where: { id: target.id } });
     authUserCache.invalidate(target.id);
     return {

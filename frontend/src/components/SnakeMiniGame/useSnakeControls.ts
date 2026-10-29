@@ -19,7 +19,8 @@ export function useKeyboardDirection(enabled: boolean, onDirection: (dir: Dir) =
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      const dir = KEY_TO_DIR[event.key.toLowerCase()];
+      // WASD по физической клавише (event.code): работает и на русской/украинской раскладке
+      const dir = CODE_TO_DIR[event.code] ?? KEY_TO_DIR[event.key.toLowerCase()];
       if (!dir) return;
       if (event.key.startsWith("Arrow")) event.preventDefault();
       onDirection(dir);
@@ -28,6 +29,17 @@ export function useKeyboardDirection(enabled: boolean, onDirection: (dir: Dir) =
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [enabled, onDirection]);
 }
+
+const CODE_TO_DIR: Record<string, Dir> = {
+  ArrowUp: "up",
+  KeyW: "up",
+  ArrowDown: "down",
+  KeyS: "down",
+  ArrowLeft: "left",
+  KeyA: "left",
+  ArrowRight: "right",
+  KeyD: "right",
+};
 
 const SWIPE_MIN_PX = 18;
 

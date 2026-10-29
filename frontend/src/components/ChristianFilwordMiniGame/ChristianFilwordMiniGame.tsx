@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import styles from "./ChristianFilwordMiniGame.module.scss";
 
 type ChristianFilwordMiniGameProps = {
@@ -31,7 +32,7 @@ type GeneratedPuzzle = {
 const DESKTOP_GRID_SIZE = 12;
 const MOBILE_GRID_SIZE = 8;
 
-const WORD_ENTRIES: WordEntry[] = [
+const WORDS_RU: WordEntry[] = [
   { word: "ЛЮБОВЬ", clue: "Главная заповедь и сущность Бога." },
   {
     word: "ПУСТЫНЯ",
@@ -52,6 +53,32 @@ const WORD_ENTRIES: WordEntry[] = [
   { word: "ГОЛУБЬ", clue: "Символ мира, прилетевший к Ною после потопа." },
   { word: "СИНАЙ", clue: "Гора, на которой Моисей получил скрижали Завета." },
 ];
+const WORDS_UA: WordEntry[] = [
+  { word: "ЛЮБОВ", clue: "Головна заповідь і суть Бога." },
+  { word: "ПУСТЕЛЯ", clue: "Місце, де сталося чудо розмноження хлібів і риби." },
+  { word: "МОЛИТВА", clue: "Тиха розмова людини зі Створителем." },
+  { word: "МАННА", clue: "Хліб, що зійшов з неба для ізраїльтян." },
+  { word: "ПАСТИР", clue: "Той, хто веде стадо й дбає про кожну овечку." },
+  { word: "АНГЕЛ", clue: "Вісник Божий, що приносить добру новину." },
+  { word: "БУТТЯ", clue: "Перша книга Біблії про початок усього." },
+  { word: "БЛАГОДАТЬ", clue: "Дар Божий, що даний задарма, а не за заслуги." },
+  { word: "ГОЛУБ", clue: "Символ миру, що прилетів до Ноя після потопу." },
+  { word: "СІНАЙ", clue: "Гора, на якій Мойсей отримав скрижалі Завіту." },
+];
+
+const WORDS_EN: WordEntry[] = [
+  { word: "LOVE", clue: "The greatest commandment and the nature of God." },
+  { word: "DESERT", clue: "Where the miracle of the loaves and fishes took place." },
+  { word: "PRAYER", clue: "A quiet conversation between a person and the Creator." },
+  { word: "MANNA", clue: "Bread that came down from heaven for the Israelites." },
+  { word: "SHEPHERD", clue: "One who leads the flock and cares for every sheep." },
+  { word: "ANGEL", clue: "God's messenger who brings good news." },
+  { word: "GENESIS", clue: "The first book of the Bible, about the beginning of everything." },
+  { word: "GRACE", clue: "God's gift, given freely and not for merit." },
+  { word: "DOVE", clue: "A symbol of peace that flew to Noah after the flood." },
+  { word: "SINAI", clue: "The mountain where Moses received the tablets of the Covenant." },
+];
+
 
 const DIRECTIONS: Direction[] = [
   { dr: 0, dc: 1 },
@@ -64,40 +91,14 @@ const DIRECTIONS: Direction[] = [
   { dr: 1, dc: -1 },
 ];
 
-const FILL_ALPHABET = [
-  "А",
-  "Б",
-  "В",
-  "Г",
-  "Д",
-  "Е",
-  "Ж",
-  "З",
-  "И",
-  "Й",
-  "К",
-  "Л",
-  "М",
-  "Н",
-  "О",
-  "П",
-  "Р",
-  "С",
-  "Т",
-  "У",
-  "Ф",
-  "Х",
-  "Ц",
-  "Ч",
-  "Ш",
-  "Щ",
-  "Ъ",
-  "Ы",
-  "Ь",
-  "Э",
-  "Ю",
-  "Я",
-];
+const ALPHABETS: Record<"ru" | "ua" | "en", string[]> = {
+  ru: "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split(""),
+  ua: "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ".split(""),
+  en: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""),
+};
+const WORDS: Record<"ru" | "ua" | "en", WordEntry[]> = { ru: WORDS_RU, ua: WORDS_UA, en: WORDS_EN };
+/** Алфавит текущей генерации (задаётся в generatePuzzle: генерация синхронная). */
+let fillAlphabet = ALPHABETS.ru;
 
 function keyOf(point: Point) {
   return `${point.row}:${point.col}`;
@@ -178,7 +179,7 @@ function fillGridWithRandomLetters(grid: string[][], gridSize: number) {
     for (let col = 0; col < gridSize; col += 1) {
       if (!grid[row][col]) {
         grid[row][col] =
-          FILL_ALPHABET[Math.floor(Math.random() * FILL_ALPHABET.length)];
+          fillAlphabet[Math.floor(Math.random() * fillAlphabet.length)];
       }
     }
   }
@@ -222,8 +223,9 @@ function tryGenerateGrid(
   return grid;
 }
 
-function generatePuzzle(gridSize: number): GeneratedPuzzle {
-  const eligibleEntries = WORD_ENTRIES.filter(
+function generatePuzzle(gridSize: number, words: WordEntry[], alphabet: string[]): GeneratedPuzzle {
+  fillAlphabet = alphabet;
+  const eligibleEntries = words.filter(
     (entry) => entry.word.length <= gridSize,
   );
 
@@ -272,6 +274,10 @@ export default function ChristianFilwordMiniGame({
   const [foundWords, setFoundWords] = useState<Set<string>>(() => new Set());
   const [foundCells, setFoundCells] = useState<Set<string>>(() => new Set());
   const [gridSize, setGridSize] = useState(DESKTOP_GRID_SIZE);
+  const t = useTranslations("filword");
+  const locale = useLocale();
+  const lang: "ru" | "ua" | "en" = locale === "ru" || locale === "en" ? locale : "ua";
+  const words = WORDS[lang];
 
   const dragActiveRef = useRef(false);
   const startPointRef = useRef<Point | null>(null);
@@ -298,11 +304,11 @@ export default function ChristianFilwordMiniGame({
         grid: Array.from({ length: gridSize }, () =>
           Array.from({ length: gridSize }, () => ""),
         ),
-        entries: WORD_ENTRIES.filter((entry) => entry.word.length <= gridSize),
+        entries: words.filter((entry) => entry.word.length <= gridSize),
       };
     }
-    return generatePuzzle(gridSize);
-  }, [gridSize, open, seed]);
+    return generatePuzzle(gridSize, words, ALPHABETS[lang]);
+  }, [gridSize, open, seed, words, lang]);
 
   const grid = puzzle.grid;
   const puzzleEntries = puzzle.entries;
@@ -461,16 +467,16 @@ export default function ChristianFilwordMiniGame({
         className={styles.card}
         role="dialog"
         aria-modal="true"
-        aria-label="Христианский филворд"
+        aria-label={t("title")}
         onClick={(event) => event.stopPropagation()}
       >
         <div className={styles.topRow}>
-          <p className={styles.title}>Христианский филворд</p>
+          <p className={styles.title}>{t("title")}</p>
           <button
             type="button"
             className={styles.close}
             onClick={onClose}
-            aria-label="Закрыть"
+            aria-label={t("close")}
           >
             ×
           </button>
@@ -478,14 +484,14 @@ export default function ChristianFilwordMiniGame({
 
         <div className={styles.progressRow}>
           <span className={styles.progressLabel}>
-            Найдено: {foundWords.size}/{puzzleEntries.length}
+            {t("found", { found: foundWords.size, total: puzzleEntries.length })}
           </span>
           <button
             type="button"
             className={styles.resetButton}
             onClick={resetGame}
           >
-            Новая сетка
+            {t("newGrid")}
           </button>
         </div>
         <div className={styles.progressTrack}>
@@ -542,7 +548,7 @@ export default function ChristianFilwordMiniGame({
         </div>
 
         <p className={styles.selectionPreview}>
-          Выделение: {selectedWord || "—"}
+          {t("selection", { word: selectedWord || "—" })}
         </p>
 
         <div className={styles.clues}>

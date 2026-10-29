@@ -5,6 +5,8 @@ import {
   charactersWithImages,
   getPuzzleImage,
   imagesOfCharacter,
+  USER_IMAGE_WEIGHT,
+  userPuzzleImageList,
   type PuzzleImage,
 } from './data/puzzle-images';
 import {
@@ -83,6 +85,8 @@ type Session = {
   phase: PuzzlePhase;
   count: PieceCount;
   selection: Selection | null;
+  /** Картинки користувачів, що вибрані чи складаються в цій сесії: клієнту їх нема в каталозі, а видалення автором не ламає партію. */
+  extra: Map<string, PuzzleImage>;
   puzzle: Puzzle | null;
   lastMoveAt: Record<string, number>;
   lastTouch: number;
@@ -124,6 +128,7 @@ export class PuzzleManager {
         phase: 'lobby',
         count: 24,
         selection: null,
+        extra: new Map(),
         puzzle: null,
         lastMoveAt: {},
         lastTouch: this.now(),
@@ -211,6 +216,17 @@ export class PuzzleManager {
       if (!candidate || imagesOfCharacter(candidate.id).length === 0) return;
       character = candidate.id;
     } else if (mode === 'random') {
+      // частина випадкових виборів - картинка користувача (вага в USER_IMAGE_WEIGHT), не та сама підряд
+      const mine = userPuzzleImageList().filter(
+        (i) => i.id !== s.selection?.imageId,
+      );
+      if (mine.length > 0 && this.rng() < USER_IMAGE_WEIGHT) {
+        const picked = this.pickOf(mine);
+        s.extra.set(picked.id, picked);
+        s.selection = { mode: 'random', characterId: '', imageId: picked.id };
+        this.broadcast(s);
+        return;
+      }
       const pool = charactersWithImages();
       if (pool.length === 0) return;
       character = this.pickOf(pool).id;
@@ -248,7 +264,8 @@ export class PuzzleManager {
   start(roomId: string, players: Players, userId: string, solo: boolean) {
     const s = this.find(roomId, players, userId, solo);
     if (!s || !this.canSetup(s, userId) || !s.selection) return;
-    const image = getPuzzleImage(s.selection.imageId);
+    const image =
+      getPuzzleImage(s.selection.imageId) ?? s.extra.get(s.selection.imageId);
     if (!image) return;
     this.begin(s, image);
     this.broadcast(s);
@@ -258,7 +275,8 @@ export class PuzzleManager {
   again(roomId: string, players: Players, userId: string, solo: boolean) {
     const s = this.find(roomId, players, userId, solo);
     if (!s || s.phase === 'lobby' || !s.selection) return;
-    const image = getPuzzleImage(s.selection.imageId);
+    const image =
+      getPuzzleImage(s.selection.imageId) ?? s.extra.get(s.selection.imageId);
     if (!image) return;
     this.begin(s, image);
     this.broadcast(s);
@@ -447,6 +465,7 @@ export class PuzzleManager {
   // ───────────── життєвий цикл ─────────────
 
   private begin(s: Session, image: PuzzleImage) {
+    if (image.userMade) s.extra.set(image.id, image);
     const layout = layoutFor(s.count, image.width, image.height);
     const total = layout.cols * layout.rows;
     const slots = freeSlots(layout, this.rng, 'random');
@@ -629,7 +648,9 @@ export class PuzzleManager {
 
   private serialize(s: Session) {
     const puzzle = s.puzzle;
-    const image = puzzle ? getPuzzleImage(puzzle.imageId) : undefined;
+    const image = puzzle
+      ? (getPuzzleImage(puzzle.imageId) ?? s.extra.get(puzzle.imageId))
+      : undefined;
     const done = s.phase === 'done' && puzzle && image;
     const character =
       done && s.selection ? getCharacter(s.selection.characterId) : undefined;
@@ -643,6 +664,9 @@ export class PuzzleManager {
       count: s.count,
       counts: PIECE_COUNTS,
       selection: s.selection,
+      extraImages: [...s.extra.values()].filter(
+        (i) => i.id === s.selection?.imageId || i.id === puzzle?.imageId,
+      ),
       puzzle: puzzle
         ? {
             seed: puzzle.seed,
