@@ -1488,21 +1488,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 {paidIds.map((i) => skinButton(i))}
               </div>
             ) : null}
-            {premiumRows.length > 0 ? (
-              <>
-                <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
-                {premiumRows.map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("premium")}>
-                    {row.map((i) => skinButton(i))}
-                  </div>
-                ))}
-              </>
-            ) : null}
             {specialIds.length > 0 ? (
               <>
                 <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
                 {splitRows(specialIds).map((row, n) => (
                   <div key={row[0]} className={styles.skins} style={n > 0 ? { marginTop: 6 } : undefined} role="radiogroup" aria-label={t("special")}>
+                    {row.map((i) => skinButton(i))}
+                  </div>
+                ))}
+              </>
+            ) : null}
+            {premiumRows.length > 0 ? (
+              <>
+                <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
+                {premiumRows.map((row, n) => (
+                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("premium")}>
                     {row.map((i) => skinButton(i))}
                   </div>
                 ))}
