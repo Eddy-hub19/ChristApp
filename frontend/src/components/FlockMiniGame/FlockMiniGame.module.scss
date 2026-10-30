@@ -1137,16 +1137,37 @@
 .artifactPreviewRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
   font-weight: 600;
 }
 .artifactPreviewRow > span {
   flex: 1;
+  min-width: 0;
+}
+.artifactTakeOff {
+  flex: none;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 17px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.96);
+  }
 }
 .artifacts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 6px;
 }
 .artifact {
@@ -1154,8 +1175,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 8px 6px 10px;
+  gap: 2px;
+  padding: 6px 6px 8px;
   border-radius: 12px;
   border: 2px solid color-mix(in srgb, #c98a00 35%, transparent);
   background: color-mix(in srgb, #f2b61c 9%, transparent);
@@ -1165,16 +1186,16 @@
   cursor: pointer;
 }
 .artifact img {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
 }
 .artifact strong {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .artifactDesc {
-  font-size: 11px;
-  line-height: 1.25;
+  font-size: 10.5px;
+  line-height: 1.2;
   opacity: 0.75;
 }
 .artifactLocked img {

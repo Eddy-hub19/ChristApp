@@ -1371,10 +1371,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <>
     <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
     <div className={styles.artifactPreviewRow}>
-      <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
+      <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={64} />
       <span>{previewArtifact !== null ? t(`artifacts.items.${previewArtifact}.name`) : artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
       {artifact > 0 ? (
-        <button type="button" className={styles.secondary} onClick={() => wearArtifact(0)}>
+        <button type="button" className={styles.artifactTakeOff} onClick={() => wearArtifact(0)}>
           {t("artifacts.takeOff")}
         </button>
       ) : null}
@@ -1394,7 +1394,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             onClick={() => openArtifact(id)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
+            <img src={artifactIconSrc(id) ?? ""} alt="" width={36} height={36} loading="lazy" decoding="async" />
             <strong>{name}</strong>
             <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`, artifactParams)}</span>
             {owned ? (
