@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EagleEyeIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
-import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -16,6 +16,7 @@ import { FlockClient, type CircleEndInfo, type DeathInfo, type FlockMode, type F
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
 import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
+import { PERK_ICON, perkList, perksOf } from "./flockSkinPerks";
 import FlockInvite from "./FlockInvite";
 import { CUSTOM_COOLDOWN_MS, CUSTOM_MAX_LEN, loadHidePhrases, PHRASES, saveHidePhrases, toPhraseLang } from "./flockPhrases";
 import { isResumable, loadFlockSession } from "./flockSession";
@@ -212,6 +213,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [notice, setNotice] = useState<FlockNotice>(null);
   /** Разовый бонус за первый вход (показывается один раз в лобби). */
   const [entryBonus, setEntryBonus] = useState(0);
+  /** Нагорода за колекцію преміум: з входу (/me) или з покупки последнего скина. */
+  const [collectionAward, setCollectionAward] = useState<{ amount: number; fromBuy: boolean } | null>(null);
   const [streakAward, setStreakAward] = useState(0);
   const [streakAwardDay, setStreakAwardDay] = useState(0);
   const [reconnectLeft, setReconnectLeft] = useState(0);
@@ -325,6 +328,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       setMe(data);
       if (data.entryBonus) setEntryBonus(data.entryBonus);
+      if (data.premiumCollection) setCollectionAward({ amount: data.premiumCollection, fromBuy: false });
       if (data.streakAward) {
         setStreakAward(data.streakAward);
         setStreakAwardDay(data.streakAwardDay ?? 0);
@@ -420,7 +424,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setCircleEnd(null);
     setRoundWait(null);
     setModesOpen(false);
-    clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0, mode);
+    clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0, mode, perksOf(me?.config.game, skin));
   }, [skin, artifact, me]);
 
   // секунды на карточке итогов и в подсказке «раунд ещё идёт» тикают раз в 500 мс
@@ -510,7 +514,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setBuyError(null);
     try {
       const res = await buyFlockSkin(i);
-      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b) } : m));
+      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
+      if (res.premiumCollection) setCollectionAward({ amount: res.premiumCollection, fromBuy: true });
       setSkin(i);
       setPreviewSkin(null);
       setConfirming(false);
@@ -525,7 +530,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const ownedArtifacts = me?.ownedArtifacts ?? [];
-  const artifactPrice = me?.config.artifactPrice ?? 100;
+  const artifactPrice = me?.config.artifactPrice ?? 350;
   const artifactParams = artifactDescParams(me?.config.game);
 
   /** Тап по плитке: купленный - надеть/снять, не купленный - панель покупки. */
@@ -570,6 +575,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const paidIds = visibleSkinIds(PAID_SKIN_IDS, hiddenSkins, ownedSkins);
   const premiumRows = PREMIUM_SKIN_ROWS.map((row) => visibleSkinIds(row, hiddenSkins, ownedSkins)).filter((row) => row.length > 0);
   const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
+  /** Премиум-скины, которые сейчас в продаже (без снятых): их надо собрать для награды. */
+  const collectionIds = PREMIUM_SKIN_IDS.filter((id) => !hiddenSkins.includes(id));
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
 
@@ -589,7 +596,22 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const priceOf = (i: number) =>
-    isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 40) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 60) : (me?.config.skinPrice ?? 20);
+    isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 150) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 200) : (me?.config.skinPrice ?? 50);
+
+  /** Строки бонуса скина с иконкой («+10% радіус підбору»). */
+  const perkLines = (id: number) => {
+    const list = perkList(me?.config.game, id);
+    if (list.length === 0) return null;
+    return (
+      <ul className={styles.perkLines}>
+        {list.map((p) => (
+          <li key={p.key}>
+            <span aria-hidden>{PERK_ICON[p.key]}</span> {t(`perks.${p.key}`, { v: p.value })}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
@@ -604,7 +626,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={() => openSkin(i)}
       >
-        <SkinPreview skinId={i} artifactId={artifact} />
+        <SkinPreview skinId={i} />
+        {isSpecialSkin(i) && perkList(me?.config.game, i).length > 0 ? (
+          <span className={styles.perkBadge} title={t("premiumCollection.perkBadge")} aria-hidden>
+            +
+          </span>
+        ) : null}
         {locked ? (
           <>
             <span className={styles.lockBadge}>
@@ -1465,11 +1492,22 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {premiumRows.length > 0 ? (
               <>
                 <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
+                {me && !me.premiumCollectionClaimed ? (
+                  <p className={styles.collectHint}>
+                    <span>{t("premiumCollection.collectHint", { count: me.config.premiumCollectionReward ?? 300 })}</span>
+                    <strong>{t("premiumCollection.collectProgress", { n: collectionIds.filter((id) => me.ownedSkins.includes(id)).length, m: collectionIds.length })}</strong>
+                  </p>
+                ) : null}
                 {premiumRows.map((row, n) => (
                   <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("premium")}>
                     {row.map((i) => skinButton(i))}
                   </div>
                 ))}
+                {collectionAward?.fromBuy ? (
+                  <p className={styles.notice} role="status">
+                    {t("premiumCollection.collectDone", { count: collectionAward.amount })}
+                  </p>
+                ) : null}
               </>
             ) : null}
             {specialIds.length > 0 ? (
@@ -1482,11 +1520,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 ))}
               </>
             ) : null}
+            {previewSkin === null && isSpecialSkin(skin) && perkList(me?.config.game, skin).length > 0 ? (
+              <div className={styles.perkPanel}>
+                <strong>{t(`skins.${skin}`)}</strong>
+                {perkLines(skin)}
+              </div>
+            ) : null}
             {previewSkin !== null ? (
               <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
                 <SkinPreview skinId={previewSkin} artifactId={artifact} size={84} />
                 <div className={styles.buyInfo}>
                   <strong>{t(`skins.${previewSkin}`)}</strong>
+                  {perkLines(previewSkin)}
                   {(() => {
                     const price = priceOf(previewSkin);
                     const missing = Math.max(0, price - (me?.rubies ?? 0));
@@ -1542,6 +1587,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <FlockDailyBoard initial={me?.daily} />
 
             {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
+            {collectionAward && !collectionAward.fromBuy ? <p className={styles.notice}>{t("premiumCollection.collectDone", { count: collectionAward.amount })}</p> : null}
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}

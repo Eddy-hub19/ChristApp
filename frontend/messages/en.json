@@ -1640,6 +1640,26 @@
       "title": "Flock — play together with friends",
       "description": "A shared arena: graze, grow and hide from wolves behind bushes. Join with one tap.",
       "imageAlt": "Flock: sheep and wolves on a green meadow"
+    },
+    "perks": {
+      "foodReach": "+{v}% pickup radius",
+      "decaySlow": "Mass melts {v}% slower",
+      "speed": "+{v}% speed",
+      "bonusDuration": "Pickups last {v}% longer",
+      "spawnBoostBonus": "Spawn boost +{v} pp",
+      "spawnBoostMs": "Spawn boost lasts {v} s longer",
+      "foodMass": "+{v}% mass from food",
+      "grassFlowerMass": "+{v}% mass from grass and flowers",
+      "shieldBonusMs": "Spawn shield {v} s longer",
+      "sprintBurnLess": "Sprint burns {v}% less",
+      "freezeLess": "Freeze on you is {v}% shorter",
+      "puddleLess": "Puddles slow you {v}% less"
+    },
+    "premiumCollection": {
+      "collectHint": "Collect them all: +{count} rubies",
+      "collectProgress": "{n} of {m}",
+      "collectDone": "Premium collection complete! +{count} rubies",
+      "perkBadge": "Skin bonus"
     }
   },
   "games": {

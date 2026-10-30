@@ -10,6 +10,8 @@ import {
   isSelectableSkin,
   ARTIFACT,
   isArtifactId,
+  skinPerkOf,
+  type SkinPerk,
   type MapLayout,
   type ThornCfg,
   type BonusKind,
@@ -23,6 +25,8 @@ const CHUNKS = Math.ceil(C.worldSize / C.chunkSize);
 export type Rng = () => number;
 
 /** Додаткова відстань підбору їжі понад радіус клітини (візуальний дотик до спрайта). */
+/** Пустий бонус скіна (боти й скіни без бонусу). */
+const NO_PERK: SkinPerk = Object.freeze({});
 export const FOOD_REACH = C.foodRadius * C.foodTouch;
 /** Буфер для stepFood: без виділення масиву на кожну клітину щотіку. */
 const EAT: Food[] = [];
@@ -488,7 +492,7 @@ export class FlockWorld {
     p.alive = true;
     p.effects = {};
     p.frozenUntil = 0;
-    p.boostUntil = this.now + C.spawnBoost.durationMs;
+    p.boostUntil = this.now + this.spawnBoostDurationMs(p);
     p.spawnedAt = this.now;
     p.paused = false;
     const start = p.boss || p.monster ? p.bossStart : C.startMass;
@@ -506,8 +510,8 @@ export class FlockWorld {
     p.sprinting = false;
     // коротка недоторканність після народження (чудовиська її не мають: з'являються в лаві, куди гравцям не можна)
     if (!p.monster) {
-      p.effects.shield = this.now + C.spawnShieldMs;
-      p.lavaSafeUntil = this.now + C.spawnShieldMs;
+      p.effects.shield = this.now + this.spawnShieldMsOf(p);
+      p.lavaSafeUntil = this.now + this.spawnShieldMsOf(p);
     }
     p.burned = false;
     p.zoneDeath = false;
@@ -647,6 +651,16 @@ export class FlockWorld {
   /** Артефакт гравця (боти - завжди 0, навіть якщо поле підмінили). */
   hasArtifact(p: Player, a: number) {
     return !p.bot && p.artifact === a;
+  }
+
+  /** Бонус обраного скіна (боти й гравці без бонусного скіна - порожньо). */
+  perk(p: Player): SkinPerk {
+    return p.bot ? NO_PERK : (skinPerkOf(p.skin) ?? NO_PERK);
+  }
+
+  /** Тривалість стартового щита гравця (з бонусом скіна). */
+  spawnShieldMsOf(p: Player) {
+    return C.spawnShieldMs + (this.perk(p).shieldBonusMs ?? 0);
   }
 
   /** Новий артефакт при повторному вході (перерождення з того ж сокета). */
@@ -843,7 +857,7 @@ export class FlockWorld {
       for (const c of p.cells) {
         if (!p.paused && c.mass > from && !noDecay) {
           // «Вожак» тане лише від надлишку над порогом (м'яко, без обвалу); решта - від усієї маси
-          c.mass -= (p.boss ? c.mass - from : c.mass) * rate * dt;
+          c.mass -= (p.boss ? c.mass - from : c.mass) * rate * (1 - (this.perk(p).decaySlow ?? 0)) * dt;
         }
         total += c.mass;
       }
@@ -887,14 +901,20 @@ export class FlockWorld {
     if (p.bot || p.total >= C.spawnBoost.massLimit) return 0;
     return Math.max(
       0,
-      Math.min(C.spawnBoost.durationMs, p.boostUntil - this.now),
+      Math.min(this.spawnBoostDurationMs(p), p.boostUntil - this.now),
     );
+  }
+
+  /** Тривалість розгону на старті (з бонусом скіна «Грозова»). */
+  spawnBoostDurationMs(p: Player) {
+    return C.spawnBoost.durationMs + (this.perk(p).spawnBoostMs ?? 0);
   }
 
   /** Множник швидкості від розгіну: 1 + speedBonus * (залишок / тривалість), тобто плавно спадає до 1. */
   spawnBoostFactor(p: Player): number {
     const left = this.spawnBoostLeftMs(p);
-    return 1 + (C.spawnBoost.speedBonus * left) / C.spawnBoost.durationMs;
+    const bonus = C.spawnBoost.speedBonus + (this.perk(p).spawnBoostBonus ?? 0);
+    return 1 + (bonus * left) / this.spawnBoostDurationMs(p);
   }
 
   /**
@@ -918,7 +938,7 @@ export class FlockWorld {
       p.sprinting = false;
       return;
     }
-    const burn = Math.min(total * S.burnPerSec * dt, total - floor);
+    const burn = Math.min(total * S.burnPerSec * (1 - (this.perk(p).sprintBurnLess ?? 0)) * dt, total - floor);
     const k = (total - burn) / total;
     for (const c of p.cells) c.mass *= k;
   }
@@ -928,8 +948,10 @@ export class FlockWorld {
     let m = p.monster ? C.monsters.speedMultiplier : this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) m *= C.speedMultiplier;
     if (this.hasArtifact(p, ARTIFACT.shoes)) m *= 1 + C.artifacts.shoesSpeedBonus;
+    const perkSpeed = this.perk(p).speed;
+    if (perkSpeed) m *= 1 + perkSpeed;
     if (p.sprinting) m = sprintedMultiplier(m);
-    return Math.min(speedOf(c.mass) * m, C.maxSpeedHard) * this.puddleFactor(c.x, c.y);
+    return Math.min(speedOf(c.mass) * m, C.maxSpeedHard) * this.puddleFactor(c.x, c.y, this.perk(p).puddleLess);
   }
 
   private moveCells(p: Player, dt: number) {
@@ -1178,13 +1200,17 @@ export class FlockWorld {
   private stepFood() {
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || this.isGhost(p)) continue;
+      const perk = this.perk(p);
       const base =
         C.foodMass *
         (this.hasEffect(p, 'double') ? 2 : 1) *
-        (this.hasArtifact(p, ARTIFACT.crown) ? 1 + C.artifacts.crownFoodBonus : 1);
+        (this.hasArtifact(p, ARTIFACT.crown) ? 1 + C.artifacts.crownFoodBonus : 1) *
+        (1 + (perk.foodMass ?? 0));
+      const reachK = 1 + (perk.foodReach ?? 0);
+      const gfK = 1 + (perk.grassFlowerMass ?? 0);
       for (const c of p.cells) {
         // підбір за візуальним дотиком: край клітини торкається спрайта їжі (foodReach), а не лише центр усередині
-        const reach = radiusOf(c.mass) + FOOD_REACH;
+        const reach = (radiusOf(c.mass) + FOOD_REACH) * reachK;
         EAT.length = 0;
         this.foodNear(c.x, c.y, reach, (f) => {
           if (Math.hypot(f.x - c.x, f.y - c.y) < reach) EAT.push(f);
@@ -1193,7 +1219,7 @@ export class FlockWorld {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
           // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
-          c.mass += f.mass ?? base;
+          c.mass += f.mass ?? (f.kind === 0 || f.kind === 1 ? base * gfK : base);
         }
       }
     }
@@ -1344,7 +1370,7 @@ export class FlockWorld {
       }
       near.sort((a, b) => a.d - b.d);
       for (const n of near.slice(0, C.freezeMaxTargets)) {
-        n.p.frozenUntil = this.now + this.bonusMs(p, C.bonusDurations.freeze);
+        n.p.frozenUntil = this.now + this.bonusMs(p, C.bonusDurations.freeze) * (1 - (this.perk(n.p).freezeLess ?? 0));
       }
       return;
     }
@@ -1353,9 +1379,8 @@ export class FlockWorld {
 
   /** Тривалість підібраного бонуса з «Пісочним годинником» (+30%). */
   private bonusMs(p: Player, ms: number) {
-    return this.hasArtifact(p, ARTIFACT.hourglass)
-      ? ms * (1 + C.artifacts.hourglassDurationBonus)
-      : ms;
+    const art = this.hasArtifact(p, ARTIFACT.hourglass) ? 1 + C.artifacts.hourglassDurationBonus : 1;
+    return ms * art * (1 + (this.perk(p).bonusDuration ?? 0));
   }
 
   /** «Ножиці»: хвиля навколо клітини, що підібрала бонус; зрізана маса йде тому, хто взяв (правила - у C.scissors). */
@@ -1422,14 +1447,14 @@ export class FlockWorld {
   }
 
   /** Множник швидкості від калюж у точці: 1 - сухо; у калюжі 1 - slowFraction (лінійно слабшає, поки калюжі підсихають). */
-  puddleFactor(x: number, y: number): number {
+  puddleFactor(x: number, y: number, less = 0): number {
     const rain = this.rain;
     if (!rain || this.puddles.length === 0) return 1;
     const f = this.now < rain.endsAt ? 1 : Math.max(0, (rain.dryUntil - this.now) / C.rain.dryMs);
     for (const q of this.puddles) {
       const dx = x - q.x;
       const dy = y - q.y;
-      if (dx * dx + dy * dy < q.r * q.r) return 1 - C.rain.slowFraction * f;
+      if (dx * dx + dy * dy < q.r * q.r) return 1 - C.rain.slowFraction * f * (1 - less);
     }
     return 1;
   }
@@ -1575,7 +1600,7 @@ export class FlockWorld {
 
   /** Під стартовим щитом новичка (не бонус «Щит»). */
   private spawnShielded(p: Player) {
-    return this.now - p.spawnedAt < C.spawnShieldMs;
+    return this.now - p.spawnedAt < this.spawnShieldMsOf(p);
   }
 
   /** Один вектор на тік: усі клітини зносяться в бік вітру; на краю світу упираються в межу. */

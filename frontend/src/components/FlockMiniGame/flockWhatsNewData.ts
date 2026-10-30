@@ -508,6 +508,44 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 21,
+    date: "2026-10-31",
+    items: [
+      {
+        icon: "ruby",
+        text: {
+          ua: "Нові ціни: звичайні скіни 50, особливі 150, преміум 200, артефакти 350 рубінів. Куплене лишається, доплат немає",
+          ru: "Новые цены: обычные скины 50, особенные 150, премиум 200, артефакты 350 рубинов. Купленное остаётся, доплат нет",
+          en: "New prices: regular skins 50, special 150, premium 200, artifacts 350 rubies. What you own stays yours, no extra charges",
+        },
+      },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Збери всі преміум-скіни, що є в продажу, і один раз отримай 300 рубінів",
+          ru: "Собери все премиум-скины, что есть в продаже, и один раз получи 300 рубинов",
+          en: "Collect every premium skin on sale and get 300 rubies once",
+        },
+      },
+      {
+        icon: "star",
+        text: {
+          ua: "Особливі скіни тепер дають невеликі бонуси: швидкість, радіус підбору їжі, повільніший розпад маси та інші. Бонус видно в лобі біля скіна",
+          ru: "Особенные скины теперь дают небольшие бонусы: скорость, радиус подбора еды, более медленный распад массы и другие. Бонус виден в лобби у скина",
+          en: "Special skins now give small bonuses: speed, food pickup radius, slower mass decay and more. The bonus is shown in the lobby next to the skin",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "Чотири нові скіни: три особливі й один преміум з анімацією",
+          ru: "Четыре новых скина: три особенных и один премиум с анимацией",
+          en: "Four new skins: three special and one animated premium",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

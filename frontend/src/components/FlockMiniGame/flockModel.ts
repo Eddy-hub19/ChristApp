@@ -192,6 +192,8 @@ const PHASE_STEP = 1.37;
 
 export class FlockModel {
   cfg: FlockCfg;
+  /** Бонусы своего скина (из config /flock/me): клиент предсказывает по ним скорость и разгон на старте. */
+  selfPerks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {};
   readonly cells = new Map<number, RCell>();
   readonly foods = new Map<number, RFood>();
   readonly blobs = new Map<number, RBlob>();
@@ -266,7 +268,7 @@ export class FlockModel {
 
   speedOf(mass: number, boosted: boolean, startFactor = 1, sprint = false) {
     const s = this.cfg.speed;
-    let v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor;
+    let v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor * (1 + (this.selfPerks.speed ?? 0));
     if (boosted) v *= s.boost;
     if (sprint && s.sprint) {
       // та сама формула, що на сервері (sprintedMultiplier): +бонус до решти множників, але не вище стелі
@@ -386,9 +388,10 @@ export class FlockModel {
   /** Множник розгіну на старті: 1 + бонус × (залишок / тривалість); 1, якщо сервер не надіслав ефект «boost». */
   startBoostFactor(): number {
     const e = this.effects.find((x) => x.kind === "boost");
-    const bonus = this.cfg.speed.spawnBoost ?? 0;
+    const bonus = (this.cfg.speed.spawnBoost ?? 0) + (this.selfPerks.spawnBoostBonus ?? 0);
     if (!e || bonus <= 0) return 1;
-    return 1 + (bonus * Math.min(e.remainingMs, e.totalMs)) / Math.max(1, e.totalMs);
+    const total = e.totalMs + (this.selfPerks.spawnBoostMs ?? 0);
+    return 1 + (bonus * Math.min(e.remainingMs, total)) / Math.max(1, total);
   }
 
   /** Скільки мс лишилось у гравця на паузі (0, якщо не на паузі). */

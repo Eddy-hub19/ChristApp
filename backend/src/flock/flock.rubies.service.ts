@@ -16,8 +16,10 @@ import {
   isArtifactId,
   PREMIUM_SKIN_IDS,
   SPECIAL_FROM,
+  premiumCollectionIds,
   isHiddenSkin,
   isPaidSkin,
+  isPremiumSkin,
   isSelectableSkin,
   skinPriceOf,
 } from './flock.config';
@@ -168,12 +170,14 @@ export class FlockRubiesService {
       // збережений знятий скін віддаємо як 0 (біла овечка); у БД він замінюється при наступному виборі скіна
       selectedSkin: isSelectableSkin(profile?.selectedSkin ?? 0) ? (profile?.selectedSkin ?? 0) : 0,
       whatsNewSeen: profile?.whatsNewSeen ?? 0,
+      premiumCollectionClaimed: !!profile?.premiumCollectionAt,
       statsImported: !!profile?.statsImportedAt,
       stats: toStats(profile),
       config: {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
         specialSkinPrice: R.specialSkinPrice,
+        premiumCollectionReward: R.premiumCollectionReward,
         artifactPrice: FLOCK_CONFIG.artifacts.price,
         totalArtifacts: NUM_ARTIFACTS,
         freeSkinIds: [...FREE_SKIN_IDS],
@@ -294,6 +298,45 @@ export class FlockRubiesService {
     });
   }
 
+  /**
+   * Разова нагорода за повну колекцію преміум-скінів у продажу (без прихованих): під блокуванням профілю, у тій самій
+   * транзакції, що й покупка; поза добовим лімітом арени. Повторно не нараховується (premiumCollectionAt).
+   * Повертає суму або 0.
+   */
+  private async claimPremiumCollectionInTx(tx: Tx, userId: string, balance: number): Promise<{ amount: number; balance: number }> {
+    const reward = R.premiumCollectionReward;
+    if (reward <= 0) return { amount: 0, balance };
+    const profile = await tx.flockProfile.findUniqueOrThrow({
+      where: { userId },
+      select: { premiumCollectionAt: true },
+    });
+    if (profile.premiumCollectionAt) return { amount: 0, balance };
+    const need = premiumCollectionIds();
+    const have = await tx.flockSkinPurchase.count({
+      where: { userId, skinId: { in: need } },
+    });
+    if (need.length === 0 || have < need.length) return { amount: 0, balance };
+    const next = await this.apply(tx, userId, balance, {
+      delta: reward,
+      reason: RubyReason.PREMIUM_COLLECTION,
+    });
+    await tx.flockProfile.update({
+      where: { userId },
+      data: { premiumCollectionAt: new Date() },
+    });
+    return { amount: reward, balance: next };
+  }
+
+  /** Гравець уже володіє всією колекцією на момент виходу оновлення: нагорода при наступному вході (один раз). */
+  async claimPremiumCollection(userId: string): Promise<AwardResult | null> {
+    if (R.premiumCollectionReward <= 0) return null;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const r = await this.claimPremiumCollectionInTx(tx, userId, balance);
+      return r.amount > 0 ? r : null;
+    });
+  }
+
   /** Покупка: перевірка балансу, списання, запис покупки й журналу - атомарно. */
   async buySkin(userId: string, skinId: number) {
     if (!isSelectableSkin(skinId))
@@ -320,7 +363,15 @@ export class FlockRubiesService {
         reason: RubyReason.SKIN_PURCHASE,
         skinId,
       });
-      return { rubies: next, skinId };
+      // купили останній преміум-скін колекції: нагорода в тій самій транзакції
+      const bonus = isPremiumSkin(skinId)
+        ? await this.claimPremiumCollectionInTx(tx, userId, next)
+        : { amount: 0, balance: next };
+      return {
+        rubies: bonus.balance,
+        skinId,
+        ...(bonus.amount > 0 ? { premiumCollection: bonus.amount } : {}),
+      };
     });
   }
 

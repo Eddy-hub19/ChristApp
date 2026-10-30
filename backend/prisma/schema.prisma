@@ -352,6 +352,8 @@ model FlockProfile {
   whatsNewSeen    Int       @default(0)
   /// Коли гравець отримав разовий бонус за перший вхід у гру (null - ще ні).
   entryBonusAt    DateTime?
+  /// Коли гравець отримав разову нагороду за колекцію преміум-скінів (null - ще ні).
+  premiumCollectionAt DateTime?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -363,6 +365,7 @@ enum RubyReason {
   ARTIFACT_PURCHASE
   ARENA_BOSS
   ARENA_STREAK
+  PREMIUM_COLLECTION
 }
 
 /// Журнал рубінів: тільки додавання рядків.
