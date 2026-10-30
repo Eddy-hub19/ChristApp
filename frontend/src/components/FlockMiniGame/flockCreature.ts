@@ -515,6 +515,7 @@ const ANIM_LAYERS: Partial<Record<NonNullable<Skin["deco"]>, number>> = {
   newyear: LAYER_FRONT,
   butterfly: LAYER_BEHIND | LAYER_FRONT,
   thunder: LAYER_FRONT,
+  comet: LAYER_BEHIND | LAYER_FRONT,
   frost: LAYER_FRONT,
   sun: LAYER_BEHIND,
   david: LAYER_FRONT,
@@ -548,6 +549,8 @@ export function layerExtent(skin: Skin, layer: number): number {
       return layer === LAYER_BEHIND ? 1.95 : 1.3;
     case "thunder":
       return 1.55;
+    case "comet":
+      return layer === LAYER_BEHIND ? 2.3 : 1.3;
     case "frost":
       return 1.3;
     case "sun":
@@ -918,6 +921,45 @@ export function drawAnimLayer(c: CanvasRenderingContext2D, skin: Skin, r: number
       c.fillStyle = "#9aa0a6";
       circle(c, r * px, r * py, r * 0.08);
       c.fill();
+      break;
+    }
+    case "comet": {
+      if (layer === LAYER_BEHIND) {
+        // хвост кометы: полупрозрачный шлейф и звёздочки, мерцающие и покачивающиеся от кадра к кадру
+        c.fillStyle = "rgba(255,236,170,0.32)";
+        c.beginPath();
+        c.moveTo(-r * 0.6, -r * 0.5);
+        c.lineTo(-r * 2.25, -r * 0.12 * (1 + 0.25 * Math.sin(k * 1.6)));
+        c.lineTo(-r * 2.25, r * 0.12 * (1 + 0.25 * Math.cos(k * 1.6)));
+        c.lineTo(-r * 0.6, r * 0.5);
+        c.closePath();
+        c.fill();
+        const dists = [1.2, 1.5, 1.8, 2.05, 2.2];
+        const sizes = [0.26, 0.22, 0.18, 0.14, 0.1];
+        for (let i = 0; i < dists.length; i++) {
+          const wob = Math.sin(i * 1.3 + (k * TAU) / n) * r * 0.2 * (0.4 + i * 0.18);
+          const tw = 0.7 + 0.3 * Math.sin(i * 2 + (k * TAU) / n);
+          c.fillStyle = i % 2 === 0 ? `rgba(255,217,90,${0.95 - i * 0.12})` : `rgba(255,246,200,${0.95 - i * 0.12})`;
+          star(c, -r * dists[i], wob, r * sizes[i] * tw, 4, 0.38);
+          c.fill();
+        }
+      } else {
+        // золотая звёздочка на макушке и искорки по бокам
+        const pulse = [1, 0.88, 1.06, 0.92][k % 4];
+        c.fillStyle = "#ffd95a";
+        c.strokeStyle = "rgba(190,130,20,0.8)";
+        c.lineWidth = Math.max(1, r * 0.04);
+        star(c, -r * 0.5, 0, r * 0.24 * pulse, 5, 0.46);
+        c.fill();
+        c.stroke();
+        for (let i = 0; i < 3; i++) {
+          const a = [1.0, 2.3, 4.2][i] + 0;
+          const s = [0.4, 0.8, 0.55][(i + k) % 3];
+          c.fillStyle = `rgba(255,246,200,${0.4 + 0.6 * s})`;
+          star(c, Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1, r * 0.13 * (0.4 + 0.6 * s), 4, 0.3);
+          c.fill();
+        }
+      }
       break;
     }
     case "polar": {

@@ -8,6 +8,8 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   | "hearts" | "mint"
   // особливі 48, 49 (в кінці нумерації), статичні
   | "honey" | "sky"
+  // особливі 53-55 і преміум 56 (комета, анімований)
+  | "berry" | "winter" | "cocoa" | "comet"
   // преміум-ряд 2 (анімовані, шари-спрайти)
   | "phoenix" | "moon" | "bloom" | "newyear" | "butterfly" | "thunder"
   // «Вожак» (36): бот-босс, вне NUM_SKINS - игрок его выбрать не может
@@ -107,6 +109,12 @@ export const SKINS: Skin[] = [
   { kind: "wolf", deco: "alphaGrove", fur: "#4a3a2c", light: "#7a5a3a", face: "#a58a64", accent: "#ffb62e" },
   { kind: "wolf", deco: "alphaFrost", fur: "#e6f2fb", light: "#ffffff", face: "#c3dcef", accent: "#2f8dff" },
   { kind: "wolf", deco: "alphaVolcano", fur: "#241a18", light: "#3f2a24", face: "#4a3a36", accent: "#ff7a1a" },
+  // --- особливі (53 ягідна, 54 зимова, 55 какао), по 150 рубінів, статичні ---
+  { kind: "sheep", deco: "berry", fur: "#fbdfe6", light: "#fff3f6", face: "#4a2230", accent: "#e8466e" },
+  { kind: "sheep", deco: "winter", fur: "#eef5fb", light: "#ffffff", face: "#34425a", accent: "#e0443e" },
+  { kind: "sheep", deco: "cocoa", fur: "#a06f4b", light: "#c78f66", face: "#3a2415", accent: "#f4b9a0" },
+  // --- преміум (56 комета), 200 рубінів, з анімацією ---
+  { kind: "sheep", deco: "comet", anim: { frames: 4, fps: 5 }, fur: "#c9d3ff", light: "#f1f3ff", face: "#25285a", accent: "#ffd95a" },
 ];
 
 export const SKIN_COUNT = SKINS.length;
