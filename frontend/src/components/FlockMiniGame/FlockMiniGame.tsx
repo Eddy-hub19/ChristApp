@@ -24,7 +24,7 @@ import FlockInfo from "./FlockInfo";
 import FlockModes from "./FlockModes";
 import FlockSheet from "./FlockSheet";
 import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
-import { installFlockSoundUnlock, playFlockSound, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
+import { installFlockSoundUnlock, playFlockSound, setFlockMusic, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
 import { resetFlockSoundLoops, tickFlockSound } from "./flockSoundDirector";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
@@ -640,6 +640,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   useEffect(() => {
     setFlockSoundPaused(reconnecting);
   }, [reconnecting]);
+  // музыка играет при входе в «Отару» (лобби, экран после смерти) и затихает, пока идёт сама игра
+  useEffect(() => {
+    setFlockMusic(open && !playing);
+    return () => setFlockMusic(false);
+  }, [open, playing]);
 
   useEffect(() => {
     if (!reconnecting) return;

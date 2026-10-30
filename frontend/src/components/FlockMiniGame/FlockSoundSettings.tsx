@@ -55,6 +55,10 @@ export default function FlockSoundSettings({ onClose }: { onClose: () => void })
             </span>
           </div>
           <div className={styles.row}>
+            <span id="flock-snd-mus">{t("sound.music")}</span>
+            <button type="button" role="switch" aria-checked={s.music} aria-labelledby="flock-snd-mus" className={styles.switch} onClick={() => setFlockSoundSettings({ music: !s.music })} />
+          </div>
+          <div className={styles.row}>
             <span id="flock-snd-amb">{t("sound.ambient")}</span>
             <button type="button" role="switch" aria-checked={s.ambient} aria-labelledby="flock-snd-amb" className={styles.switch} onClick={() => setFlockSoundSettings({ ambient: !s.ambient })} />
           </div>

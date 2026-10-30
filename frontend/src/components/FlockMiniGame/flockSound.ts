@@ -20,9 +20,11 @@ export interface FlockSoundSettings {
   volume: number;
   /** Фоновые звуки (ветер, дождь). */
   ambient: boolean;
+  /** Музыка в лобби. */
+  music: boolean;
 }
 
-export const DEFAULT_SOUND_SETTINGS: FlockSoundSettings = { enabled: true, volume: 0.35, ambient: true };
+export const DEFAULT_SOUND_SETTINGS: FlockSoundSettings = { enabled: true, volume: 0.35, ambient: true, music: true };
 
 let settings: FlockSoundSettings | null = null;
 const listeners = new Set<() => void>();
@@ -33,6 +35,8 @@ function loadSettings(): FlockSoundSettings {
     const en = localStorage.getItem(`${PREFIX}:enabled`);
     const vol = localStorage.getItem(`${PREFIX}:volume`);
     const amb = localStorage.getItem(`${PREFIX}:ambient`);
+    const mus = localStorage.getItem(`${PREFIX}:music`);
+    if (mus !== null) s.music = mus !== "0";
     if (en !== null) s.enabled = en !== "0";
     if (amb !== null) s.ambient = amb !== "0";
     if (vol !== null && vol !== "" && Number.isFinite(Number(vol))) s.volume = Math.min(1, Math.max(0, Number(vol)));
@@ -62,12 +66,14 @@ export function setFlockSoundSettings(patch: Partial<FlockSoundSettings>) {
     localStorage.setItem(`${PREFIX}:enabled`, next.enabled ? "1" : "0");
     localStorage.setItem(`${PREFIX}:volume`, String(Math.round(next.volume * 100) / 100));
     localStorage.setItem(`${PREFIX}:ambient`, next.ambient ? "1" : "0");
+    localStorage.setItem(`${PREFIX}:music`, next.music ? "1" : "0");
   } catch {
     /* ignore */
   }
   applyMaster();
   if (!next.enabled) stopAllLoops();
-  else void loadFiles();
+  else void loadFiles().then(syncMusic);
+  syncMusic();
   listeners.forEach((fn) => fn());
 }
 
@@ -112,8 +118,8 @@ export function unlockFlockSound() {
       src.connect(ctx.destination);
       src.start(0);
     }
-    if (running && !document.hidden && ctx.state !== "running") void ctx.resume().catch(() => undefined);
-    void loadFiles();
+    if (running && !document.hidden && ctx.state !== "running") void ctx.resume().then(syncMusic).catch(() => undefined);
+    void loadFiles().then(syncMusic);
   } catch {
     /* звук недоступен */
   }
@@ -136,7 +142,7 @@ export function setFlockSoundRunning(on: boolean) {
   running = on;
   if (!ctx) return;
   if (on) {
-    if (typeof document !== "undefined" && !document.hidden) void ctx.resume().catch(() => undefined);
+    if (typeof document !== "undefined" && !document.hidden) void ctx.resume().then(syncMusic).catch(() => undefined);
   } else {
     stopAllLoops();
     void ctx.suspend().catch(() => undefined);
@@ -147,6 +153,7 @@ export function setFlockSoundRunning(on: boolean) {
 export function setFlockSoundPaused(on: boolean) {
   paused = on;
   if (on) stopAllLoops();
+  else syncMusic();
 }
 
 if (typeof document !== "undefined") {
@@ -155,7 +162,7 @@ if (typeof document !== "undefined") {
     if (document.hidden) {
       stopAllLoops();
       void ctx.suspend().catch(() => undefined);
-    } else if (running) void ctx.resume().catch(() => undefined);
+    } else if (running) void ctx.resume().then(syncMusic).catch(() => undefined);
   });
 }
 
@@ -207,7 +214,21 @@ async function loadFiles() {
     }
   } finally {
     filesLoading = false;
+    syncMusic();
   }
+}
+
+let musicWanted = false;
+
+/** Музыка лобби: on - должна играть (если звук и «Музыка» включены, файл загружен); плавно входит и выходит. */
+export function setFlockMusic(on: boolean) {
+  musicWanted = on;
+  syncMusic();
+}
+
+function syncMusic() {
+  if (musicWanted && audible() && getFlockSoundSettings().music && buffers.has("melody")) startFlockLoop("melody");
+  else stopFlockLoop("melody");
 }
 
 export interface PlayOptions {
@@ -288,7 +309,7 @@ const loops = new Map<SoundId, LoopHandle>();
 /** Запускает (или меняет громкость) петлю; level 0..1. Фоновые петли требуют включённых «Фонових звуків». */
 export function startFlockLoop(id: SoundId, level = 1) {
   const def = SOUNDS[id];
-  if (!audible() || !def.loop) return;
+  if (!audible() || !(def.loop || def.music)) return;
   if (def.ambient && !getFlockSoundSettings().ambient) {
     stopFlockLoop(id);
     return;
@@ -314,7 +335,7 @@ export function startFlockLoop(id: SoundId, level = 1) {
     src.connect(g);
     src.start();
     nodes.push(src);
-  } else {
+  } else if (def.loop) {
     const handle = def.loop({ ctx: c, out: g, t: c.currentTime, pitch: 1, noise: getNoise() });
     nodes.push(...handle);
   }

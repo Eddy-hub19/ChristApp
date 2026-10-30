@@ -1647,7 +1647,8 @@
       "enabled": "Sound",
       "volume": "Volume",
       "ambient": "Background sounds",
-      "iosHint": "If there is no sound, check silent mode and volume"
+      "iosHint": "If there is no sound, check silent mode and volume",
+      "music": "Music"
     }
   },
   "games": {

@@ -10,6 +10,7 @@ All files are CC0 (public domain dedication) from OpenGameArt unless noted. Deta
 | coins | coins | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 11.6 KB | 2026-10-31 |
 | click | click | 51 UI sound effects (buttons, switches and clicks) | Kenney (kenney.nl) | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | CC0 | click1.wav | 4.6 KB | 2026-10-30 |
 | sheep | phrase | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 20.4 KB | 2026-10-31 |
+| melody | melody (lobby music) | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 485.7 KB | 2026-10-31 |
 | bonus | bonus | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 12.5 KB | 2026-10-31 |
 | star-warn | starWarn | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 14.7 KB | 2026-10-31 |
 | star-pick | starPick | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 9.0 KB | 2026-10-31 |

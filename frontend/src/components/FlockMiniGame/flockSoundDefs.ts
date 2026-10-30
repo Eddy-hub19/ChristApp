@@ -34,6 +34,8 @@ export interface SoundDef {
   jitter?: number;
   /** Фоновый звук (включается отдельным переключателем). */
   ambient?: boolean;
+  /** Музыка лобби: петля только из файла (без синтеза), включается переключателем «Музыка». */
+  music?: boolean;
 }
 
 // --- кирпичики ---
@@ -133,7 +135,8 @@ export type SoundId =
   | "bossHorn"
   | "phrase"
   | "click"
-  | "coins";
+  | "coins"
+  | "melody";
 
 export const SOUNDS: Record<SoundId, SoundDef> = {
   eatGrass: {
@@ -397,5 +400,11 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
       });
       return 0.55;
     },
+  },
+  melody: {
+    file: "/sounds/flock/melody",
+    gain: 0.5,
+    music: true,
+    synth: () => 0,
   },
 };
