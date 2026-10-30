@@ -3,6 +3,7 @@ import {
   decodeState,
   BONUS_CODE,
   FX_FROZEN,
+  FX_PIPE,
   type DecodedBoard,
   type DecodedState,
 } from "./flockProtocol";
@@ -188,12 +189,20 @@ export interface ActiveEffect {
   totalMs: number;
 }
 
+/** Звуковые события модели (без аллокаций: числа и строки). arg - доп. параметр (вид еды, вид бонуса, задержка мс). */
+export type ModelSoundKind = "food" | "eatCell" | "eaten" | "bonus" | "bonusEnd" | "split" | "throw" | "spawnBoost" | "freeze" | "pipe" | "starFall" | "starPick" | "scissors" | "burn" | "phrase";
+export type ModelSoundSink = (kind: ModelSoundKind, x: number, y: number, self: boolean, arg?: number | string) => void;
+
 const PHASE_STEP = 1.37;
 
 export class FlockModel {
   cfg: FlockCfg;
   /** Бонусы своего скина (из config /flock/me): клиент предсказывает по ним скорость и разгон на старте. */
   selfPerks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {};
+  /** Приёмник звуковых событий (flockSoundDirector); null - звук выключен/не подключён. */
+  sound: ModelSoundSink | null = null;
+  private ownCount = 0;
+  private gotState = false;
   readonly cells = new Map<number, RCell>();
   readonly foods = new Map<number, RFood>();
   readonly blobs = new Map<number, RBlob>();
@@ -430,10 +439,14 @@ export class FlockModel {
     this.tick = srvT;
     this.alive = s.alive;
     this.total = s.total;
+    const prevEffects = this.effects;
+    const first = !this.gotState;
+    this.gotState = true;
     this.effects = s.effects.map((e) => {
       const kind = BONUS_CODE[e.kind] ?? "speed";
       return { kind, remainingMs: e.remainingMs, totalMs: this.cfg.durations[kind] ?? e.remainingMs };
     });
+    if (this.sound && !first) this.soundEffects(prevEffects, s.alive);
 
     if (s.forgetChunks.length) {
       const forget = new Set(s.forgetChunks);
@@ -443,7 +456,13 @@ export class FlockModel {
     }
     for (const ch of s.chunks) for (const f of ch.foods) this.foods.set(f.id, { id: f.id, x: f.x, y: f.y, kind: f.kind });
     for (const e of s.foodEvents) {
-      if (e.op === 0) this.foods.delete(e.id);
+      if (e.op === 0) {
+        if (this.sound && !first) {
+          const f = this.foods.get(e.id);
+          if (f && this.nearOwnCell(f.x, f.y)) this.sound("food", f.x, f.y, true, f.kind);
+        }
+        this.foods.delete(e.id);
+      }
       else this.foods.set(e.id, { id: e.id, x: e.x, y: e.y, kind: e.kind });
     }
 
@@ -459,6 +478,11 @@ export class FlockModel {
         cur.tx = c.x;
         cur.ty = c.y;
         cur.tmass = c.mass;
+        if (this.sound && !first) {
+          const gained = c.fx & ~cur.fx;
+          if (gained & FX_FROZEN) this.sound("freeze", c.x, c.y, c.pid === this.cfg.pid);
+          if (gained & FX_PIPE) this.sound("pipe", c.x, c.y, c.pid === this.cfg.pid);
+        }
         cur.fx = c.fx;
         cur.pid = c.pid;
       } else {
@@ -477,6 +501,15 @@ export class FlockModel {
           ...newHist(srvT, c.x, c.y),
         });
       }
+    }
+    if (this.sound) {
+      let own = 0;
+      for (const c of s.cells) if (c.pid === this.cfg.pid) own++;
+      if (!first && this.ownCount >= 1 && own > this.ownCount) {
+        const me = this.firstOwn();
+        this.sound("split", me ? me.x : this.camX, me ? me.y : this.camY, true);
+      }
+      this.ownCount = own;
     }
     if (this.phrases.size) {
       // гравця вже не видно (вийшов із зони / з'їдений): хмаринку забуваємо, сервер надішле її знову, коли він зʼявиться
@@ -498,6 +531,13 @@ export class FlockModel {
           best = o;
         }
       }
+      if (best && this.sound && !first) {
+        const me = this.cfg.pid;
+        if (best.pid === me && c.pid !== me) this.sound("eatCell", c.x, c.y, true);
+        else if (c.pid === me) {
+          if (s.cells.some((o) => o.pid === me)) this.sound("eaten", c.x, c.y, true);
+        } else this.sound("eatCell", c.x, c.y, false);
+      }
       if (best && this.dying.length < 40) {
         this.dying.push({ x: c.x, y: c.y, tx: best.x, ty: best.y, mass: c.mass, pid: c.pid, fx: c.fx, life: 1 });
       }
@@ -513,6 +553,7 @@ export class FlockModel {
         cur.ty = b.y;
       } else {
         this.blobs.set(b.id, { id: b.id, x: b.x, y: b.y, tx: b.x, ty: b.y, ...newHist(srvT, b.x, b.y) });
+        if (this.sound && !first && this.nearOwnCell(b.x, b.y, 2.4)) this.sound("throw", b.x, b.y, true);
       }
     }
     for (const id of this.blobs.keys()) if (!seenBlobs.has(id)) this.blobs.delete(id);
@@ -523,7 +564,55 @@ export class FlockModel {
 
     // кущі сервер шле один раз у welcome; зі стану беремо лише для старого сервера (без cfg.thorns)
     if (!this.cfg.thorns) this.thorns = s.thorns;
+    if (this.sound && !first) {
+      for (const b of this.bonuses) {
+        if (s.bonuses.some((n) => n.id === b.id)) continue;
+        const who = this.cellNear(b.x, b.y, 1.5, 60);
+        if (who) this.sound("bonus", b.x, b.y, who.pid === this.cfg.pid, b.kind);
+      }
+    }
     this.bonuses = s.bonuses.map((b) => ({ id: b.id, kind: BONUS_CODE[b.kind] ?? "golden", x: b.x, y: b.y }));
+  }
+
+  /** Эффекты своей овечки: появился «разгон» на старте / закончился бонус. */
+  private soundEffects(prev: ActiveEffect[], alive: boolean) {
+    if (!alive || !this.sound) return;
+    const me = this.firstOwn();
+    const x = me ? me.x : this.camX;
+    const y = me ? me.y : this.camY;
+    for (const e of this.effects) {
+      if (e.kind === "boost" && !prev.some((p) => p.kind === "boost")) this.sound("spawnBoost", x, y, true);
+    }
+    for (const p of prev) {
+      if (p.kind !== "boost" && !this.effects.some((e) => e.kind === p.kind)) this.sound("bonusEnd", x, y, true, p.kind);
+    }
+  }
+
+  private firstOwn(): RCell | null {
+    for (const c of this.cells.values()) if (c.pid === this.cfg.pid) return c;
+    return null;
+  }
+
+  /** Ближайшая клітина, до якої від точки не далі радіуса*k + запас (для «хто підібрав/з'їв»). */
+  private cellNear(x: number, y: number, k: number, slack: number, onlyOwn = false): RCell | null {
+    let best: RCell | null = null;
+    let bd = Infinity;
+    for (const c of this.cells.values()) {
+      if (onlyOwn && c.pid !== this.cfg.pid) continue;
+      const lim = this.radiusOf(c.tmass) * k + slack;
+      const d = Math.min(Math.hypot(c.x - x, c.y - y), Math.hypot(c.tx - x, c.ty - y));
+      if (d < lim && d < bd) {
+        bd = d;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  /** Своя клітина поруч (їжа/бросок): запас на затримку й магніт. */
+  private nearOwnCell(x: number, y: number, k = 1.25): boolean {
+    const slack = 60 + (this.hasEffect("magnet") ? this.cfg.magnetRadius : 0);
+    return this.cellNear(x, y, k, slack, true) !== null;
   }
 
   /** Зірки, що вже були на арені, коли ми зайшли (з welcome). */
@@ -541,8 +630,15 @@ export class FlockModel {
     for (const e of events) {
       if (!Array.isArray(e)) continue;
       if (e[0] === 0) started = Number(e[1]) || 1;
-      else if (e[0] === 1) this.stars.set(e[1], { id: e[1], x: e[2], y: e[3], t0: recvMs, fall: Math.max(1, Number(e[4]) || 1000) });
-      else if (e[0] === 2) this.stars.delete(e[1]);
+      else if (e[0] === 1) {
+        const fall = Math.max(1, Number(e[4]) || 1000);
+        this.stars.set(e[1], { id: e[1], x: e[2], y: e[3], t0: recvMs, fall });
+        this.sound?.("starFall", e[2], e[3], false, Math.max(0, fall - 420));
+      } else if (e[0] === 2) {
+        const st = this.stars.get(e[1]);
+        if (st && Number(e[2]) > 0) this.sound?.("starPick", st.x, st.y, Number(e[2]) === this.cfg.pid);
+        this.stars.delete(e[1]);
+      }
     }
     return started;
   }
@@ -556,6 +652,7 @@ export class FlockModel {
     if (!e || typeof e.x !== "number" || typeof e.y !== "number" || typeof e.r !== "number") return null;
     if (this.scissorsWaves.length >= 8) this.scissorsWaves.shift();
     this.scissorsWaves.push({ x: e.x, y: e.y, r: e.r, t0: recvMs });
+    this.sound?.("scissors", e.x, e.y, e.t === this.cfg.pid);
     const victims = Array.isArray(e.v) ? e.v : [];
     return { taker: e.t === this.cfg.pid, victim: victims.includes(this.cfg.pid), count: victims.length, gain: typeof e.g === "number" ? e.g : 0 };
   }
@@ -568,6 +665,7 @@ export class FlockModel {
       if (!Array.isArray(e) || typeof e[0] !== "number" || typeof e[1] !== "number") continue;
       if (this.lavaBurns.length >= 24) this.lavaBurns.shift();
       this.lavaBurns.push({ x: e[0], y: e[1], r: Number(e[2]) || 20, t0: recvMs });
+      this.sound?.("burn", e[0], e[1], false);
     }
   }
 
@@ -593,6 +691,7 @@ export class FlockModel {
     const end = typeof e.t === "number" && this.clockBase !== null ? e.t + this.clockBase : cap;
     if (end <= recvMs) return;
     this.phrases.set(e.p, { id: e.i, end: Math.min(end, cap) });
+    this.soundPhrase(e.p);
   }
 
   /** Подія `qt` (свій текст): ({p: pid, x: текст, t: кінець у часі сервера}). Замінює попередню хмаринку гравця. */
@@ -603,6 +702,17 @@ export class FlockModel {
     const end = typeof e.t === "number" && this.clockBase !== null ? e.t + this.clockBase : cap;
     if (end <= recvMs) return;
     this.phrases.set(e.p, { id: 0, end: Math.min(end, cap), text: e.x.slice(0, 80) });
+    this.soundPhrase(e.p);
+  }
+
+  private soundPhrase(pid: number) {
+    if (!this.sound) return;
+    for (const c of this.cells.values()) {
+      if (c.pid === pid) {
+        this.sound("phrase", c.x, c.y, pid === this.cfg.pid);
+        return;
+      }
+    }
   }
 
   applyBoard(pkt: ArrayBuffer | Uint8Array) {

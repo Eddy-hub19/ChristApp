@@ -1641,6 +1641,15 @@
       "description": "A shared arena: graze, grow and hide from wolves behind bushes. Join with one tap.",
       "imageAlt": "Flock: sheep and wolves on a green meadow"
     },
+    "sound": {
+      "open": "Sound",
+      "title": "Sound",
+      "enabled": "Sound",
+      "volume": "Volume",
+      "ambient": "Background sounds",
+      "iosHint": "If there is no sound, check silent mode and volume",
+      "music": "Music"
+    },
     "perks": {
       "foodReach": "+{v}% pickup radius",
       "decaySlow": "Mass melts {v}% slower",

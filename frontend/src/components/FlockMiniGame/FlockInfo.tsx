@@ -24,6 +24,8 @@ type Props = {
 
 type Tab = "about" | "updates";
 
+const LAST_UPDATES = 5;
+
 function EntryIcon({ icon }: { icon: InfoEntry["icon"] }) {
   if (icon === "bonus:eagle") return <EagleEyeIcon size={28} />;
   if (icon === "bonus:pipe") return <PipeIcon size={28} />;
@@ -43,6 +45,8 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
   const [tab, setTab] = useState<Tab>("about");
   const latest = latestVersion();
   const [openVersions, setOpenVersions] = useState<Set<number>>(() => new Set([latest]));
+  /** Разделы «Про гру» по умолчанию свёрнуты. */
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
   const reportedRef = useRef(false);
 
   useEffect(() => {
@@ -59,7 +63,16 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
       return next;
     });
 
-  const entries = [...WHATS_NEW].sort((a, b) => b.version - a.version);
+  const toggleSection = (id: string) =>
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  /** В «Оновленнях» показываем только последние обновления. */
+  const entries = [...WHATS_NEW].sort((a, b) => b.version - a.version).slice(0, LAST_UPDATES);
 
   const renderTabs = (titleId: string) => (
     <div className={styles.tabs} role="tablist" aria-label={t("info.title")}>
@@ -85,28 +98,41 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
       {(titleId) => (
         <>
           {tab === "about"
-            ? INFO_SECTIONS.map((s) => (
-                <section key={s.id} className={styles.section}>
-                  <h3 className={styles.sectionTitle}>{s.title[lang]}</h3>
-                  {s.intro ? <p className={styles.intro}>{fillInfoText(s.intro.text[lang], s.intro.params, game)}</p> : null}
-                  <ul className={styles.list}>
-                    {s.entries.map((e) => {
-                      const n = s.artifacts ? Number(e.icon.slice(9)) : 0;
-                      return (
-                        <li key={e.id} className={styles.entry}>
-                          <span className={styles.icon}>
-                            <EntryIcon icon={e.icon} />
-                          </span>
-                          <span className={styles.entryText}>
-                            <strong>{s.artifacts ? t(`artifacts.items.${n}.name`) : e.title[lang]}</strong>
-                            <span>{s.artifacts ? t(`artifacts.items.${n}.desc`, artifactDescParams(game)) : fillInfoText(e.text[lang], e.params, game)}</span>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))
+            ? INFO_SECTIONS.map((s) => {
+                const open = openSections.has(s.id);
+                return (
+                  <section key={s.id} className={styles.version}>
+                    <button type="button" className={styles.versionHead} aria-expanded={open} aria-controls={`${titleId}-s-${s.id}`} onClick={() => toggleSection(s.id)}>
+                      <span className={styles.versionName}>{s.title[lang]}</span>
+                      <span className={styles.versionDate} />
+                      <svg className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </button>
+                    <div className={`${styles.collapse} ${open ? styles.collapseOpen : ""}`}>
+                      <div id={`${titleId}-s-${s.id}`} className={styles.collapseInner} inert={!open}>
+                        {s.intro ? <p className={styles.intro}>{fillInfoText(s.intro.text[lang], s.intro.params, game)}</p> : null}
+                        <ul className={styles.list}>
+                          {s.entries.map((e) => {
+                            const n = s.artifacts ? Number(e.icon.slice(9)) : 0;
+                            return (
+                              <li key={e.id} className={styles.entry}>
+                                <span className={styles.icon}>
+                                  <EntryIcon icon={e.icon} />
+                                </span>
+                                <span className={styles.entryText}>
+                                  <strong>{s.artifacts ? t(`artifacts.items.${n}.name`) : e.title[lang]}</strong>
+                                  <span>{s.artifacts ? t(`artifacts.items.${n}.desc`, artifactDescParams(game)) : fillInfoText(e.text[lang], e.params, game)}</span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })
             : entries.map((e) => {
                 const open = openVersions.has(e.version);
                 const fresh = e.version > seenBefore;

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { playFlockSound } from "./flockSound";
 import styles from "./FlockInfo.module.scss";
 
 const CLOSE_DRAG_PX = 90;
@@ -62,7 +63,7 @@ export default function FlockSheet({ title, closeLabel, onClose, headExtra, head
   );
 
   return (
-    <div className={styles.wrap} onClick={onClose} data-testid={testId}>
+    <div className={styles.wrap} onClick={onClose} onClickCapture={(e) => (e.target as HTMLElement).closest("button") && playFlockSound("click", { self: true })} data-testid={testId}>
       <div
         className={`${styles.sheet} ${dragY === 0 ? "" : styles.dragging}`}
         style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}

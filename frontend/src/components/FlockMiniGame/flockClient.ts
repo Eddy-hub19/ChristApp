@@ -2,6 +2,8 @@ import createSocket from "socket.io-client";
 import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
 import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
 import type { Dir } from "./flockInputMath";
+import { playFlockSound } from "./flockSound";
+import { attachFlockSounds } from "./flockSoundDirector";
 import {
   clearFlockSession,
   isResumable,
@@ -201,6 +203,7 @@ export class FlockClient {
     socket.on("w", (cfg: FlockCfg) => {
       this.later(() => {
         this.model = new FlockModel(cfg);
+        attachFlockSounds(this.model);
         this.model.selfPerks = this.perks;
         // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
         this.mode = cfg.mode === "circle" ? "circle" : "normal";
@@ -252,13 +255,17 @@ export class FlockClient {
         clearFlockSession();
         this.stored = null;
         this.setStatus("dead");
+        playFlockSound(info?.burned ? "burn" : "death", { self: true });
         this.opts.onDeath(info);
       });
     });
     socket.on("z", (msg: { e?: unknown }) => {
       this.later(() => {
         if (!this.model) return;
-        if (this.model.applyStarEvents(msg?.e, performance.now())) this.opts.onZorepad?.();
+        if (this.model.applyStarEvents(msg?.e, performance.now())) {
+          playFlockSound("starWarn", { self: true });
+          this.opts.onZorepad?.();
+        }
       });
     });
     // «Дощ»: один раз на подію (тривалість, підсихання, калюжі); далі час рахує модель
@@ -291,13 +298,20 @@ export class FlockClient {
     });
     socket.on("rv", () => {
       this.later(() => {
-        if (this.model) this.opts.onRevive?.();
+        if (this.model) {
+          playFlockSound("revive", { self: true });
+          this.opts.onRevive?.();
+        }
       });
     });
     socket.on("q", (msg: unknown) => {
       this.later(() => this.model?.applyPhrase(msg, performance.now()));
     });
     socket.on("bm", (msg: { k?: unknown; n?: unknown }) => {
+      // 1 - вышел на охоту, 3 - съел лидера (низкий рог, второй - ниже); 2 - побеждён (светлый звук)
+      if (msg?.k === 1) playFlockSound("bossHorn", { self: true });
+      else if (msg?.k === 3) playFlockSound("bossHorn", { self: true, pitch: 0.8 });
+      else if (msg?.k === 2) playFlockSound("bonus", { self: true });
       if (msg?.k === 1 || msg?.k === 2 || msg?.k === 3) this.opts.onBoss?.({ kind: msg.k, name: typeof msg.n === "string" ? msg.n : "" });
     });
     socket.on("r", (r: RewardInfo) => {

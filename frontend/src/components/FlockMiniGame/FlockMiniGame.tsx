@@ -24,6 +24,9 @@ import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
 import FlockModes from "./FlockModes";
 import FlockSheet from "./FlockSheet";
+import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
+import { installFlockSoundUnlock, playFlockSound, setFlockMusic, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
+import { resetFlockSoundLoops, tickFlockSound } from "./flockSoundDirector";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
@@ -237,6 +240,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   phraseLangRef.current = toPhraseLang(locale);
   const [infoOpen, setInfoOpen] = useState(false);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
   /** Версия «Що нового», просмотренная ДО этого открытия игры (для точки «Нове» во вкладке «Оновлення»). */
   const seenBeforeRef = useRef<number | null>(null);
   const resumableAtOpenRef = useRef(false);
@@ -249,9 +253,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setAnnouncement(null);
       setInfoOpen(false);
       setArtifactsOpen(false);
+      setSoundOpen(false);
       return;
     }
     resumableAtOpenRef.current = isResumable(loadFlockSession());
+  }, [open]);
+  // звук: контекст создаётся первым касанием; пока игра закрыта - приостановлен
+  useEffect(() => {
+    if (!open) return;
+    setFlockSoundRunning(true);
+    const off = installFlockSoundUnlock();
+    return () => {
+      off();
+      resetFlockSoundLoops();
+      setFlockSoundRunning(false);
+    };
   }, [open]);
   const onUpdatesViewed = useCallback(
     (version: number) => {
@@ -261,6 +277,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     },
     [userId],
   );
+  const lobbyClickSound = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest?.("button")) playFlockSound("click", { self: true });
+  }, []);
   const closeInfo = useCallback(() => setInfoOpen(false), []);
   const closeArtifacts = useCallback(() => setArtifactsOpen(false), []);
 
@@ -517,6 +536,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setMe((m) => (m ? { ...m, rubies: res.rubies, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
       if (res.premiumCollection) setCollectionAward({ amount: res.premiumCollection, fromBuy: true });
       setSkin(i);
+      playFlockSound("coins", { self: true });
       setPreviewSkin(null);
       setConfirming(false);
     } catch (e) {
@@ -556,6 +576,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     try {
       const res = await buyFlockArtifact(id);
       setMe((m) => (m ? { ...m, rubies: res.rubies, ownedArtifacts: [...(m.ownedArtifacts ?? []), id].sort((a, b) => a - b) } : m));
+      playFlockSound("coins", { self: true });
       setPreviewArtifact(null);
       setArtifactConfirming(false);
       wearArtifact(id);
@@ -580,18 +601,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
 
-  /** Ряды особых скинов без пустых ячеек: делим поровну (8 -> 4+4, 10 -> 5+5), по возможности без «хвоста». */
+  /** Особые скины: ряды по шесть, как у остальных (клетки того же размера; в неполном ряду пустые места справа). */
   const splitRows = (ids: readonly number[]): number[][] => {
-    const n = ids.length;
-    let cols = Math.min(6, n);
-    for (let c = Math.min(6, n); c >= 3; c--) {
-      if (n % c === 0) {
-        cols = c;
-        break;
-      }
-    }
     const rows: number[][] = [];
-    for (let k = 0; k < n; k += cols) rows.push(ids.slice(k, k + cols));
+    for (let k = 0; k < ids.length; k += 6) rows.push(ids.slice(k, k + 6));
     return rows;
   };
 
@@ -651,6 +664,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   // reconnecting: звʼязок обірвався, але екран гри лишається (овечка чекає на сервері)
   const playing = status === "playing" || status === "reconnecting";
   const reconnecting = status === "reconnecting";
+  useEffect(() => {
+    setFlockSoundPaused(reconnecting);
+  }, [reconnecting]);
+  // музыка играет при входе в «Отару» (лобби, экран после смерти) и затихает, пока идёт сама игра
+  useEffect(() => {
+    setFlockMusic(open && !playing);
+    return () => setFlockMusic(false);
+  }, [open, playing]);
 
   useEffect(() => {
     if (!reconnecting) return;
@@ -714,6 +735,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       stepInput.power = dirRef.current.power;
       stepInput.sprint = sprintHeldRef.current;
       model.step(dt, stepInput, now);
+      tickFlockSound(model, now);
       if (debug) (window as unknown as { __flockModel?: unknown }).__flockModel = model;
       if (model.total > maxTotalRef.current) maxTotalRef.current = model.total;
       drawScene(ctx, model, {
@@ -782,6 +804,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
     return () => {
       cancelAnimationFrame(raf);
+      resetFlockSoundLoops();
       ro.disconnect();
       clearInterval(hudTimer);
       clearInterval(sendTimer);
@@ -1264,12 +1287,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           >
             <span aria-hidden>💬</span>
           </button>
+          <FlockSoundButton variant="hud" onOpen={() => setSoundOpen(true)} />
           {!isTouch ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
         </>
       ) : null}
 
       {(status === "playing" || status === "dead") && circleEnd ? (
-        <div className={styles.cardWrap}>
+        <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card} role="alertdialog" aria-label={t("circle.endTitle")}>
             <h2>{t("circle.endTitle")}</h2>
             <p className={styles.sub}>
@@ -1313,7 +1337,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       ) : null}
 
       {status === "dead" && death && !circleEnd ? (
-        <div className={styles.cardWrap}>
+        <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
             <h2>{death.burned ? t("dead.burnedTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
@@ -1374,10 +1398,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <>
     <p className={styles.artifactHint}>{t("artifacts.hint")}</p>
     <div className={styles.artifactPreviewRow}>
-      <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={84} />
+      <SkinPreview skinId={skin} artifactId={previewArtifact ?? artifact} size={64} />
       <span>{previewArtifact !== null ? t(`artifacts.items.${previewArtifact}.name`) : artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
       {artifact > 0 ? (
-        <button type="button" className={styles.secondary} onClick={() => wearArtifact(0)}>
+        <button type="button" className={styles.artifactTakeOff} onClick={() => wearArtifact(0)}>
           {t("artifacts.takeOff")}
         </button>
       ) : null}
@@ -1397,7 +1421,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             onClick={() => openArtifact(id)}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={artifactIconSrc(id) ?? ""} alt="" width={48} height={48} loading="lazy" decoding="async" />
+            <img src={artifactIconSrc(id) ?? ""} alt="" width={36} height={36} loading="lazy" decoding="async" />
             <strong>{name}</strong>
             <span className={styles.artifactDesc}>{t(`artifacts.items.${id}.desc`, artifactParams)}</span>
             {owned ? (
@@ -1454,10 +1478,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {modesOpen && showLobby ? (
         <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlay={() => play("circle")} onClose={() => setModesOpen(false)} />
       ) : null}
+      {soundOpen ? <FlockSoundSettings onClose={() => setSoundOpen(false)} /> : null}
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
       {showLobby ? (
-        <div className={styles.cardWrap}>
+        <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <div className={styles.titleRow}>
@@ -1470,6 +1495,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   <img src={artifactIconSrc(artifact > 0 ? artifact : ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
                   {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
                 </button>
+                <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
               </div>
               <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
                 <RubyIcon size={18} />
@@ -1488,6 +1514,16 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
                 {paidIds.map((i) => skinButton(i))}
               </div>
+            ) : null}
+            {specialIds.length > 0 ? (
+              <>
+                <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
+                {splitRows(specialIds).map((row, n) => (
+                  <div key={row[0]} className={styles.skins} style={n > 0 ? { marginTop: 6 } : undefined} role="radiogroup" aria-label={t("special")}>
+                    {row.map((i) => skinButton(i))}
+                  </div>
+                ))}
+              </>
             ) : null}
             {premiumRows.length > 0 ? (
               <>
@@ -1508,16 +1544,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                     {t("premiumCollection.collectDone", { count: collectionAward.amount })}
                   </p>
                 ) : null}
-              </>
-            ) : null}
-            {specialIds.length > 0 ? (
-              <>
-                <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
-                {splitRows(specialIds).map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("special")}>
-                    {row.map((i) => skinButton(i))}
-                  </div>
-                ))}
               </>
             ) : null}
             {previewSkin === null && isSpecialSkin(skin) && perkList(me?.config.game, skin).length > 0 ? (

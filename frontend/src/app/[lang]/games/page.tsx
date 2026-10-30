@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
@@ -8,11 +8,8 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { SKINS } from "@/components/FlockMiniGame/flockSkins";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
-import GameInvitePicker, { type GamePeer } from "@/components/GlobalGamesMenu/GameInvitePicker";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import GameIcon from "@/lib/games/gameIcons";
-import { GAME_REGISTRY, type GameId } from "@/lib/games/gameRegistry";
-import type { PairGameId } from "@/lib/gameInviteMessage";
 import SoloPuzzleHost from "./SoloPuzzleHost";
 import styles from "./games.module.scss";
 
@@ -26,17 +23,13 @@ const ChristianFilwordMiniGame = dynamic(
 type SoloGame = "doodle" | "filword" | "puzzle";
 const isSoloGame = (v: unknown): v is SoloGame => v === "doodle" || v === "filword" || v === "puzzle";
 
-/** Порядок карток: «Отара» — окрема картка зверху, далі решта за реєстром. */
-const OTHER_GAMES = (Object.keys(GAME_REGISTRY) as GameId[]).filter((g) => g !== "flock");
-
 export default function GamesPage() {
   const t = useTranslations("games");
-  const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" });
+  const { user } = useAuth({ redirectIfUnauthenticated: "/" });
   const [soloGame, setSoloGame] = useState<SoloGame | null>(null);
-  const [pickGame, setPickGame] = useState<PairGameId | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [doodleScore, setDoodleScore] = useState(0);
-  const [doodleKey, setDoodleKey] = useState(0);
+  const [doodleKey] = useState(0);
 
   // Перехід із меню ігор загального чату: /games?play=filword|puzzle одразу запускає гру.
   useEffect(() => {
@@ -47,32 +40,7 @@ export default function GamesPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const peers = useMemo<GamePeer[]>(
-    () =>
-      users.map((u) => ({
-        id: u.id,
-        username: u.username,
-        nickname: u.nickname,
-        avatarUrl: u.avatarUrl,
-        isOnline: false,
-        lastSeenAt: u.lastSeenAt,
-      })),
-    [users],
-  );
-
   const closeSolo = useCallback(() => setSoloGame(null), []);
-  const startDoodle = () => {
-    setDoodleScore(0);
-    setDoodleKey((k) => k + 1);
-    setSoloGame("doodle");
-  };
-
-  const launch = (game: GameId) => {
-    setNotice(null);
-    if (game === "doodle") startDoodle();
-    else if (game === "filword" || game === "puzzle") setSoloGame(game);
-    else setPickGame(game as PairGameId);
-  };
 
   return (
     <section className={styles.page}>
@@ -109,33 +77,6 @@ export default function GamesPage() {
           </span>
           <span className={styles.cta}>{t("flock.cta")}</span>
         </Link>
-
-        {OTHER_GAMES.map((game) => {
-          const withInvite = game === "doodle" || game === "puzzle";
-          return (
-            <div key={game} className={styles.cardWrap}>
-              <button type="button" className={styles.card} onClick={() => launch(game)} disabled={!user}>
-                <span className={styles.cardBody}>
-                  <span className={styles.cardTitle}>
-                    <GameIcon game={game} size={20} className={styles.cardIcon} /> {t(`${game}.title`)}
-                  </span>
-                  <span className={styles.cardDesc}>{t(`${game}.desc`)}</span>
-                </span>
-                <span className={styles.cta}>{t(`${game}.cta`)}</span>
-              </button>
-              {withInvite ? (
-                <button
-                  type="button"
-                  className={styles.inviteLink}
-                  onClick={() => setPickGame(game as PairGameId)}
-                  disabled={!user}
-                >
-                  {t("invite")}
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
       </div>
 
       {soloGame === "doodle" ? (
@@ -163,15 +104,6 @@ export default function GamesPage() {
           }}
         />
       ) : null}
-
-      <GameInvitePicker
-        game={pickGame}
-        onClose={() => setPickGame(null)}
-        currentUserId={user?.id}
-        participants={peers}
-        peopleLoading={loading}
-        onNotice={setNotice}
-      />
     </section>
   );
 }

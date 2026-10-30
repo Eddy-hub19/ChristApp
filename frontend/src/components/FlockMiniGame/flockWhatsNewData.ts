@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -504,6 +504,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Режим «Звужуване коло» повільніший: усі фази довші приблизно в 1,6 раза, а маса поза колом тане на 30% м'якше",
           ru: "Режим «Сужающийся круг» медленнее: все фазы длиннее примерно в 1,6 раза, а масса вне круга тает на 30% мягче",
           en: "“Shrinking circle” is slower: every phase is about 1.6x longer and mass outside the circle melts 30% more gently",
+        },
+      },
+    ],
+  },
+  {
+    version: 20,
+    date: "2026-10-30",
+    items: [
+      {
+        icon: "sound",
+        text: {
+          ua: "У «Отарі» зʼявились звуки: поїдання, бонуси, події арени. Вимкнути чи зробити тихіше можна кнопкою з динаміком",
+          ru: "В «Отаре» появились звуки: поедание, бонусы, события арены. Выключить или сделать тише можно кнопкой с динамиком",
+          en: "Flock now has sounds: eating, bonuses and arena events. Mute or turn them down with the speaker button",
         },
       },
     ],
