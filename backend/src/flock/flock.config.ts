@@ -628,6 +628,12 @@ export const FLOCK_CONFIG = {
     48: { foodReach: 0.08, decaySlow: 0.08 },
     /** 49 «Небесна»: щит після входу й відродження на 2 с довший. */
     49: { shieldBonusMs: 2000 },
+    /** 53 «Ягідна»: «Прискорення» горить на 20% менше. */
+    53: { sprintBurnLess: 0.2 },
+    /** 54 «Зимова»: заморозка на тобі на 25% коротша. */
+    54: { freezeLess: 0.25 },
+    /** 55 «Какао»: калюжі «Дощу» уповільнюють удвічі слабше. */
+    55: { puddleLess: 0.5 },
   } as Record<number, SkinPerk>,
 
   // --- артефакти (надягаються поверх скіна, купуються за рубіни, 1 надітий; бонус рахує сервер за надітим) ---
@@ -820,9 +826,9 @@ export const BONUS_KINDS = Object.keys(
  * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки, 41-46 другий ряд преміум (анімовані). Групи задано явними списками.
  */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 50;
+export const NUM_SKINS = 57;
 /** Нові «особливі» скіни в кінці нумерації: 48 «Медова овечка», 49 «Небесна овечка» (47 зарезервовано під MONSTER_SKIN). */
-export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49];
+export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49, 53, 54, 55];
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
 /** Скін «Лавового чудовиська»: поза NUM_SKINS, гравець його вибрати не може (клієнт малює темне створіння з вогняними тріщинами). */
@@ -862,7 +868,7 @@ export const isSelectableSkin = (id: number) =>
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
 /** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
 export const PREMIUM_SKIN_IDS: readonly number[] = [
-  18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46,
+  18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46, 56,
 ];
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;

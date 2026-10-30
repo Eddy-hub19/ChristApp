@@ -37,7 +37,7 @@ describe("рубіни: множина (ICU plural)", () => {
 describe("скіни: платні 12..17, преміум 18..23 і особливі 24..33", () => {
   it("клієнтські константи збігаються з набором скінів", () => {
     // номер 36 - зарезервований скін «Вожака», нові вовки йдуть після нього (37-40); 47 - службовий скін «Лавового чудовиська»
-    expect(SKINS).toHaveLength(TOTAL_SKINS + 3); // + 3 скіна «Вожака» по картах (50-52)
+    expect(SKINS).toHaveLength(TOTAL_SKINS); // у межах нумерації й 3 зарезервовані скіни «Вожака» по картах (50-52)
     expect(PAID_SKIN_IDS).toEqual([12, 13, 14, 15, 16, 17, 34, 35]);
     expect([...FREE_SKIN_IDS].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 8, 9, 37, 38, 39, 40]);
     expect(FREE_SKIN_ROWS.map((r) => r.length)).toEqual([6, 6]);
@@ -57,7 +57,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("преміум 18..23: окремий діапазон, у кожного є назва в трьох мовах і анімація", () => {
     expect(PREMIUM_FROM).toBe(18);
-    expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46]);
+    expect(PREMIUM_SKIN_IDS).toEqual([18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46, 56]);
     expect(isPremiumSkin(17)).toBe(false);
     expect(isPremiumSkin(18)).toBe(true);
     expect(isPremiumSkin(SPECIAL_FROM)).toBe(false);
@@ -74,9 +74,9 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("особливі 24..33: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
     expect(SPECIAL_FROM).toBe(24);
-    expect(TOTAL_SKINS).toBe(50);
+    expect(TOTAL_SKINS).toBe(57);
     expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
-    expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 48, 49]);
+    expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 48, 49, 53, 54, 55]);
     expect(isSpecialSkin(23)).toBe(false);
     expect(isSpecialSkin(24)).toBe(true);
     expect(isSpecialSkin(TOTAL_SKINS)).toBe(false);
@@ -90,7 +90,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
         expect((m.flock.skins as Record<string, string>)[String(id)]).toBeTruthy();
       }
     }
-    expect(decos.size).toBe(12);
+    expect(decos.size).toBe(15);
     for (const m of [ua, ru, en]) expect(m.flock.special).toBeTruthy();
   });
 

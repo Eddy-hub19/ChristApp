@@ -553,9 +553,9 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "skins",
         text: {
-          ua: "Чотири нові скіни: три особливі й один преміум з анімацією",
-          ru: "Четыре новых скина: три особенных и один премиум с анимацией",
-          en: "Four new skins: three special and one animated premium",
+          ua: "Чотири нові скіни: «Ягідна», «Зимова» й «Какао-вівця» (особливі) та анімована «Вівця-комета» (преміум)",
+          ru: "Четыре новых скина: «Ягодная», «Зимняя» и «Какао-овца» (особенные) и анимированная «Овца-комета» (премиум)",
+          en: "Four new skins: Berry, Winter and Cocoa sheep (special) and the animated Comet sheep (premium)",
         },
       },
     ],

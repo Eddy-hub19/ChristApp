@@ -22,7 +22,7 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(50);
+    expect(NUM_SKINS).toBe(57);
     for (let id = 41; id < MONSTER_SKIN; id++) {
       expect(isPremiumSkin(id)).toBe(true);
       expect(isPaidSkin(id)).toBe(true);

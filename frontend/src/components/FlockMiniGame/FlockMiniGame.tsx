@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EagleEyeIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
-import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, PREMIUM_SKIN_ROWS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -594,19 +594,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const hiddenSkins = me ? (me.config.hiddenSkins ?? []) : HIDDEN_SKIN_IDS;
   const ownedSkins = me?.ownedSkins ?? null;
   const paidIds = visibleSkinIds(PAID_SKIN_IDS, hiddenSkins, ownedSkins);
-  const premiumRows = PREMIUM_SKIN_ROWS.map((row) => visibleSkinIds(row, hiddenSkins, ownedSkins)).filter((row) => row.length > 0);
   const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
   /** Премиум-скины, которые сейчас в продаже (без снятых): их надо собрать для награды. */
   const collectionIds = PREMIUM_SKIN_IDS.filter((id) => !hiddenSkins.includes(id));
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
 
-  /** Особые скины: ряды по шесть, как у остальных (клетки того же размера; в неполном ряду пустые места справа). */
+  /** Ряды по шесть; в неполном последнем ряду колонок ровно столько, сколько скинов (без пустых ячеек). */
   const splitRows = (ids: readonly number[]): number[][] => {
     const rows: number[][] = [];
     for (let k = 0; k < ids.length; k += 6) rows.push(ids.slice(k, k + 6));
     return rows;
   };
+  /** Премиум-скины (видимые) рядами по шесть без пустых ячеек: 11 -> 6 + 5. */
+  const premiumRows = splitRows(visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins));
 
   const priceOf = (i: number) =>
     isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 150) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 200) : (me?.config.skinPrice ?? 50);
@@ -1519,7 +1520,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <>
                 <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
                 {splitRows(specialIds).map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={n > 0 ? { marginTop: 6 } : undefined} role="radiogroup" aria-label={t("special")}>
+                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("special")}>
                     {row.map((i) => skinButton(i))}
                   </div>
                 ))}

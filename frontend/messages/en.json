@@ -1564,7 +1564,11 @@
       "45": "Butterfly Sheep",
       "46": "Thunder Ram",
       "48": "Honey sheep",
-      "49": "Sky sheep"
+      "49": "Sky sheep",
+      "53": "Berry sheep",
+      "54": "Winter sheep",
+      "55": "Cocoa sheep",
+      "56": "Comet sheep"
     },
     "rubies": {
       "name": "Rubies",
