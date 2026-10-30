@@ -1,0 +1,44 @@
+# Flock sound licenses
+
+| File | Engine sound | Title | Author | Source | License | Original file | Size (ogg+mp3) | Date |
+|---|---|---|---|---|---|---|---|---|
+| eat-grass | eatGrass | bubbles 'pop' | farfadet46 | https://opengameart.org/content/bubbles-pop | CC0 | pop.ogg | 5.4 KB | 2026-10-30 |
+| eat-flower | eatFlower | 3 Pop Sounds | wubitog | https://opengameart.org/content/3-pop-sounds | CC0 | 3pops.ogg (first pop, 0.59-0.79 s) | 6.6 KB | 2026-10-30 |
+| scissors | scissors | Scissors | themightyglider | https://opengameart.org/content/scissors | CC0 | scissors.ogg | 15.1 KB | 2026-10-30 |
+| coins | coins | Gold Coin | Aeva | https://opengameart.org/content/gold-coin-6 | CC0 | coin_0.ogg | 12.1 KB | 2026-10-30 |
+| click | click | 51 UI sound effects (buttons, switches and clicks) | Kenney (kenney.nl) | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | CC0 | click1.wav | 4.6 KB | 2026-10-30 |
+| phrase | phrase | 51 UI sound effects (buttons, switches and clicks) | Kenney (kenney.nl) | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | CC0 | rollover1.wav | 6.2 KB | 2026-10-30 |
+| bonus | bonus | Bell dings/chimes | PWL | https://opengameart.org/content/bell-dingschimes | CC0 | bell_ding4.wav | 17.5 KB | 2026-10-30 |
+| star-warn | starWarn | Bell dings/chimes | PWL | https://opengameart.org/content/bell-dingschimes | CC0 | bell_ding2.wav | 19.6 KB | 2026-10-30 |
+| star-pick | starPick | Bell dings/chimes | PWL | https://opengameart.org/content/bell-dingschimes | CC0 | bell_ding3.wav | 15.1 KB | 2026-10-30 |
+| boss-horn | bossHorn | Their Coming (generic horn sound) | StumpyStrust | https://opengameart.org/content/their-coming-generic-horn-sound | CC0 | theircoming.ogg (first 1.5 s) | 26.0 KB | 2026-10-30 |
+| death | death | Level up, power up, Coin get (13 Sounds) | wobbleboxx | https://opengameart.org/content/level-up-power-up-coin-get-13-sounds | CC0 | SoundPack01/Downer01.aif | 13.1 KB | 2026-10-30 |
+| revive | revive | Level up, power up, Coin get (13 Sounds) | wobbleboxx | https://opengameart.org/content/level-up-power-up-coin-get-13-sounds | CC0 | SoundPack01/Upper01.aif (first 1.6 s) | 26.1 KB | 2026-10-30 |
+| wind | wind | wind1 | Luke.RUSTLTD | https://opengameart.org/content/wind1 | CC0 | wind1.wav (12 s, seamless loop by crossfade) | 72.3 KB | 2026-10-30 |
+| rain | rain | Rain (loopable) | Ylmir | https://opengameart.org/content/rain-loopable | CC0 | Rain OGG/1.ogg (10 s, seamless loop by crossfade) | 64.1 KB | 2026-10-30 |
+
+Total size of `public/sounds/flock/*.ogg|mp3`: 304 KB.
+
+## Processing
+
+Sources were downloaded from the OpenGameArt pages above (each page's license field was checked and shows CC0 only;
+pages listing several licenses were not used). Every file was converted with ffmpeg: mono, 32 kHz, leading/trailing
+silence trimmed (`silenceremove`), peak-normalised (-3 dBFS one-shots, -6 dBFS loops), short fade in/out, encoded to
+Ogg Vorbis (`-q:a 2`) and MP3 (64 kbps, one-shots only; the engine falls back to it where Ogg is not decodable).
+Loops (`wind`, `rain`) are made seamless by crossfading the last 1.5 s into the first 1.5 s (equal-power fade).
+
+## Generated sounds (ElevenLabs)
+
+None yet. `frontend/scripts/generate-sounds.mjs` is a one-off script (never run at build time or in the app) that generates the
+remaining sounds with ElevenLabs Sound Effects from the local `.env` key `ELEVENLABS_API_KEY`. Every file it produces
+must be added here with the prompt and date. **Rights to generated audio depend on the ElevenLabs plan of the account
+that generated it; the owner must check the plan's commercial-use terms before shipping such files.**
+
+## Sounds still synthesized (no file)
+
+eatCell, eaten, bonusEnd, split, throw, sprint (loop), spawnBoost, burn, starFall, pipe, freeze. They are generated in
+code by `flockSoundDefs.ts` (no third-party material, no license needed).
+
+## Not used
+
+Freesound was skipped (no `FREESOUND_API_KEY` in the local `.env`). Envato Elements and sources without explicit CC0 are not used.

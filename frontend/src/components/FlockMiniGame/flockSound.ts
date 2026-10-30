@@ -186,10 +186,20 @@ async function loadFiles() {
   try {
     for (const id of todo) {
       try {
-        const res = await fetch(SOUNDS[id].file as string);
-        if (!res.ok) throw new Error(String(res.status));
-        const data = await res.arrayBuffer();
-        const buf = await new Promise<AudioBuffer>((ok, bad) => c.decodeAudioData(data, ok, bad));
+        let buf: AudioBuffer | null = null;
+        // .ogg не везде декодируется (старый Safari) - тогда пробуем .mp3; нет ни того ни другого - играет синтез
+        for (const ext of [".ogg", ".mp3"]) {
+          try {
+            const res = await fetch(`${SOUNDS[id].file}${ext}`);
+            if (!res.ok) continue;
+            const data = await res.arrayBuffer();
+            buf = await new Promise<AudioBuffer>((ok, bad) => c.decodeAudioData(data, ok, bad));
+            break;
+          } catch {
+            /* пробуем следующий формат */
+          }
+        }
+        if (!buf) throw new Error("no file");
         buffers.set(id, buf);
       } catch {
         failed.add(id);

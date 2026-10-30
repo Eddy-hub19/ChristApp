@@ -1,8 +1,8 @@
 /**
  * Реестр звуков «Отари»: каждый звук - маленький синтезатор (осцилляторы, шум, огибающие, фильтры).
  *
- * Как заменить звук готовым файлом: в записи нужного звука добавьте `file: "/sounds/flock/<имя>.ogg"` (файл лежит в
- * public/sounds/flock/). Движок сам подгрузит его при первом включении звука и будет играть вместо синтеза;
+ * Как заменить звук готовым файлом: в записи нужного звука добавьте `file: "/sounds/flock/<имя>"` (без расширения;
+ * кладите <имя>.ogg и, для старых Safari, <имя>.mp3 в public/sounds/flock/ и запишите источник/лицензию в CREDITS.md). Движок сам подгрузит его при первом включении звука и будет играть вместо синтеза;
  * если файл не загрузился - сыграет синтез. Код, который вызывает звук (playFlockSound / startFlockLoop), не меняется.
  * Для зацикленных звуков (ветер, дождь, рывок) файл должен быть бесшовной петлёй.
  */
@@ -24,7 +24,7 @@ export interface SoundDef {
   synth: (e: SynthEnv) => number;
   /** Для петель: запускает источники, подключённые к e.out, и возвращает их для остановки. */
   loop?: (e: SynthEnv) => AudioScheduledSourceNode[];
-  /** Готовый файл вместо синтеза (путь от корня сайта). */
+  /** Готовый файл вместо синтеза: путь от корня сайта БЕЗ расширения (грузится .ogg, если не декодируется - .mp3). Лицензии: public/sounds/flock/CREDITS.md. */
   file?: string;
   /** Базовая громкость голоса, 0..1. */
   gain: number;
@@ -137,6 +137,7 @@ export type SoundId =
 
 export const SOUNDS: Record<SoundId, SoundDef> = {
   eatGrass: {
+    file: "/sounds/flock/eat-grass",
     gain: 0.7,
     minGapMs: 60,
     jitter: 0.14,
@@ -147,6 +148,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   eatFlower: {
+    file: "/sounds/flock/eat-flower",
     gain: 0.7,
     minGapMs: 60,
     jitter: 0.12,
@@ -177,6 +179,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   bonus: {
+    file: "/sounds/flock/bonus",
     gain: 0.7,
     minGapMs: 120,
     synth: (e) => {
@@ -230,6 +233,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   death: {
+    file: "/sounds/flock/death",
     gain: 0.85,
     minGapMs: 300,
     synth: (e) => {
@@ -248,6 +252,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   revive: {
+    file: "/sounds/flock/revive",
     gain: 0.8,
     minGapMs: 500,
     synth: (e) => {
@@ -258,6 +263,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   starWarn: {
+    file: "/sounds/flock/star-warn",
     gain: 0.75,
     minGapMs: 800,
     synth: (e) => {
@@ -276,6 +282,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   starPick: {
+    file: "/sounds/flock/star-pick",
     gain: 0.8,
     minGapMs: 100,
     synth: (e) => {
@@ -286,12 +293,14 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   wind: {
+    file: "/sounds/flock/wind",
     gain: 0.45,
     ambient: true,
     synth: () => 0,
     loop: (e) => noiseLoop(e, "bandpass", 380, 0.6, 0.18, 160),
   },
   rain: {
+    file: "/sounds/flock/rain",
     gain: 0.22,
     ambient: true,
     synth: () => 0,
@@ -301,6 +310,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   scissors: {
+    file: "/sounds/flock/scissors",
     gain: 0.8,
     minGapMs: 150,
     synth: (e) => {
@@ -332,6 +342,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   bossHorn: {
+    file: "/sounds/flock/boss-horn",
     gain: 0.85,
     minGapMs: 800,
     synth: (e) => {
@@ -358,6 +369,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   phrase: {
+    file: "/sounds/flock/phrase",
     gain: 0.55,
     minGapMs: 150,
     synth: (e) => {
@@ -366,6 +378,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   click: {
+    file: "/sounds/flock/click",
     gain: 0.6,
     minGapMs: 30,
     synth: (e) => {
@@ -374,6 +387,7 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   coins: {
+    file: "/sounds/flock/coins",
     gain: 0.75,
     minGapMs: 200,
     synth: (e) => {
