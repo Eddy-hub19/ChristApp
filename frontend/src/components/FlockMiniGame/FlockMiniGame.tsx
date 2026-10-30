@@ -594,18 +594,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
   const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
 
-  /** Ряды особых скинов без пустых ячеек: делим поровну (8 -> 4+4, 10 -> 5+5), по возможности без «хвоста». */
+  /** Особые скины: ряды по шесть, как у остальных (клетки того же размера; в неполном ряду пустые места справа). */
   const splitRows = (ids: readonly number[]): number[][] => {
-    const n = ids.length;
-    let cols = Math.min(6, n);
-    for (let c = Math.min(6, n); c >= 3; c--) {
-      if (n % c === 0) {
-        cols = c;
-        break;
-      }
-    }
     const rows: number[][] = [];
-    for (let k = 0; k < n; k += cols) rows.push(ids.slice(k, k + cols));
+    for (let k = 0; k < ids.length; k += 6) rows.push(ids.slice(k, k + 6));
     return rows;
   };
 
@@ -1505,7 +1497,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <>
                 <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
                 {splitRows(specialIds).map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("special")}>
+                  <div key={row[0]} className={styles.skins} style={n > 0 ? { marginTop: 6 } : undefined} role="radiogroup" aria-label={t("special")}>
                     {row.map((i) => skinButton(i))}
                   </div>
                 ))}
