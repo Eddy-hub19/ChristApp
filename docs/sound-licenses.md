@@ -7,7 +7,7 @@
 | scissors | scissors | Scissors | themightyglider | https://opengameart.org/content/scissors | CC0 | scissors.ogg | 15.1 KB | 2026-10-30 |
 | coins | coins | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 11.6 KB | 2026-10-31 |
 | click | click | 51 UI sound effects (buttons, switches and clicks) | Kenney (kenney.nl) | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | CC0 | click1.wav | 4.6 KB | 2026-10-30 |
-| phrase | phrase | 51 UI sound effects (buttons, switches and clicks) | Kenney (kenney.nl) | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | CC0 | rollover1.wav | 6.2 KB | 2026-10-30 |
+| sheep | phrase | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 20.4 KB | 2026-10-31 |
 | bonus | bonus | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 12.5 KB | 2026-10-31 |
 | star-warn | starWarn | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 14.7 KB | 2026-10-31 |
 | star-pick | starPick | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 9.0 KB | 2026-10-31 |

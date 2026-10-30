@@ -369,9 +369,9 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     },
   },
   phrase: {
-    file: "/sounds/flock/phrase",
+    file: "/sounds/flock/sheep",
     gain: 0.55,
-    minGapMs: 150,
+    minGapMs: 400,
     synth: (e) => {
       tone(e, "sine", 880, 1040, 0, 0.1, 0.22, 0.01);
       return 0.12;
