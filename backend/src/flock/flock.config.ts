@@ -2,6 +2,33 @@
  * Усі числа "Отари" в одному місці: частота, бонуси, боти, ліміти.
  * Одиниці: відстань - світові одиниці, час - мс, швидкість - од/с.
  */
+/** Бонус скіна (усі поля необов'язкові; частки - 0.1 = 10%). Рахується сервером за обраним скіном; клієнт передбачає лише швидкість і розгін. */
+export interface SkinPerk {
+  /** Радіус підбору їжі. */
+  foodReach?: number;
+  /** Розпад маси повільніший. */
+  decaySlow?: number;
+  /** Швидкість. */
+  speed?: number;
+  /** Тривалість підібраних бонусів. */
+  bonusDuration?: number;
+  /** Розгін на старті: додаток до speedBonus (п.п.) і до тривалості (мс). */
+  spawnBoostBonus?: number;
+  spawnBoostMs?: number;
+  /** Маса від їжі. */
+  foodMass?: number;
+  /** Маса від трави й квітів (kind 0, 1). */
+  grassFlowerMass?: number;
+  /** Щит після входу/відродження довший (мс). */
+  shieldBonusMs?: number;
+  /** «Прискорення» горить менше. */
+  sprintBurnLess?: number;
+  /** Заморозка на цьому гравці коротша. */
+  freezeLess?: number;
+  /** Калюжі «Дощу» уповільнюють слабше. */
+  puddleLess?: number;
+}
+
 export const FLOCK_CONFIG = {
   // ======================================================================
   // ЛІМІТИ ПІД ТАРИФ - це єдине місце, яке міняємо при зміні інстансу.
@@ -419,17 +446,19 @@ export const FLOCK_CONFIG = {
     dailyLimit: 100,
     dailyTimeZone: 'Europe/Kyiv',
     /** Вартість звичайного платного скіна. */
-    skinPrice: 20,
+    skinPrice: 50,
     /** Вартість преміум-скіна (з анімацією) - окремо від звичайних платних. */
-    premiumSkinPrice: 60,
+    premiumSkinPrice: 200,
     /** Перший номер платних скінів у старій нумерації (безкоштовні задає FREE_SKIN_IDS). */
     freeSkins: 12,
     /** Скіни з номерами >= premiumFrom - преміум (дорожчі, з анімацією). */
     premiumFrom: 18,
     /** Вартість «особливого» скіна (ряд 24-33, без анімації) - окремо від звичайних і преміум. */
-    specialSkinPrice: 40,
+    specialSkinPrice: 150,
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
+    /** Разова нагорода за повну колекцію преміум-скінів, що зараз у продажу (без HIDDEN_SKINS); поза dailyLimit. */
+    premiumCollectionReward: 300,
   },
 
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
@@ -579,10 +608,38 @@ export const FLOCK_CONFIG = {
     unstuckMs: 1400,
   },
 
+  // --- бонуси «особливих» скінів (малі; сервер рахує при вході на арену за обраним скіном, боти їх не мають) ---
+  skinPerks: {
+    /** 24 «Кришталева»: радіус підбору їжі +10%. */
+    24: { foodReach: 0.1 },
+    /** 25 «Кактус»: розпад маси на 15% повільніший. */
+    25: { decaySlow: 0.15 },
+    /** 27 «Лавова»: швидкість +5% (підсумок під maxSpeedHard). */
+    27: { speed: 0.05 },
+    /** 28 «Галактична»: підібрані бонуси діють на 15% довше. */
+    28: { bonusDuration: 0.15 },
+    /** 29 «Грозова»: розгін на старті сильніший на 10 п.п. і довший на 3 с. */
+    29: { spawnBoostBonus: 0.1, spawnBoostMs: 3000 },
+    /** 32 «Осіння»: +8% маси від їжі. */
+    32: { foodMass: 0.08 },
+    /** 33 «Цукерка»: +10% маси від трави й квітів. */
+    33: { grassFlowerMass: 0.1 },
+    /** 48 «Медова»: радіус підбору +8% і розпад на 8% повільніший. */
+    48: { foodReach: 0.08, decaySlow: 0.08 },
+    /** 49 «Небесна»: щит після входу й відродження на 2 с довший. */
+    49: { shieldBonusMs: 2000 },
+    /** 53 «Ягідна»: «Прискорення» горить на 20% менше. */
+    53: { sprintBurnLess: 0.2 },
+    /** 54 «Зимова»: заморозка на тобі на 25% коротша. */
+    54: { freezeLess: 0.25 },
+    /** 55 «Какао»: калюжі «Дощу» уповільнюють удвічі слабше. */
+    55: { puddleLess: 0.5 },
+  } as Record<number, SkinPerk>,
+
   // --- артефакти (надягаються поверх скіна, купуються за рубіни, 1 надітий; бонус рахує сервер за надітим) ---
   artifacts: {
     /** Ціна кожного артефакта в рубінах - окремо від цін скінів. */
-    price: 100,
+    price: 350,
     /** 1 «Взуття»: +8% до швидкості (вище maxSpeedHard не піднімає). */
     shoesSpeedBonus: 0.08,
     /**
@@ -728,7 +785,9 @@ export function clientGameConfig() {
       skinPrice: c.rubies.skinPrice,
       premiumSkinPrice: c.rubies.premiumSkinPrice,
       specialSkinPrice: c.rubies.specialSkinPrice,
+      premiumCollectionReward: c.rubies.premiumCollectionReward,
     },
+    skinPerks: Object.fromEntries(Object.entries(c.skinPerks).map(([k, v]) => [k, { ...v }])),
     dailyRecords: {
       streakRewards: [...c.dailyRecords.streakRewards],
       streakDays: c.dailyRecords.streakRewards.length,
@@ -767,9 +826,9 @@ export const BONUS_KINDS = Object.keys(
  * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки, 41-46 другий ряд преміум (анімовані). Групи задано явними списками.
  */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 50;
+export const NUM_SKINS = 57;
 /** Нові «особливі» скіни в кінці нумерації: 48 «Медова овечка», 49 «Небесна овечка» (47 зарезервовано під MONSTER_SKIN). */
-export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49];
+export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49, 53, 54, 55];
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
 export const BOSS_SKIN = 36;
 /** Скін «Лавового чудовиська»: поза NUM_SKINS, гравець його вибрати не може (клієнт малює темне створіння з вогняними тріщинами). */
@@ -809,7 +868,7 @@ export const isSelectableSkin = (id: number) =>
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !isFreeSkin(id);
 /** Преміум-скіни (з анімацією, premiumSkinPrice): явний список. */
 export const PREMIUM_SKIN_IDS: readonly number[] = [
-  18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46,
+  18, 19, 20, 21, 22, 23, 41, 42, 43, 44, 45, 46, 56,
 ];
 export const PREMIUM_FROM = FLOCK_CONFIG.rubies.premiumFrom;
 export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
@@ -855,3 +914,9 @@ export const isPhraseId = (id: unknown): id is number =>
   typeof id === 'number' && FLOCK_CONFIG.phrases.ids.includes(id);
 export const isArtifactId = (id: unknown): id is number =>
   typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= NUM_ARTIFACTS;
+
+/** Бонус скіна для гравця-людини (боти - undefined). */
+export const skinPerkOf = (skin: number): SkinPerk | undefined => FLOCK_CONFIG.skinPerks[skin];
+
+/** Преміум-скіни, що зараз у продажу (колекція для нагороди). */
+export const premiumCollectionIds = (): number[] => PREMIUM_SKIN_IDS.filter((id) => !isHiddenSkin(id));

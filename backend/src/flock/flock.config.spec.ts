@@ -18,11 +18,11 @@ import {
 import { decodeState, encodeState } from './protocol';
 
 describe('скіни: ціни й діапазони', () => {
-  it('безкоштовні - явний список FREE_SKIN_IDS, 12..17 платні по 20, 18..23 преміум по 60', () => {
+  it('безкоштовні - явний список FREE_SKIN_IDS, 12..17 платні по 50, 18..23 преміум по 200', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(50);
+    expect(NUM_SKINS).toBe(57);
     for (let id = 41; id < MONSTER_SKIN; id++) {
       expect(isPremiumSkin(id)).toBe(true);
       expect(isPaidSkin(id)).toBe(true);
@@ -62,9 +62,9 @@ describe('скіни: ціни й діапазони', () => {
     // «Вожак» зарезервований: не продається і не обирається
     expect(isPaidSkin(BOSS_SKIN)).toBe(false);
     expect(isSelectableSkin(BOSS_SKIN)).toBe(false);
-    expect(C.rubies.specialSkinPrice).toBe(40);
-    expect(C.rubies.skinPrice).toBe(20);
-    expect(C.rubies.premiumSkinPrice).toBe(60);
+    expect(C.rubies.specialSkinPrice).toBe(150);
+    expect(C.rubies.skinPrice).toBe(50);
+    expect(C.rubies.premiumSkinPrice).toBe(200);
     expect(isPaidSkin(NUM_SKINS)).toBe(false);
   });
 

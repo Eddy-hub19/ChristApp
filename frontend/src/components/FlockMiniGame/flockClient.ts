@@ -109,6 +109,8 @@ export class FlockClient {
   private socket: Sock | null = null;
   private skin = 0;
   private artifact = 0;
+  /** Бонусы выбранного скина для предсказания движения (из /flock/me). */
+  private perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {};
   private mode: FlockMode;
   private wantPlay = false;
   private disposed = false;
@@ -202,6 +204,7 @@ export class FlockClient {
       this.later(() => {
         this.model = new FlockModel(cfg);
         attachFlockSounds(this.model);
+        this.model.selfPerks = this.perks;
         // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
         this.mode = cfg.mode === "circle" ? "circle" : "normal";
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
@@ -405,7 +408,8 @@ export class FlockClient {
   }
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
-  join(skin: number, artifact = 0, mode: FlockMode = this.mode) {
+  join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}) {
+    this.perks = perks;
     this.mode = mode;
     this.skin = skin;
     this.artifact = artifact;

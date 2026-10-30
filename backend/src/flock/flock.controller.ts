@@ -32,6 +32,7 @@ export class FlockController {
     // відкриття гри = перший запит профілю: тут же нараховуємо разовий бонус (баланс у відповіді вже з ним)
     const bonus = await this.rubies.claimEntryBonus(userId);
     const streakAward = await this.daily.claimStreakAward(userId);
+    const collection = await this.rubies.claimPremiumCollection(userId);
     const [me, daily] = await Promise.all([
       this.rubies.getMe(userId),
       this.daily.getBoard(userId),
@@ -40,6 +41,7 @@ export class FlockController {
       ...me,
       daily,
       ...(bonus ? { entryBonus: bonus.amount } : {}),
+      ...(collection ? { premiumCollection: collection.amount } : {}),
       ...(streakAward > 0
         ? {
             streakAward,

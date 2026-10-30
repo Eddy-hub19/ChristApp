@@ -6,7 +6,7 @@ import type { Skin, SkinDeco } from "./flockSkins";
  * Частини, що виступають за тіло, - позаду (`drawSpecialBehind`) або поверх нього (`drawSpecialFront`).
  * Усе лише в кеш-спрайт: жодних анімацій і ніякого малювання на кадр.
  */
-export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi", "leaves", "candy", "honey", "sky"];
+export const SPECIAL_DECOS: readonly SkinDeco[] = ["crystal", "cactus", "mushroom", "lava", "galaxy", "storm", "robot", "sushi", "leaves", "candy", "honey", "sky", "berry", "winter", "cocoa"];
 
 export const isSpecialDeco = (d: SkinDeco | undefined): boolean => !!d && SPECIAL_DECOS.includes(d);
 
@@ -26,7 +26,11 @@ export function specialExtent(skin: Skin): number {
     case "leaves":
     case "honey":
     case "sky":
+    case "cocoa":
       return 1.4;
+    case "berry":
+    case "winter":
+      return 1.3;
     case "candy":
       return 1.65;
     case "sushi":
@@ -217,6 +221,61 @@ function miniMushroom(c: CanvasRenderingContext2D, x: number, y: number, dir: nu
 }
 
 /** Частини, що виступають ПОЗАД тілом. */
+/** Малина: кластер из ягодок, зелёная чашечка сверху. */
+function raspberry(c: CanvasRenderingContext2D, x: number, y: number, rr: number) {
+  c.fillStyle = "#b8183f";
+  circle(c, x, y, rr);
+  c.fill();
+  c.fillStyle = "#e32b57";
+  for (const [dx, dy] of [
+    [-0.45, -0.35],
+    [0.45, -0.35],
+    [0, 0.05],
+    [-0.5, 0.45],
+    [0.5, 0.45],
+    [0, 0.7],
+  ] as const) {
+    circle(c, x + dx * rr * 0.9, y + dy * rr * 0.8, rr * 0.38);
+    c.fill();
+  }
+  c.fillStyle = "rgba(255,200,215,0.85)";
+  circle(c, x - rr * 0.35, y - rr * 0.4, rr * 0.18);
+  c.fill();
+  c.fillStyle = "#4f9a45";
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + 0.4;
+    circle(c, x + Math.cos(a) * rr * 0.55, y - rr * 0.78 + Math.sin(a) * rr * 0.12, rr * 0.2);
+    c.fill();
+  }
+}
+
+/** Зефирка: скруглённый квадрат с центром (x, y). */
+function marshmallow(c: CanvasRenderingContext2D, x: number, y: number, rr: number, rot: number) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(rot);
+  c.fillStyle = "#fff4f7";
+  c.strokeStyle = "#e3b2c0";
+  c.lineWidth = Math.max(1, rr * 0.12);
+  c.lineJoin = "round";
+  const w = rr * 1.7;
+  const k = rr * 0.5;
+  c.beginPath();
+  c.moveTo(-w / 2 + k, -w / 2);
+  c.lineTo(w / 2 - k, -w / 2);
+  c.quadraticCurveTo(w / 2, -w / 2, w / 2, -w / 2 + k);
+  c.lineTo(w / 2, w / 2 - k);
+  c.quadraticCurveTo(w / 2, w / 2, w / 2 - k, w / 2);
+  c.lineTo(-w / 2 + k, w / 2);
+  c.quadraticCurveTo(-w / 2, w / 2, -w / 2, w / 2 - k);
+  c.lineTo(-w / 2, -w / 2 + k);
+  c.quadraticCurveTo(-w / 2, -w / 2, -w / 2 + k, -w / 2);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.restore();
+}
+
 export function drawSpecialBehind(c: CanvasRenderingContext2D, skin: Skin, r: number, ang: number) {
   switch (skin.deco) {
     case "crystal": {
@@ -320,6 +379,29 @@ export function drawSpecialBehind(c: CanvasRenderingContext2D, skin: Skin, r: nu
         hexagon(c, x, y, rr * r * 0.55, ang);
         c.fillStyle = "#ffe08a";
         c.fill();
+      }
+      break;
+    }
+    case "berry": {
+      // зелёные листья позади
+      for (let i = 0; i < 5; i++) {
+        const a = ang + Math.PI + (i - 2) * 0.6;
+        const col = ["#4f9a45", "#6bb355", "#3f8a3b"][i % 3];
+        leaf(c, Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, a + ((i % 2) - 0.5) * 0.5, r * (0.52 + (i % 2) * 0.1), col);
+      }
+      break;
+    }
+    case "cocoa": {
+      // зефирки позади и по бокам
+      const { pt } = frame(r, ang);
+      for (const [f, s2, rr, rot] of [
+        [-1.0, -0.45, 0.27, 0.3],
+        [-1.05, 0.25, 0.27, -0.2],
+        [-0.55, 0.95, 0.24, 0.5],
+        [-0.4, -1.0, 0.23, -0.4],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        marshmallow(c, x, y, rr * r, ang + rot);
       }
       break;
     }
@@ -512,6 +594,135 @@ export function drawSpecialFront(c: CanvasRenderingContext2D, skin: Skin, r: num
         circle(c, x - rr * r * 0.3, y - rr * r * 0.3, rr * r * 0.3);
         c.fill();
       }
+      break;
+    }
+    case "berry": {
+      // малинки на шерсти и венок из листьев на макушке
+      for (const [f, s2, k] of [
+        [-0.2, -0.58, 1],
+        [-0.65, 0.4, 0.9],
+        [0.0, 0.6, 0.8],
+        [-0.85, -0.25, 0.85],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        raspberry(c, x, y, r * 0.17 * k);
+      }
+      const [cx, cy] = pt(-0.45, 0);
+      for (let k = 0; k < 5; k++) {
+        const a = ang + (k / 5) * TAU;
+        leaf(c, cx + Math.cos(a) * r * 0.06, cy + Math.sin(a) * r * 0.06, a, r * 0.28, ["#4f9a45", "#6bb355"][k % 2]);
+      }
+      raspberry(c, cx, cy, r * 0.13);
+      break;
+    }
+    case "winter": {
+      // шарфик (полосатый) на шее с хвостиком и шапочка с помпоном на макушке
+      const [lx, ly] = pt(0.0, -0.78);
+      const [rx, ry] = pt(0.0, 0.78);
+      const [qx, qy] = pt(-0.3, 0);
+      c.lineCap = "round";
+      c.strokeStyle = "#d63a35";
+      c.lineWidth = Math.max(2, r * 0.22);
+      c.beginPath();
+      c.moveTo(lx, ly);
+      c.quadraticCurveTo(qx, qy, rx, ry);
+      c.stroke();
+      c.strokeStyle = "#ffffff";
+      c.lineWidth = Math.max(1, r * 0.06);
+      for (const t of [0.2, 0.4, 0.6, 0.8]) {
+        const u = 1 - t;
+        const x = u * u * lx + 2 * u * t * qx + t * t * rx;
+        const y = u * u * ly + 2 * u * t * qy + t * t * ry;
+        const [ox, oy] = [Math.cos(ang) * r * 0.1, Math.sin(ang) * r * 0.1];
+        c.beginPath();
+        c.moveTo(x - ox, y - oy);
+        c.lineTo(x + ox, y + oy);
+        c.stroke();
+      }
+      // хвостик шарфа вдоль бока
+      const [tx0, ty0] = pt(-0.05, 0.72);
+      const [tx1, ty1] = pt(-0.7, 1.0);
+      c.strokeStyle = "#d63a35";
+      c.lineWidth = Math.max(2, r * 0.2);
+      c.beginPath();
+      c.moveTo(tx0, ty0);
+      c.lineTo(tx1, ty1);
+      c.stroke();
+      c.strokeStyle = "#ffffff";
+      c.lineWidth = Math.max(1, r * 0.05);
+      for (const t of [0.45, 0.8]) {
+        const x = tx0 + (tx1 - tx0) * t;
+        const y = ty0 + (ty1 - ty0) * t;
+        c.beginPath();
+        c.moveTo(x - Math.cos(ang + 0.5) * r * 0.1, y - Math.sin(ang + 0.5) * r * 0.1);
+        c.lineTo(x + Math.cos(ang + 0.5) * r * 0.1, y + Math.sin(ang + 0.5) * r * 0.1);
+        c.stroke();
+      }
+      // шапочка с помпоном
+      const [hx, hy] = pt(-0.5, 0);
+      c.fillStyle = "#d63a35";
+      circle(c, hx, hy, r * 0.36);
+      c.fill();
+      c.strokeStyle = "#ffffff";
+      c.lineWidth = Math.max(1.5, r * 0.07);
+      circle(c, hx, hy, r * 0.3);
+      c.stroke();
+      c.strokeStyle = "rgba(120,20,20,0.35)";
+      c.lineWidth = Math.max(1, r * 0.03);
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * TAU;
+        c.beginPath();
+        c.moveTo(hx + Math.cos(a) * r * 0.08, hy + Math.sin(a) * r * 0.08);
+        c.lineTo(hx + Math.cos(a) * r * 0.26, hy + Math.sin(a) * r * 0.26);
+        c.stroke();
+      }
+      c.fillStyle = "#ffffff";
+      circle(c, hx, hy, r * 0.13);
+      c.fill();
+      c.fillStyle = "#dfe8f2";
+      circle(c, hx + r * 0.035, hy + r * 0.035, r * 0.06);
+      c.fill();
+      break;
+    }
+    case "cocoa": {
+      // шоколадные капли на шерсти и зефирка с шоколадной глазурью на макушке
+      for (const [f, s2, dir, rr] of [
+        [-0.1, -0.6, 2.2, 0.1],
+        [-0.7, 0.45, 1.2, 0.11],
+        [-0.15, 0.62, 1.0, 0.08],
+        [-0.85, -0.3, 2.9, 0.09],
+      ] as const) {
+        const [x, y] = pt(f, s2);
+        drop(c, x, y, ang + dir, rr * r);
+        c.fillStyle = "#4e2c1b";
+        c.fill();
+        c.fillStyle = "rgba(255,225,200,0.6)";
+        circle(c, x - rr * r * 0.3, y - rr * r * 0.3, rr * r * 0.28);
+        c.fill();
+      }
+      const [mx, my] = pt(-0.52, 0);
+      marshmallow(c, mx, my, r * 0.21, ang);
+      // шоколадная глазурь: заливка половины зефирки и пара крупинок посыпки
+      c.save();
+      c.translate(mx, my);
+      c.rotate(ang);
+      c.fillStyle = "#5a331f";
+      const w = r * 0.21 * 1.7;
+      c.beginPath();
+      c.rect(-w / 2 + 1, -w / 2 + 1, w * 0.5, w - 2);
+      c.fill();
+      c.fillStyle = "rgba(255,225,200,0.5)";
+      c.fillRect(-w / 2 + 2, -w / 2 + 2, w * 0.1, w - 4);
+      for (const [dx, dy, col] of [
+        [-w * 0.18, -w * 0.18, "#ff8fb0"],
+        [-w * 0.2, w * 0.2, "#ffd95a"],
+        [w * 0.28, -w * 0.05, "#8fd3ff"],
+      ] as const) {
+        c.fillStyle = col;
+        circle(c, dx, dy, r * 0.032);
+        c.fill();
+      }
+      c.restore();
       break;
     }
     case "sky": {

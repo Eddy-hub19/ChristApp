@@ -133,26 +133,26 @@ d('FlockRubiesService (БД)', () => {
 
   it('успішна покупка: списання, скін у власності, запис у журналі', async () => {
     const u = await makeUser();
-    await giveRubies('admin', u.id, 30);
+    await giveRubies('admin', u.id, C.rubies.skinPrice + 10);
     expect(await svc.buySkin(u.id, FREE_SKINS)).toEqual({
-      rubies: 30 - C.rubies.skinPrice,
+      rubies: 10,
       skinId: FREE_SKINS,
     });
     expect(await svc.ownedSkins(u.id)).toEqual([FREE_SKINS]);
     const tx = await prisma.rubyTransaction.findFirst({
       where: { userId: u.id, reason: RubyReason.SKIN_PURCHASE },
     });
-    expect(tx).toMatchObject({ delta: -20, skinId: FREE_SKINS });
+    expect(tx).toMatchObject({ delta: -C.rubies.skinPrice, skinId: FREE_SKINS });
   });
 
   it('подвійна покупка послідовно: already_owned, списано один раз', async () => {
     const u = await makeUser();
-    await giveRubies('admin', u.id, 100);
+    await giveRubies('admin', u.id, C.rubies.skinPrice * 2);
     await svc.buySkin(u.id, FREE_SKINS + 2);
     await expect(svc.buySkin(u.id, FREE_SKINS + 2)).rejects.toMatchObject({
       response: { code: 'already_owned' },
     });
-    expect((await svc.getMe(u.id)).rubies).toBe(80);
+    expect((await svc.getMe(u.id)).rubies).toBe(C.rubies.skinPrice);
   });
 
   it('подвійне натискання (паралельно): одна покупка, баланс не йде в мінус', async () => {
@@ -193,7 +193,7 @@ d('FlockRubiesService (БД)', () => {
     expect(await svc.canUseSkin(u.id, -1)).toBe(false);
     expect(await svc.canUseSkin(u.id, 1.5)).toBe(false);
     await expect(svc.setSelectedSkin(u.id, FREE_SKINS)).rejects.toBeDefined();
-    await giveRubies('admin', u.id, 20);
+    await giveRubies('admin', u.id, C.rubies.skinPrice);
     await svc.buySkin(u.id, FREE_SKINS);
     expect(await svc.canUseSkin(u.id, FREE_SKINS)).toBe(true);
     // чужі покупки не рахуються
@@ -201,16 +201,17 @@ d('FlockRubiesService (БД)', () => {
     expect(await svc.canUseSkin(other.id, FREE_SKINS)).toBe(false);
   });
 
-  it('преміум-скін: ціна 60 окремо від 20, списання й запис у журналі з правильною ціною', async () => {
+  it('преміум-скін: ціна окремо від звичайного, списання й запис у журналі з правильною ціною', async () => {
     openSkins();
     const u = await makeUser();
-    expect(C.rubies.premiumSkinPrice).toBe(60);
-    await giveRubies('admin', u.id, 100);
+    const P = C.rubies.premiumSkinPrice;
+    const S = C.rubies.skinPrice;
+    await giveRubies('admin', u.id, P + S + 20);
     expect(await svc.buySkin(u.id, PREMIUM_FROM)).toEqual({
-      rubies: 40,
+      rubies: S + 20,
       skinId: PREMIUM_FROM,
     });
-    // звичайний платний скін далі коштує 20
+    // звичайний платний скін далі коштує skinPrice
     expect(await svc.buySkin(u.id, FREE_SKINS)).toEqual({
       rubies: 20,
       skinId: FREE_SKINS,
@@ -218,43 +219,40 @@ d('FlockRubiesService (БД)', () => {
     const purchase = await prisma.flockSkinPurchase.findUnique({
       where: { userId_skinId: { userId: u.id, skinId: PREMIUM_FROM } },
     });
-    expect(purchase?.price).toBe(60);
+    expect(purchase?.price).toBe(P);
     const tx = await prisma.rubyTransaction.findFirst({
       where: { userId: u.id, skinId: PREMIUM_FROM },
     });
     expect(tx).toMatchObject({
-      delta: -60,
-      balanceAfter: 40,
+      delta: -P,
+      balanceAfter: S + 20,
       reason: RubyReason.SKIN_PURCHASE,
     });
     const me = await svc.getMe(u.id);
     expect(me.config).toMatchObject({
-      skinPrice: 20,
-      premiumSkinPrice: 60,
+      skinPrice: S,
+      premiumSkinPrice: P,
       premiumSkinIds: [...PREMIUM_SKIN_IDS],
       totalSkins: NUM_SKINS,
     });
   });
 
-  it('преміум-скін: нестача балансу (59 з 60) - not_enough з missing 1, нічого не змінюється', async () => {
+  it('преміум-скін: нестача балансу на одиницю - not_enough з missing 1, нічого не змінюється', async () => {
     openSkins();
+    const P = C.rubies.premiumSkinPrice;
+    const S = C.rubies.skinPrice;
     const u = await makeUser();
-    await giveRubies('admin', u.id, 59);
+    await giveRubies('admin', u.id, P - 1);
     await expect(svc.buySkin(u.id, SPECIAL_FROM - 1)).rejects.toMatchObject({
       response: { code: 'not_enough', missing: 1 },
     });
-    expect((await svc.getMe(u.id)).rubies).toBe(59);
+    expect((await svc.getMe(u.id)).rubies).toBe(P - 1);
     expect(await svc.ownedSkins(u.id)).toEqual([]);
-    // 20 вистачило б на звичайний платний, а старої ціни преміума (40) - вже ні
+    // на звичайний платний вистачило б, на преміум - ні
     const v = await makeUser();
-    await giveRubies('admin', v.id, 20);
+    await giveRubies('admin', v.id, S);
     await expect(svc.buySkin(v.id, PREMIUM_FROM)).rejects.toMatchObject({
-      response: { code: 'not_enough', missing: 40 },
-    });
-    const w = await makeUser();
-    await giveRubies('admin', w.id, 40);
-    await expect(svc.buySkin(w.id, PREMIUM_FROM)).rejects.toMatchObject({
-      response: { code: 'not_enough', missing: 20 },
+      response: { code: 'not_enough', missing: P - S },
     });
   });
 
@@ -267,7 +265,7 @@ d('FlockRubiesService (БД)', () => {
     }
     expect(await svc.canUseSkin(u.id, NUM_SKINS)).toBe(false);
     await expect(svc.setSelectedSkin(u.id, PREMIUM_FROM)).rejects.toBeDefined();
-    await giveRubies('admin', u.id, 60);
+    await giveRubies('admin', u.id, C.rubies.premiumSkinPrice);
     await svc.buySkin(u.id, PREMIUM_FROM);
     expect(await svc.canUseSkin(u.id, PREMIUM_FROM)).toBe(true);
     expect(await svc.canUseSkin(u.id, PREMIUM_FROM + 1)).toBe(false);

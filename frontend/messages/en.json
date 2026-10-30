@@ -1564,7 +1564,11 @@
       "45": "Butterfly Sheep",
       "46": "Thunder Ram",
       "48": "Honey sheep",
-      "49": "Sky sheep"
+      "49": "Sky sheep",
+      "53": "Berry sheep",
+      "54": "Winter sheep",
+      "55": "Cocoa sheep",
+      "56": "Comet sheep"
     },
     "rubies": {
       "name": "Rubies",
@@ -1649,6 +1653,26 @@
       "ambient": "Background sounds",
       "iosHint": "If there is no sound, check silent mode and volume",
       "music": "Music"
+    },
+    "perks": {
+      "foodReach": "+{v}% pickup radius",
+      "decaySlow": "Mass melts {v}% slower",
+      "speed": "+{v}% speed",
+      "bonusDuration": "Pickups last {v}% longer",
+      "spawnBoostBonus": "Spawn boost +{v} pp",
+      "spawnBoostMs": "Spawn boost lasts {v} s longer",
+      "foodMass": "+{v}% mass from food",
+      "grassFlowerMass": "+{v}% mass from grass and flowers",
+      "shieldBonusMs": "Spawn shield {v} s longer",
+      "sprintBurnLess": "Sprint burns {v}% less",
+      "freezeLess": "Freeze on you is {v}% shorter",
+      "puddleLess": "Puddles slow you {v}% less"
+    },
+    "premiumCollection": {
+      "collectHint": "Collect them all: +{count} rubies",
+      "collectProgress": "{n} of {m}",
+      "collectDone": "Premium collection complete! +{count} rubies",
+      "perkBadge": "Skin bonus"
     }
   },
   "games": {

@@ -32,9 +32,13 @@ export interface FlockMe {
   whatsNewSeen?: number;
   /** Приходить лише в тій відповіді, що нарахувала разовий бонус за перший вхід. */
   entryBonus?: number;
+  /** Нагорода за колекцію преміум-скінів, нарахована цим запитом (разово). */
+  premiumCollection?: number;
+  /** Нагорода за колекцію вже отримана. */
+  premiumCollectionClaimed?: boolean;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; premiumCollectionReward?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */
@@ -64,7 +68,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const fetchFlockMe = () => call<FlockMe>("/me");
 export const fetchFlockDaily = () => call<FlockDailyBoard>("/daily");
-export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: number }>(`/skins/${skinId}/buy`, { method: "POST" });
+export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: number; premiumCollection?: number }>(`/skins/${skinId}/buy`, { method: "POST" });
 export const selectFlockSkin = (skin: number) => call<{ ok: true }>("/skin", { method: "PUT", body: JSON.stringify({ skin }) });
 export const buyFlockArtifact = (artifactId: number) => call<{ rubies: number; artifactId: number }>(`/artifacts/${artifactId}/buy`, { method: "POST" });
 export const selectFlockArtifact = (artifact: number) => call<{ ok: true }>("/artifact", { method: "PUT", body: JSON.stringify({ artifact }) });
