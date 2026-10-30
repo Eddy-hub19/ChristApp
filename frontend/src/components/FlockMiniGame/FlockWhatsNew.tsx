@@ -30,6 +30,12 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   alpha: (p) => <AlphaIcon {...p} />,
   pipe: (p) => <PipeIcon {...p} />,
   wind: (p) => <WindIcon {...p} />,
+  sound: (p) => (
+    <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" fillOpacity="0.2" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+    </svg>
+  ),
   rain: (p) => (
     <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true">
       <path d="M7 15a4 4 0 0 1-.4-8 5.5 5.5 0 0 1 10.6 1.3A3.4 3.4 0 0 1 17 15z" fill="#9db4d6" stroke="#5f7aa3" strokeWidth="1.2" strokeLinejoin="round" />

@@ -95,6 +95,16 @@ export const INFO_SECTIONS: InfoSection[] = [
           cpm: num("phrases.customPerMinute"),
         },
       },
+      {
+        id: "sound",
+        icon: "sound",
+        title: { ua: "Звуки", ru: "Звуки", en: "Sounds" },
+        text: {
+          ua: "У грі є м'які звуки: поїдання, бонуси, події арени. Вимкнути їх або зробити тихіше можна кнопкою з динаміком (у лобі поруч з «i», у грі внизу ліворуч): там же перемикач «Фонові звуки» (вітер, дощ).",
+          ru: "В игре есть мягкие звуки: поедание, бонусы, события арены. Выключить их или сделать тише можно кнопкой с динамиком (в лобби рядом с «i», в игре внизу слева): там же переключатель «Фоновые звуки» (ветер, дождь).",
+          en: "The game has soft sounds: eating, bonuses and arena events. Mute them or turn them down with the speaker button (next to “i” in the lobby, bottom left in a game); the “Background sounds” switch (wind, rain) is there too.",
+        },
+      },
     ],
   },
   {
