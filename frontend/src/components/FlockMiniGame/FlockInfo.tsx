@@ -24,6 +24,8 @@ type Props = {
 
 type Tab = "about" | "updates";
 
+const LAST_UPDATES = 5;
+
 function EntryIcon({ icon }: { icon: InfoEntry["icon"] }) {
   if (icon === "bonus:eagle") return <EagleEyeIcon size={28} />;
   if (icon === "bonus:pipe") return <PipeIcon size={28} />;
@@ -59,7 +61,8 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
       return next;
     });
 
-  const entries = [...WHATS_NEW].sort((a, b) => b.version - a.version);
+  /** В «Оновленнях» показываем только последние обновления. */
+  const entries = [...WHATS_NEW].sort((a, b) => b.version - a.version).slice(0, LAST_UPDATES);
 
   const renderTabs = (titleId: string) => (
     <div className={styles.tabs} role="tablist" aria-label={t("info.title")}>

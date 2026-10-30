@@ -194,6 +194,8 @@
 
 /* --- «Оновлення» --- */
 .version {
+  /* .body - flex-колонка с прокруткой: без этого карточки с overflow:hidden сжимаются и обрезаются */
+  flex: none;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
   overflow: hidden;
