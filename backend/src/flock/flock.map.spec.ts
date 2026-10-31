@@ -1,4 +1,7 @@
-import { FLOCK_CONFIG as C, FLOCK_CONFIG, FLOCK_MAPS } from './flock.config';
+import { FLOCK_CONFIG as C, FLOCK_CONFIG, FLOCK_MAPS as ALL_MAPS } from './flock.config';
+
+/** Карти звичайної арени (карта режиму «Замки» не входить у випадковий вибір). */
+const FLOCK_MAPS = ALL_MAPS.filter((m) => !m.team);
 import {
   CHUNKS_PER_SIDE,
   FOOD_REACH,

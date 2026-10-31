@@ -11,6 +11,7 @@ import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCache
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
+import { drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamRings } from "./flockCastleRender";
 import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
 export interface Theme {
@@ -402,6 +403,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
+  // «Замки»: ріка з мостами, декор, зони баз і замки
+  const castleMode = Boolean(m.cfg.castle);
+  if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
@@ -512,8 +516,11 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // «Сопілка пастуха»: хвилі, ноти й лінії до притягнутих лежать на землі під клітинами
   drawPipeEffects(ctx, m, VISIBLE, o.time, scale, prefersReducedMotion());
   const drawnUnder: boolean[] = [];
+  if (castleMode) drawTeamRings(ctx, m, VISIBLE, scale);
+  const myTeam = m.myTeam();
   for (let i = 0; i < VISIBLE.length; i++) {
-    drawnUnder[i] = hidden(VISIBLE[i]);
+    // у «Замках» свої й союзники малюються поверх кущів (від ворогів ховає сервер)
+    drawnUnder[i] = hidden(VISIBLE[i]) && !(castleMode && m.teams.get(VISIBLE[i].pid) === myTeam);
     if (drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
   }
   for (const t of m.thorns) {
@@ -531,6 +538,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     ctx.restore();
   }
   for (let i = 0; i < VISIBLE.length; i++) if (!drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
+  if (castleMode) drawTeamMarkers(ctx, m, VISIBLE, scale, o.time);
 
   // клітини, що тануть (з'їдені)
   for (const d of m.dying) {
@@ -552,7 +560,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       const f = size / spr.px;
       const ty = c.y - r * 0.05;
       ctx.drawImage(spr.cv, c.x - spr.centerX * f, ty - (spr.cv.height * f) / 2, spr.cv.width * f, spr.cv.height * f);
-      if (r * scale > 38 && c.pid === m.cfg.pid) drawDigits(ctx, c.mass, c.x, ty + size * 0.95, size * 0.62, scale, dpr, theme);
+      if (!castleMode && r * scale > 38 && c.pid === m.cfg.pid) drawDigits(ctx, c.mass, c.x, ty + size * 0.95, size * 0.62, scale, dpr, theme);
     }
   }
   if (o.phraseLang && m.phrases.size) drawPhrases(ctx, m, o, theme, scale);
@@ -567,6 +575,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
   }
   ctx.restore();
+  if (castleMode) drawCastleScreenArrows(ctx, m, W, H, scale, o.time);
   drawRainOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   drawWindOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   // червоне світіння біля краю екрана, коли гравець наближається до лави
@@ -689,7 +698,8 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   ctx.fillRect(0, 0, size, size);
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
   const k = size / 256;
-  for (const p of m.board.map) {
+  if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
+  for (const p of m.cfg.castle ? [] : m.board.map) {
     const own = p.pid === m.cfg.pid;
     if (own) continue; // свою точку малюємо нижче з живих координат, а не з 1-секундного знімка
     const meta = m.players.get(p.pid);

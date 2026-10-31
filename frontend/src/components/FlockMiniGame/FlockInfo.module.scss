@@ -370,3 +370,64 @@
     cursor: default;
   }
 }
+
+/* --- Лобі режиму «Замки»: вибір сторони й скіна --- */
+.sideRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sideBtn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  em {
+    font-size: 12px;
+    font-style: normal;
+    opacity: 0.8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.sideSheep.sideActive {
+  border-color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
+}
+
+.sideWolf.sideActive {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+}
+
+.skinRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skinBtn {
+  padding: 4px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.skinBtnActive {
+  border-color: var(--accent);
+}

@@ -3,7 +3,7 @@
  * Усе малюється один раз у кешований тайл / спрайт; кольори не залежать від теми застосунку (світла/темна).
  */
 
-export type Ground = "meadow" | "autumn" | "snow" | "volcano";
+export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake";
 
 const TAU = Math.PI * 2;
 
@@ -16,6 +16,8 @@ export function groundOf(map: number | undefined): Ground {
       return "snow";
     case 3:
       return "volcano";
+    case 4:
+      return "lake";
     default:
       return "meadow";
   }
@@ -85,8 +87,8 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
     c.lineTo(span, i * cell);
   }
   c.stroke();
-  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : 47);
-  if (ground === "meadow") {
+  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : 47);
+  if (ground === "meadow" || ground === "lake") {
     // трава: пятна чуть разных оттенков (светлее и темнее базового зелёного), травинки и мелкие цветочки
     for (let i = 0; i < 34; i++) {
       const x = r() * span;

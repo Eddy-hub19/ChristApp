@@ -218,6 +218,58 @@ export class FlockRubiesService {
     return this.awardTop1(userId, now, FLOCK_CONFIG.circle.winReward);
   }
 
+  /** Скільки нагород за матчі проти ботів ще доступно (лічильник у БД; за період 'day' - з початку доби за Києвом). */
+  private async botOnlyUsed(tx: Tx | PrismaService, userId: string, now: Date) {
+    const T = FLOCK_CONFIG.teamMode;
+    return tx.flockTeamReward.count({
+      where: {
+        userId,
+        botOnly: true,
+        amount: { gt: 0 },
+        ...(T.botOnlyRewardPeriod === 'day' ? { createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } } : {}),
+      },
+    });
+  }
+
+  /** Лише залишок нагород проти ботів (для картки тих, кому нагорода не належить). */
+  async botOnlyLeft(userId: string, now = new Date()): Promise<number> {
+    const T = FLOCK_CONFIG.teamMode;
+    return Math.max(0, T.botOnlyRewardLimit - (await this.botOnlyUsed(this.prisma, userId, now)));
+  }
+
+  /**
+   * Нагорода переможцю матчу «Замки»: журнал TEAM_WIN, поза добовим лімітом арени. Рядок (matchId, userId) пишеться в тій же
+   * транзакції, що й баланс, тож повторний розрахунок не нараховує вдруге. Ліміти: оплачуваних перемог на добу (за Києвом) і,
+   * для матчів проти ботів, botOnlyRewardLimit за період (ці перемоги теж входять у добовий ліміт).
+   */
+  async awardTeamWin(
+    userId: string,
+    matchId: string,
+    botOnly: boolean,
+    now = new Date(),
+  ): Promise<{ rubies: number; balance: number; reason?: 'daily' | 'botLimit'; botLeft: number }> {
+    const T = FLOCK_CONFIG.teamMode;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const used = await this.botOnlyUsed(tx, userId, now);
+      const botLeft = Math.max(0, T.botOnlyRewardLimit - used);
+      const done = await tx.flockTeamReward.findUnique({ where: { matchId_userId: { matchId, userId } } });
+      if (done) return { rubies: done.amount, balance, botLeft };
+      const paidToday = await tx.flockTeamReward.count({
+        where: { userId, amount: { gt: 0 }, createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } },
+      });
+      if (paidToday >= T.dailyWinLimit) return { rubies: 0, balance, reason: 'daily', botLeft };
+      if (botOnly && botLeft <= 0) return { rubies: 0, balance, reason: 'botLimit', botLeft: 0 };
+      const next = await this.apply(tx, userId, balance, {
+        delta: T.reward,
+        reason: RubyReason.TEAM_WIN,
+        note: matchId,
+      });
+      await tx.flockTeamReward.create({ data: { matchId, userId, botOnly, amount: T.reward } });
+      return { rubies: T.reward, balance: next, botLeft: botOnly ? botLeft - 1 : botLeft };
+    });
+  }
+
   async awardTop1(
     userId: string,
     now = new Date(),

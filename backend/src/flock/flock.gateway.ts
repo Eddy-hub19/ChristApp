@@ -11,9 +11,10 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin } from './flock.config';
+import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin, teamSkinAllowed } from './flock.config';
 import { speedOf } from './flock.engine';
-import { FlockManager } from './flock.manager';
+import { FlockManager, type FlockHooks } from './flock.manager';
+import { enemyOf } from './flock.castles';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
 import { createSender } from './flock.transport';
@@ -52,6 +53,7 @@ export class FlockGateway
         onTop1: (userId, connKey) => void this.rewardTop1(userId, connKey),
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onCircleWin: (userId, connKey) => void this.rewardCircleWin(userId, connKey),
+        onTeamMatchEnd: (s) => void this.settleTeamMatch(s),
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
@@ -91,6 +93,53 @@ export class FlockGateway
     } catch (e) {
       this.log.error(`awardCircleWin: ${String(e)}`);
     }
+  }
+
+  /**
+   * Матч «Замки» скінчився: кожній людині - картка нагороди (`tr`). Рубіни лише переможцям, що онлайн, у межах умов:
+   * не нічия, матч не коротший за minMatchMs, не AFK; ліміти за добу й проти ботів перевіряє БД (flock.rubies.service).
+   */
+  private async settleTeamMatch(s: Parameters<NonNullable<FlockHooks['onTeamMatchEnd']>>[0]) {
+    const T = FLOCK_CONFIG.teamMode;
+    for (const pl of s.players) {
+      try {
+        const botOnly = s.humanMs[enemyOf(pl.team) - 1] < T.botOnlyEnemyHumanMs;
+        let reason: 'lose' | 'draw' | 'short' | 'afk' | 'daily' | 'botLimit' | undefined;
+        if (s.win === 0) reason = 'draw';
+        else if (s.win !== pl.team) reason = 'lose';
+        else if (!pl.connKey) continue;
+        else if (s.durationMs < T.minMatchMs) reason = 'short';
+        else if (pl.actions < T.afkMinActions || pl.moved < T.afkMinMoveDist) reason = 'afk';
+        let rubies = 0;
+        let balance: number | undefined;
+        let botLeft: number;
+        if (!reason) {
+          const res = await this.rubies.awardTeamWin(pl.userId, s.matchId, botOnly);
+          rubies = res.rubies;
+          balance = res.balance;
+          botLeft = res.botLeft;
+          reason = res.reason;
+        } else {
+          botLeft = await this.rubies.botOnlyLeft(pl.userId);
+        }
+        if (pl.connKey) {
+          this.ns?.sockets.get(pl.connKey)?.emit('tr', {
+            rubies,
+            ...(balance !== undefined ? { balance } : {}),
+            ...(reason ? { reason } : {}),
+            botOnly,
+            botLeft,
+            botLimit: T.botOnlyRewardLimit,
+          });
+        }
+      } catch (e) {
+        this.log.error(`settleTeamMatch: ${String(e)}`);
+      }
+    }
+  }
+
+  castlesLobby() {
+    return this.manager.castlesLobby();
   }
 
   afterInit(ns: Namespace) {
@@ -150,6 +199,8 @@ export class FlockGateway
       resumeOnly?: unknown;
       /** Режим арени: 'circle' - «Звужуване коло» (окрема арена); без поля - звичайна. */
       mode?: unknown;
+      /** «Замки»: сторона (1 - вівці, 2 - вовки). */
+      team?: unknown;
       /** Версія протоколу клієнта: 2+ читає кущі з `welcome`, без поля - старий клієнт. */
       v?: unknown;
     },
@@ -171,15 +222,24 @@ export class FlockGateway
     const wanted = isRemovedSkin(clamped) ? 0 : clamped;
     // Скін перевіряє сервер: платний без покупки на арену не пускаємо (не підміняємо мовчки).
     // Перевіряємо завжди, навіть із resume: токен міг не підійти, і тоді створюється нова овечка з цим скіном.
-    if (!(await this.rubies.canUseSkin(userId, wanted))) {
+    const castles = body?.mode === 'castles';
+    const team = typeof body?.team === 'number' ? Math.floor(body.team) : 0;
+    // «Замки»: лише безкоштовні скіни своєї сторони, без артефактів
+    if (castles && !resume && !teamSkinAllowed(team, wanted)) {
+      client.emit('e', { code: 'skin_side' });
+      return;
+    }
+    if (!castles && !(await this.rubies.canUseSkin(userId, wanted))) {
       client.emit('e', { code: 'skin_locked' });
       return;
     }
     // Артефакт: клієнт лише просить, бонус дає сервер за покупкою в БД (підміна неможлива). Без поля (старий клієнт) - береться надітий у профілі.
-    const artifact = await this.rubies.resolveArtifact(
-      userId,
-      typeof body?.artifact === 'number' ? Math.floor(body.artifact) : undefined,
-    );
+    const artifact = castles
+      ? 0
+      : await this.rubies.resolveArtifact(
+          userId,
+          typeof body?.artifact === 'number' ? Math.floor(body.artifact) : undefined,
+        );
     if (artifact === null) {
       client.emit('e', { code: 'artifact_locked' });
       return;
@@ -195,7 +255,8 @@ export class FlockGateway
         resume,
         arena,
         resumeOnly: body?.resumeOnly === true,
-        mode: body?.mode === 'circle' ? 'circle' : 'normal',
+        mode: body?.mode === 'circle' ? 'circle' : castles ? 'castles' : 'normal',
+        team,
         legacyThorns: !(typeof body?.v === 'number' && body.v >= 2),
       },
     );
@@ -232,6 +293,8 @@ export class FlockGateway
       /** Режим арени ('circle' - «Звужуване коло») і стан кола: { x, y, r0, r1, hold, shrink, stage, stages }. */
       mode: res.mode,
       circle: res.circle,
+      /** «Замки»: { team, river, castles, steal, speed, mass, carrySlow, waterSlow, seed, world }. */
+      castle: res.castle,
       /** На скільки калюжа уповільнює клітини (частка), для передбачення на клієнті. */
       rainSlow: FLOCK_CONFIG.rain.slowFraction,
       /** Серія днів на 1-му місці: { p - pid держателя тут (0 - нема), d - днів }; далі приходить подією `sk`. */
@@ -256,11 +319,13 @@ export class FlockGateway
         boost: FLOCK_CONFIG.spawnBoost.durationMs,
       },
       magnetRadius: FLOCK_CONFIG.magnetRadius,
-      view: {
-        base: FLOCK_CONFIG.viewBase,
-        perSqrtMass: FLOCK_CONFIG.viewPerSqrtMass,
-        max: FLOCK_CONFIG.viewMax,
-      },
+      view: res.castle
+        ? { base: FLOCK_CONFIG.teamMode.viewRadius, perSqrtMass: 0, max: FLOCK_CONFIG.teamMode.viewRadius }
+        : {
+            base: FLOCK_CONFIG.viewBase,
+            perSqrtMass: FLOCK_CONFIG.viewPerSqrtMass,
+            max: FLOCK_CONFIG.viewMax,
+          },
       /** «Орлиний зір»: у скільки разів камера клієнта відсувається, поки діє бонус. */
       eagleZoom: FLOCK_CONFIG.eagle.zoom,
     });

@@ -76,3 +76,6 @@ export const importFlockStats = (stats: FlockStats) =>
   call<{ imported: boolean; stats: FlockStats }>("/stats/import", { method: "POST", body: JSON.stringify(stats) });
 export const markWhatsNewSeen = (version: number) =>
   call<{ whatsNewSeen: number }>("/whats-new", { method: "PUT", body: JSON.stringify({ version }) });
+
+/** Лобі режиму «Замки»: скільки людей на кожній стороні (без входу в арену). */
+export const fetchCastlesLobby = () => call<import("./flockCastles").CastlesLobby>("/castles/lobby");

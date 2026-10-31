@@ -59,6 +59,7 @@ model User {
   flockDailyRecords   FlockDailyRecord[]
   flockStreak         FlockStreak?
   flockArtifactPurchases FlockArtifactPurchase[]
+  flockTeamRewards    FlockTeamReward[]
 }
 
 /// Лайк аватара: кто (liker) поставил кому (target).
@@ -366,6 +367,7 @@ enum RubyReason {
   ARENA_BOSS
   ARENA_STREAK
   PREMIUM_COLLECTION
+  TEAM_WIN
 }
 
 /// Журнал рубінів: тільки додавання рядків.
@@ -396,6 +398,20 @@ model FlockSkinPurchase {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, skinId])
+}
+
+/// Нагороди режиму «Замки»: один рядок на (матч, гравець) - захист від повторного нарахування й лічильник лімітів.
+model FlockTeamReward {
+  matchId   String
+  userId    String
+  /// Матч «проти ботів» (живого суперника менше хвилини): окремий ліміт нагород.
+  botOnly   Boolean  @default(false)
+  amount    Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([matchId, userId])
+  @@index([userId, createdAt])
 }
 
 /// Куплені артефакти «Отари» (як FlockSkinPurchase).

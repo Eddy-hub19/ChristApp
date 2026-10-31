@@ -9,6 +9,7 @@ import {
 } from "./flockProtocol";
 import { PHRASE_MAX_MS } from "./flockPhrases";
 import type { LavaBurn, LavaGeom } from "./flockLava";
+import { inWater, type CastleCfg, type CastleMsg, type Team } from "./flockCastles";
 
 export interface FlockCfg {
   pid: number;
@@ -51,8 +52,10 @@ export interface FlockCfg {
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
-  mode?: "normal" | "circle";
+  mode?: "normal" | "circle" | "castles";
   circle?: CircleMsgIn;
+  /** Режим «Замки»: геометрія карти, команда гравця, швидкість і масa (welcome). */
+  castle?: CastleCfg;
   /** На скільки калюжа уповільнює клітини (частка); без поля - 0.2. */
   rainSlow?: number;
   /** «Дощ», що йде на момент входу: l - лишилось дощу (мс), y - підсихання після нього, d - повне підсихання, p - калюжі [id, x, y, r]. */
@@ -213,6 +216,10 @@ export class FlockModel {
   readonly stars = new Map<number, RStar>();
   /** Коло режиму «Звужуване коло» (null - режиму нема або раунд закінчився й чекаємо новий). */
   circle: RCircle | null = null;
+  /** Режим «Замки»: останній стан `cm` (null - ще не було) і локальний час його отримання. */
+  castle: (CastleMsg & { t0: number; hpMax: number }) | null = null;
+  /** pid -> команда (з `cm.tm`). */
+  readonly teams = new Map<number, Team>();
   /** Поточний «Дощ» (null - нема). */
   rain: RRain | null = null;
   /** Коли (локальний час, мс) своя клітина востаннє була під «Сопілкою»: HUD коротко показує «Тебе кличе сопілка!». */
@@ -297,6 +304,37 @@ export class FlockModel {
   applyCircle(msg: CircleMsgIn | null | undefined, recvMs: number = this.localNow) {
     if (!msg || !Number.isFinite(msg.x) || !Number.isFinite(msg.r0)) return;
     this.circle = { ...msg, t0: recvMs };
+  }
+
+  /** Стан режиму «Замки» (подія `cm`). Повертає події тіку для звуків і написів. */
+  applyCastle(msg: CastleMsg | null | undefined, recvMs: number = this.localNow): CastleMsg["ev"] {
+    if (!msg || !Array.isArray(msg.sc) || !Array.isArray(msg.hp)) return undefined;
+    const hpMax = Math.max(this.castle?.hpMax ?? 0, msg.hp[0], msg.hp[1], 1);
+    this.castle = { ...msg, cr: msg.cr ?? [], ls: msg.ls ?? [], al: msg.al ?? [], tm: msg.tm ?? [], t0: recvMs, hpMax };
+    for (const [pid, t] of this.castle.tm) if (t === 1 || t === 2) this.teams.set(pid, t);
+    return msg.ev;
+  }
+
+  /** Моя команда в режимі «Замки» (0 - режиму нема). */
+  myTeam(): Team | 0 {
+    return this.cfg.castle?.team ?? 0;
+  }
+
+  /** Скільки мс лишилось до зміни фази за `cm.left` (локальний годинник). */
+  castleLeftMs(now: number = this.localNow): number {
+    const c = this.castle;
+    return c ? Math.max(0, c.left - (now - c.t0)) : 0;
+  }
+
+  /** Своє відродження в замку (мс); поки >0 клітина стоїть. */
+  castleRespawnMs(now: number = this.localNow): number {
+    const c = this.castle;
+    return c ? Math.max(0, c.rs - (now - c.t0)) : 0;
+  }
+
+  /** Несу камінь: свій pid є серед несучих у `cm.cr`. */
+  carryingStone(): boolean {
+    return this.castle?.cr.some((r) => r[0] === this.cfg.pid) ?? false;
   }
 
   /** Радіус кола зараз: до кінця hold стоїть, далі лінійно до r1 за shrink. */
@@ -753,18 +791,27 @@ export class FlockModel {
     const windOn = this.wind !== null && this.localNow >= this.wind.startAt;
     const wdx = this.wind ? Math.cos(this.wind.angle) : 0;
     const wdy = this.wind ? Math.sin(this.wind.angle) : 0;
-    const sprinting = Boolean(input.sprint) && !frozen && this.sprintReady();
+    const castle = this.cfg.castle;
+    const carry = castle ? this.carryingStone() : false;
+    const sprinting = !castle && Boolean(input.sprint) && !frozen && this.sprintReady();
     this.sprintActive = sprinting;
     for (const c of this.cells.values()) {
       c.mass += (c.tmass - c.mass) * kMass;
       if (c.pid === this.cfg.pid) {
-        if (!frozen) {
+        if (castle) {
+          // «Замки»: однакова швидкість; вода й камінь сповільнюють, у замку під час відродження - стоїмо
+          if (this.castleRespawnMs() <= 0) {
+            const v = castle.speed * (inWater(castle.river, c.x, c.y) ? 1 - castle.waterSlow : 1) * (carry ? 1 - castle.carrySlow : 1) * input.power;
+            c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
+            c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
+          }
+        } else if (!frozen) {
           const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
         }
         // снос вітром (ту саму формулу рахує сервер); на паузі й у кущі не діє
-        if (windOn && !this.insideBush(c.x, c.y, c.mass)) {
+        if (!castle && windOn && !this.insideBush(c.x, c.y, c.mass)) {
           const wv = this.windSpeed(c.mass) * dt;
           c.x = Math.min(world, Math.max(0, c.x + wdx * wv));
           c.y = Math.min(world, Math.max(0, c.y + wdy * wv));
