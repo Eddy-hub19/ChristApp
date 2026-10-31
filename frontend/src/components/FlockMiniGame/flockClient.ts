@@ -1,5 +1,6 @@
 import createSocket from "socket.io-client";
 import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
+import type { CastleEndInfo, CastleEvent, CastleMsg, CastleRewardInfo, Team } from "./flockCastles";
 import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
 import type { Dir } from "./flockInputMath";
 import { playFlockSound } from "./flockSound";
@@ -28,10 +29,10 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | "roundRunning" | null;
+export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
 
 /** Режим арени: звичайна або «Звужуване коло». */
-export type FlockMode = "normal" | "circle";
+export type FlockMode = "normal" | "circle" | "castles";
 
 /** Підсумок раунду «Звужуване коло» (подія `ce`; you - особисто для цього гравця). */
 export interface CircleEndInfo {
@@ -73,6 +74,12 @@ export interface FlockClientOptions {
   onCircleEnd?: (info: CircleEndInfo) => void;
   /** Стартував новий раунд (картку підсумків ховаємо). */
   onCircleStart?: () => void;
+  /** «Замки»: події тіку (для звуків і написів), підсумок матчу й результат нагороди. */
+  onCastleEvents?: (events: CastleEvent[], team: Team | 0, pid: number) => void;
+  onCastleEnd?: (info: CastleEndInfo) => void;
+  onCastleReward?: (info: CastleRewardInfo) => void;
+  /** Новий матч «Замків» (фаза не «підсумки»): картку ховаємо. */
+  onCastleStart?: () => void;
   /** Мертвого не пускають до кінця раунду: скільки мс чекати. */
   onRoundWait?: (waitMs: number) => void;
   /** Якщо є свіжа збережена сесія - повертатись у неї одразу, без лобі. */
@@ -112,6 +119,7 @@ export class FlockClient {
   /** Бонусы выбранного скина для предсказания движения (из /flock/me). */
   private perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {};
   private mode: FlockMode;
+  private team: Team = 1;
   private wantPlay = false;
   private disposed = false;
   private arenaId: number | null;
@@ -172,7 +180,7 @@ export class FlockClient {
         // розрив посеред гри: той самий токен, нову овечку не створюємо
         const have = this.stored ?? saved;
         if (have) this.emitResume(have);
-        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, artifact: this.artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...(this.mode === "circle" ? { mode: "circle" } : {}) }); // ще не встигли отримати welcome
+        else socket.emit("j", { v: PROTOCOL_VERSION, skin: this.skin, artifact: this.artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...this.modeFields() }); // ще не встигли отримати welcome
       } else if (this.opts.autoResume !== false && saved && isResumable(saved)) {
         this.skin = saved.skin;
         this.wantPlay = true;
@@ -206,7 +214,8 @@ export class FlockClient {
         attachFlockSounds(this.model);
         this.model.selfPerks = this.perks;
         // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
-        this.mode = cfg.mode === "circle" ? "circle" : "normal";
+        this.mode = cfg.mode === "circle" ? "circle" : cfg.mode === "castles" ? "castles" : "normal";
+        if (cfg.castle) this.team = cfg.castle.team;
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.model.applyRain(cfg.rain, performance.now());
         this.model.applyWind(cfg.wind, performance.now());
@@ -325,6 +334,22 @@ export class FlockClient {
         if (msg?.stage === 0) this.opts.onCircleStart?.();
       });
     });
+    // «Замки»: стан матчу (~5 Гц), підсумок і нагорода
+    socket.on("cm", (msg: CastleMsg) => {
+      this.later(() => {
+        if (!this.model) return;
+        const prevPh = this.model.castle?.ph;
+        const ev = this.model.applyCastle(msg, performance.now());
+        if (prevPh === 3 && msg.ph !== 3) this.opts.onCastleStart?.();
+        if (ev?.length) this.opts.onCastleEvents?.(ev, this.model.myTeam(), this.model.cfg.pid);
+      });
+    });
+    socket.on("te", (info: CastleEndInfo) => {
+      this.later(() => this.opts.onCastleEnd?.(info));
+    });
+    socket.on("tr", (info: CastleRewardInfo) => {
+      this.later(() => this.opts.onCastleReward?.(info));
+    });
     socket.on("ce", (info: CircleEndInfo) => {
       this.later(() => this.opts.onCircleEnd?.(info));
     });
@@ -334,6 +359,12 @@ export class FlockClient {
         this.wantPlay = false;
         this.opts.onNotice?.("roundRunning");
         this.opts.onRoundWait?.(Math.max(0, Number(e.waitMs) || 0));
+        this.setStatus("ready");
+        return;
+      }
+      if (e?.code === "team_unbalanced" || e?.code === "team_full" || e?.code === "skin_side" || e?.code === "castles_off") {
+        this.wantPlay = false;
+        this.opts.onNotice?.(e.code === "team_unbalanced" ? "teamUnbalanced" : e.code === "team_full" ? "teamFull" : e.code === "skin_side" ? "skinSide" : "castlesOff");
         this.setStatus("ready");
         return;
       }
@@ -408,8 +439,10 @@ export class FlockClient {
   }
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
-  join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}) {
-    this.perks = perks;
+  join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}, team?: Team) {
+    this.perks = mode === "castles" ? {} : perks;
+    if (team) this.team = team;
+    if (mode === "castles") artifact = 0;
     this.mode = mode;
     this.skin = skin;
     this.artifact = artifact;
@@ -417,8 +450,15 @@ export class FlockClient {
     this.opts.onNotice?.(null);
     if (this.model) this.model.resetCamera();
     if (this.socket?.connected) {
-      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...(mode === "circle" ? { mode: "circle" } : {}) });
+      this.socket.emit("j", { v: PROTOCOL_VERSION, skin, artifact, ...(this.arenaId ? { arena: this.arenaId } : {}), ...this.modeFields() });
     }
+  }
+
+  /** Поля режиму для `j`: circle / castles (з командою); звичайна арена - без полів. */
+  private modeFields() {
+    if (this.mode === "circle") return { mode: "circle" };
+    if (this.mode === "castles") return { mode: "castles", team: this.team };
+    return {};
   }
 
   sendInput(dir: Dir, split: boolean, thr: boolean, aspect = 1, sprint = false) {

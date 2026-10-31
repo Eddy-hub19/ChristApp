@@ -21,6 +21,7 @@ import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { initBoss, thinkBoss } from './flock.boss';
 import { initMonster, thinkMonster } from './flock.monsters';
 import { CircleRound, type CircleMsg } from './flock.circle';
+import { CastleMatch, type TeamSettlement } from './flock.castles';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
 import {
@@ -104,15 +105,23 @@ export interface FlockHooks {
   ) => void;
   /** Людина виграла раунд режиму «Звужуване коло» (рубіни нараховує лише сервер, у межах добового ліміту). */
   onCircleWin?: (userId: string, connKey: string | null) => void;
+  /** Матч «Замки» скінчився: вимірювання для нарахування нагород (рубіни нараховує лише шлюз, через БД). */
+  onTeamMatchEnd?: (
+    s: Omit<TeamSettlement, 'players'> & {
+      players: (TeamSettlement['players'][number] & { connKey: string | null })[];
+    },
+  ) => void;
   /** Держатель серії днів на 1-му місці (FlockStreak.days > 0) або null; читається при вході на арену. */
   getStreak?: () => { userId: string; days: number } | null;
 }
 
 /** normal - звичайна арена; circle - режим «Звужуване коло» (окрема арена). */
-export type ArenaMode = 'normal' | 'circle';
+export type ArenaMode = 'normal' | 'circle' | 'castles';
 
 class Arena {
   readonly world: FlockWorld;
+  /** Режим «Замки»: матч команд (null - інші режими). */
+  readonly castle: CastleMatch | null = null;
   /** «Звужуване коло»: поточний раунд і його стан (running - іде, ended - показуємо підсумки до roundEndAt). */
   private round: CircleRound | null = null;
   private roundState: 'running' | 'ended' = 'running';
@@ -201,10 +210,16 @@ class Arena {
     this.createdAt = now();
     this.mapId =
       mapOverride ??
-      (mode === 'circle'
-        ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
-        : pickMapId(rng));
+      (mode === 'castles'
+        ? C.teamMode.mapId
+        : mode === 'circle'
+          ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
+          : pickMapId(rng));
     this.world = new FlockWorld(rng, this.mapId);
+    if (mode === 'castles') {
+      this.castle = new CastleMatch(this.world, rng);
+      this.world.team = this.castle.rules;
+    }
     this.monsterTarget =
       C.monsters.min + Math.floor(rng() * (C.monsters.max - C.monsters.min + 1));
     if (mode === 'circle') this.startRound();
@@ -262,6 +277,7 @@ class Arena {
 
   /** Штатна кількість ботів: за людьми, з жорстким лімітом за числом людей (4-5 -> 2, 6 -> 0). */
   targetBots() {
+    if (this.castle) return this.castle.wantedBots(1) + this.castle.wantedBots(2);
     const base = Math.max(
       C.botMin,
       Math.min(C.botTarget, C.botTotalTarget - this.humans),
@@ -533,6 +549,7 @@ class Arena {
    * рівних - найдальші від людей. Якщо потрібно більше, спершу скасовуємо «відхід», потім додаємо нових.
    */
   syncBots() {
+    if (this.castle) return this.syncTeamBots();
     const want = this.wantBots();
     let active = this.activeBots;
     if (active < want) {
@@ -565,6 +582,36 @@ class Arena {
     }
   }
 
+  /** «Замки»: боти добивають команди до teamSize; загалом не більше, ніж дозволяє регулятор навантаження; зайвих прибираємо одразу. */
+  private syncTeamBots() {
+    const cm = this.castle as CastleMatch;
+    const want: Record<number, number> = { 1: cm.wantedBots(1), 2: cm.wantedBots(2) };
+    const allowed = this.governor.limit(want[1] + want[2]);
+    while (want[1] + want[2] > allowed) {
+      if (want[1] >= want[2]) want[1]--;
+      else want[2]--;
+    }
+    for (const team of [1, 2]) {
+      const have = cm.botsOf(team);
+      for (let i = have.length; i < want[team]; i++) this.addTeamBot(team);
+      for (let i = have.length - 1; i >= want[team]; i--) this.removeTeamBot(have[i]);
+    }
+  }
+
+  private addTeamBot(team: number) {
+    const cm = this.castle as CastleMatch;
+    const name = pickBotName(this.rng, [...this.world.players.values()].map((p) => p.name));
+    const p = this.world.addPlayer({ name, skin: cm.botSkin(team), bot: true, team });
+    cm.add(p, team, null);
+    this.bots.add(p.id);
+  }
+
+  private removeTeamBot(id: number) {
+    this.castle?.remove(id);
+    this.world.removePlayer(id);
+    this.bots.delete(id);
+  }
+
   private bossDelay() {
     const B = C.boss;
     return B.respawnMinMs + this.rng() * (B.respawnMaxMs - B.respawnMinMs);
@@ -575,7 +622,7 @@ class Arena {
    * (високе навантаження, ліміт ботів 0 і жодного бота на арені).
    */
   private bossAllowed() {
-    if (this.mode === 'circle') return false;
+    if (this.mode !== 'normal') return false;
     return !(this.governor.loadCap === 0 && this.bots.size === 0);
   }
 
@@ -773,6 +820,10 @@ class Arena {
     for (const id of this.bots) {
       const p = w.players.get(id);
       if (!p) continue;
+      if (this.castle) {
+        this.castle.thinkBot(p);
+        continue;
+      }
       if (this.retiring.has(id)) {
         this.retireStep(id, p);
         continue;
@@ -796,6 +847,7 @@ class Arena {
     this.leaderBeforeTick = w.leaderPid;
     const tB = performance.now();
     w.tick(1 / this.rate.hz);
+    this.castle?.step(1 / this.rate.hz);
     this.stepRoundPost();
     this.stepBossPost();
     const tC = performance.now();
@@ -818,7 +870,11 @@ class Arena {
     };
     // Таблиця лідерів + мінікарта - одна на всіх, кодується раз і рідко (boardEverySec).
     this.prepareShared();
-    const sendBoard = w.now - this.lastBoardAt >= C.boardEverySec * 1000;
+    const castle = this.castle;
+    if (castle) castle.collect();
+    const cmSend = !!castle && this.ticks % C.teamMode.stateEveryTicks === 0;
+    const endInfo = castle?.takeEnd() ?? null;
+    const sendBoard = !castle && w.now - this.lastBoardAt >= C.boardEverySec * 1000;
     if (sendBoard) this.lastBoardAt = w.now;
     let boardBuf: Uint8Array | null = null;
     if (sendBoard) {
@@ -878,6 +934,10 @@ class Arena {
         s.massReportedAt = w.now;
         if (this.mode === 'normal') this.hooks.onMass?.(s.userId, mm);
       }
+      if (castle) {
+        if (cmSend) send(key, 'cm', castle.state(s.pid));
+        if (endInfo) send(key, 'te', { ...endInfo.summary, you: { team: castle.teamOf(s.pid), pid: s.pid } });
+      }
       if (starMsg) send(key, 'z', starMsg);
       if (rainMsg) send(key, 'rn', rainMsg);
       if (windMsg) send(key, 'wd', windMsg);
@@ -920,6 +980,13 @@ class Arena {
         this.bytesOut += boardBuf.length;
         send(key, 'l', boardBuf);
       }
+    }
+    if (castle && cmSend) castle.drain();
+    if (castle && endInfo) {
+      this.hooks.onTeamMatchEnd?.({
+        ...endInfo.settlement,
+        players: endInfo.settlement.players.map((pl) => ({ ...pl, connKey: this.sessions.get(pl.userId)?.connKey ?? null })),
+      });
     }
     this.bossMsgs = [];
     this.roundMsgs = [];
@@ -1061,9 +1128,12 @@ class Arena {
     const cells: StateInput['cells'] = [];
     const seenPids = this.tmpSeen;
     seenPids.clear();
+    const castle = this.castle;
+    const vteam = castle ? castle.teamOf(p.id) : 0;
     w.queryCells(cen.x, cen.y, Math.max(hx, hy), (c) => {
       const o = w.players.get(c.pid);
       if (!o || !o.alive) return;
+      if (castle && c.pid !== p.id && castle.hiddenFrom(vteam, c.pid)) return;
       if (Math.abs(c.x - cen.x) > hx || Math.abs(c.y - cen.y) > hy) return;
       const fx = this.shared.fx.get(c.pid) ?? 0;
       cells.push({ id: c.id, pid: c.pid, x: c.x, y: c.y, mass: c.mass, fx });
@@ -1169,11 +1239,13 @@ export interface JoinOptions {
   arena?: number;
   /** Режим арени: без поля - звичайна; circle - «Звужуване коло» (окрема арена). */
   mode?: ArenaMode;
+  /** «Замки»: обрана сторона (1 - вівці, 2 - вовки). */
+  team?: number;
 }
 
 export interface JoinResult {
   ok: boolean;
-  error?: 'full' | 'busy' | 'expired' | 'round_running';
+  error?: 'full' | 'busy' | 'expired' | 'round_running' | 'castles_off' | 'team_full' | 'team_unbalanced' | 'bad_team';
   /** Для round_running: скільки мс чекати нового раунду. */
   waitMs?: number;
   pid?: number;
@@ -1195,6 +1267,8 @@ export interface JoinResult {
   /** Режим арени і стан кола «Звужуване коло» на момент входу (hold/shrink - що лишилось). */
   mode?: ArenaMode;
   circle?: CircleMsg;
+  /** «Замки»: твоя команда й геометрія карти. */
+  castle?: ReturnType<CastleMatch['welcome']>;
   rain?: { l: number; y: number; d: number; p: [number, number, number, number][] };
   /** «Вітер» на момент входу: a - напрям (рад), w - мс до початку (0 - уже дме), l - скільки лишилось сносу. */
   wind?: { a: number; w: number; l: number };
@@ -1284,13 +1358,24 @@ export class FlockManager {
     // явний новий вхід (або токен не підійшов): стара сесія цього користувача (вкладка/пауза) закривається
     if (prev) this.removeSession(prev);
 
-    const arena = this.pickArena(opts.arena, opts.mode ?? 'normal');
+    const mode = opts.mode ?? 'normal';
+    const team = opts.team ?? 0;
+    if (mode === 'castles') {
+      if (!C.teamMode.enabled) return { ok: false, error: 'castles_off', resumeFailed };
+      if (team !== 1 && team !== 2) return { ok: false, error: 'bad_team', resumeFailed };
+      const live = this.castlesArena();
+      const verdict = live?.castle?.canJoin(team) ?? 'ok';
+      if (verdict !== 'ok') return { ok: false, error: verdict, resumeFailed };
+    }
+    const arena = this.pickArena(opts.arena, mode);
     if (!arena) return { ok: false, error: 'full', resumeFailed };
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
       skin,
-      artifact: opts.artifact,
+      artifact: mode === 'castles' ? 0 : opts.artifact,
+      ...(mode === 'castles' ? { team } : {}),
     });
+    arena.castle?.add(player, team, userId);
     const session: Session = {
       connKey,
       token: newToken(),
@@ -1323,6 +1408,23 @@ export class FlockManager {
     return { ...this.joined(session), resumeFailed };
   }
 
+  private castlesArena() {
+    for (const a of this.arenas.values()) if (a.mode === 'castles') return a;
+    return undefined;
+  }
+
+  /** Лобі режиму «Замки»: скільки людей на кожній стороні (HTTP, до входу). */
+  castlesLobby() {
+    const c = this.castlesArena()?.castle;
+    const lobby = c?.lobby() ?? { sheep: 0, wolves: 0, phase: 0, leftMs: 0 };
+    return {
+      enabled: C.teamMode.enabled,
+      ...lobby,
+      teamSize: C.teamMode.teamSize,
+      maxTeamSize: C.teamMode.maxTeamSize,
+    };
+  }
+
   private joined(s: Session): JoinResult {
     return {
       ok: true,
@@ -1339,6 +1441,7 @@ export class FlockManager {
       wind: s.arena.world.windSnapshot(),
       mode: s.arena.mode,
       circle: s.arena.circleSnapshot(),
+      castle: s.arena.castle?.welcome(s.arena.castle.teamOf(s.pid)),
       streak: this.streakInfo(s.arena) ?? undefined,
     };
   }
@@ -1378,7 +1481,7 @@ export class FlockManager {
 
   /** Адмін: карта для наступної створеної арени (null - зняти примус). */
   setNextMap(id: number | null): boolean {
-    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id)) return false;
+    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team)) return false;
     this.forcedNextMap = id;
     return true;
   }
@@ -1394,7 +1497,8 @@ export class FlockManager {
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
   private pickArena(requested?: number, mode: ArenaMode = 'normal'): Arena | null {
-    const roomy = (a: Arena) => a.mode === mode && a.humans < C.maxHumansPerArena;
+    const cap = mode === 'castles' ? 2 * C.teamMode.maxTeamSize : C.maxHumansPerArena;
+    const roomy = (a: Arena) => a.mode === mode && a.humans < cap;
     const fresh = (a: Arena) => roomy(a) && !this.mapExpired(a);
     const wanted = requested ? this.arenas.get(requested) : undefined;
     if (wanted && fresh(wanted)) return wanted;
@@ -1402,10 +1506,15 @@ export class FlockManager {
     if (any) return any;
     // ліміт арен - окремо для звичайних і для режиму «Звужуване коло» (звичайна арена від режиму не залежить)
     const sameMode = [...this.arenas.values()].filter((a) => a.mode === mode).length;
-    const atLimit = mode === 'circle' ? !C.circle.enabled || sameMode >= C.circle.maxArenas : sameMode >= C.maxArenas;
+    const atLimit =
+      mode === 'castles'
+        ? !C.teamMode.enabled || sameMode >= C.teamMode.maxArenas
+        : mode === 'circle'
+          ? !C.circle.enabled || sameMode >= C.circle.maxArenas
+          : sameMode >= C.maxArenas;
     if (atLimit) {
       // нову карту завести нема де: краще стара карта, ніж відмова
-      if (mode === 'circle') return null;
+      if (mode !== 'normal') return null;
       return (wanted && roomy(wanted) ? wanted : undefined) ?? [...this.arenas.values()].find(roomy) ?? null;
     }
     const arena = new Arena(
@@ -1469,6 +1578,10 @@ export class FlockManager {
     }
     const w = s.arena.world;
     w.setInput(s.pid, angle, power);
+    if (s.arena.castle) {
+      s.arena.castle.noteInput(s.pid, angle, power);
+      return;
+    }
     w.setSprint(s.pid, sprint);
     if (split) w.queueSplit(s.pid);
     if (thr) w.queueThrow(s.pid);
@@ -1595,6 +1708,7 @@ export class FlockManager {
     const leaving = arena.world.players.get(s.pid);
     if (leaving) this.hooks.onMass?.(s.userId, leaving.maxMass);
     arena.sessions.delete(s.userId);
+    arena.castle?.remove(s.pid);
     arena.world.removePlayer(s.pid);
     if (arena.humans === 0) {
       arena.stop();

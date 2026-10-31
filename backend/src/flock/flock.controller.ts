@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
+import { FlockGateway } from './flock.gateway';
 
 @Controller('flock')
 @UseGuards(JwtAuthGuard)
@@ -20,6 +21,7 @@ export class FlockController {
   constructor(
     private readonly rubies: FlockRubiesService,
     private readonly daily: FlockDailyService,
+    private readonly gateway: FlockGateway,
   ) {}
 
   private uid(req: Request) {
@@ -55,6 +57,12 @@ export class FlockController {
   @Get('daily')
   dailyBoard(@Req() req: Request) {
     return this.daily.getBoard(this.uid(req));
+  }
+
+  /** Лобі режиму «Замки»: скільки людей на кожній стороні. */
+  @Get('castles/lobby')
+  castlesLobby() {
+    return this.gateway.castlesLobby();
   }
 
   @Post('skins/:id/buy')

@@ -23,6 +23,10 @@ import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
 import FlockModes from "./FlockModes";
+import FlockCastlesLobby from "./FlockCastlesLobby";
+import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastleHud";
+import type { CastleEndInfo, CastleEvent, CastleRewardInfo, CastlesGameConfig, Team } from "./flockCastles";
+import castleStyles from "./FlockCastles.module.scss";
 import FlockSheet from "./FlockSheet";
 import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
 import { installFlockSoundUnlock, playFlockSound, setFlockMusic, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
@@ -73,12 +77,14 @@ type Hud = {
   wind: { phase: "warn" | "active"; angle: number } | null;
   /** Своя клітина зараз під «Сопілкою пастуха» (коротка підказка «Тебе кличе сопілка!»). */
   pipeCalled: boolean;
+  /** Режим «Замки»: шапка матчу (null - інший режим або ще нема `cm`). */
+  castle: CastleHudData | null;
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake"] as const;
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -206,6 +212,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** «Режими» (окно в лобби), подведение итогов раунда «Звужуване коло» и «раунд ещё идёт» для мёртвого. */
   const [modesOpen, setModesOpen] = useState(false);
   const [circleEnd, setCircleEnd] = useState<(CircleEndInfo & { at: number }) | null>(null);
+  /** «Замки»: лобі режиму, підсумок матчу, нагорода, напис події, помилка входу. */
+  const [castlesOpen, setCastlesOpen] = useState(false);
+  const [castleEnd, setCastleEnd] = useState<CastleEndInfo | null>(null);
+  const [castleReward, setCastleReward] = useState<CastleRewardInfo | null>(null);
+  const [castleToast, setCastleToast] = useState<{ id: number; text: string; good: boolean } | null>(null);
   const [roundWait, setRoundWait] = useState<{ ms: number; at: number } | null>(null);
   /** Текущее время для секунд на карточке итогов и подсказке «раунд ещё идёт» (обновляется таймером, не при рендере). */
   const [nowMs, setNowMs] = useState(0);
@@ -330,6 +341,48 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, []);
 
   /** Баланс, куплені скіни й статистика - з сервера; стара статистика з localStorage переноситься один раз. */
+  const castlesNumsRef = useRef<CastlesGameConfig>({});
+  const castlesNums = ((me?.config.game as Record<string, unknown> | undefined)?.castles ?? {}) as CastlesGameConfig;
+  castlesNumsRef.current = castlesNums;
+  /** «Замки»: події тіку -> звук і напис (звуки лише наявні). Ref, щоб клієнт не тримав застарілий замикання. */
+  const handleCastleEventsRef = useRef<(events: CastleEvent[], team: Team | 0, pid: number) => void>(() => undefined);
+  handleCastleEventsRef.current = (events, team, pid) => {
+    for (const e of events) {
+      const good = e.t === team;
+      let key: string | null = null;
+      let ok = good;
+      switch (e.k) {
+        case "steal":
+          key = good ? "toast.stealMine" : "toast.stealEnemy";
+          playFlockSound(good ? "bonus" : "eaten", { self: true });
+          break;
+        case "deliver":
+          key = good ? "toast.deliverMine" : "toast.deliverEnemy";
+          playFlockSound(good ? "coins" : "eaten", { self: true });
+          break;
+        case "drop":
+          // t - команда вора: його ловлять
+          key = good ? "toast.dropMine" : "toast.dropEnemy";
+          ok = !good;
+          playFlockSound(good ? "eaten" : "bonus", { self: true });
+          break;
+        case "return":
+          key = "toast.returned";
+          playFlockSound("bonusEnd", { self: true });
+          break;
+        case "castle":
+          // t - команда, чий замок зруйновано
+          key = good ? "toast.castleMine" : "toast.castleEnemy";
+          ok = !good;
+          playFlockSound(good ? "death" : "revive", { self: true });
+          break;
+        default:
+          break;
+      }
+      void pid;
+      if (key) setCastleToast({ id: Date.now() + Math.random(), text: t(`castles.${key}`, { damage: castlesNums.damage ?? "…" }), good: ok });
+    }
+  };
   const refreshMe = useCallback(async () => {
     try {
       let data = await fetchFlockMe();
@@ -405,6 +458,19 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onCircleEnd: (info) => setCircleEnd({ ...info, at: Date.now() }),
         onCircleStart: () => setCircleEnd(null),
         onRoundWait: (ms) => setRoundWait({ ms, at: Date.now() }),
+        onCastleEvents: (events, team, pid) => handleCastleEventsRef.current(events, team, pid),
+        onCastleEnd: (info) => {
+          setCastleEnd(info);
+          setCastleReward(null);
+        },
+        onCastleReward: (info) => {
+          setCastleReward(info);
+          if (typeof info.balance === "number") setMe((m) => (m ? { ...m, rubies: info.balance as number } : m));
+        },
+        onCastleStart: () => {
+          setCastleEnd(null);
+          setCastleReward(null);
+        },
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
         onSayRejected: (reason) => setSayNotice(t(`phrases.rejected.${reason}`)),
@@ -445,6 +511,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setModesOpen(false);
     clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0, mode, perksOf(me?.config.game, skin));
   }, [skin, artifact, me]);
+
+  /** «Замки»: вхід у матч за обраними стороною й скіном (платні скіни й артефакти в режимі не діють). */
+  const playCastles = useCallback((team: Team, skinId: number) => {
+    maxTotalRef.current = 0;
+    setDeath(null);
+    setReward(null);
+    setCircleEnd(null);
+    setRoundWait(null);
+    setCastleEnd(null);
+    setCastleReward(null);
+    setModesOpen(false);
+    setCastlesOpen(false);
+    clientRef.current?.join(skinId, 0, "castles", {}, team);
+  }, []);
 
   // секунды на карточке итогов и в подсказке «раунд ещё идёт» тикают раз в 500 мс
   useEffect(() => {
@@ -780,6 +860,26 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           return w ? { phase: w.phase, angle: w.angle } : null;
         })(),
         pipeCalled: performance.now() - model.pipeCalledAt < 1500,
+        castle: (() => {
+          const cs = model.castle;
+          const cc = model.cfg.castle;
+          if (!cc) return null;
+          const now = performance.now();
+          return {
+            ph: cs?.ph ?? 0,
+            leftMs: model.castleLeftMs(now),
+            sc: cs?.sc ?? [0, 0],
+            hp: cs?.hp ?? [100, 100],
+            hpMax: cs?.hpMax ?? 100,
+            st: cs?.st ?? [0, 0],
+            hu: cs?.hu ?? [0, 0],
+            team: cc.team,
+            carrying: model.carryingStone(),
+            sp: cs?.sp ?? 0,
+            rsMs: model.castleRespawnMs(now),
+            nums: castlesNumsRef.current,
+          };
+        })(),
       });
     }, 250);
 
@@ -1094,12 +1194,25 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <span className={styles.rewardText}>{t("rubies.reward", { count: reward.amount })}</span>
             </div>
           ) : null}
+          {hud.castle ? (
+            <>
+              <FlockCastleHud c={hud.castle} />
+              {castleToast ? (
+                <div key={castleToast.id} className={`${castleStyles.toast} ${castleToast.good ? castleStyles.toastGood : castleStyles.toastBad}`} role="status">
+                  {castleToast.text}
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {!hud.castle ? (
           <div className={styles.massBadge} aria-live="off">
             <span className={styles.massLabel}>{t("hud.mass")}</span>
             <span className={styles.massValue}>{Math.round(hud.total)}</span>
             <span className={styles.rank}>{rank}</span>
           </div>
+          ) : null}
 
+          {!hud.castle ? (
           <button
             type="button"
             className={`${styles.board} ${boardCollapsed ? styles.boardCollapsed : ""}`}
@@ -1139,6 +1252,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </span>
             )}
           </button>
+          ) : null}
 
           {hud.circle ? (
             <div className={styles.circleBanner} role="status" aria-live="polite">
@@ -1176,6 +1290,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </ul>
           ) : null}
 
+          {!hud.castle ? (
           <div className={styles.actions}>
             <button
               type="button"
@@ -1220,6 +1335,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </button>
             ) : null}
           </div>
+          ) : null}
           {phrasesOpen ? <div className={styles.phrasesBackdrop} onPointerDown={() => setPhrasesOpen(false)} aria-hidden /> : null}
           {phrasesOpen ? (
             <div className={styles.phrasesPanel} role="menu" aria-label={t("phrases.title")} style={kbInset > 0 ? { bottom: kbInset + 12 } : undefined}>
@@ -1289,7 +1405,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <span aria-hidden>💬</span>
           </button>
           <FlockSoundButton variant="hud" onOpen={() => setSoundOpen(true)} />
-          {!isTouch ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
+          {!isTouch && !hud.castle ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
         </>
       ) : null}
 
@@ -1334,6 +1450,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {status === "playing" && castleEnd && hud.castle ? (
+        <div onClickCapture={lobbyClickSound}>
+          <CastleEndCard info={castleEnd} reward={castleReward} onClose={handleClose} onAgain={() => setCastleEnd(null)} />
         </div>
       ) : null}
 
@@ -1477,7 +1599,15 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         </FlockSheet>
       ) : null}
       {modesOpen && showLobby ? (
-        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlay={() => play("circle")} onClose={() => setModesOpen(false)} />
+        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlay={() => play("circle")} onPlayCastles={() => setCastlesOpen(true)} onClose={() => setModesOpen(false)} />
+      ) : null}
+      {castlesOpen && showLobby ? (
+        <FlockCastlesLobby
+          canPlay={status === "ready"}
+          error={notice === "teamUnbalanced" ? t("castles.errUnbalanced") : notice === "teamFull" ? t("castles.errFull") : notice === "skinSide" ? t("castles.errSkin") : notice === "castlesOff" ? t("castles.off") : status === "full" ? t("status.full") : null}
+          onJoin={playCastles}
+          onClose={() => setCastlesOpen(false)}
+        />
       ) : null}
       {soundOpen ? <FlockSoundSettings onClose={() => setSoundOpen(false)} /> : null}
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
@@ -1616,6 +1746,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
             {collectionAward && !collectionAward.fromBuy ? <p className={styles.notice}>{t("premiumCollection.collectDone", { count: collectionAward.amount })}</p> : null}
             {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
+            {notice === "teamUnbalanced" || notice === "teamFull" || notice === "skinSide" || notice === "castlesOff" ? <p className={styles.error}>{t(`castles.${notice === "teamUnbalanced" ? "errUnbalanced" : notice === "teamFull" ? "errFull" : notice === "skinSide" ? "errSkin" : "off"}`)}</p> : null}
             {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
             {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
             {notice === "roundRunning" ? (

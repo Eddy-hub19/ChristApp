@@ -560,6 +560,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 22,
+    date: "2026-11-04",
+    items: [
+      {
+        icon: "trophy",
+        text: {
+          ua: "Новий командний режим «Замки» (лобі → «Режими»): Вівці проти Вовків на новій карті «Ліс і озеро». Вкради камінь із чужого замку, принеси на свою базу — кілька доставок руйнують замок. Переможцям — рубіни. Усі числа — у вікні «i»",
+          ru: "Новый командный режим «Замки» (лобби → «Режимы»): Овцы против Волков на новой карте «Лес и озеро». Укради камень из чужого замка, принеси на свою базу — несколько доставок разрушают замок. Победителям — рубины. Все числа — в окне «i»",
+          en: "New team mode “Castles” (lobby → “Modes”): Sheep versus Wolves on the new “Forest and lake” map. Steal a stone from the enemy castle and bring it to your base — a few deliveries destroy the castle. Winners earn rubies. All numbers are in the “i” window",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

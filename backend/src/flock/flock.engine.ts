@@ -18,6 +18,8 @@ import {
 } from './flock.config';
 import { SpatialGrid } from './flock.grid';
 
+import { castleMap, type TeamRules } from './flock.castles';
+
 const C = FLOCK_CONFIG;
 const TWO_PI = Math.PI * 2;
 const CHUNKS = Math.ceil(C.worldSize / C.chunkSize);
@@ -112,7 +114,8 @@ export function generateThorns(
 /** Номер випадкової карти (за вагами FLOCK_MAPS[].weight; рівні ваги - рівна ймовірність). */
 export function pickMapId(rng: Rng, exclude?: number): number {
   // не повторяємо попередню карту підряд (якщо є з чого вибирати)
-  const pool = FLOCK_MAPS.length > 1 ? FLOCK_MAPS.filter((m) => m.id !== exclude) : FLOCK_MAPS;
+  const regular = FLOCK_MAPS.filter((m) => !m.team);
+  const pool = regular.length > 1 ? regular.filter((m) => m.id !== exclude) : regular;
   let total = 0;
   for (const m of pool) total += m.weight;
   let r = rng() * total;
@@ -159,6 +162,8 @@ export interface Player {
   /** Загинув поза колом режиму «Звужуване коло». */
   zoneDeath: boolean;
   alive: boolean;
+  /** Режим «Замки»: команда (1 - вівці, 2 - вовки; 0 - звичайна арена). */
+  team: number;
   cells: Cell[];
   angle: number;
   power: number;
@@ -359,6 +364,8 @@ export class FlockWorld {
   leaderPid = 0;
   /** Заборонені для ШІ смуги (див. flock.nav.ts); лавова карта заповнює. */
   hazards: NavHazard[] = [];
+  /** Режим «Замки»: правила рушія (null - звичайна арена). Ставить менеджер до першого гравця. */
+  team: TeamRules | null = null;
 
   private readonly cellGrid = new SpatialGrid<Cell>(220);
   private nextPid = 1;
@@ -391,6 +398,11 @@ export class FlockWorld {
     const avoid = lava
       ? (x: number, y: number, mass: number) => lavaBlocked(lava, x, y, C.lava.clearMargin + radiusOf(mass))
       : undefined;
+    if (map.team) {
+      // «Замки»: кущі-укриття задає карта; їжі нема
+      for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
+      return;
+    }
     for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout, avoid))
       this.thorns.push({ id: this.nextThornId++, ...t });
     for (let i = 0; i < C.maxFood; i++) this.spawnFood();
@@ -430,6 +442,8 @@ export class FlockWorld {
     /** «Лавове чудовисько»: скін MONSTER_SKIN, маса появи monsterMass (у bossStart), без щита й артефакта. */
     monster?: boolean;
     monsterMass?: number;
+    /** Режим «Замки»: команда гравця (1 - вівці, 2 - вовки). */
+    team?: number;
   }): Player {
     const id = this.nextId(this.nextPid, (i) => this.players.has(i));
     this.nextPid = id + 1;
@@ -452,6 +466,7 @@ export class FlockWorld {
       burned: false,
       zoneDeath: false,
       alive: false,
+      team: opts.team ?? 0,
       cells: [],
       angle: 0,
       power: 0,
@@ -487,6 +502,26 @@ export class FlockWorld {
   respawn(p: Player) {
     for (const c of p.cells) this.cellsById.delete(c.id);
     p.cells = [];
+    if (this.team) {
+      const spot = this.team.spawnPoint(p);
+      this.addCell(p, spot.x, spot.y, this.team.mass);
+      p.alive = true;
+      p.effects = {};
+      p.frozenUntil = 0;
+      p.boostUntil = 0;
+      p.spawnedAt = this.now;
+      p.paused = false;
+      p.maxMass = p.total = this.team.mass;
+      p.topMs = 0;
+      p.killed = [];
+      p.kills = 0;
+      p.killerPid = 0;
+      p.phrase = null;
+      p.wantSplit = p.wantThrow = false;
+      p.sprintUntil = 0;
+      p.sprinting = false;
+      return;
+    }
     const spot = p.monster ? this.lavaSpawn() : this.safeSpawn();
     this.addCell(p, spot.x, spot.y, p.boss || p.monster ? p.bossStart : C.startMass);
     p.alive = true;
@@ -650,12 +685,12 @@ export class FlockWorld {
 
   /** Артефакт гравця (боти - завжди 0, навіть якщо поле підмінили). */
   hasArtifact(p: Player, a: number) {
-    return !p.bot && p.artifact === a;
+    return !this.team && !p.bot && p.artifact === a;
   }
 
   /** Бонус обраного скіна (боти й гравці без бонусного скіна - порожньо). */
   perk(p: Player): SkinPerk {
-    return p.bot ? NO_PERK : (skinPerkOf(p.skin) ?? NO_PERK);
+    return p.bot || this.team ? NO_PERK : (skinPerkOf(p.skin) ?? NO_PERK);
   }
 
   /** Тривалість стартового щита гравця (з бонусом скіна). */
@@ -786,6 +821,7 @@ export class FlockWorld {
   }
 
   viewRadius(p: Player) {
+    if (this.team) return this.team.viewRadius;
     const r = Math.min(
       C.viewMax,
       C.viewBase + C.viewPerSqrtMass * Math.sqrt(p.total),
@@ -809,6 +845,10 @@ export class FlockWorld {
     this.rainEvents.length = 0;
     this.windEvents.length = 0;
     const nowMs = this.now;
+    if (this.team) {
+      this.tickTeam(dt);
+      return;
+    }
 
     for (const p of this.players.values()) {
       if (!p.alive) continue;
@@ -894,6 +934,30 @@ export class FlockWorld {
       this.spawnBonus();
     }
     void nowMs;
+  }
+
+  /** «Замки»: лише рух із правилами режиму (швидкість, вода, камінь); без поїдання, їжі, бонусів, розпаду маси. */
+  private tickTeam(dt: number) {
+    const rules = this.team as TeamRules;
+    this.cellGrid.clear();
+    for (const p of this.players.values()) {
+      if (!p.alive) continue;
+      if (p.paused) {
+        p.power = 0;
+        continue;
+      }
+      const dx = Math.cos(p.angle);
+      const dy = Math.sin(p.angle);
+      for (const c of p.cells) {
+        const v = rules.speed(p, c) * p.power;
+        const r = radiusOf(c.mass);
+        c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x + dx * v * dt));
+        c.y = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.y + dy * v * dt));
+        this.cellGrid.insert(c);
+      }
+      p.total = rules.mass;
+    }
+    this.leaderPid = 0;
   }
 
   /** Скільки мс лишилось розгону на старті (0 - не діє: бот, час вийшов або маса вже за порогом). */

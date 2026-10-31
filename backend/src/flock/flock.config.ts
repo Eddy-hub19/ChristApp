@@ -425,6 +425,98 @@ export const FLOCK_CONFIG = {
     winReward: 5,
   },
 
+  /**
+   * Режим «Замки» (окрема арена, кнопка «Режими»): два замки в протилежних кутах карти «Лес и озеро», річка по діагоналі
+   * з трьома мостами. Гравець краде один камінь із чужого сховища (стоїть біля кристала stealHoldMs), несе у свою базу:
+   * замок суперника втрачає damagePerStone HP, команда +1 очко; castleHp / damagePerStone доставок руйнують замок. Захисник,
+   * що торкнувся злодія на території своєї команди, змушує його впустити камінь; злодій оживає в замку через respawnMs.
+   * Усі гравці однакової маси й швидкості, без поїдання, ділення, кидка, їжі, бонусів. Кущі ховають від ворога, поки він
+   * не ближче bushRevealRadius (на воді не ховають).
+   */
+  teamMode: {
+    enabled: true,
+    /** Скільки арен режиму одночасно (окремо від maxArenas звичайних). */
+    maxArenas: 1,
+    /** Номер карти режиму (FLOCK_MAPS, поза випадковим вибором звичайної арени). */
+    mapId: 4,
+    /** Формат: teamSize на teamSize (боти добивають до нього); людей у команді не більше maxTeamSize (4 на 4). */
+    teamSize: 3,
+    maxTeamSize: 4,
+    /** Нова сторона не може випереджати іншу за людьми на balanceGap і більше. */
+    balanceGap: 2,
+    /** Відлік до початку бою від моменту, коли набралось потрібне число людей; startMinHumansEachTeam: 0 - досить однієї людини в арені. */
+    countdownMs: 20_000,
+    startMinHumansEachTeam: 0,
+    /** Тривалість матчу (по таймеру перемагає команда з більшою шкодою замку) і пауза з підсумками до нового матчу. */
+    matchMs: 10 * 60_000,
+    endHoldMs: 15_000,
+    castleHp: 100,
+    damagePerStone: 20,
+    /** Камінів у сховищі замка (стільки ж доставок руйнує замок). */
+    stonesPerCastle: 5,
+    stealHoldMs: 1500,
+    /** Радіус сховища навколо центру замка (де краде злодій) і радіус зони бази (де доставляють). */
+    stealRadius: 170,
+    baseRadius: 400,
+    /** Несучий камінь повільніший на 15%; у воді (поза мостом) повільніше на 40%. */
+    carrySlow: 0.15,
+    waterSlow: 0.4,
+    /** Однакові для всіх: маса клітини й швидкість (од/с). */
+    playerMass: 30,
+    playerSpeed: 200,
+    /** Радіус огляду (однаковий для всіх, не залежить від маси). */
+    viewRadius: 620,
+    respawnMs: 5000,
+    respawnShieldMs: 3000,
+    /** Камінь, що впустили, лежить; свій повертається сам через lyingReturnMs (захисник - одразу, торкнувшись). */
+    lyingReturnMs: 20_000,
+    /** Запас на дотик клітин (світові одиниці). */
+    touchMargin: 12,
+    /** Ворог, що в кущі, видимий лише ближче за цей радіус. */
+    bushRevealRadius: 260,
+    /** Скільки тіків між розсилками стану матчу `cm` (10 Гц / 2 = 5 Гц). */
+    stateEveryTicks: 2,
+    /** Розкладка карти: річка (діагональ), мости (частки довжини осі), замки й кущі-укриття. */
+    map: {
+      riverHalfWidth: 170,
+      bridgeWidth: 330,
+      bridgeOver: 40,
+      bridgeAt: [0.2, 0.5, 0.8] as readonly number[],
+      /** Овечий замок (лівий нижній кут); вовчий - дзеркально через центр світу. */
+      sheepCastle: { x: 480, y: 2920 },
+      bushesPerSide: 14,
+      bushRadiusMin: 90,
+      bushRadiusMax: 140,
+      /** Мінімум між краєм куща й річкою / базою замка (світові одиниці). */
+      bushRiverGap: 80,
+      bushBaseGap: 120,
+      bushGap: 60,
+      seed: 20261104,
+    },
+    bots: {
+      /** Частка ботів команди, що йдуть красти (решта захищають); завжди хоч один захисник, якщо в команді 2+ ботів. */
+      thiefShare: 0.5,
+      /** Захисник тримається в цих межах від замка, поки ворога нема. */
+      guardRadius: 520,
+      /** Захисник помічає злодія з каменем на своїй території в цьому радіусі. */
+      noticeRadius: 420,
+    },
+    /** Нагорода переможцям: лише сервер, через журнал рубінів (TEAM_WIN), поза добовим лімітом арени. */
+    reward: 30,
+    /** Матч зараховується до нагороди лише якщо тривав не менше. */
+    minMatchMs: 120_000,
+    /** Не AFK: за матч не менше стількох дій (зміна напрямку/сили) і пройдена відстань не менше стількох одиниць. */
+    afkMinActions: 20,
+    afkMinMoveDist: 600,
+    /** Оплачуваних перемог на добу (доба за Києвом). */
+    dailyWinLimit: 5,
+    /** Матч «проти ботів» (живого суперника не було ≥ botOnlyEnemyHumanMs): нагород лише botOnlyRewardLimit за період. */
+    botOnlyRewardLimit: 3,
+    /** 'day' - лічильник скидається опівночі за Києвом, 'lifetime' - назавжди. */
+    botOnlyRewardPeriod: 'day' as 'day' | 'lifetime',
+    botOnlyEnemyHumanMs: 60_000,
+  },
+
   // --- область видимості ---
   viewBase: 400,
   viewPerSqrtMass: 6.5,
@@ -686,6 +778,8 @@ export interface FlockMapDef {
   weight: number;
   /** На карті є річка лави (C.lava): геометрія й мости створюються разом з ареною. */
   lava?: boolean;
+  /** Карта режиму «Замки»: не бере участі у випадковому виборі звичайної арени. */
+  team?: boolean;
 }
 
 /**
@@ -697,6 +791,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 1, name: 'grove', layout: 'scatter', thornStyle: 'autumn', thorns: {}, weight: 1 },
   { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {}, weight: 1 },
   { id: 3, name: 'volcano', layout: 'scatter', thornStyle: 'charred', thorns: {}, weight: 1, lava: true },
+  /** «Ліс і озеро»: лише режим «Замки» (кущі й річка задаються flock.castles.ts). */
+  { id: 4, name: 'lake', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true },
 ];
 
 /**
@@ -728,6 +824,29 @@ export function clientGameConfig() {
       winReward: c.circle.winReward,
       endHoldMs: c.circle.endHoldMs,
       totalMs: c.circle.warmupMs + c.circle.stages.reduce((a, st) => a + st.holdMs + st.shrinkMs, 0) + c.circle.finalHoldMs,
+    },
+    castles: {
+      hp: c.teamMode.castleHp,
+      damage: c.teamMode.damagePerStone,
+      deliverToWin: Math.ceil(c.teamMode.castleHp / c.teamMode.damagePerStone),
+      matchMs: c.teamMode.matchMs,
+      minMatchMs: c.teamMode.minMatchMs,
+      countdownMs: c.teamMode.countdownMs,
+      teamSize: c.teamMode.teamSize,
+      maxTeamSize: c.teamMode.maxTeamSize,
+      stealHoldMs: c.teamMode.stealHoldMs,
+      carrySlowPct: Math.round(c.teamMode.carrySlow * 100),
+      waterSlowPct: Math.round(c.teamMode.waterSlow * 100),
+      respawnMs: c.teamMode.respawnMs,
+      respawnShieldMs: c.teamMode.respawnShieldMs,
+      lyingReturnMs: c.teamMode.lyingReturnMs,
+      bushRevealRadius: c.teamMode.bushRevealRadius,
+      reward: c.teamMode.reward,
+      dailyWinLimit: c.teamMode.dailyWinLimit,
+      botOnlyRewardLimit: c.teamMode.botOnlyRewardLimit,
+      speed: c.teamMode.playerSpeed,
+      mass: c.teamMode.playerMass,
+      afkMinActions: c.teamMode.afkMinActions,
     },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
@@ -857,6 +976,15 @@ export const FREE_SKIN_IDS: readonly number[] = [
 export const REMOVED_SKINS: readonly number[] = [6, 7, 10, 11];
 export const isRemovedSkin = (id: number) => REMOVED_SKINS.includes(id);
 export const isFreeSkin = (id: number) => FREE_SKIN_IDS.includes(id);
+/** Режим «Замки»: безкоштовні скіни сторін (1 - «Вівці», 2 - «Вовки»); платні, особливі й артефакти там вимкнені. */
+export const TEAM_SHEEP = 1;
+export const TEAM_WOLF = 2;
+export const TEAM_FREE_SKINS: Record<number, readonly number[]> = {
+  [TEAM_SHEEP]: [0, 1, 2, 3, 4, 5],
+  [TEAM_WOLF]: [8, 9, 37, 38, 39, 40],
+};
+export const teamSkinAllowed = (team: number, skin: number) =>
+  (TEAM_FREE_SKINS[team] ?? []).includes(skin) && isFreeSkin(skin);
 /** Скін, який гравець узагалі може обрати (не «Вожак», у межах нумерації). */
 export const isSelectableSkin = (id: number) =>
   Number.isInteger(id) &&
