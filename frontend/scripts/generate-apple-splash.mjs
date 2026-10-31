@@ -15,7 +15,7 @@ import sharp from "sharp";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "public", "splash");
 
-const BG = "#2e2d2d";
+const BG = "#17151a";
 const CROSS = "#d4af37";
 
 /** Логічні (CSS) розміри портрету + пікс. щільність — iOS завжди звітує device-width/height у портретній орієнтації. */
