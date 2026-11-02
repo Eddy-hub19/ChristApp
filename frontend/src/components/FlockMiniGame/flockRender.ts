@@ -11,7 +11,7 @@ import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCache
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
-import { drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamRings } from "./flockCastleRender";
+import { drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamNames, drawTeamRings } from "./flockCastleRender";
 import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
 export interface Theme {
@@ -548,7 +548,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   }
 
   // імена поверх усього: готові спрайти (з обводкою й значком бота), цифри маси - з атласу
-  if (o.showNames) {
+  if (o.showNames && castleMode) drawTeamNames(ctx, m, VISIBLE, scale, dpr);
+  if (o.showNames && !castleMode) {
     for (let i = 0; i < VISIBLE.length; i++) {
       const c = VISIBLE[i];
       const r = m.radiusOf(c.mass);

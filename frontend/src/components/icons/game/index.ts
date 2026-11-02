@@ -22,4 +22,6 @@ export {
   AlphaIcon,
   PipeIcon,
   WindIcon,
+  CircleZoneIcon,
+  CastleIcon,
 } from "./icons";

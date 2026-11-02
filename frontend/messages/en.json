@@ -1403,7 +1403,17 @@
       "castlesRule4": "Water slows you by {water}%, bridges are faster. Bushes hide you until an enemy gets close. No eating, splitting or throwing mass; everyone is equal.",
       "castlesRule5": "Winning team: every live player earns {reward} rubies (the match must last at least 2 min, you must not be idle, daily win limit applies). Bots get no rubies. Pick a side and a free skin of that side to join.",
       "castlesHint": "Paid and special skins, artifacts and their bonuses are disabled in this mode.",
-      "castlesPlay": "Choose a side"
+      "castlesPlay": "Choose a side",
+      "back": "Back",
+      "circleSub": "Last one standing",
+      "castlesSub": "{size} vs {size}, up to {minutes} min",
+      "keyCircle1": "The circle shrinks",
+      "keyCircle2": "Stay inside",
+      "keyCircle3": "Win: {reward} rubies",
+      "keyCastles1": "Castle {hp} HP, {win} deliveries",
+      "keyCastles2": "Steal a stone, hold {hold} s",
+      "keyCastles3": "Win: {reward} rubies",
+      "playCastles": "Play: Castles"
     },
     "circle": {
       "warmup": "The circle starts shrinking in {s} s",

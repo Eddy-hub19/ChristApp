@@ -464,8 +464,9 @@ export const FLOCK_CONFIG = {
     /** Однакові для всіх: маса клітини й швидкість (од/с). */
     playerMass: 30,
     playerSpeed: 200,
-    /** Радіус огляду (однаковий для всіх, не залежить від маси). */
-    viewRadius: 620,
+    /** Базовий радіус огляду й наближення камери (1.3 = на 30% ближче): сервер шле область viewBase / cameraZoom, клієнт малює в тому ж масштабі. */
+    viewBase: 620,
+    cameraZoom: 1.3,
     respawnMs: 5000,
     respawnShieldMs: 3000,
     /** Камінь, що впустили, лежить; свій повертається сам через lyingReturnMs (захисник - одразу, торкнувшись). */
@@ -846,6 +847,7 @@ export function clientGameConfig() {
       botOnlyRewardLimit: c.teamMode.botOnlyRewardLimit,
       speed: c.teamMode.playerSpeed,
       mass: c.teamMode.playerMass,
+      zoomPct: Math.round((c.teamMode.cameraZoom - 1) * 100),
       afkMinActions: c.teamMode.afkMinActions,
     },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
@@ -983,6 +985,8 @@ export const TEAM_FREE_SKINS: Record<number, readonly number[]> = {
   [TEAM_SHEEP]: [0, 1, 2, 3, 4, 5],
   [TEAM_WOLF]: [8, 9, 37, 38, 39, 40],
 };
+/** Радіус огляду в «Замках» (однаковий для всіх, не залежить від маси). */
+export const teamViewRadius = () => Math.round(FLOCK_CONFIG.teamMode.viewBase / FLOCK_CONFIG.teamMode.cameraZoom);
 export const teamSkinAllowed = (team: number, skin: number) =>
   (TEAM_FREE_SKINS[team] ?? []).includes(skin) && isFreeSkin(skin);
 /** Скін, який гравець узагалі може обрати (не «Вожак», у межах нумерації). */

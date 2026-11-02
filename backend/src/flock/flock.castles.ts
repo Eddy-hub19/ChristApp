@@ -1,4 +1,4 @@
-import { FLOCK_CONFIG, TEAM_SHEEP, TEAM_WOLF, TEAM_FREE_SKINS } from './flock.config';
+import { FLOCK_CONFIG, TEAM_SHEEP, TEAM_WOLF, TEAM_FREE_SKINS, teamViewRadius } from './flock.config';
 import type { Cell, FlockWorld, Player, Rng } from './flock.engine';
 import { radiusOf } from './flock.engine';
 
@@ -223,7 +223,7 @@ export class CastleMatch {
   /** Правила для рушія (world.team). */
   readonly rules: TeamRules = {
     mass: T.playerMass,
-    viewRadius: T.viewRadius,
+    viewRadius: teamViewRadius(),
     spawnPoint: (p) => this.spawnPoint(p.team, p.id),
     speed: (p) => this.speedOf(p),
   };
