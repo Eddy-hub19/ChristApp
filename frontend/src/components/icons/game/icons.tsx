@@ -437,3 +437,29 @@ export function WindIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Режим «Звужуване коло»: кільця, що стискаються, і овечка в центрі. */
+export function CircleZoneIcon(props: ColorIconProps) {
+  const g = useGradient("#ffb27a", "#ee5a2b");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <circle cx="12" cy="12" r="9.4" fill="none" stroke={g.fill} strokeWidth="2.2" strokeDasharray="3.2 2.2" />
+      <circle cx="12" cy="12" r="5.6" fill={g.fill} fillOpacity=".25" {...stroke} />
+      <circle cx="12" cy="12" r="2.4" fill="#fff" {...stroke} />
+    </ColorIconSvg>
+  );
+}
+
+/** Режим «Замки»: башта із прапором. */
+export function CastleIcon(props: ColorIconProps) {
+  const g = useGradient("#8fb4ff", "#3b6fe0");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M4 21V9h2.6v2h2V9h2.8v2h2V9H17v2h2V9h2.2v12z" fill={g.fill} {...stroke} />
+      <path d="M10 21v-4.6a2 2 0 014 0V21" fill="#17223f" fillOpacity=".75" />
+      <path d="M12 8.4V2.8l4.2 1.6L12 6" fill="#ef4444" {...stroke} />
+    </ColorIconSvg>
+  );
+}

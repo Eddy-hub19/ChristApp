@@ -221,3 +221,87 @@ export function drawCastleMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, 
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Ніки над гравцями й ботами: кешовані спрайти за парою «нік + команда», без створення щокадру
+// ---------------------------------------------------------------------------
+
+const NAME_COLOR: Record<Team, string> = { 1: "#7db4ff", 2: "#ff8a8a" };
+const NAME_OWN = "#ffe27a";
+/** Ім'я не малюємо, якщо клітина на екрані менша за стільки px (дуже далеко). */
+const NAME_MIN_CELL_PX = 7;
+const NAME_FONT_PX = 13;
+const nameCache = new Map<string, { cv: HTMLCanvasElement; px: number }>();
+
+function teamNameSprite(text: string, team: Team, own: boolean, fontPx: number) {
+  const px = Math.max(8, Math.round(fontPx / 2) * 2);
+  const key = `${text}|${team}|${own ? 1 : 0}|${px}`;
+  const hit = nameCache.get(key);
+  if (hit) return hit;
+  if (nameCache.size > 300) nameCache.clear();
+  const font = `800 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const cv = document.createElement("canvas");
+  const probe = cv.getContext("2d");
+  let w = px * 2;
+  if (probe) {
+    probe.font = font;
+    w = probe.measureText(text).width;
+  }
+  const pad = Math.ceil(px * 0.3);
+  cv.width = Math.ceil(w + pad * 2);
+  cv.height = Math.ceil(px * 1.4 + pad * 2);
+  const c = cv.getContext("2d");
+  if (c) {
+    c.font = font;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.lineJoin = "round";
+    const cx = cv.width / 2;
+    const cy = cv.height / 2;
+    c.lineWidth = px * 0.3;
+    c.strokeStyle = "rgba(8,12,22,0.95)";
+    c.strokeText(text, cx, cy);
+    c.fillStyle = own ? NAME_OWN : NAME_COLOR[team];
+    c.fillText(text, cx, cy);
+  }
+  const spr = { cv, px };
+  nameCache.set(key, spr);
+  return spr;
+}
+
+/**
+ * Ніки над гравцями (колір за командою, свій - золотий і трохи більший). Не малюємо для далеких клітин (приховані кущами
+ * серверу не приходять); при щільності залишаємо найближчих до камери, інші, що налізли б, пропускаємо. Над несучим камінь -
+ * ім'я вище значка каменя.
+ */
+export function drawTeamNames(ctx: CanvasRenderingContext2D, m: FlockModel, cells: RCell[], scale: number, dpr: number) {
+  const me = m.cfg.pid;
+  const carriers = new Set<number>();
+  for (const r of m.castle?.cr ?? []) carriers.add(r[0]);
+  const order = cells
+    .filter((c) => m.teams.has(c.pid) && m.radiusOf(c.mass) * scale >= NAME_MIN_CELL_PX)
+    .sort((a, b) => (a.pid === me ? -1 : b.pid === me ? 1 : Math.hypot(a.x - m.camX, a.y - m.camY) - Math.hypot(b.x - m.camX, b.y - m.camY)));
+  const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+  const seen = new Set<number>();
+  for (const c of order) {
+    if (seen.has(c.pid)) continue;
+    const meta = m.players.get(c.pid);
+    const team = m.teams.get(c.pid);
+    if (!meta || !team) continue;
+    seen.add(c.pid);
+    const own = c.pid === me;
+    const r = m.radiusOf(c.mass);
+    const size = (own ? NAME_FONT_PX * 1.15 : NAME_FONT_PX) / scale;
+    const spr = teamNameSprite(meta.name, team, own, size * scale * dpr);
+    const f = size / spr.px;
+    const w = spr.cv.width * f;
+    const h = spr.cv.height * f;
+    const ptr = Math.max(r * 0.45, 7 / scale) * 1.1;
+    const stone = carriers.has(c.pid) ? Math.max(r * 1.5, 22 / scale) * 1.55 : 0;
+    const bottom = c.y - r * 1.3 - Math.max(ptr, stone) - 2 / scale;
+    const box = { x0: c.x - w / 2, x1: c.x + w / 2, y0: bottom - h, y1: bottom };
+    if (!own && placed.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
+    placed.push(box);
+    ctx.drawImage(spr.cv, box.x0, box.y0, w, h);
+  }
+}

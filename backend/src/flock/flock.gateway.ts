@@ -11,7 +11,7 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin, teamSkinAllowed } from './flock.config';
+import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin, teamSkinAllowed, teamViewRadius } from './flock.config';
 import { speedOf } from './flock.engine';
 import { FlockManager, type FlockHooks } from './flock.manager';
 import { enemyOf } from './flock.castles';
@@ -320,7 +320,7 @@ export class FlockGateway
       },
       magnetRadius: FLOCK_CONFIG.magnetRadius,
       view: res.castle
-        ? { base: FLOCK_CONFIG.teamMode.viewRadius, perSqrtMass: 0, max: FLOCK_CONFIG.teamMode.viewRadius }
+        ? { base: teamViewRadius(), perSqrtMass: 0, max: teamViewRadius() }
         : {
             base: FLOCK_CONFIG.viewBase,
             perSqrtMass: FLOCK_CONFIG.viewPerSqrtMass,
