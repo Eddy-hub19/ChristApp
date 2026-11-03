@@ -1619,7 +1619,19 @@ export class FlockManager {
     if (!p || p.bot || !p.alive || p.paused) return false;
     s.lastPhraseAt = t;
     p.phrase = { id: phraseId, until: w.now + phraseDurationMs() };
+    this.feed(s, p.name, phraseId, undefined);
     return true;
+  }
+
+  /**
+   * Стрічка повідомлень арени: подія `qf` усім у арені (також тим, хто не бачить овечку, у кущах і в темряві), поза областю
+   * видимості. Лише id фрази або очищений текст, ім'я, команда й pid; нічого не пишеться в БД. Заглушені адміном у стрічку не потрапляють.
+   * Старі клієнти невідому подію ігнорують.
+   */
+  private feed(s: Session, name: string, id: number, text: string | undefined) {
+    if (this.mutedUntil(s.userId)) return;
+    const msg = { p: s.pid, n: name, i: id, ...(text !== undefined ? { x: text } : {}), k: s.arena.castle?.teamOf(s.pid) || 0 };
+    for (const o of s.arena.sessions.values()) if (o.connKey) this.send(o.connKey, 'qf', msg);
   }
 
   /**
@@ -1653,6 +1665,7 @@ export class FlockManager {
     s.lastCustomAt = t;
     s.customTimes.push(t);
     p.phrase = { id: 0, until: w.now + phraseDurationMs(), text: res.text };
+    this.feed(s, p.name, 0, res.text);
     this.sayLog.push({ at: Date.now(), userId: s.userId, name: p.name, text: res.text });
     if (this.sayLog.length > C.phrases.customLogSize) this.sayLog.shift();
     return { ok: true };

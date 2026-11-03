@@ -24,6 +24,7 @@ import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
 import FlockModes from "./FlockModes";
 import FlockCastlesLobby from "./FlockCastlesLobby";
+import FlockChatFeed, { FEED_MAX, type FeedItem } from "./FlockChatFeed";
 import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastleHud";
 import type { CastleEndInfo, CastleEvent, CastleRewardInfo, CastlesGameConfig, Team } from "./flockCastles";
 import castleStyles from "./FlockCastles.module.scss";
@@ -241,6 +242,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Пауза між фразами (дзеркало серверного ліміту): кнопки сіріють, щоб не здавалось, що фраза "не пішла". */
   const [phraseCooldown, setPhraseCooldown] = useState(false);
   const [hideOthersPhrases, setHideOthersPhrases] = useState(false);
+  /** Стрічка повідомлень арени (останні FEED_MAX; лише пам'ять клієнта). */
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const feedIdRef = useRef(0);
   /** Свій текст: поле вводу, пауза між повідомленнями, відмова сервера й висота клавіатури (visualViewport). */
   const [customText, setCustomText] = useState("");
   const [customCooldown, setCustomCooldown] = useState(false);
@@ -265,6 +269,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       seenBeforeRef.current = null;
       setAnnouncement(null);
       setInfoOpen(false);
+      setFeed([]);
       setArtifactsOpen(false);
       setSoundOpen(false);
       return;
@@ -475,6 +480,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         },
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
+        onFeed: (m) => {
+          const id = ++feedIdRef.current;
+          setFeed((prev) => [...prev.slice(-(FEED_MAX - 1)), { id, pid: m.p, name: m.n, team: m.k, phrase: m.i, text: m.x, at: Date.now() }]);
+        },
         onSayRejected: (reason) => setSayNotice(t(`phrases.rejected.${reason}`)),
         onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
         onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count, gain: r.gain }),
@@ -1296,8 +1305,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
           <canvas ref={miniRef} className={styles.minimap} style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE }} aria-hidden />
 
+          <div className={`${styles.leftStack} ${hud.circle ? styles.leftStackBelowBanner : ""}`}>
           {hud.effects.length > 0 ? (
-            <ul className={`${styles.effects} ${hud.circle ? styles.effectsBelowBanner : ""}`}>
+            <ul className={styles.effects}>
               {hud.effects.map((e) => (
                 <li
                   key={e.kind}
@@ -1314,6 +1324,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               ))}
             </ul>
           ) : null}
+          <FlockChatFeed items={feed} selfPid={hud.selfPid} lang={toPhraseLang(locale)} hideOthers={hideOthersPhrases} />
+          </div>
 
           {!hud.castle ? (
           <div className={styles.actions}>
