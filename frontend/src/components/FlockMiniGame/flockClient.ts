@@ -42,6 +42,15 @@ export interface CircleEndInfo {
   you: { place: number; win: boolean; mass: number };
 }
 
+/** Повідомлення стрічки арени: p - pid, n - ім'я, i - id готової фрази (0 - свій текст у x), k - команда («Замки», 0 - нема). */
+export interface FeedMsg {
+  p: number;
+  n: string;
+  i: number;
+  x?: string;
+  k: number;
+}
+
 /** Нагорода від сервера: «Ти перший! +10 рубінів». */
 export interface RewardInfo {
   amount: number;
@@ -88,6 +97,8 @@ export interface FlockClientOptions {
   onDeath: (info: DeathInfo) => void;
   onNotice?: (notice: FlockNotice) => void;
   onReward?: (reward: RewardInfo) => void;
+  /** Стрічка повідомлень арени (подія `qf`): усім в арені, також тим, хто не бачить автора. */
+  onFeed?: (m: FeedMsg) => void;
   /** Стартувала подія «Зорепад»: показати напис. */
   onZorepad?: () => void;
   /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
@@ -312,6 +323,10 @@ export class FlockClient {
           this.opts.onRevive?.();
         }
       });
+    });
+    socket.on("qf", (msg: Partial<FeedMsg> | null) => {
+      if (!msg || typeof msg.p !== "number" || typeof msg.n !== "string" || typeof msg.i !== "number") return;
+      this.opts.onFeed?.({ p: msg.p, n: msg.n.slice(0, 32), i: msg.i, x: typeof msg.x === "string" ? msg.x.slice(0, 80) : undefined, k: typeof msg.k === "number" ? msg.k : 0 });
     });
     socket.on("q", (msg: unknown) => {
       this.later(() => this.model?.applyPhrase(msg, performance.now()));

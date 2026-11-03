@@ -48,15 +48,22 @@
   position: absolute;
   top: max(12px, env(safe-area-inset-top, 0px));
   left: calc(max(12px, env(safe-area-inset-left, 0px)) + 50px);
+  /* плашка росте за вмістом (число й місце в одному рядку), не стискається й не переносить */
   display: grid;
   grid-template-columns: auto auto;
   grid-template-areas:
     "label label"
     "value rank";
   align-items: baseline;
+  justify-content: start;
   column-gap: 8px;
+  width: max-content;
+  min-width: max-content;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
   min-height: 40px;
-  padding: 3px 12px;
+  padding: 4px 14px 5px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
@@ -82,6 +89,7 @@
     font-size: 12px;
     opacity: 0.75;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -227,10 +235,23 @@
   pointer-events: none;
 }
 
-.effects {
+/* Ліва колонка під плашкою маси: індикатори бонусів, далі стрічка повідомлень. */
+.leftStack {
   position: absolute;
   top: calc(max(12px, env(safe-area-inset-top, 0px)) + 50px);
   left: max(12px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.leftStackBelowBanner {
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 106px);
+}
+
+.effects {
   margin: 0;
   padding: 0;
   list-style: none;

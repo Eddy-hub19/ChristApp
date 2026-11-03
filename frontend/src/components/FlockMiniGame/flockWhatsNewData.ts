@@ -596,6 +596,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 24,
+    date: "2026-11-04",
+    items: [
+      {
+        icon: "names",
+        text: {
+          ua: "Стрічка «Чат» зліва під індикаторами: усі фрази й тексти гравців арени (навіть далеких), згортається, запам'ятовує стан",
+          ru: "Лента «Чат» слева под индикаторами: все фразы и тексты игроков арены (даже далёких), сворачивается, запоминает состояние",
+          en: "A “Chat” feed at the left under the indicators: every phrase and text from players in the arena (even far away), collapsible and remembers its state",
+        },
+      },
+      {
+        icon: "star",
+        text: {
+          ua: "Плашка маси більше не обрізає число й місце в таблиці",
+          ru: "Плашка массы больше не обрезает число и место в таблице",
+          en: "The mass tile no longer clips the number and the rank",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

@@ -1765,6 +1765,14 @@
       "mapSub": "You only see what is near you",
       "lanternHint": "Flashlight: stronger light!",
       "jarHint": "Jar of fireflies: more light"
+    },
+    "feed": {
+      "title": "Chat",
+      "toggle": "Collapse or expand the chat",
+      "sec": "{n} s",
+      "min": "{n} min",
+      "empty": "No messages yet",
+      "unread": "New messages: {n}"
     }
   },
   "games": {
