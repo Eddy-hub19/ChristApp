@@ -10,11 +10,11 @@ export default function manifest(): MetadataRoute.Manifest {
      * не губились куки в Safari). Звідти екран запуску сам переведе в чати,
      * щойно бекенд прокинеться й відновиться сесія.
      */
-    start_url: "/en",
+    start_url: "/ru",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    lang: "en",
+    lang: "ru",
     /** Той самий темний фон, що й екран завантаження (`SplashScreen`/`ServerStartupScreen`) — без спалаху іншого кольору між системною заставкою й першим пейнтом. */
     background_color: "#17151a",
     theme_color: "#17151a",

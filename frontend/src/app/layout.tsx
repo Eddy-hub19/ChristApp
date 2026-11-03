@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const preconnectOrigin = resolvePreconnectOrigin();
 
   return (
-    <html lang="en" suppressHydrationWarning data-theme="dark">
+    <html lang="ru" suppressHydrationWarning data-theme="dark">
       <head>
         {/* suppressHydrationWarning: розширення браузера (напр. з `body[unresolved]{…}`) вставляють свій <style>
             першим у <head>, і React звіряє з ним наш критичний стиль — без цього прапора dev падає з hydration error. */}
