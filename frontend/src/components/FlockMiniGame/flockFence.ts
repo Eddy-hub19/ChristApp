@@ -4,7 +4,7 @@
  * Малюється лише та частина, що потрапила в кадр. Кольори гри не залежать від світлої/темної теми застосунку.
  */
 
-export type FenceStyle = "wood" | "dry" | "snow" | "charred";
+export type FenceStyle = "wood" | "dry" | "snow" | "charred" | "night";
 
 /** Стиль загорожі за номером карти (flockMaps / FLOCK_MAPS на сервері). */
 export function fenceStyleOf(map: number | undefined): FenceStyle {
@@ -15,6 +15,8 @@ export function fenceStyleOf(map: number | undefined): FenceStyle {
       return "snow";
     case 3:
       return "charred";
+    case 5:
+      return "night";
     default:
       return "wood";
   }
@@ -36,6 +38,7 @@ const COLORS: Record<FenceStyle, FenceColors> = {
   wood: { post: ["#c58a4c", "#8f5a2b"], rail: ["#d79d5c", "#a46b34"], edge: "#4a2c14", light: "rgba(255,230,190,0.55)", shadow: "rgba(30,20,10,0.32)", mini: "#a46b34" },
   dry: { post: ["#a58a66", "#6e5a42"], rail: ["#b49a76", "#7c664b"], edge: "#3d2f21", light: "rgba(255,240,210,0.4)", shadow: "rgba(40,28,14,0.32)", mini: "#8a7254" },
   snow: { post: ["#eef1f5", "#b7bfca"], rail: ["#f6f8fb", "#c4ccd6"], edge: "#6c7686", light: "rgba(255,255,255,0.9)", shadow: "rgba(60,80,120,0.28)", cap: "#ffffff", mini: "#c4ccd6" },
+  night: { post: ["#2c3a5c", "#161e36"], rail: ["#34446a", "#1b2542"], edge: "#04060f", light: "rgba(150,180,255,0.3)", shadow: "rgba(0,0,10,0.5)", mini: "#34446a" },
   charred: { post: ["#7a6468", "#443438"], rail: ["#8a7176", "#50403f"], edge: "#000000", light: "rgba(255,180,100,0.55)", shadow: "rgba(0,0,0,0.55)", glow: "#ff7a2e", mini: "#8a7176" },
 };
 

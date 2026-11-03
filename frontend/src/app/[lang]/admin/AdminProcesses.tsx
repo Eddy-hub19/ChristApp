@@ -58,7 +58,10 @@ function Sparkline({ values }: { values: number[] }) {
 const flockLevelDot: Record<AdminFlockDecision["level"], HealthLevel> = { low: "ok", normal: "ok", high: "bad" };
 
 /** Арены «Отари»: сколько людей и ботов, нагрузка арены и решения регулятора (кого убрали/вернули и почему). */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano"] as const;
+/** Номер = id карты на сервере; «lake» (4) - карта режима «Замки», её в выборе следующей арены нет. */
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night"] as const;
+const NIGHT_ID = 5;
+const PICKABLE_MAPS = MAP_KEYS.map((k, id) => ({ k, id })).filter((m) => m.id !== 4);
 
 /** Карта «Отари»: текущая карта арен, когда она сменится для новых игроков, и принудительный выбор карты следующей арены (сервер проверяет права). */
 function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: AdminFlockMaps }) {
@@ -87,7 +90,7 @@ function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: A
       ))}
       <p className={styles.metaSmall}>{next === null ? t("nextNone") : t("nextSet", { map: name(next) })}</p>
       <div className={styles.pills} role="group" aria-label={t("next")}>
-        {MAP_KEYS.map((k, id) => (
+        {PICKABLE_MAPS.map(({ k, id }) => (
           <button
             key={k}
             type="button"
@@ -97,6 +100,7 @@ function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: A
             onClick={() => set.mutate({ mapId: id })}
           >
             {name(id)}
+            {id === NIGHT_ID && maps?.nightOpen !== undefined ? <small> · {maps.nightOpen ? t("nightOpen") : t("nightClosed")}</small> : null}
           </button>
         ))}
         <button type="button" className={styles.pill} disabled={set.isPending || next === null} onClick={() => set.mutate({ mapId: null })}>

@@ -8,6 +8,7 @@ import {
   FREE_SKIN_IDS,
   isPhraseId,
   phraseDurationMs,
+  isNightOpen,
 } from './flock.config';
 import {
   CHUNKS_PER_SIDE,
@@ -890,7 +891,8 @@ class Arena {
         })),
         alive: ranked.length,
         // відсортована за масою: місце гравця = індекс його pid (клієнт рахує сам)
-        map: ranked.map((r) => {
+        // «Ніч»: мінікарта без чужих позицій (лише власна, її клієнт малює сам)
+        map: (w.night ? [] : ranked).map((r) => {
           const c = w.centroid(r);
           return {
             pid: r.id,
@@ -1077,8 +1079,15 @@ class Arena {
     const R = w.viewRadius(p);
     // область видимості - прямокутник тієї ж площі, що й квадрат R×R, під форму екрана клієнта
     const sa = Math.sqrt(s.aspect);
-    const hx = R * sa * 1.15;
-    const hy = (R / sa) * 1.15;
+    let hx = R * sa * 1.15;
+    let hy = (R / sa) * 1.15;
+    // «Ніч»: шлемо лише те, що в радіусі світла (+запас); Вожак - ще на bossHalo далі (його слабкий ореол)
+    const night = w.night;
+    const lightR = night ? w.lightRadius(p) * C.night.sendMargin : 0;
+    if (night) {
+      hx = Math.min(hx, lightR);
+      hy = Math.min(hy, lightR);
+    }
 
     // чанки в зоні видимості (+ поле, щоб їжа не "спалахувала" на краю)
     const cs = C.chunkSize;
@@ -1130,11 +1139,13 @@ class Arena {
     seenPids.clear();
     const castle = this.castle;
     const vteam = castle ? castle.teamOf(p.id) : 0;
-    w.queryCells(cen.x, cen.y, Math.max(hx, hy), (c) => {
+    w.queryCells(cen.x, cen.y, Math.max(hx, hy) + (night ? C.night.bossHalo : 0), (c) => {
       const o = w.players.get(c.pid);
       if (!o || !o.alive) return;
       if (castle && c.pid !== p.id && castle.hiddenFrom(vteam, c.pid)) return;
-      if (Math.abs(c.x - cen.x) > hx || Math.abs(c.y - cen.y) > hy) return;
+      if (night) {
+        if (Math.hypot(c.x - cen.x, c.y - cen.y) > lightR + (o.boss ? C.night.bossHalo : 0)) return;
+      } else if (Math.abs(c.x - cen.x) > hx || Math.abs(c.y - cen.y) > hy) return;
       const fx = this.shared.fx.get(c.pid) ?? 0;
       cells.push({ id: c.id, pid: c.pid, x: c.x, y: c.y, mass: c.mass, fx });
       seenPids.add(c.pid);
@@ -1172,7 +1183,7 @@ class Arena {
     }
 
     const inView = (x: number, y: number) =>
-      Math.abs(x - cen.x) <= hx && Math.abs(y - cen.y) <= hy;
+      night ? Math.hypot(x - cen.x, y - cen.y) <= lightR : Math.abs(x - cen.x) <= hx && Math.abs(y - cen.y) <= hy;
     const pausedInView: StateInput['paused'] = [];
     const nowMs = this.now();
     for (const o of this.sessions.values()) {
@@ -1198,6 +1209,9 @@ class Arena {
         kind: BONUS_CODE.indexOf('freeze'),
         remainingMs: p.frozenUntil - w.now,
       });
+    // «Ніч»: заряд світла від їжі - псевдо-ефект (remainingMs = заряд x 100; пакет кодує з точністю 100 мс)
+    if (night && p.light >= 0.5)
+      effects.push({ kind: BONUS_CODE.indexOf('light'), remainingMs: Math.round(p.light * 100) });
     const boostLeft = w.spawnBoostLeftMs(p);
     if (boostLeft > 0)
       effects.push({
@@ -1266,6 +1280,8 @@ export interface JoinResult {
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
   /** Режим арени і стан кола «Звужуване коло» на момент входу (hold/shrink - що лишилось). */
   mode?: ArenaMode;
+  /** Карта «Ніч» (темно, світло гравця). */
+  night?: boolean;
   circle?: CircleMsg;
   /** «Замки»: твоя команда й геометрія карти. */
   castle?: ReturnType<CastleMatch['welcome']>;
@@ -1440,6 +1456,7 @@ export class FlockManager {
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),
       mode: s.arena.mode,
+      night: s.arena.world.night ? true : undefined,
       circle: s.arena.circleSnapshot(),
       castle: s.arena.castle?.welcome(s.arena.castle.teamOf(s.pid)),
       streak: this.streakInfo(s.arena) ?? undefined,
@@ -1473,7 +1490,7 @@ export class FlockManager {
 
   /** Карта для нової звичайної арени: задана адміном або випадкова за вагами, не та ж, що була попередньою. */
   private nextMapId(): number {
-    const id = this.forcedNextMap ?? pickMapId(this.rng, this.lastMapId);
+    const id = this.forcedNextMap ?? pickMapId(this.rng, this.lastMapId, this.now());
     this.forcedNextMap = null;
     this.lastMapId = id;
     return id;
@@ -1492,7 +1509,7 @@ export class FlockManager {
   }
 
   mapAdmin() {
-    return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs };
+    return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs, nightOpen: isNightOpen(this.now()) };
   }
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */

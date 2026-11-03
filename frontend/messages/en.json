@@ -196,7 +196,9 @@
       "nextSet": "Next map: {map}",
       "clear": "Random",
       "switchNow": "Switch map now",
-      "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only."
+      "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only.",
+      "nightOpen": "available now",
+      "nightClosed": "outside the 20:00–06:00 Kyiv window"
     },
     "flockMute": {
       "title": "Flock: custom text",
@@ -1479,7 +1481,8 @@
       "grove": "Autumn grove",
       "frost": "Winter frost",
       "volcano": "Volcano",
-      "lake": "Forest and lake"
+      "lake": "Forest and lake",
+      "night": "Night"
     },
     "hud": {
       "mass": "Mass",
@@ -1534,7 +1537,10 @@
       "golden": "Golden fleece",
       "boost": "Boost",
       "eagle": "Eagle eye",
-      "scissors": "Scissors"
+      "scissors": "Scissors",
+      "lantern": "Flashlight",
+      "jar": "Jar of fireflies",
+      "light": "Light"
     },
     "skins": {
       "0": "White sheep",
@@ -1754,6 +1760,11 @@
         "daily": "Daily limit of win rewards reached",
         "botLimit": "Limit of rewards for games against bots reached"
       }
+    },
+    "night": {
+      "mapSub": "You only see what is near you",
+      "lanternHint": "Flashlight: stronger light!",
+      "jarHint": "Jar of fireflies: more light"
     }
   },
   "games": {

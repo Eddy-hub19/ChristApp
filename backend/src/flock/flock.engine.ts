@@ -4,6 +4,7 @@ import {
   BONUS_KINDS,
   FLOCK_CONFIG,
   FLOCK_MAPS,
+  isNightOpen,
   NUM_SKINS,
   bossSkinForMap,
   MONSTER_SKIN,
@@ -112,15 +113,17 @@ export function generateThorns(
 }
 
 /** Номер випадкової карти (за вагами FLOCK_MAPS[].weight; рівні ваги - рівна ймовірність). */
-export function pickMapId(rng: Rng, exclude?: number): number {
-  // не повторяємо попередню карту підряд (якщо є з чого вибирати)
-  const regular = FLOCK_MAPS.filter((m) => !m.team);
+export function pickMapId(rng: Rng, exclude?: number, atMs: number = Date.now()): number {
+  // не повторяємо попередню карту підряд (якщо є з чого вибирати); карта режиму не береться, нічна - лише у вікні й з вагою x
+  const night = isNightOpen(atMs);
+  const regular = FLOCK_MAPS.filter((m) => !m.team && (!m.night || night));
   const pool = regular.length > 1 ? regular.filter((m) => m.id !== exclude) : regular;
   let total = 0;
-  for (const m of pool) total += m.weight;
+  const wt = (m: (typeof FLOCK_MAPS)[number]) => (m.night ? m.weight * C.night.weightMultiplier : m.weight);
+  for (const m of pool) total += wt(m);
   let r = rng() * total;
   for (const m of pool) {
-    r -= m.weight;
+    r -= wt(m);
     if (r < 0) return m.id;
   }
   return pool[pool.length - 1].id;
@@ -162,6 +165,8 @@ export interface Player {
   /** Загинув поза колом режиму «Звужуване коло». */
   zoneDeath: boolean;
   alive: boolean;
+  /** Карта «Ніч»: заряд світла від їжі (0..night.chargeCap), гасне з часом. */
+  light: number;
   /** Режим «Замки»: команда (1 - вівці, 2 - вовки; 0 - звичайна арена). */
   team: number;
   cells: Cell[];
@@ -296,7 +301,7 @@ export interface DeathEvent {
 
 /** Бонуси, що з'являються як звичайні (без рідкісних «Ножиць»: їх спавнить окремий шанс). */
 const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
-  (k) => k !== 'scissors' && k !== 'eagle' && k !== 'pipe',
+  (k) => k !== 'scissors' && k !== 'eagle' && k !== 'pipe' && k !== 'lantern' && k !== 'jar',
 );
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
@@ -366,6 +371,8 @@ export class FlockWorld {
   hazards: NavHazard[] = [];
   /** Режим «Замки»: правила рушія (null - звичайна арена). Ставить менеджер до першого гравця. */
   team: TeamRules | null = null;
+  /** Карта «Ніч»: темно, гравець бачить лише в радіусі світла (lightRadius). */
+  readonly night: boolean;
 
   private readonly cellGrid = new SpatialGrid<Cell>(220);
   private nextPid = 1;
@@ -382,6 +389,7 @@ export class FlockWorld {
     readonly mapId: number = 0,
   ) {
     const map = FLOCK_MAPS.find((m) => m.id === mapId) ?? FLOCK_MAPS[0];
+    this.night = !!map.night;
     if (C.rain.maps.includes(mapId)) this.rainNextAt = this.rollRainDelay();
     if (C.wind.maps.includes(mapId)) this.windNextAt = this.rollWindDelay();
     if (map.lava) {
@@ -467,6 +475,7 @@ export class FlockWorld {
       zoneDeath: false,
       alive: false,
       team: opts.team ?? 0,
+      light: 0,
       cells: [],
       angle: 0,
       power: 0,
@@ -530,6 +539,7 @@ export class FlockWorld {
     p.boostUntil = this.now + this.spawnBoostDurationMs(p);
     p.spawnedAt = this.now;
     p.paused = false;
+    p.light = 0;
     const start = p.boss || p.monster ? p.bossStart : C.startMass;
     p.maxMass = start;
     p.total = start;
@@ -714,6 +724,17 @@ export class FlockWorld {
     return age % A.priestHatPeriodMs < A.priestHatFreeMs;
   }
 
+  /**
+   * Радіус світла гравця на карті «Ніч»: корінь від маси (між minR і maxR) x бонус (сильніший із «Ліхтарика» / «Пляшки»)
+   * x (1 + foodBonus * заряд від їжі), не більше maxTotal. Клієнт рахує ту саму формулу.
+   */
+  lightRadius(p: Player) {
+    const N = C.night;
+    const base = Math.min(N.maxR, N.minR + N.perSqrtMass * Math.sqrt(p.total));
+    const mul = this.hasEffect(p, 'lantern') ? N.lanternMul : this.hasEffect(p, 'jar') ? N.jarMul : 1;
+    return Math.min(N.maxTotal, base * mul * (1 + N.foodBonus * Math.min(1, p.light / N.chargeCap)));
+  }
+
   isShielded(p: Player) {
     return (p.effects.shield ?? 0) > this.now;
   }
@@ -773,7 +794,16 @@ export class FlockWorld {
       !eagle &&
       !this.bonuses.some((b) => b.kind === 'pipe') &&
       this.rng() < C.pipe.spawnChance;
-    const kind = scissors
+    // «Ліхтарик» і «Пляшка зі світлячками»: лише на «Ночі», на полі не більше одного кожного
+    const lantern =
+      this.night && !scissors && !eagle && !pipe && !this.bonuses.some((b) => b.kind === 'lantern') && this.rng() < C.night.lanternChance;
+    const jar =
+      this.night && !scissors && !eagle && !pipe && !lantern && !this.bonuses.some((b) => b.kind === 'jar') && this.rng() < C.night.jarChance;
+    const kind = lantern
+      ? 'lantern'
+      : jar
+        ? 'jar'
+        : scissors
       ? 'scissors'
       : eagle
         ? 'eagle'
@@ -914,6 +944,7 @@ export class FlockWorld {
         total = C.monsters.ceilMass;
       }
       p.total = total;
+      if (this.night && p.light > 0 && !p.paused) p.light = Math.max(0, p.light - C.night.chargeDecayPerSec * dt);
       if (total > p.maxMass) p.maxMass = total;
       // «Вожак» не лідер: від нього не відганяємо зірки «Зорепаду» і йому не йде час першого місця; чудовиська - теж
       if (!p.boss && !p.monster && (!leader || total > leader.total)) leader = p;
@@ -1284,6 +1315,7 @@ export class FlockWorld {
           this.removeFood(f);
           // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
           c.mass += f.mass ?? (f.kind === 0 || f.kind === 1 ? base * gfK : base);
+          if (this.night && !p.bot) p.light = Math.min(C.night.chargeCap, p.light + (C.night.foodCharge[f.kind] ?? 1));
         }
       }
     }

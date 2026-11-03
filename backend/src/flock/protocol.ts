@@ -40,6 +40,11 @@ export const BONUS_CODE = [
   'scissors',
   'eagle',
   'pipe',
+  /** «Ліхтарик» і «Пляшка зі світлячками» (карта «Ніч»). */
+  'lantern',
+  'jar',
+  /** Не бонус із поля: заряд світла від їжі (лише в списку ефектів гравця; remainingMs = заряд x 100). */
+  'light',
 ] as const;
 
 export interface DecodedFood {

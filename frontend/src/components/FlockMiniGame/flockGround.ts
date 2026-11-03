@@ -3,11 +3,11 @@
  * Усе малюється один раз у кешований тайл / спрайт; кольори не залежать від теми застосунку (світла/темна).
  */
 
-export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake";
+export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night";
 
 const TAU = Math.PI * 2;
 
-/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан. */
+/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч. */
 export function groundOf(map: number | undefined): Ground {
   switch (map) {
     case 1:
@@ -18,6 +18,8 @@ export function groundOf(map: number | undefined): Ground {
       return "volcano";
     case 4:
       return "lake";
+    case 5:
+      return "night";
     default:
       return "meadow";
   }
@@ -87,7 +89,7 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
     c.lineTo(span, i * cell);
   }
   c.stroke();
-  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : 47);
+  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : ground === "night" ? 97 : 47);
   if (ground === "meadow" || ground === "lake") {
     // трава: пятна чуть разных оттенков (светлее и темнее базового зелёного), травинки и мелкие цветочки
     for (let i = 0; i < 34; i++) {
@@ -258,6 +260,69 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
       wrapped(span, x, y, w, (px, py) => {
         c.beginPath();
         c.ellipse(px, py, w, w * 0.5, r() * 3, 0, TAU);
+        c.fill();
+      });
+    }
+  } else if (ground === "night") {
+    // нічна земля: темні плями трави й підліску, силуети каменів і кущів, слабкі зорі-росинки (усе статично, в тайлі)
+    for (let i = 0; i < 30; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const w = 40 + r() * 90;
+      c.fillStyle = r() < 0.5 ? "rgba(70,100,170,0.07)" : "rgba(2,4,16,0.22)";
+      wrapped(span, x, y, w, (px, py) => {
+        c.beginPath();
+        c.ellipse(px, py, w, w * (0.45 + r() * 0.2), r() * 3, 0, TAU);
+        c.fill();
+      });
+    }
+    c.lineCap = "round";
+    const blades = ["rgba(40,70,120,0.5)", "rgba(30,56,100,0.5)", "rgba(60,90,150,0.4)"];
+    for (let i = 0; i < 200; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const h = 6 + r() * 8;
+      c.strokeStyle = blades[Math.floor(r() * blades.length)];
+      c.lineWidth = 1.5;
+      const lean = (r() - 0.5) * 8;
+      wrapped(span, x, y, 12, (px, py) => {
+        c.beginPath();
+        c.moveTo(px, py);
+        c.lineTo(px - 3 + lean * 0.3, py - h);
+        c.moveTo(px, py);
+        c.lineTo(px + 3 + lean * 0.7, py - h * 0.9);
+        c.stroke();
+      });
+    }
+    // силуети каменів і кущиків: майже чорні, з тонким холодним відблиском зверху
+    for (let i = 0; i < 16; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      const w = 10 + r() * 20;
+      const bush = r() < 0.5;
+      wrapped(span, x, y, w * 1.6, (px, py) => {
+        c.fillStyle = "rgba(2,4,14,0.55)";
+        c.beginPath();
+        if (bush) {
+          c.arc(px - w * 0.5, py, w * 0.7, 0, TAU);
+          c.arc(px + w * 0.4, py - w * 0.2, w * 0.85, 0, TAU);
+          c.arc(px, py + w * 0.25, w * 0.7, 0, TAU);
+        } else c.ellipse(px, py, w, w * 0.62, 0.3, 0, TAU);
+        c.fill();
+        c.fillStyle = "rgba(130,160,230,0.14)";
+        c.beginPath();
+        c.ellipse(px - w * 0.2, py - w * 0.3, w * 0.5, w * 0.2, 0.3, 0, TAU);
+        c.fill();
+      });
+    }
+    // слабкі зорі-росинки
+    for (let i = 0; i < 70; i++) {
+      const x = r() * span;
+      const y = r() * span;
+      c.fillStyle = `rgba(190,215,255,${0.16 + r() * 0.3})`;
+      wrapped(span, x, y, 3, (px, py) => {
+        c.beginPath();
+        c.arc(px, py, 0.7 + r() * 1.1, 0, TAU);
         c.fill();
       });
     }
@@ -443,6 +508,65 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
       c.beginPath();
       c.ellipse(-2, -8, 7, 3, 0.2, 0, TAU);
       c.fill();
+    }
+    return;
+  }
+  if (ground === "night") {
+    // світні ягідки ночі: бірюзовий пучок, блакитна квітка, золотий колосок - читаються в темряві
+    const glow = c.createRadialGradient(0, 0, 0, 0, 0, 19);
+    glow.addColorStop(0, kind === 2 ? "rgba(255,220,120,0.6)" : kind === 1 ? "rgba(140,190,255,0.6)" : "rgba(110,240,200,0.6)");
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = glow;
+    c.beginPath();
+    c.arc(0, 0, 19, 0, TAU);
+    c.fill();
+    if (kind === 0) {
+      c.strokeStyle = "#3fd9b0";
+      c.lineWidth = 2.4;
+      c.beginPath();
+      c.moveTo(0, 9);
+      c.lineTo(-7, -7);
+      c.moveTo(0, 9);
+      c.lineTo(0, -10);
+      c.moveTo(0, 9);
+      c.lineTo(7, -7);
+      c.stroke();
+      c.strokeStyle = "#d8fff2";
+      c.lineWidth = 0.9;
+      c.stroke();
+    } else if (kind === 1) {
+      c.fillStyle = "#9cc8ff";
+      c.strokeStyle = "#3b66b8";
+      c.lineWidth = 1.2;
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * TAU;
+        c.beginPath();
+        c.ellipse(Math.cos(a) * 6, Math.sin(a) * 6, 4.6, 3.2, a, 0, TAU);
+        c.fill();
+        c.stroke();
+      }
+      c.fillStyle = "#fff4b8";
+      c.beginPath();
+      c.arc(0, 0, 3, 0, TAU);
+      c.fill();
+    } else {
+      c.strokeStyle = "#e2b84a";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(0, 10);
+      c.lineTo(0, -10);
+      c.stroke();
+      c.fillStyle = "#ffd86a";
+      c.strokeStyle = "#a8781a";
+      c.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        for (const sx of [-1, 1]) {
+          c.beginPath();
+          c.ellipse(sx * 3.4, 6 - i * 4.6, 3.2, 1.9, sx * -0.6, 0, TAU);
+          c.fill();
+          c.stroke();
+        }
+      }
     }
     return;
   }

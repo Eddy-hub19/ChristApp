@@ -139,7 +139,7 @@ export type AdminFlockArena = {
 };
 
 /** Карта «Отари» для админки: что назначено следующей арене (null - случайная) и как часто меняется. */
-export type AdminFlockMaps = { nextMap: number | null; lastMap: number; rotateMs: number };
+export type AdminFlockMaps = { nextMap: number | null; lastMap: number; rotateMs: number; /** Карта «Ніч» сейчас в окне 20:00-06:00 по Киеву (случайно выпадает только в нём; админ может назначить в любое время). */ nightOpen?: boolean };
 
 /** Ответ `GET /admin/server` — состояние процесса, хоста, БД и realtime. */
 export type AdminServerStatus = {

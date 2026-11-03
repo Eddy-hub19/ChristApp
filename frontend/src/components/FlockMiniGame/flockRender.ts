@@ -11,6 +11,7 @@ import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCache
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
+import { drawDarkness, drawNightTop } from "./flockNight";
 import { drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamNames, drawTeamRings } from "./flockCastleRender";
 import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
@@ -53,6 +54,8 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   scissors: { color: "#ff5c8a", icon: "✂️" },
   eagle: { color: "#ffb02e", icon: "👁" },
   pipe: { color: "#e0a14a", icon: "🎶" },
+  lantern: { color: "#ffd75e", icon: "🔦" },
+  jar: { color: "#8dffb0", icon: "✨" },
   boost: { color: "#ff9f43", icon: "🚀" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
@@ -364,6 +367,31 @@ export interface DrawOpts {
   hideOthersPhrases?: boolean;
 }
 
+/** Зірки «Зорепаду»: на землі спершу тінь-мітка, потім зірка падає зверху (кешовані спрайти, без обчислень форми). */
+function drawStars(ctx: CanvasRenderingContext2D, m: FlockModel, time: number, x0: number, x1: number, y0: number, y1: number) {
+  for (const s of m.stars.values()) {
+    const R = STAR_WORLD_R;
+    if (s.x < x0 - R * 2 || s.x > x1 + R * 2 || s.y < y0 - STAR_FALL_H - R * 2 || s.y > y1 + R * 2) continue;
+    const k = (m.localNow - s.t0) / s.fall;
+    if (k < 1) {
+      const p = Math.max(0, k);
+      const sh = R * (0.55 + 0.75 * p);
+      ctx.globalAlpha = 0.35 + 0.65 * p;
+      ctx.drawImage(starShadowSprite(), s.x - sh * 1.15, s.y - sh * 1.15, sh * 2.3, sh * 2.3);
+      const rise = STAR_FALL_H * (1 - p) * (1 - p);
+      ctx.globalAlpha = Math.min(1, p * 4);
+      // хвіст: короткий, вкорочується біля землі
+      const tail = R * (1 + 2.4 * (1 - p));
+      ctx.drawImage(starTailSprite(), s.x - R * 0.55, s.y - rise - R * 0.4 - tail, R * 1.1, tail);
+      ctx.drawImage(starSprite(s.id), s.x - R * 1.6, s.y - rise - R * 1.6, R * 3.2, R * 3.2);
+      ctx.globalAlpha = 1;
+    } else {
+      const sz = R * 3.2 * (1 + Math.sin(time * 5 + s.id) * 0.06);
+      ctx.drawImage(starSprite(s.id), s.x - sz / 2, s.y - sz / 2, sz, sz);
+    }
+  }
+}
+
 export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawOpts) {
   const { width: W, height: H, dpr } = o;
   const theme = mapTheme(o.theme, m.cfg.map);
@@ -470,28 +498,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     ctx.globalAlpha = 1;
   }
 
-  // зірки «Зорепаду»: на землі спершу тінь-мітка, потім зірка падає зверху (кешовані спрайти, без обчислень форми)
-  for (const s of m.stars.values()) {
-    const R = STAR_WORLD_R;
-    if (s.x < x0 - R * 2 || s.x > x1 + R * 2 || s.y < y0 - STAR_FALL_H - R * 2 || s.y > y1 + R * 2) continue;
-    const k = (m.localNow - s.t0) / s.fall;
-    if (k < 1) {
-      const p = Math.max(0, k);
-      const sh = R * (0.55 + 0.75 * p);
-      ctx.globalAlpha = 0.35 + 0.65 * p;
-      ctx.drawImage(starShadowSprite(), s.x - sh * 1.15, s.y - sh * 1.15, sh * 2.3, sh * 2.3);
-      const rise = STAR_FALL_H * (1 - p) * (1 - p);
-      ctx.globalAlpha = Math.min(1, p * 4);
-      // хвіст: короткий, вкорочується біля землі
-      const tail = R * (1 + 2.4 * (1 - p));
-      ctx.drawImage(starTailSprite(), s.x - R * 0.55, s.y - rise - R * 0.4 - tail, R * 1.1, tail);
-      ctx.drawImage(starSprite(s.id), s.x - R * 1.6, s.y - rise - R * 1.6, R * 3.2, R * 3.2);
-      ctx.globalAlpha = 1;
-    } else {
-      const sz = R * 3.2 * (1 + Math.sin(o.time * 5 + s.id) * 0.06);
-      ctx.drawImage(starSprite(s.id), s.x - sz / 2, s.y - sz / 2, sz, sz);
-    }
-  }
+  // «Ніч»: зірки малюються пізніше - поверх темного шару (видно всім незалежно від світла)
+  const night = Boolean(m.cfg.night);
+  if (!night) drawStars(ctx, m, o.time, x0, x1, y0, y1);
 
   // клітини: малі - під кущами (масиви перевикористовуємо - без виділення памʼяті щокадру)
   VISIBLE.length = 0;
@@ -512,7 +521,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   };
   // вид берем у сервера (welcome.thornStyle); старый сервер без поля - по номеру карты
   const style = m.cfg.thornStyle;
-  const thornKind: ThornKind = style === "charred" ? "charred" : style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
+  const thornKind: ThornKind = style === "night" ? "night" : style === "charred" ? "charred" : style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
   // «Сопілка пастуха»: хвилі, ноти й лінії до притягнутих лежать на землі під клітинами
   drawPipeEffects(ctx, m, VISIBLE, o.time, scale, prefersReducedMotion());
   const drawnUnder: boolean[] = [];
@@ -576,6 +585,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
   }
   ctx.restore();
+  if (night) {
+    // темний шар зі світлом гравця; зірки, ореол «Вожака» й світлячки - поверх нього (у світових координатах)
+    const reduce = prefersReducedMotion();
+    drawDarkness(ctx, m, W, H, scale, reduce);
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(scale, scale);
+    ctx.translate(-m.camX, -m.camY);
+    drawStars(ctx, m, o.time, x0, x1, y0, y1);
+    drawNightTop(ctx, m, VISIBLE, scale, o.time, reduce, (pid) => isBossSkin(m.players.get(pid)?.skin ?? -1), (c) => drawCell(ctx, m, c, o, scale));
+    ctx.restore();
+  }
   if (castleMode) drawCastleScreenArrows(ctx, m, W, H, scale, o.time);
   drawRainOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   drawWindOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
@@ -700,7 +721,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
   const k = size / 256;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
-  for (const p of m.cfg.castle ? [] : m.board.map) {
+  for (const p of m.cfg.castle || m.cfg.night ? [] : m.board.map) {
     const own = p.pid === m.cfg.pid;
     if (own) continue; // свою точку малюємо нижче з живих координат, а не з 1-секундного знімка
     const meta = m.players.get(p.pid);

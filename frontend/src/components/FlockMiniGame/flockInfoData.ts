@@ -351,6 +351,28 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
         params: { sec: sec("bonusDurations.pipe"), radius: num("pipe.radiusCells"), pull: { path: "pipe.pullFraction", as: "pct" } },
       },
+      {
+        id: "lantern",
+        icon: "bonus:lantern",
+        title: { ua: "Ліхтарик", ru: "Фонарик", en: "Flashlight" },
+        text: {
+          ua: "Лише на карті «Ніч», рідкісний, на полі не більше одного. {sec} с твій радіус світла збільшується приблизно у {mul} раза (плавно при вмиканні й вимиканні); світло лише в тебе. Таймер на паузі не йде. Не складається з «Пляшкою зі світлячками» — діє сильніший.",
+          ru: "Только на карте «Ночь», редкий, на поле не больше одного. {sec} с твой радиус света увеличивается примерно в {mul} раза (плавно при включении и выключении); свет только у тебя. Таймер на паузе не идёт. Не складывается с «Банкой со светлячками» — действует сильнейший.",
+          en: "Only on the “Night” map, rare, at most one on the field. For {sec} s your light radius grows about {mul}x (smoothly on and off); the light is yours only. The timer stops while paused. It does not stack with the Jar of fireflies — the stronger one applies.",
+        },
+        params: { sec: sec("night.lanternSec"), mul: { path: "night.lanternMul", as: "x" } },
+      },
+      {
+        id: "jar",
+        icon: "bonus:jar",
+        title: { ua: "Пляшка зі світлячками", ru: "Банка со светлячками", en: "Jar of fireflies" },
+        text: {
+          ua: "Лише на карті «Ніч», рідкісна, на полі не більше однієї. {sec} с радіус світла більший приблизно на {pct}% (слабше за «Ліхтарик»), навколо тебе літають світлячки. Не складається з «Ліхтариком», але складається із зарядом світла від їжі в межах спільної стелі радіуса.",
+          ru: "Только на карте «Ночь», редкая, на поле не больше одной. {sec} с радиус света больше примерно на {pct}% (слабее «Фонарика»), вокруг тебя летают светлячки. Не складывается с «Фонариком», но складывается с зарядом света от еды в пределах общего потолка радиуса.",
+          en: "Only on the “Night” map, rare, at most one on the field. For {sec} s your light radius is about {pct}% larger (weaker than the Flashlight) and fireflies fly around you. It does not stack with the Flashlight, but it stacks with the food light charge up to the shared radius cap.",
+        },
+        params: { sec: sec("night.jarSec"), pct: num("night.jarPct") },
+      },
     ],
   },
   {
@@ -562,6 +584,17 @@ export const INFO_SECTIONS: InfoSection[] = [
           ru: "Арена случайно получает одну из карт с равной вероятностью: обычный луг, «Роща» (золотая листва на бурой земле), «Мороз» (снег, ёлки, ягоды рябины и шишки) или «Вулкан» (тёмная земля с жаром, обгорелые кусты и искры вместо травы). Везде еда имеет ту же ценность, а вид карты одинаков у всех игроков арены. Только «Вулкан» меняет правила: на нём есть лава.",
           en: "Each arena gets a random map with equal probability: the regular meadow, Grove (golden leaves on brown soil), Frost (snow, firs, rowan berries and cones) or Volcano (dark ground with embers, charred bushes and sparks instead of grass). Food is worth the same everywhere, and the map looks the same to everyone on the arena. Only Volcano changes the rules: it has lava.",
         },
+      },
+      {
+        id: "night",
+        icon: "bonus:lantern",
+        title: { ua: "Карта «Ніч»", ru: "Карта «Ночь»", en: "“Night” map" },
+        text: {
+          ua: "Нічна карта доступна лише з {from}:00 до {to}:00 за Києвом і в цей час випадає частіше (вага ×{weight}); карта змінюється лише на новій арені. Скрізь темно: видно лише в радіусі світла навколо тебе (від {minR} до {maxR}, залежить від маси м'яко, коренем), інших гравців, ботів, їжу й бонуси поза ним сервер тобі не надсилає. «Зорепад» працює, зірки видно всім. «Вожак» має слабкий червоний ореол. Дощу й вітру тут немає. Їжа дає масу й «заряд світла» (до +{food}% радіуса, цвіти й колоски дають більше, ніж трава), що поступово згасає (шкала «Світло»). Рідкісні бонуси — «Ліхтарик» і «Пляшка зі світлячками».",
+          ru: "Ночная карта доступна только с {from}:00 до {to}:00 по Киеву и в это время выпадает чаще (вес ×{weight}); карта меняется только на новой арене. Везде темно: видно только в радиусе света вокруг тебя (от {minR} до {maxR}, зависит от массы мягко, корнем), других игроков, ботов, еду и бонусы вне него сервер тебе не присылает. «Звездопад» работает, звёзды видны всем. У «Вожака» слабое красное свечение. Дождя и ветра здесь нет. Еда даёт массу и «заряд света» (до +{food}% радиуса, цветы и колоски дают больше, чем трава), который постепенно угасает (шкала «Свет»). Редкие бонусы — «Фонарик» и «Банка со светлячками».",
+          en: "The night map is available only from {from}:00 to {to}:00 Kyiv time and appears more often then (weight ×{weight}); the map changes only on a new arena. It is dark everywhere: you only see inside the light radius around you ({minR} to {maxR}, depending softly on mass, by square root); other players, bots, food and bonuses outside it are not sent to you. Starfall works and its stars are visible to all. The Alpha has a faint red halo. No rain or wind here. Food gives mass and a “light charge” (up to +{food}% radius; flowers and ears give more than grass) that fades over time (the “Light” bar). Rare bonuses: the Flashlight and the Jar of fireflies.",
+        },
+        params: { from: num("night.fromHour"), to: num("night.toHour"), weight: num("night.weightMul"), minR: num("night.minR"), maxR: num("night.maxR"), food: num("night.foodBonusPct") },
       },
       {
         id: "lava",

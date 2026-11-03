@@ -24,4 +24,6 @@ export {
   WindIcon,
   CircleZoneIcon,
   CastleIcon,
+  LanternIcon,
+  FirefliesJarIcon,
 } from "./icons";
