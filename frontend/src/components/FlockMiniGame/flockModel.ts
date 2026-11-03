@@ -48,7 +48,7 @@ export interface FlockCfg {
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
   /** Вид кустов карты (bush | autumn | fir); без поля (старый сервер) - по номеру карты. */
-  thornStyle?: "bush" | "autumn" | "fir" | "charred";
+  thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night";
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
@@ -56,6 +56,8 @@ export interface FlockCfg {
   circle?: CircleMsgIn;
   /** Режим «Замки»: геометрія карти, команда гравця, швидкість і масa (welcome). */
   castle?: CastleCfg;
+  /** Карта «Ніч»: параметри світла; без поля - звичайне освітлення. */
+  night?: NightCfg;
   /** На скільки калюжа уповільнює клітини (частка); без поля - 0.2. */
   rainSlow?: number;
   /** «Дощ», що йде на момент входу: l - лишилось дощу (мс), y - підсихання після нього, d - повне підсихання, p - калюжі [id, x, y, r]. */
@@ -69,6 +71,22 @@ export interface FlockCfg {
   windMassHalf?: number;
   /** Серія днів на 1-му місці: p - pid держателя на цій арені (0 - його тут нема), d - днів поспіль. Без поля - серії нема. */
   streak?: { p: number; d: number };
+}
+
+/** Карта «Ніч» (welcome.night): параметри світла гравця (дзеркало серверного FLOCK_CONFIG.night; сервер авторитетний). */
+export interface NightCfg {
+  minR: number;
+  perSqrtMass: number;
+  maxR: number;
+  lanternMul: number;
+  jarMul: number;
+  /** Наскільки заряд світла від їжі розширює радіус при повному заряді (0.35 = +35%). */
+  foodBonus: number;
+  chargeCap: number;
+  /** Стеля радіуса світла з усіма бонусами. */
+  maxTotal: number;
+  bossHalo: number;
+  margin: number;
 }
 
 /** Повідомлення сервера про коло режиму «Звужуване коло» (welcome.circle або подія `cz`). */
@@ -218,6 +236,12 @@ export class FlockModel {
   circle: RCircle | null = null;
   /** Режим «Замки»: останній стан `cm` (null - ще не було) і локальний час його отримання. */
   castle: (CastleMsg & { t0: number; hpMax: number }) | null = null;
+  /** «Ніч»: поточний (згладжений) радіус світла і центр - власна клітина; пульс при поїданні. */
+  lightR = 0;
+  lightX = 0;
+  lightY = 0;
+  lightPulseAt = -Infinity;
+  private prevCharge = 0;
   /** pid -> команда (з `cm.tm`). */
   readonly teams = new Map<number, Team>();
   /** Поточний «Дощ» (null - нема). */
@@ -622,7 +646,7 @@ export class FlockModel {
       if (e.kind === "boost" && !prev.some((p) => p.kind === "boost")) this.sound("spawnBoost", x, y, true);
     }
     for (const p of prev) {
-      if (p.kind !== "boost" && !this.effects.some((e) => e.kind === p.kind)) this.sound("bonusEnd", x, y, true, p.kind);
+      if (p.kind !== "boost" && p.kind !== "light" && !this.effects.some((e) => e.kind === p.kind)) this.sound("bonusEnd", x, y, true, p.kind);
     }
   }
 
@@ -856,6 +880,8 @@ export class FlockModel {
     if (m > 0) {
       cx /= m;
       cy /= m;
+      this.lightX = cx;
+      this.lightY = cy;
       const v = this.cfg.view;
       const eagle = this.hasEffect("eagle") ? (this.cfg.eagleZoom ?? 1) : 1;
       const targetR = Math.min(v.max, v.base + v.perSqrtMass * Math.sqrt(m)) * eagle;
@@ -871,9 +897,46 @@ export class FlockModel {
         this.camR += (targetR - this.camR) * (1 - Math.exp(-dt * 2.5));
       }
     }
+    this.stepLight(dt);
+  }
+
+  /** Заряд світла від їжі (0..chargeCap): сервер шле його псевдо-ефектом «light», remainingMs / 100. */
+  lightCharge(): number {
+    const n = this.cfg.night;
+    if (!n) return 0;
+    const e = this.effects.find((x) => x.kind === "light");
+    return e ? Math.min(n.chargeCap, e.remainingMs / 100) : 0;
+  }
+
+  /** Цільовий радіус світла за тією ж формулою, що на сервері (масa, бонус, заряд; бонуси не складаються - діє сильніший). */
+  lightTarget(): number {
+    const n = this.cfg.night;
+    if (!n) return 0;
+    const base = Math.min(n.maxR, n.minR + n.perSqrtMass * Math.sqrt(Math.max(0, this.total)));
+    const mul = Math.max(this.hasEffect("lantern") ? n.lanternMul : 1, this.hasEffect("jar") ? n.jarMul : 1);
+    const charge = n.chargeCap > 0 ? this.lightCharge() / n.chargeCap : 0;
+    return Math.min(n.maxTotal, base * mul * (1 + n.foodBonus * charge));
+  }
+
+  /** Множник м'якого пульсу світла після поїдання (1 -> 1.04 -> 1 за ~450 мс). */
+  lightPulse(now: number = this.localNow): number {
+    const k = (now - this.lightPulseAt) / 450;
+    return k >= 0 && k < 1 ? 1 + 0.04 * Math.sin(k * Math.PI) : 1;
+  }
+
+  /** Крок радіуса світла: плавно (експонента) наздоганяє ціль; зростання заряду запускає пульс. */
+  private stepLight(dt: number) {
+    if (!this.cfg.night) return;
+    const charge = this.lightCharge();
+    if (charge > this.prevCharge + 0.5) this.lightPulseAt = this.localNow;
+    this.prevCharge = charge;
+    const target = this.lightTarget();
+    if (this.lightR <= 0) this.lightR = target;
+    else this.lightR += (target - this.lightR) * (1 - Math.exp(-dt * 6));
   }
 
   resetCamera() {
+    this.lightR = 0;
     this.haveCam = false;
   }
 }

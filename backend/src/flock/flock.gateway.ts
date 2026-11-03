@@ -293,6 +293,21 @@ export class FlockGateway
       /** Режим арени ('circle' - «Звужуване коло») і стан кола: { x, y, r0, r1, hold, shrink, stage, stages }. */
       mode: res.mode,
       circle: res.circle,
+      /** Карта «Ніч»: формула радіуса світла (клієнт передбачає ту саму). */
+      night: res.night
+        ? {
+            minR: FLOCK_CONFIG.night.minR,
+            perSqrtMass: FLOCK_CONFIG.night.perSqrtMass,
+            maxR: FLOCK_CONFIG.night.maxR,
+            lanternMul: FLOCK_CONFIG.night.lanternMul,
+            jarMul: FLOCK_CONFIG.night.jarMul,
+            foodBonus: FLOCK_CONFIG.night.foodBonus,
+            chargeCap: FLOCK_CONFIG.night.chargeCap,
+            maxTotal: FLOCK_CONFIG.night.maxTotal,
+            bossHalo: FLOCK_CONFIG.night.bossHalo,
+            margin: FLOCK_CONFIG.night.sendMargin,
+          }
+        : undefined,
       /** «Замки»: { team, river, castles, steal, speed, mass, carrySlow, waterSlow, seed, world }. */
       castle: res.castle,
       /** На скільки калюжа уповільнює клітини (частка), для передбачення на клієнті. */
@@ -317,6 +332,8 @@ export class FlockGateway
       durations: {
         ...FLOCK_CONFIG.bonusDurations,
         boost: FLOCK_CONFIG.spawnBoost.durationMs,
+        /** Заряд світла від їжі «Ночі»: remainingMs = заряд x 100. */
+        light: FLOCK_CONFIG.night.chargeCap * 100,
       },
       magnetRadius: FLOCK_CONFIG.magnetRadius,
       view: res.castle

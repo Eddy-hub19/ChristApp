@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound" | "lantern" | "jar";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -570,6 +570,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Новий командний режим «Замки» (лобі → «Режими»): Вівці проти Вовків на новій карті «Ліс і озеро». Вкради камінь із чужого замку, принеси на свою базу — кілька доставок руйнують замок. Переможцям — рубіни. Усі числа — у вікні «i»",
           ru: "Новый командный режим «Замки» (лобби → «Режимы»): Овцы против Волков на новой карте «Лес и озеро». Укради камень из чужого замка, принеси на свою базу — несколько доставок разрушают замок. Победителям — рубины. Все числа — в окне «i»",
           en: "New team mode “Castles” (lobby → “Modes”): Sheep versus Wolves on the new “Forest and lake” map. Steal a stone from the enemy castle and bring it to your base — a few deliveries destroy the castle. Winners earn rubies. All numbers are in the “i” window",
+        },
+      },
+    ],
+  },
+  {
+    version: 23,
+    date: "2026-11-05",
+    items: [
+      {
+        icon: "lantern",
+        text: {
+          ua: "Нова карта «Ніч» (з 20:00 до 06:00 за Києвом): скрізь темно, видно лише в радіусі світла навколо тебе. Їжа розширює світло, «Зорепад» видно всім. Нові рідкісні бонуси: «Ліхтарик» і «Пляшка зі світлячками»",
+          ru: "Новая карта «Ночь» (с 20:00 до 06:00 по Киеву): везде темно, видно только в радиусе света вокруг тебя. Еда расширяет свет, «Звездопад» видно всем. Новые редкие бонусы: «Фонарик» и «Банка со светлячками»",
+          en: "New “Night” map (20:00–06:00 Kyiv time): it is dark everywhere and you only see inside the light radius around you. Food widens the light, Starfall is visible to all. New rare bonuses: the Flashlight and the Jar of fireflies",
+        },
+      },
+      {
+        icon: "jar",
+        text: {
+          ua: "«Пляшка зі світлячками» збільшує радіус світла слабше за «Ліхтарик» і не складається з ним; числа — у вікні «i»",
+          ru: "«Банка со светлячками» увеличивает радиус света слабее «Фонарика» и не складывается с ним; числа — в окне «i»",
+          en: "The Jar of fireflies widens the light less than the Flashlight and does not stack with it; numbers are in the “i” window",
         },
       },
     ],

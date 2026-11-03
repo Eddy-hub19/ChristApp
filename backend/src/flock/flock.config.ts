@@ -200,6 +200,9 @@ export const FLOCK_CONFIG = {
     scissors: 0,
     eagle: 10_000,
     pipe: 10_000,
+    /** Лише карта «Ніч»: «Ліхтарик» і «Пляшка зі світлячками» (див. night). */
+    lantern: 30_000,
+    jar: 45_000,
   },
   /**
    * Бонус «Сопілка пастуха» (kind pipe): поки діє, усі клітини гравців і ботів у радіусі radiusCells × радіус клітини
@@ -518,6 +521,38 @@ export const FLOCK_CONFIG = {
     botOnlyEnemyHumanMs: 60_000,
   },
 
+  /**
+   * Карта «Ніч» (FLOCK_MAPS[].night): доступна лише з fromHour до toHour за часом timeZone (перевіряється при створенні арени;
+   * адмін може задати її будь-коли), у вікні має вагу weight x weightMultiplier. Скрізь темно: гравець бачить лише в радіусі світу
+   * навколо своєї клітини, сервер шле лише те, що в цьому радіусі (+sendMargin). Радіус = min(maxR, minR + perSqrtMass * sqrt(маса))
+   * x множник бонуса («Ліхтарик» lanternMul або «Пляшка» jarMul - діє сильніший) x (1 + foodBonus * заряд / chargeCap), не більше maxTotal.
+   * Заряд світла росте від їжі (foodCharge за видом: трава, квітка, колосок, шерсть), тримається до chargeCap і гасне chargeDecayPerSec.
+   * Дощу й вітру на карті нема (rain.maps / wind.maps), «Зорепад» працює (зірки видно всім). Бонуси світла з'являються лише тут.
+   */
+  night: {
+    timeZone: 'Europe/Kyiv',
+    fromHour: 20,
+    toHour: 6,
+    weightMultiplier: 2,
+    minR: 260,
+    perSqrtMass: 11,
+    maxR: 620,
+    maxTotal: 1100,
+    lanternMul: 2.2,
+    jarMul: 1.5,
+    foodBonus: 0.35,
+    chargeCap: 100,
+    chargeDecayPerSec: 2.5,
+    foodCharge: [1, 3, 3, 2] as readonly number[],
+    /** Запас радіуса відправки об'єктів понад радіус світла. */
+    sendMargin: 1.08,
+    /** Вожак видимий і за краєм світла на стільки (власний слабкий ореол). */
+    bossHalo: 220,
+    /** Шанс, що черговий бонус на полі - «Ліхтарик» / «Пляшка» (не більше одного кожного, лише на «Ночі»). */
+    lanternChance: 0.07,
+    jarChance: 0.08,
+  },
+
   // --- область видимості ---
   viewBase: 400,
   viewPerSqrtMass: 6.5,
@@ -762,7 +797,7 @@ export const FLOCK_CONFIG = {
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
 
 /** Вигляд кущів карти: `bush` - зелений, `autumn` - жовте осіннє листя, `fir` - ялинка зі сніговими шапками. */
-export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred';
+export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred' | 'night';
 
 export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
@@ -781,6 +816,8 @@ export interface FlockMapDef {
   lava?: boolean;
   /** Карта режиму «Замки»: не бере участі у випадковому виборі звичайної арени. */
   team?: boolean;
+  /** Нічна карта: лише у вікні night.fromHour..toHour (за Києвом), з підвищеною вагою; світло гравця (див. FLOCK_CONFIG.night). */
+  night?: boolean;
 }
 
 /**
@@ -794,7 +831,18 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 3, name: 'volcano', layout: 'scatter', thornStyle: 'charred', thorns: {}, weight: 1, lava: true },
   /** «Ліс і озеро»: лише режим «Замки» (кущі й річка задаються flock.castles.ts). */
   { id: 4, name: 'lake', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true },
+  /** «Ніч»: у випадковому виборі лише вночі (isNightOpen), вага x night.weightMultiplier. */
+  { id: 5, name: 'night', layout: 'clusters', thornStyle: 'night', thorns: {}, weight: 1, night: true },
 ];
+
+/** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
+export function isNightOpen(atMs: number = Date.now()): boolean {
+  const N = FLOCK_CONFIG.night;
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { timeZone: N.timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date(atMs)),
+  );
+  return N.fromHour <= N.toHour ? hour >= N.fromHour && hour < N.toHour : hour >= N.fromHour || hour < N.toHour;
+}
 
 /**
  * Числа для экрана «Про гру» в лобби: уходят клиенту в ответе /flock/me (config.game), чтобы тексты не расходились с игрой.
@@ -825,6 +873,21 @@ export function clientGameConfig() {
       winReward: c.circle.winReward,
       endHoldMs: c.circle.endHoldMs,
       totalMs: c.circle.warmupMs + c.circle.stages.reduce((a, st) => a + st.holdMs + st.shrinkMs, 0) + c.circle.finalHoldMs,
+    },
+    night: {
+      fromHour: c.night.fromHour,
+      toHour: c.night.toHour,
+      weightMul: c.night.weightMultiplier,
+      minR: c.night.minR,
+      maxR: c.night.maxR,
+      lanternMul: c.night.lanternMul,
+      lanternSec: Math.round(c.bonusDurations.lantern / 1000),
+      jarPct: Math.round((c.night.jarMul - 1) * 100),
+      jarSec: Math.round(c.bonusDurations.jar / 1000),
+      foodBonusPct: Math.round(c.night.foodBonus * 100),
+      chargeCap: c.night.chargeCap,
+      lanternChance: Math.round(c.night.lanternChance * 100),
+      jarChance: Math.round(c.night.jarChance * 100),
     },
     castles: {
       hp: c.teamMode.castleHp,

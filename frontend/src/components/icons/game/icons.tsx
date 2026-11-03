@@ -463,3 +463,36 @@ export function CastleIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Бонус «Ліхтарик»: ліхтар із теплим жовтим променем. */
+export function LanternIcon(props: ColorIconProps) {
+  const g = useGradient("#ffe27a", "#f0a21c");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M14.2 9.6L22 5.6v8.4l-7.8-2.2z" fill="#fff3b0" fillOpacity=".75" />
+      <path d="M17.4 10.6l4.6-1.9M17.6 11.9l4.4.4" stroke="#ffd24a" strokeWidth="1" strokeLinecap="round" />
+      <path d="M3.5 8.4l7.2-2.6 3 2 .6 5.4-3 2.4-7.6-2.6z" fill={g.fill} {...stroke} />
+      <path d="M4.2 8.6l6.6 2.2 2.9-2.4" fill="none" stroke="#fff" strokeOpacity=".6" strokeWidth="1" strokeLinejoin="round" />
+      <rect x="6" y="14.2" width="4.4" height="6.6" rx="1.3" fill="#8a5a2b" {...stroke} />
+      <ellipse cx="12.4" cy="10.6" rx="1.6" ry="2.3" fill="#fffbe0" />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Пляшка зі світлячками»: скляна пляшка з корком і світлими крапками. */
+export function FirefliesJarIcon(props: ColorIconProps) {
+  const g = useGradient("#b9f6ff", "#5ec6e0");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <rect x="8" y="2.4" width="8" height="3.2" rx="1" fill="#a06a3a" {...stroke} />
+      <path d="M8.6 5.6h6.8l2.6 3.4v10a2.4 2.4 0 01-2.4 2.4H8.4A2.4 2.4 0 016 19V9z" fill={g.fill} fillOpacity=".55" {...stroke} />
+      <circle cx="10" cy="12" r="1.5" fill="#ffee70" />
+      <circle cx="14.4" cy="15" r="1.3" fill="#c8ff7a" />
+      <circle cx="11.4" cy="17.6" r="1.1" fill="#ffee70" />
+      <circle cx="15" cy="10.4" r="0.9" fill="#fffbe0" />
+      <path d="M8 9.6v7" stroke="#fff" strokeOpacity=".6" strokeWidth="1.2" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}

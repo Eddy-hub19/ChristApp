@@ -1,7 +1,9 @@
 import { FLOCK_CONFIG as C, FLOCK_CONFIG, FLOCK_MAPS as ALL_MAPS } from './flock.config';
 
 /** Карти звичайної арени (карта режиму «Замки» не входить у випадковий вибір). */
-const FLOCK_MAPS = ALL_MAPS.filter((m) => !m.team);
+const FLOCK_MAPS = ALL_MAPS.filter((m) => !m.team && !m.night);
+/** Полдень по Киеву: нічна карта закрыта. */
+const NOON = Date.UTC(2026, 5, 15, 9, 0, 0);
 import {
   CHUNKS_PER_SIDE,
   FOOD_REACH,
@@ -219,7 +221,7 @@ describe('Карта: виды карт', () => {
     const rng = lcg(11);
     const n = FLOCK_MAPS.map(() => 0);
     const N = 6000;
-    for (let i = 0; i < N; i++) n[pickMapId(rng)]++;
+    for (let i = 0; i < N; i++) n[pickMapId(rng, undefined, NOON)]++;
     for (const k of n) expect(Math.abs(k - N / FLOCK_MAPS.length)).toBeLessThan(200);
   });
 
@@ -246,7 +248,7 @@ describe('Карта: виды карт', () => {
   it('арена получает вид карты и отдаёт его в ответе на вход (клиент и сервер видят один и тот же)', () => {
     const seen = new Set<number>();
     for (let seed = 1; seed <= 60; seed++) {
-      const mgr = new FlockManager(() => undefined, lcg(seed), () => 1_000_000);
+      const mgr = new FlockManager(() => undefined, lcg(seed), () => NOON);
       const r = mgr.join('c1', 'u1', 'Аня', 1);
       const arena = mgr._arena(1)!;
       expect(r.mapId).toBe(arena.mapId);

@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, PipeIcon, WindIcon, SnowflakeIcon, TrophyIcon } from "@/components/icons/game";
+import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, PipeIcon, WindIcon, SnowflakeIcon, TrophyIcon, LanternIcon, FirefliesJarIcon } from "@/components/icons/game";
 import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang } from "./flockWhatsNewData";
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
@@ -29,6 +29,8 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   fence: (p) => <FenceIcon {...p} />,
   alpha: (p) => <AlphaIcon {...p} />,
   pipe: (p) => <PipeIcon {...p} />,
+  lantern: (p) => <LanternIcon {...p} />,
+  jar: (p) => <FirefliesJarIcon {...p} />,
   wind: (p) => <WindIcon {...p} />,
   sound: (p) => (
     <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

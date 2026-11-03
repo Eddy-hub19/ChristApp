@@ -6,7 +6,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { EagleEyeIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
+import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
 import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
@@ -82,7 +82,7 @@ type Hud = {
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night"] as const;
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null };
 const MINIMAP_SIZE = 96;
@@ -203,6 +203,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [eagleHint, setEagleHint] = useState<number | null>(null);
   /** Підказка при підборі «Сопілки пастуха» і назва карти при вході (3 с). */
   const [pipeHint, setPipeHint] = useState<number | null>(null);
+  /** «Ніч»: підказка при підборі «Ліхтарика» / «Пляшки зі світлячками». */
+  const [lightHint, setLightHint] = useState<{ kind: "lantern" | "jar"; at: number } | null>(null);
   const [mapToast, setMapToast] = useState<string | null>(null);
   const [reviveMsg, setReviveMsg] = useState<number | null>(null);
   const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2 | 3; name: string } | null>(null);
@@ -551,6 +553,23 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const id = setTimeout(() => setPipeHint(null), 2600);
     return () => clearTimeout(id);
   }, [pipeHint]);
+  const lanternOn = hud.effects.some((e) => e.kind === "lantern");
+  const jarOn = hud.effects.some((e) => e.kind === "jar");
+  const lanternWasOn = useRef(false);
+  const jarWasOn = useRef(false);
+  useEffect(() => {
+    if (lanternOn && !lanternWasOn.current) setLightHint({ kind: "lantern", at: Date.now() });
+    lanternWasOn.current = lanternOn;
+  }, [lanternOn]);
+  useEffect(() => {
+    if (jarOn && !jarWasOn.current) setLightHint({ kind: "jar", at: Date.now() });
+    jarWasOn.current = jarOn;
+  }, [jarOn]);
+  useEffect(() => {
+    if (lightHint === null) return;
+    const id = setTimeout(() => setLightHint(null), 2600);
+    return () => clearTimeout(id);
+  }, [lightHint]);
   // назва карти на 3 с при кожному вході на арену (за id арени, а не за кадром)
   const entryArenaId = hud.arenaId;
   useEffect(() => {
@@ -1144,6 +1163,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <PipeIcon size={30} /> {t("pipe.hint")}
             </div>
           ) : null}
+          {lightHint !== null ? (
+            <div key={lightHint.at} className={styles.eagleBanner} role="status">
+              {lightHint.kind === "lantern" ? <LanternIcon size={30} /> : <FirefliesJarIcon size={30} />} {t(`night.${lightHint.kind}Hint`)}
+            </div>
+          ) : null}
           {hud.pipeCalled ? (
             <div className={styles.pipeCall} role="status">
               {t("pipe.pull")}
@@ -1160,6 +1184,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {mapToast ? (
             <div key={entryArenaId} className={styles.mapToast} role="status">
               {t(`mapNames.${mapToast}`)}
+              {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
             </div>
           ) : null}
           {zorepad !== null ? (
@@ -1277,14 +1302,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <li
                   key={e.kind}
                   title={t(`bonuses.${e.kind}`)}
-                  className={[e.kind === "boost" || e.kind === "freeze" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
+                  className={[e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
                 >
-                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : BONUS_ICON[e.kind]}</span>
-                  {e.kind === "boost" || e.kind === "freeze" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
+                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : e.kind === "lantern" || e.kind === "light" ? <LanternIcon size={22} /> : e.kind === "jar" ? <FirefliesJarIcon size={22} /> : BONUS_ICON[e.kind]}</span>
+                  {e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
                   </span>
-                  {e.kind === "freeze" || e.kind === "eagle" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
+                  {e.kind === "freeze" || e.kind === "eagle" || e.kind === "lantern" || e.kind === "jar" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
                 </li>
               ))}
             </ul>
