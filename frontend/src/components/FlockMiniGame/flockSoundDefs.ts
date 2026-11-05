@@ -34,6 +34,8 @@ export interface SoundDef {
   jitter?: number;
   /** Фоновый звук (включается отдельным переключателем). */
   ambient?: boolean;
+  /** Грузится не при первом включении звука, а лишь когда понадобится (музыка карты «Небо»). */
+  lazy?: boolean;
   /** Музыка лобби: петля только из файла (без синтеза), включается переключателем «Музыка». */
   music?: boolean;
 }
@@ -221,6 +223,7 @@ export type SoundId =
   | "click"
   | "coins"
   | "melody"
+  | "skyMelody"
   // карта «Небо» (синтез у рушії, файлів нема: нічого не вантажиться)
   | "skyAmbient"
   | "skyEnter"
@@ -562,6 +565,14 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
       tone(e, "sine", 90, 55, 0.65, 0.25, 0.22, 0.01);
       return 0.95;
     },
+  },
+  // музыка карты «Небо» (файл владельца, ~385 КБ): грузится лениво при входе на карту, играет петлёй, подчиняется переключателю «Музыка»
+  skyMelody: {
+    file: "/sounds/flock/melody2",
+    gain: 0.5,
+    music: true,
+    lazy: true,
+    synth: () => 0,
   },
   melody: {
     file: "/sounds/flock/melody",
