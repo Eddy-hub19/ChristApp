@@ -14,12 +14,18 @@ import {
   grantAdminMemberArtifact,
   grantAdminMemberSkin,
 } from "@/lib/queries/adminQueries";
+import { describeRubyTx, type RubyTxI18n } from "@/lib/rubyTransactions";
 import styles from "./admin.module.scss";
 
 /** Блок «Рубіни» у картці учасника: баланс, куплені скіни, журнал і ручне нарахування/списання. */
 export default function AdminMemberRubies({ memberId }: { memberId: string }) {
   const t = useTranslations("admin.rubies");
   const tf = useTranslations("flock");
+  const i18n = {
+    t: t as unknown as RubyTxI18n["t"],
+    skinName: (id: number) => tf(`skins.${id}`),
+    artifactName: (id: number) => tf(`artifacts.items.${id}.name`),
+  };
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -175,24 +181,30 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 <p className={styles.meta}>{t("noHistory")}</p>
               ) : (
                 <ul className={styles.rubiesLog}>
-                  {data.transactions.map((tx) => (
-                    <li key={tx.id}>
-                      <span className={tx.delta > 0 ? styles.plus : styles.minus}>
-                        {tx.delta > 0 ? "+" : ""}
-                        {tx.delta}
-                      </span>
-                      <span>
-                        {t(`reasons.${tx.reason}`)}
-                        {tx.skinId !== null ? `: ${tf(`skins.${tx.skinId}`)}` : ""}
-                        {tx.artifactId ? `: ${tf(`artifacts.items.${tx.artifactId}.name`)}` : ""}
-                        {tx.note ? ` — ${tx.note}` : ""}
-                        {tx.actorId ? ` (${t("by", { id: tx.actorId.slice(0, 8) })})` : ""}
-                      </span>
-                      <time dateTime={tx.createdAt}>
-                        {new Date(tx.createdAt).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })} · {tx.balanceAfter}
-                      </time>
-                    </li>
-                  ))}
+                  {data.transactions.map((tx) => {
+                    const v = describeRubyTx(tx, i18n);
+                    return (
+                      <li key={tx.id} title={v.hint ?? undefined}>
+                        <span className={tx.delta > 0 ? styles.plus : tx.delta < 0 ? styles.minus : styles.zero}>
+                          {tx.delta > 0 ? "+" : ""}
+                          {tx.delta}
+                        </span>
+                        <span className={styles.rubiesTx}>
+                          <span>{v.title}</span>
+                          {v.note || tx.actorId ? (
+                            <small className={styles.rubiesNote}>
+                              {v.note}
+                              {tx.actorId ? `${v.note ? " · " : ""}${t("by", { id: tx.actorId.slice(0, 8) })}` : ""}
+                            </small>
+                          ) : null}
+                        </span>
+                        <time dateTime={tx.createdAt}>
+                          <span>{v.date}</span>
+                          <small>{t("balanceAfter", { balance: tx.balanceAfter })}</small>
+                        </time>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </>

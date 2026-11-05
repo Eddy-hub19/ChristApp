@@ -725,19 +725,39 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  gap: 6px;
   font-size: 13px;
 
   li {
     display: grid;
-    grid-template-columns: 52px 1fr auto;
+    grid-template-columns: 56px 1fr auto;
     gap: 8px;
-    align-items: baseline;
+    align-items: start;
   }
   time {
-    opacity: 0.6;
+    display: grid;
+    justify-items: end;
+    text-align: right;
     font-size: 12px;
+    white-space: nowrap;
+
+    small {
+      opacity: 0.5;
+      font-size: 11px;
+    }
   }
+}
+.rubiesTx {
+  display: grid;
+  min-width: 0;
+}
+.rubiesNote {
+  opacity: 0.6;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+.zero {
+  opacity: 0.6;
 }
 .plus {
   color: #2e9e5b;

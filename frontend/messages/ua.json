@@ -235,11 +235,20 @@
       "by": "адмін {id}",
       "reasons": {
         "ARENA_TOP1": "Перше місце на арені",
+        "ARENA_BOSS": "Перемога над Вожаком",
+        "ARENA_STREAK": "Серія першого місця",
+        "TEAM_WIN": "Перемога в режимі «Замки»",
+        "ENTRY_BONUS": "Бонус за вхід",
+        "PREMIUM_COLLECTION": "Колекцію преміум зібрано",
         "SKIN_PURCHASE": "Покупка скіна",
         "ARTIFACT_PURCHASE": "Покупка артефакта",
-        "ENTRY_BONUS": "Бонус за вхід у гру",
         "ADMIN_ADJUST": "Коригування адміном"
       },
+      "notes": {
+        "adminGrant": "Видано адміном",
+        "streakDay": "{day}-й день із {of}, {date}"
+      },
+      "balanceAfter": "баланс {balance}",
       "errors": {
         "reason_required": "Вкажіть причину",
         "invalid_amount": "Вкажіть ціле число, відмінне від нуля",
