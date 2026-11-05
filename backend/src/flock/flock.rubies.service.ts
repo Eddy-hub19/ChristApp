@@ -18,6 +18,7 @@ import {
   SPECIAL_FROM,
   premiumCollectionIds,
   isHiddenSkin,
+  isLobbyHiddenSkin,
   isPaidSkin,
   isPremiumSkin,
   isSelectableSkin,
@@ -108,6 +109,8 @@ export class FlockRubiesService {
   /** Чи може користувач грати цим скіном (безкоштовний або куплений). */
   async canUseSkin(userId: string, skin: number): Promise<boolean> {
     if (!isSelectableSkin(skin)) return false;
+    // схований у лобі вовк не обирається гравцем (боти й «Замки» беруть його поза цією перевіркою)
+    if (isLobbyHiddenSkin(skin)) return false;
     if (!isPaidSkin(skin)) return true;
     const row = await this.prisma.flockSkinPurchase.findUnique({
       where: { userId_skinId: { userId, skinId: skin } },
@@ -168,7 +171,10 @@ export class FlockRubiesService {
       ownedArtifacts: artifacts,
       selectedArtifact,
       // збережений знятий скін віддаємо як 0 (біла овечка); у БД він замінюється при наступному виборі скіна
-      selectedSkin: isSelectableSkin(profile?.selectedSkin ?? 0) ? (profile?.selectedSkin ?? 0) : 0,
+      selectedSkin:
+        isSelectableSkin(profile?.selectedSkin ?? 0) && !isLobbyHiddenSkin(profile?.selectedSkin ?? 0)
+          ? (profile?.selectedSkin ?? 0)
+          : 0,
       whatsNewSeen: profile?.whatsNewSeen ?? 0,
       premiumCollectionClaimed: !!profile?.premiumCollectionAt,
       statsImported: !!profile?.statsImportedAt,

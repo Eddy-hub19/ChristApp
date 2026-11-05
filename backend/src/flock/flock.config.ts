@@ -1041,6 +1041,12 @@ export const FREE_SKIN_IDS: readonly number[] = [
 export const REMOVED_SKINS: readonly number[] = [6, 7, 10, 11];
 export const isRemovedSkin = (id: number) => REMOVED_SKINS.includes(id);
 export const isFreeSkin = (id: number) => FREE_SKIN_IDS.includes(id);
+/**
+ * Безкоштовні вовки, яких немає у виборі лобі (ряд вовків прибрано): їх беруть лише боти й режим «Замки» (сторона вовків).
+ * НЕ HIDDEN_SKINS (той блокує ботів): впливає лише на вибір гравця у звичайних аренах. Дзеркало - LOBBY_HIDDEN_SKIN_IDS у frontend/src/lib/rubies.ts.
+ */
+export const LOBBY_HIDDEN_SKINS: readonly number[] = [8, 9, 37, 38, 39, 40];
+export const isLobbyHiddenSkin = (id: number) => LOBBY_HIDDEN_SKINS.includes(id);
 /** Режим «Замки»: безкоштовні скіни сторін (1 - «Вівці», 2 - «Вовки»); платні, особливі й артефакти там вимкнені. */
 export const TEAM_SHEEP = 1;
 export const TEAM_WOLF = 2;

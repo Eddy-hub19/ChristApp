@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
-import { FREE_SKIN_ROWS, HIDDEN_SKIN_IDS, isPaidSkin, isPremiumSkin, isSelectableSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { HIDDEN_SKIN_IDS, isLobbySelectableSkin, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -99,7 +99,7 @@ function currentTheme(): Theme {
 function loadSkin() {
   try {
     const v = Number(localStorage.getItem(SKIN_KEY));
-    return isSelectableSkin(v) ? v : 0;
+    return isLobbySelectableSkin(v) ? v : 0;
   } catch {
     return 0;
   }
@@ -416,7 +416,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
-      setSkin((cur) => (!isSelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
+      setSkin((cur) => (!isLobbySelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
       setArtifact(data.selectedArtifact ?? 0);
     } catch {
       /* офлайн: лобі працює з безкоштовними скінами */
@@ -1682,7 +1682,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </h3>
             {regularOpen ? (
               <>
-                {FREE_SKIN_ROWS.map((row, n) => (
+                {LOBBY_FREE_SKIN_ROWS.map((row, n) => (
                   <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("chooseSkin")}>
                     {row.map((i) => skinButton(i))}
                   </div>

@@ -11,7 +11,14 @@ import {
 import type { Namespace, Socket } from 'socket.io';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { FLOCK_CONFIG, NUM_SKINS, isRemovedSkin, teamSkinAllowed, teamViewRadius } from './flock.config';
+import {
+  FLOCK_CONFIG,
+  NUM_SKINS,
+  isLobbyHiddenSkin,
+  isRemovedSkin,
+  teamSkinAllowed,
+  teamViewRadius,
+} from './flock.config';
 import { speedOf } from './flock.engine';
 import { FlockManager, type FlockHooks } from './flock.manager';
 import { enemyOf } from './flock.castles';
@@ -219,10 +226,14 @@ export class FlockGateway
     const userId = client.data.userId!;
     // знятий скін (збережений вибір із минулого) на арену не потрапляє: замість нього біла овечка
     const clamped = Math.max(0, Math.min(NUM_SKINS - 1, skin));
-    const wanted = isRemovedSkin(clamped) ? 0 : clamped;
+    const castles = body?.mode === 'castles';
+    // знятий скін і схований у лобі вовк (старий збережений вибір) замінюються першою овечкою; «Замки» вовків лишають як є
+    const wanted =
+      isRemovedSkin(clamped) || (!castles && isLobbyHiddenSkin(clamped))
+        ? 0
+        : clamped;
     // Скін перевіряє сервер: платний без покупки на арену не пускаємо (не підміняємо мовчки).
     // Перевіряємо завжди, навіть із resume: токен міг не підійти, і тоді створюється нова овечка з цим скіном.
-    const castles = body?.mode === 'castles';
     const team = typeof body?.team === 'number' ? Math.floor(body.team) : 0;
     // «Замки»: лише безкоштовні скіни своєї сторони, без артефактів
     if (castles && !resume && !teamSkinAllowed(team, wanted)) {
