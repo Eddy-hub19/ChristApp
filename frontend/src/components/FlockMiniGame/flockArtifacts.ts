@@ -11,6 +11,9 @@ export type ArtifactKey = "shoes" | "priestHat" | "crown" | "magnet" | "hourglas
 /** Індекс = номер артефакта - 1. Порядок збігається з backend ARTIFACT. */
 export const ARTIFACT_KEYS: readonly ArtifactKey[] = ["shoes", "priestHat", "crown", "magnet", "hourglass", "cross", "censer"];
 export const ARTIFACT_IDS: readonly number[] = ARTIFACT_KEYS.map((_, i) => i + 1);
+/** Артефакти, прибрані з лобі (7 «Кадило»): не показуються, не надягаються; у грі, в БД і в адмінці лишаються. */
+export const LOBBY_HIDDEN_ARTIFACT_IDS: readonly number[] = [7];
+export const LOBBY_ARTIFACT_IDS: readonly number[] = ARTIFACT_IDS.filter((id) => !LOBBY_HIDDEN_ARTIFACT_IDS.includes(id));
 export const NUM_ARTIFACTS = ARTIFACT_KEYS.length;
 export const isArtifactId = (id: unknown): id is number => typeof id === "number" && Number.isInteger(id) && id >= 1 && id <= NUM_ARTIFACTS;
 export const artifactKey = (id: number): ArtifactKey | null => (isArtifactId(id) ? ARTIFACT_KEYS[id - 1] : null);

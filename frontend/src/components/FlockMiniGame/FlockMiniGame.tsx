@@ -6,7 +6,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
+import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
 import { HIDDEN_SKIN_IDS, isLegendarySkin, isLobbySelectableSkin, LEGENDARY_SKIN_ROWS, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
@@ -14,7 +14,7 @@ import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type CircleEndInfo, type DeathInfo, type FlockMode, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
-import { ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
+import { LOBBY_ARTIFACT_IDS, LOBBY_HIDDEN_ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
 import { PERK_ICON, perkList, perksOf } from "./flockSkinPerks";
 import FlockInvite from "./FlockInvite";
@@ -417,7 +417,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
       setSkin((cur) => (!isLobbySelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
-      setArtifact(data.selectedArtifact ?? 0);
+      // прибраний з лобі артефакт (кадило) не надіваємо, навіть якщо він був обраний раніше
+      setArtifact(LOBBY_HIDDEN_ARTIFACT_IDS.includes(data.selectedArtifact ?? 0) ? 0 : (data.selectedArtifact ?? 0));
     } catch {
       /* офлайн: лобі працює з безкоштовними скінами */
     }
@@ -1194,7 +1195,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : null}
           {wingsHint !== null ? (
             <div key={wingsHint} className={styles.eagleBanner} role="status">
-              <WingsIcon size={30} /> {t("sky.wingsHint", { sec: Math.round((hud.effects.find((e) => e.kind === "wings")?.totalMs ?? 10000) / 1000) })}
+              <WingsIcon size={30} /> {t("sky.wingsHint", { sec: Math.round((hud.effects.find((e) => e.kind === "wings")?.totalMs ?? 15000) / 1000) })}
             </div>
           ) : null}
           {pipeHint !== null ? (
@@ -1345,7 +1346,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   title={t(`bonuses.${e.kind}`)}
                   className={[e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
                 >
-                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : e.kind === "lantern" || e.kind === "light" ? <LanternIcon size={22} /> : e.kind === "jar" ? <FirefliesJarIcon size={22} /> : e.kind === "wings" ? <WingsIcon size={22} /> : BONUS_ICON[e.kind]}</span>
+                  <span className={styles.effectIcon}>{BONUS_ICON_COMPONENTS[e.kind] ? <BonusIcon kind={e.kind} size={22} /> : BONUS_ICON[e.kind]}</span>
                   {e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
@@ -1599,7 +1600,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       ) : null}
     </div>
     <div className={styles.artifacts}>
-      {ARTIFACT_IDS.map((id) => {
+      {LOBBY_ARTIFACT_IDS.map((id) => {
         const owned = ownedArtifacts.includes(id);
         const worn = artifact === id;
         const name = t(`artifacts.items.${id}.name`);
@@ -1692,7 +1693,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 </button>
                 <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={artifactIconSrc(artifact > 0 ? artifact : ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
+                  <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
                   {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
                 </button>
                 <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />

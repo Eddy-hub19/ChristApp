@@ -427,16 +427,85 @@ export function PipeIcon(props: ColorIconProps) {
   );
 }
 
-/** Бонус «Крильця» (карта «Небо»): пара білих крилець із золотою обводкою. */
+/** Бонус «Крильця» (карта «Небо»): пара пернатих крилець із золотим вузликом посередині. */
 export function WingsIcon(props: ColorIconProps) {
-  const g = useGradient("#ffffff", "#cfe6ff");
+  const g = useGradient("#ffffff", "#bcdcff");
+  const wing = "M11.3 15.6C9.4 10.4 6.2 6.6 1.6 6.4c.2 3.2 1.6 5.4 3.4 6.8-.4 1.6.2 3 1.4 3.8.3 1.7 1.6 2.6 3.2 2.4.9 1 2.2 1.2 3.1.6z";
   return (
     <ColorIconSvg {...props}>
       <defs>{g.def}</defs>
-      <path d="M11.2 14.2C8.6 9 5.4 6.4 1.8 6.8c.4 4.4 2.6 8.4 6.6 10.2z" fill={g.fill} {...stroke} />
-      <path d="M12.8 14.2c2.6-5.2 5.8-7.8 9.4-7.4-.4 4.4-2.6 8.4-6.6 10.2z" fill={g.fill} {...stroke} />
-      <path d="M5.2 9.6c1.6 1.4 2.6 3.2 3.2 5M18.8 9.6c-1.6 1.4-2.6 3.2-3.2 5" stroke="#9cc4ef" strokeWidth="1" strokeLinecap="round" />
-      <ellipse cx="12" cy="16.2" rx="1.6" ry="2.4" fill="#f4c542" {...stroke} />
+      <path d={wing} fill={g.fill} {...stroke} />
+      <path d={wing} fill={g.fill} {...stroke} transform="translate(24 0) scale(-1 1)" />
+      <path d="M3.6 8.4c2.8.8 5 2.8 6.4 6M6.4 13.4c1.4.2 2.6 1 3.4 2.2M5.4 10.9c1 .1 2 .6 2.8 1.4" stroke="#8fb6e6" strokeWidth="1" strokeLinecap="round" fill="none" />
+      <path d="M20.4 8.4c-2.8.8-5 2.8-6.4 6M17.6 13.4c-1.4.2-2.6 1-3.4 2.2M18.6 10.9c-1 .1-2 .6-2.8 1.4" stroke="#8fb6e6" strokeWidth="1" strokeLinecap="round" fill="none" />
+      <circle cx="12" cy="16.4" r="2.2" fill="#f4c542" {...stroke} />
+      <circle cx="11.3" cy="15.7" r="0.7" fill="#fff" fillOpacity=".85" />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Магніт»: червоний підкова-магніт зі світлими кінцями. */
+export function MagnetIcon(props: ColorIconProps) {
+  const g = useGradient("#ff8a8a", "#e23c3c");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M4 20V11a8 8 0 0116 0v9h-5.2v-9a2.8 2.8 0 00-5.6 0v9z" fill={g.fill} {...stroke} />
+      <path d="M4 20h5.2v-3.6H4zM14.8 20H20v-3.6h-5.2z" fill="#eef3f8" {...stroke} />
+      <path d="M6.6 11.4a5.6 5.6 0 015-4.8" stroke="#fff" strokeOpacity=".7" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Привид»: напівпрозорий привид із хвилястим низом. */
+export function GhostIcon(props: ColorIconProps) {
+  const g = useGradient("#f4efff", "#b9a4f0");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M12 2.8c-4.4 0-7.2 3.2-7.2 7.6v10.8l2.4-2 2.4 2 2.4-2 2.4 2 2.4-2 2.4 2V10.4c0-4.4-2.8-7.6-7.2-7.6z" fill={g.fill} {...stroke} />
+      <ellipse cx="9.4" cy="10.4" rx="1.4" ry="1.9" fill={INK} />
+      <ellipse cx="14.6" cy="10.4" rx="1.4" ry="1.9" fill={INK} />
+      <ellipse cx="12" cy="14.6" rx="1.2" ry="1.4" fill={INK} />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Подвійна маса»: зелений значок «×2». */
+export function DoubleIcon(props: ColorIconProps) {
+  const g = useGradient("#9be88f", "#3fae57");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <circle cx="12" cy="12" r="9.6" fill={g.fill} {...stroke} />
+      <path d="M5.6 8.6l4.4 4.4M10 8.6l-4.4 4.4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12.6 12.4c0-1.6 1.2-2.6 2.6-2.6s2.6 1 2.6 2.4c0 2-2.8 2.8-3.2 5h5.6" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" fill="none" transform="translate(2.2 1.6) scale(0.85)" />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Золоте руно»: золота хмаринка вовни із зіркою. */
+export function GoldenFleeceIcon(props: ColorIconProps) {
+  const g = useGradient("#fff0a0", "#f2b61f");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M6.4 18.6a4.2 4.2 0 01-.8-8.2 4.6 4.6 0 018.4-1.8 4.4 4.4 0 015.2 4.4 4.2 4.2 0 01-3.6 5.6z" fill={g.fill} {...stroke} />
+      <path d="M12 9.4l1.1 2.3 2.5.3-1.8 1.7.5 2.5-2.3-1.2-2.3 1.2.5-2.5-1.8-1.7 2.5-.3z" fill="#fff" {...stroke} strokeWidth="0.8" />
+    </ColorIconSvg>
+  );
+}
+
+/** Бонус «Розгін»: ракета з полум'ям. */
+export function RocketIcon(props: ColorIconProps) {
+  const g = useGradient("#ffc27a", "#ff7b2e");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M12 2.4c3.4 2.4 4.6 6.4 4.2 10.4H7.8C7.4 8.8 8.6 4.8 12 2.4z" fill="#eef3f8" {...stroke} />
+      <circle cx="12" cy="8.6" r="1.7" fill="#5bb8f0" {...stroke} />
+      <path d="M7.8 11.6L4.6 15.4l3.4-.4zM16.2 11.6l3.2 3.8-3.4-.4z" fill={g.fill} {...stroke} />
+      <path d="M9.8 12.8h4.4L12 21.4z" fill="#ffd24a" {...stroke} />
     </ColorIconSvg>
   );
 }
