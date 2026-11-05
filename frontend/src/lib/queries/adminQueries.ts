@@ -260,7 +260,8 @@ export type AdminRubyTransaction = {
   id: string;
   delta: number;
   balanceAfter: number;
-  reason: "ARENA_TOP1" | "SKIN_PURCHASE" | "ARTIFACT_PURCHASE" | "ADMIN_ADJUST" | "ENTRY_BONUS" | "ARENA_BOSS";
+  /** Значение enum RubyReason (см. lib/rubyTransactions.ts); новые причины без перевода показываются запасным названием. */
+  reason: string;
   note: string | null;
   skinId: number | null;
   artifactId?: number | null;

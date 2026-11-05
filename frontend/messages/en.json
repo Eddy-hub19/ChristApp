@@ -234,12 +234,21 @@
       "noHistory": "No transactions yet",
       "by": "admin {id}",
       "reasons": {
-        "ARENA_TOP1": "Arena first place",
+        "ARENA_TOP1": "1st place on the arena",
+        "ARENA_BOSS": "Defeated the Alpha",
+        "ARENA_STREAK": "1st-place streak",
+        "TEAM_WIN": "Castles mode win",
+        "ENTRY_BONUS": "Entry bonus",
+        "PREMIUM_COLLECTION": "Premium collection completed",
         "SKIN_PURCHASE": "Skin purchase",
         "ARTIFACT_PURCHASE": "Artifact purchase",
-        "ENTRY_BONUS": "Game entry bonus",
         "ADMIN_ADJUST": "Admin adjustment"
       },
+      "notes": {
+        "adminGrant": "Granted by an admin",
+        "streakDay": "Day {day} of {of}, {date}"
+      },
+      "balanceAfter": "balance {balance}",
       "errors": {
         "reason_required": "Please give a reason",
         "invalid_amount": "Enter a non-zero whole number",
