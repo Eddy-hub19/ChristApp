@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, WingsIcon } from "@/components/icons/game";
+import { BONUS_ICON_COMPONENTS, BonusIcon } from "@/components/icons/game";
 import { artifactIconSrc } from "./flockArtifacts";
 import { BONUS_ICON } from "./flockRender";
 import type { FlockGameConfig } from "./flockApi";
@@ -27,11 +27,7 @@ type Tab = "about" | "updates";
 const LAST_UPDATES = 5;
 
 function EntryIcon({ icon }: { icon: InfoEntry["icon"] }) {
-  if (icon === "bonus:eagle") return <EagleEyeIcon size={28} />;
-  if (icon === "bonus:pipe") return <PipeIcon size={28} />;
-  if (icon === "bonus:lantern") return <LanternIcon size={28} />;
-  if (icon === "bonus:jar") return <FirefliesJarIcon size={28} />;
-  if (icon === "bonus:wings") return <WingsIcon size={28} />;
+  if (icon.startsWith("bonus:") && BONUS_ICON_COMPONENTS[icon.slice(6)]) return <BonusIcon kind={icon.slice(6)} size={28} />;
   if (icon.startsWith("bonus:")) return <span className={styles.emoji}>{BONUS_ICON[icon.slice(6)] ?? "?"}</span>;
   if (icon.startsWith("artifact:")) {
     // eslint-disable-next-line @next/next/no-img-element

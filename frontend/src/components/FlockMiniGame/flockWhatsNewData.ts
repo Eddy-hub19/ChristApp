@@ -641,9 +641,9 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "wings",
         text: {
-          ua: "Бонус «Крильця» (рідкісний, лише на «Небі»): 10 с летиш над просвітами, не падаєш і біжиш трохи швидше. Останні 2 с крильця мигають",
-          ru: "Бонус «Крылышки» (редкий, только на «Небе»): 10 с летишь над просветами, не падаешь и бежишь чуть быстрее. Последние 2 с крылышки мигают",
-          en: "The Wings bonus (rare, “Sky” only): for 10 s you fly over gaps without falling and run a bit faster. The wings blink for the last 2 s",
+          ua: "Бонус «Крильця» (рідкісний, лише на «Небі»): 15 с летиш над просвітами, не падаєш і біжиш трохи швидше. Останні 2 с крильця мигають",
+          ru: "Бонус «Крылышки» (редкий, только на «Небе»): 15 с летишь над просветами, не падаешь и бежишь чуть быстрее. Последние 2 с крылышки мигают",
+          en: "The Wings bonus (rare, “Sky” only): for 15 s you fly over gaps without falling and run a bit faster. The wings blink for the last 2 s",
         },
       },
       {

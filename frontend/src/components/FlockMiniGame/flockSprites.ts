@@ -4,6 +4,7 @@ import { ARTIFACT_EXTENT, anchorFor, drawArtifact, drawArtifactShape } from "./f
 import { animFrame, skinOf } from "./flockSkins";
 import { specialExtent } from "./flockSpecialDeco";
 import type { Theme } from "./flockRender";
+import { bonusIconImage } from "./flockBonusIcons";
 
 /**
  * Кеш готових спрайтів (offscreen canvas): персонажі, бонуси зі свіченням, кущі, імена, цифри маси, тайл пасовища.
@@ -205,6 +206,8 @@ export function bonusFullSprite(kind: string, color: string, icon: string, dark:
   const key = `${kind}${dark ? "d" : "l"}`;
   let cv = bonusCache.get(key);
   if (cv) return cv;
+  // іконка - з кастомної бібліотеки (SVG -> картинка); поки вантажиться, спрайт не кешуємо
+  const img = bonusIconImage(kind);
   cv = makeCanvas(BONUS_SPRITE, BONUS_SPRITE);
   const c = cv.getContext("2d");
   if (c) {
@@ -224,13 +227,17 @@ export function bonusFullSprite(kind: string, color: string, icon: string, dark:
     c.strokeStyle = color;
     c.lineWidth = 3 * k;
     c.stroke();
+    if (img && img !== "fail") {
+      c.drawImage(img, -11.5 * k, -11.5 * k, 23 * k, 23 * k);
+    } else {
     c.font = `${(icon.length > 1 && icon[0] === "✖" ? 15 : 20) * k}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillStyle = "#1b2a14";
     c.fillText(icon, 0, k);
+    }
   }
-  bonusCache.set(key, cv);
+  if (img !== null) bonusCache.set(key, cv);
   return cv;
 }
 /** Сторона спрайта бонуса у світових одиницях (було 100, тепер x1.2: диск і свічення ростуть разом зі спрайтом). */

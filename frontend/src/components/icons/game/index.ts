@@ -22,9 +22,15 @@ export {
   AlphaIcon,
   PipeIcon,
   WingsIcon,
+  MagnetIcon,
+  GhostIcon,
+  DoubleIcon,
+  GoldenFleeceIcon,
+  RocketIcon,
   WindIcon,
   CircleZoneIcon,
   CastleIcon,
   LanternIcon,
   FirefliesJarIcon,
 } from "./icons";
+export { BonusIcon, BONUS_ICON_COMPONENTS } from "./bonusIcons";
