@@ -1,3 +1,4 @@
+import { deathDim, drawDeath, drawDeathDim } from "./flockDeathAnim";
 import { drawCloudBorder, drawFalls, drawSkyMinimap, drawSkyWorld, drawVoidRing, drawVoidVignette, drawWings } from "./flockSkyRender";
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
@@ -386,6 +387,8 @@ export interface DrawOpts {
   phraseLang?: PhraseLang;
   /** «Ховати чужі фрази»: свою показуємо все одно. */
   hideOthersPhrases?: boolean;
+  /** Подпись показа смерти («Тебя съел …»); без поля - без подписи. */
+  deathLabel?: string | null;
 }
 
 /** Зірки «Зорепаду»: на землі спершу тінь-мітка, потім зірка падає зверху (кешовані спрайти, без обчислень форми). */
@@ -613,6 +616,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       if (lavaDistance(m.cfg.lava, c.x, c.y) < r * 2) drawLavaWarning(ctx, c.x, c.y, r, o.time, scale);
     }
   }
+  // показ смерті: овечка гине в мировых координатах поверх сцены
+  if (m.death) drawDeath(ctx, m, m.death, m.localNow, scale, dpr, o.deathLabel ?? null, foodSprite(3, false));
   // «Небо»: падіння клітин і кільце-попередження біля просвіту
   if (m.sky) {
     drawFalls(ctx, m.falls, m.localNow, x0, x1, y0, y1);
@@ -644,6 +649,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     for (const c of m.cells.values()) if (c.pid === m.cfg.pid) near = Math.min(near, lavaDistance(m.cfg.lava, c.x, c.y) - m.radiusOf(c.mass));
     drawLavaGlow(ctx, W, H, m.cfg.lava, m.camY, near, o.time);
   }
+  // плавное затемнение перед карточкой итогов
+  if (m.death) drawDeathDim(ctx, W, H, deathDim(m.death, m.localNow));
 }
 
 /** Хмаринки фраз над найбільшою клітиною гравця, поверх імен: готовий спрайт, розмір на екрані ~сталий, останні секунди тануть. */

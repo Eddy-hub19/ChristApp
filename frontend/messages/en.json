@@ -1499,6 +1499,8 @@
     "dead": {
       "title": "You got eaten",
       "by": "Eaten by {name}",
+      "eatenBy": "{name} ate you",
+      "eatenByBoss": "The Alpha ate you",
       "fellTitle": "You fell off the cloud",
       "fell": "You stepped off the cloud and fell through the sky. Stay on the clouds or catch the Wings.",
       "burnedTitle": "You burned",

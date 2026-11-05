@@ -211,6 +211,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [bossMsg, setBossMsg] = useState<{ id: number; kind: 1 | 2 | 3; name: string } | null>(null);
   const [reward, setReward] = useState<(RewardInfo & { id: number }) | null>(null);
   const [death, setDeath] = useState<DeathInfo | null>(null);
+  /** Идёт показ смерти перед карточкой итогов: управление выключено, HUD приглушён, нажатие пропускает (не раньше 0,4 с). */
+  const [dying, setDying] = useState(false);
+  const dyingRef = useRef(false);
+  const deathLabelRef = useRef<string | null>(null);
   const [hud, setHud] = useState<Hud>(EMPTY_HUD);
   /** «Режими» (окно в лобби), подведение итогов раунда «Звужуване коло» и «раунд ещё идёт» для мёртвого. */
   const [modesOpen, setModesOpen] = useState(false);
@@ -494,6 +498,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
           setMe((m) => (m ? { ...m, rubies: r.balance } : m));
+        },
+        onDying: (v) => {
+          dyingRef.current = v;
+          setDying(v);
+          const d = clientRef.current?.model?.death;
+          deathLabelRef.current = v && d ? (d.kind === "boss" ? t("dead.eatenByBoss") : d.kind === "eat" && d.killerName ? t("dead.eatenBy", { name: d.killerName }) : null) : null;
         },
         onDeath: (info) => {
           setDeath(info);
@@ -867,9 +877,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       model.aspect = aspectRef.current;
       const stepInput = stepInputRef.current;
       stepInput.angle = dirRef.current.angle;
-      stepInput.power = dirRef.current.power;
+      stepInput.power = model.death ? 0 : dirRef.current.power;
       stepInput.sprint = sprintHeldRef.current;
       model.step(dt, stepInput, now);
+      // показ смерти закончился (время вышло или пропущен): карточка итогов
+      if (model.death && model.deathFinished(now)) clientRef.current?.finishDeath();
       tickFlockSound(model, now);
       if (debug) (window as unknown as { __flockModel?: unknown }).__flockModel = model;
       if (model.total > maxTotalRef.current) maxTotalRef.current = model.total;
@@ -884,6 +896,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         botLabel: "",
         phraseLang: phraseLangRef.current,
         hideOthersPhrases: hideOthersPhrasesRef.current,
+        deathLabel: deathLabelRef.current,
       });
       if (mctx && now - lastMini > 120) {
         lastMini = now;
@@ -1091,6 +1104,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   // жести на канвасі
   const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (dyingRef.current) return;
     if (typingRef.current && e.pointerType !== "mouse") return; // клавіатура відкрита: джойстик вимкнено
     const r = e.currentTarget.getBoundingClientRect();
     const px = e.clientX - r.left;
@@ -1114,6 +1128,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // идёт показ смерти: нажатие пропускает его (модель сама проверяет, что прошло >= 0,4 с)
+    if (dyingRef.current) {
+      clientRef.current?.skipDeath();
+      return;
+    }
     if (typingRef.current && e.pointerType !== "mouse") return; // клавіатура відкрита: джойстик вимкнено
     e.currentTarget.setPointerCapture?.(e.pointerId);
     if (e.pointerType !== "mouse") {
@@ -1157,7 +1176,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     status === "taken";
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" data-app-overlay aria-label={t("title")}>
+    <div className={`${styles.overlay} ${dying ? styles.dying : ""}`} role="dialog" aria-modal="true" data-app-overlay aria-label={t("title")}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}

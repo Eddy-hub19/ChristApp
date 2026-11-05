@@ -3,7 +3,7 @@
  * Вся логика «какой звук на какое событие» - здесь; сами синтезаторы - в flockSoundDefs.ts.
  */
 import type { FlockModel, ModelSoundSink } from "./flockModel";
-import { playFlockSound, setFlockSoundListener, startFlockLoop, stopFlockLoop } from "./flockSound";
+import { playFlockSound, setFlockSkyMusic, setFlockSoundListener, startFlockLoop, stopFlockLoop } from "./flockSound";
 
 const FOOD_SOUND = ["eatGrass", "eatFlower", "eatFlower", "eatFlower", "rainbow"] as const;
 
@@ -74,10 +74,9 @@ export function tickFlockSound(model: FlockModel, now: number) {
   const sky = model.sky !== null;
   if (sky !== skyOn) {
     skyOn = sky;
-    if (sky) {
-      startFlockLoop("skyAmbient");
-      playFlockSound("skyEnter", { self: true });
-    } else stopFlockLoop("skyAmbient");
+    // музыка карты (melody2.mp3, ленивая загрузка; без неё - тихий синтезированный хор)
+    setFlockSkyMusic(sky);
+    if (sky) playFlockSound("skyEnter", { self: true });
   }
   if (sky && model.hasEffect("wings") && now - lastFlap > 420) {
     lastFlap = now;
@@ -98,7 +97,7 @@ export function resetFlockSoundLoops() {
   windOn = false;
   rainLevel = 0;
   skyOn = false;
-  stopFlockLoop("skyAmbient");
+  setFlockSkyMusic(false);
   stopFlockLoop("sprint");
   stopFlockLoop("wind");
   stopFlockLoop("rain");

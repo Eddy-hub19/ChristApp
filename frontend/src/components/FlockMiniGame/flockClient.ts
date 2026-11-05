@@ -1,3 +1,4 @@
+import { prefersReducedMotion } from "./flockSprites";
 import createSocket from "socket.io-client";
 import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
 import type { CastleEndInfo, CastleEvent, CastleMsg, CastleRewardInfo, Team } from "./flockCastles";
@@ -70,6 +71,9 @@ export interface DeathInfo {
   fell?: boolean;
   /** Загинув поза колом (режим «Звужуване коло»). */
   zone?: boolean;
+  /** pid убивці й ознака «убивця - Вожак» (для анімації смерті). */
+  kp?: number;
+  kb?: boolean;
 }
 
 export interface FlockClientOptions {
@@ -97,6 +101,8 @@ export interface FlockClientOptions {
   autoResume?: boolean;
   onStatus: (status: FlockStatus) => void;
   onDeath: (info: DeathInfo) => void;
+  /** Анімація смерті почалась (true) / закінчилась чи пропущена (false): інтерфейс на цей час приглушується, керування вимкнене. */
+  onDying?: (dying: boolean) => void;
   onNotice?: (notice: FlockNotice) => void;
   onReward?: (reward: RewardInfo) => void;
   /** Стрічка повідомлень арени (подія `qf`): усім в арені, також тим, хто не бачить автора. */
@@ -125,6 +131,8 @@ export const PROTOCOL_VERSION = 2;
 /** Тонкий шар над сокетом: підключення, бінарні пакети -> модель, ввід, відновлення сесії. Без React. */
 export class FlockClient {
   model: FlockModel | null = null;
+  /** Смерть уже настала, показуємо анімацію; карточка підсумків - після неї (finishDeath). */
+  private pendingDeath: DeathInfo | null = null;
   status: FlockStatus = "connecting";
   private socket: Sock | null = null;
   private skin = 0;
@@ -208,12 +216,18 @@ export class FlockClient {
       }
     });
     socket.on("connect_error", () => {
+      if (this.pendingDeath) return;
       if (this.status === "playing") this.setStatus("reconnecting");
       else if (this.status !== "reconnecting" && this.status !== "resuming") this.setStatus("error");
     });
     socket.on("disconnect", (reason: string) => {
       if (this.disposed || reason === "io client disconnect") return;
       if (this.status === "afk" || this.status === "taken" || this.status === "full") return;
+      // розрив під час анімації смерті: одразу підсумки (сесії вже нема)
+      if (this.pendingDeath) {
+        this.finishDeath();
+        return;
+      }
       if (this.status === "playing" || this.status === "resuming") {
         this.persist(false);
         this.setStatus("reconnecting");
@@ -277,9 +291,17 @@ export class FlockClient {
         this.stopHeartbeat();
         clearFlockSession();
         this.stored = null;
-        this.setStatus("dead");
         playFlockSound(info?.burned ? "burn" : info?.fell ? "fall" : "death", { self: true });
-        this.opts.onDeath(info);
+        // «Замки» і клієнт без моделі: без показу смерті, одразу підсумки як раніше
+        if (!this.model || this.mode === "castles" || this.pendingDeath) {
+          this.setStatus("dead");
+          this.opts.onDeath(info);
+          return;
+        }
+        // статус лишається "playing": сцена й світ навколо малюються далі; підсумки - у finishDeath
+        this.pendingDeath = info;
+        this.model.beginDeath(info, performance.now(), prefersReducedMotion());
+        this.opts.onDying?.(true);
       });
     });
     socket.on("z", (msg: { e?: unknown }) => {
@@ -486,9 +508,26 @@ export class FlockClient {
     return {};
   }
 
+  /** Кінець (або пропуск) анімації смерті: показуємо підсумки. Якщо гравець уже вийшов - нічого. */
+  finishDeath() {
+    const info = this.pendingDeath;
+    if (!info) return;
+    this.pendingDeath = null;
+    if (this.model) this.model.death = null;
+    this.opts.onDying?.(false);
+    if (this.disposed) return;
+    this.setStatus("dead");
+    this.opts.onDeath(info);
+  }
+
+  /** Нажатие во время анимации: пропуск (не раньше skipAfterMs). */
+  skipDeath() {
+    if (this.pendingDeath) this.model?.skipDeath(performance.now());
+  }
+
   sendInput(dir: Dir, split: boolean, thr: boolean, aspect = 1, sprint = false) {
     const s = this.socket;
-    if (!s?.connected || this.status !== "playing") return;
+    if (!s?.connected || this.status !== "playing" || this.pendingDeath) return;
     // одне число = один текстовий кадр socket.io (бінарне вкладення коштує вдвічі більше на сервері)
     const packed = encodeInputPacked(dir.angle, dir.power, (split ? BTN_SPLIT : 0) | (thr ? BTN_THROW : 0) | (sprint ? BTN_SPRINT : 0), aspect);
     const send = () => s.emit("i", packed);
@@ -512,6 +551,7 @@ export class FlockClient {
 
   /** Явний вихід (хрестик): сервер одразу прибирає овечку, без паузи; токен забуваємо. */
   leave() {
+    this.pendingDeath = null;
     this.wantPlay = false;
     this.stopHeartbeat();
     clearFlockSession();
@@ -530,6 +570,7 @@ export class FlockClient {
    */
   dispose() {
     if (this.disposed) return;
+    this.pendingDeath = null;
     if (this.status === "playing" || this.status === "reconnecting") this.persist(false);
     this.disposed = true;
     this.stopHeartbeat();

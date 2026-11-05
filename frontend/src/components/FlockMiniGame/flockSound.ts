@@ -184,33 +184,34 @@ function getNoise(): AudioBuffer {
 }
 
 // --- готовые файлы: ленивая загрузка при первом включении звука; не загрузился - играет синтез ---
+/** Декодирует один готовый файл звука (.ogg, затем .mp3) в буфер; null - нет файла. */
+async function fetchBuffer(c: AudioContext, id: SoundId): Promise<AudioBuffer | null> {
+  for (const ext of [".ogg", ".mp3"]) {
+    try {
+      const res = await fetch(`${SOUNDS[id].file}${ext}`);
+      if (!res.ok) continue;
+      const data = await res.arrayBuffer();
+      return await new Promise<AudioBuffer>((ok, bad) => c.decodeAudioData(data, ok, bad));
+    } catch {
+      /* пробуем следующий формат */
+    }
+  }
+  return null;
+}
+
 async function loadFiles() {
   if (!ctx || filesLoading || !getFlockSoundSettings().enabled) return;
   const c = ctx;
-  const todo = (Object.keys(SOUNDS) as SoundId[]).filter((id) => SOUNDS[id].file && !buffers.has(id) && !failed.has(id));
+  // «ленивые» файлы (музыка «Неба») грузим только когда они реально нужны
+  const todo = (Object.keys(SOUNDS) as SoundId[]).filter((id) => SOUNDS[id].file && !buffers.has(id) && !failed.has(id) && (!SOUNDS[id].lazy || (id === "skyMelody" && skyWanted)));
   if (!todo.length) return;
   filesLoading = true;
   try {
     for (const id of todo) {
-      try {
-        let buf: AudioBuffer | null = null;
-        // .ogg не везде декодируется (старый Safari) - тогда пробуем .mp3; нет ни того ни другого - играет синтез
-        for (const ext of [".ogg", ".mp3"]) {
-          try {
-            const res = await fetch(`${SOUNDS[id].file}${ext}`);
-            if (!res.ok) continue;
-            const data = await res.arrayBuffer();
-            buf = await new Promise<AudioBuffer>((ok, bad) => c.decodeAudioData(data, ok, bad));
-            break;
-          } catch {
-            /* пробуем следующий формат */
-          }
-        }
-        if (!buf) throw new Error("no file");
-        buffers.set(id, buf);
-      } catch {
-        failed.add(id);
-      }
+      // .ogg не везде декодируется (старый Safari) - тогда пробуем .mp3; нет ни того ни другого - играет синтез
+      const buf = await fetchBuffer(c, id);
+      if (buf) buffers.set(id, buf);
+      else failed.add(id);
     }
   } finally {
     filesLoading = false;
@@ -229,6 +230,30 @@ export function setFlockMusic(on: boolean) {
 function syncMusic() {
   if (musicWanted && audible() && getFlockSoundSettings().music && buffers.has("melody")) startFlockLoop("melody");
   else stopFlockLoop("melody");
+  syncSkyMusic();
+}
+
+let skyWanted = false;
+
+/**
+ * Музыка карты «Небо» (melody2.mp3): on - мы на этой карте. Файл грузится лениво; играет, если включены звук и «Музыка».
+ * Пока файла нет (грузится / не загрузился) или музыка выключена, а «Фоновые звуки» включены - фоном тихий синтезированный хор.
+ */
+export function setFlockSkyMusic(on: boolean) {
+  skyWanted = on;
+  if (on) void loadFiles().then(syncMusic);
+  syncMusic();
+}
+
+function syncSkyMusic() {
+  const st = getFlockSoundSettings();
+  const playFile = skyWanted && audible() && st.music && buffers.has("skyMelody");
+  if (playFile) startFlockLoop("skyMelody");
+  else stopFlockLoop("skyMelody");
+  // хор-запасной: не играет, пока файл ещё грузится (иначе два звука подряд) и пока мелодия звучит
+  const loading = skyWanted && st.music && !buffers.has("skyMelody") && !failed.has("skyMelody");
+  if (skyWanted && !playFile && !loading) startFlockLoop("skyAmbient");
+  else stopFlockLoop("skyAmbient");
 }
 
 export interface PlayOptions {

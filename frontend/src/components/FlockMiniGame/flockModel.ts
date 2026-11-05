@@ -11,6 +11,7 @@ import { PHRASE_MAX_MS } from "./flockPhrases";
 import type { LavaBurn, LavaGeom } from "./flockLava";
 import { createSky, onCloud as skyOnCloud, skyTime, type SkyState, type SkyWelcome } from "./flockSky";
 import type { SkyFall } from "./flockSkyRender";
+import { deathDone as animDone, skipDeath as animSkip, deathSkippable, startDeath, stepDeath, type DeathAnim, type DeathInfoIn } from "./flockDeathAnim";
 import { inWater, type CastleCfg, type CastleMsg, type Team } from "./flockCastles";
 
 export interface FlockCfg {
@@ -265,6 +266,9 @@ export class FlockModel {
   sky: SkyState | null = null;
   readonly falls: SkyFall[] = [];
   selfVoidMs = 0;
+  /** Остання клітина власного гравця (для анімації смерті) і сама анімація (null - гравець живий). */
+  lastOwn: { x: number; y: number; r: number; skin: number } | null = null;
+  death: DeathAnim | null = null;
   effects: ActiveEffect[] = [];
   /** pid -> активна швидка фраза: id і локальний час (годинник кадру) її кінця. Прибирається, коли гравець зник із зони. */
   readonly phrases = new Map<number, { id: number; end: number; /** Свій текст (id = 0). */ text?: string }>();
@@ -609,7 +613,8 @@ export class FlockModel {
           if (s.cells.some((o) => o.pid === me)) this.sound("eaten", c.x, c.y, true);
         } else this.sound("eatCell", c.x, c.y, false);
       }
-      if (best && this.dying.length < 40) {
+      // власну загиблу клітину не «топимо» стандартною анімацією: її малює показ смерті
+      if (best && this.dying.length < 40 && !(this.death && c.pid === this.cfg.pid)) {
         this.dying.push({ x: c.x, y: c.y, tx: best.x, ty: best.y, mass: c.mass, pid: c.pid, fx: c.fx, life: 1 });
       }
     }
@@ -925,12 +930,15 @@ export class FlockModel {
     let m = 0;
     let cx = 0;
     let cy = 0;
+    let big: RCell | null = null;
     for (const c of this.cells.values()) {
       if (c.pid !== this.cfg.pid) continue;
       m += c.mass;
       cx += c.x * c.mass;
       cy += c.y * c.mass;
+      if (!big || c.mass > big.mass) big = c;
     }
+    if (big) this.lastOwn = { x: big.x, y: big.y, r: this.radiusOf(big.mass), skin: this.players.get(this.cfg.pid)?.skin ?? 0 };
     if (m > 0) {
       cx /= m;
       cy /= m;
@@ -952,6 +960,21 @@ export class FlockModel {
       }
     }
     this.stepLight(dt);
+    if (this.death) stepDeath(this, this.death, this.localNow, dt);
+  }
+
+  /** Погиб: камера лишається на місці, запускаємо анімацію смерті (кінець - `deathFinished`). */
+  beginDeath(info: DeathInfoIn, now: number, reduced: boolean) {
+    this.death = startDeath(this, info, now, reduced);
+  }
+
+  skipDeath(now: number) {
+    if (this.death && deathSkippable(this.death, now)) animSkip(this.death, now);
+  }
+
+  /** Анімація смерті закінчилась (час вийшов або пропущена). */
+  deathFinished(now: number): boolean {
+    return this.death !== null && animDone(this.death, now);
   }
 
   /** Заряд світла від їжі (0..chargeCap): сервер шле його псевдо-ефектом «light», remainingMs / 100. */
