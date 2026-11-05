@@ -74,6 +74,8 @@ interface Session {
   inputWindowStart: number;
   inputCount: number;
   deadSent: boolean;
+  /** Остання позиція й радіус огляду, поки гравець жив: після загибелі ще deathViewMs шлемо стан світу навколо цього місця (клієнт показує анімацію смерті). */
+  lastCen: { x: number; y: number; r: number } | null;
   /** Співвідношення сторін екрана клієнта: форма області видимості (площа від нього не залежить). */
   aspect: number;
   /** Нагороду за 1-ше місце в цьому житті вже видано (скидається при народженні). */
@@ -983,6 +985,8 @@ class Arena {
           killer: w.players.get(p.killerPid)?.name ?? null,
           burned: p.burned || undefined,
           fell: p.fell || undefined,
+          kp: p.killerPid > 0 ? p.killerPid : undefined,
+          kb: w.players.get(p.killerPid)?.boss || undefined,
           zone: p.zoneDeath || undefined,
         });
         if (this.mode === 'normal') this.hooks.onMass?.(s.userId, p.maxMass);
@@ -992,7 +996,8 @@ class Arena {
           topMs: p.topMs,
         });
       }
-      if (!p.alive) continue;
+      // загиблому ще deathViewMs шлемо світ навколо місця загибелі (анімація смерті на клієнті); сервер нічого не чекає
+      if (!p.alive && (!s.lastCen || w.now - p.diedAt > C.deathViewMs)) continue;
       const buf = encodeState(this.buildState(s, p));
       this.bytesOut += buf.length;
       send(key, 's', buf);
@@ -1094,8 +1099,13 @@ class Arena {
 
   private buildState(s: Session, p: Player): StateInput {
     const w = this.world;
-    const cen = w.centroid(p);
-    const R = w.viewRadius(p);
+    let cen = w.centroid(p);
+    let R = w.viewRadius(p);
+    if (p.alive) s.lastCen = { x: cen.x, y: cen.y, r: R };
+    else if (s.lastCen) {
+      cen = { x: s.lastCen.x, y: s.lastCen.y, mass: 0 };
+      R = s.lastCen.r;
+    }
     // область видимості - прямокутник тієї ж площі, що й квадрат R×R, під форму екрана клієнта
     const sa = Math.sqrt(s.aspect);
     let hx = R * sa * 1.15;
@@ -1426,6 +1436,7 @@ export class FlockManager {
       inputWindowStart: this.now(),
       inputCount: 0,
       deadSent: false,
+      lastCen: null,
       aspect: 1,
       rewardedThisLife: false,
       massReportedAt: 0,
