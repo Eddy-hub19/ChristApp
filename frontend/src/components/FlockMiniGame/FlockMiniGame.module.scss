@@ -656,6 +656,28 @@
   opacity: 0.65;
 }
 
+.h3Toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+
+  svg {
+    transition: transform 0.15s;
+  }
+}
+
+.h3Closed {
+  transform: rotate(-90deg);
+}
+
 .skins {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
