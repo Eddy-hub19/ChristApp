@@ -156,6 +156,16 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
       },
       {
+        id: "legendary",
+        icon: "skins",
+        title: { ua: "«Легендарні» скіни", ru: "«Легендарные» скины", en: "“Legendary” skins" },
+        text: {
+          ua: "Скоро з'явиться нова категорія скінів «Легендарні»: 12 статичних скінів без бонусів, лише вигляд (перлинна мушля, вітраж, ангельська, райські врата, сяйво, призма, орігамі, порцелянова, кленова, аметист, небесна синь, лілії). Вони вже видно в лобі після «Преміум»; у продаж вони ще не надійшли.",
+          ru: "Скоро появится новая категория скинов «Легендарные»: 12 статичных скинов без бонусов, только внешний вид (жемчужная раковина, витраж, ангельская, райские врата, сияние, призма, оригами, фарфоровая, кленовая, аметист, небесная синь, лилии). Они уже видны в лобби после «Премиум»; в продажу они ещё не поступили.",
+          en: "A new “Legendary” skin category is coming soon: 12 static skins with no bonuses, looks only (pearl shell, stained glass, angelic, heavenly gate, radiance, prism, origami, porcelain, maple, amethyst, sky blue, lilies). They are already visible in the lobby after Premium; they are not on sale yet.",
+        },
+      },
+      {
         id: "skins",
         icon: "skins",
         title: { ua: "Скіни", ru: "Скины", en: "Skins" },
@@ -361,6 +371,17 @@ export const INFO_SECTIONS: InfoSection[] = [
           en: "Only on the “Night” map, rare, at most one on the field. For {sec} s your light radius grows about {mul}x (smoothly on and off); the light is yours only. The timer stops while paused. It does not stack with the Jar of fireflies — the stronger one applies.",
         },
         params: { sec: sec("night.lanternSec"), mul: { path: "night.lanternMul", as: "x" } },
+      },
+      {
+        id: "wings",
+        icon: "bonus:wings",
+        title: { ua: "Крильця", ru: "Крылышки", en: "Wings" },
+        text: {
+          ua: "Лише на карті «Небо», рідкісний, на полі не більше одного. {sec} с твоя клітина летить: не падає над просвітами й біжить на {pct}% швидше; під нею тінь, за останні 2 с крильця мигають. Якщо час вийшов над просвітом, тебе м'яко повертає на хмару. Таймер на паузі не йде. Ботам не дістається, «Сопілка» не затягує в просвіт.",
+          ru: "Только на карте «Небо», редкий, на поле не больше одного. {sec} с твоя клетка летит: не падает над просветами и бежит на {pct}% быстрее; под ней тень, за последние 2 с крылышки мигают. Если время вышло над просветом, тебя мягко возвращает на облако. Таймер на паузе не идёт. Ботам не достаётся, «Сопілка» не затягивает в просвет.",
+          en: "Only on the “Sky” map, rare, at most one on the field. For {sec} s your cell flies: it doesn't fall over gaps and runs {pct}% faster; it casts a shadow and the wings blink for the last 2 s. If time runs out over a gap, you are gently returned to a cloud. The timer stops while paused. Bots can't get it, and the Pipe can't pull you into a gap.",
+        },
+        params: { sec: sec("sky.wingsSec"), pct: num("sky.wingsSpeedPct") },
       },
       {
         id: "jar",
@@ -580,9 +601,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "leaf",
         title: { ua: "Карти", ru: "Карты", en: "Maps" },
         text: {
-          ua: "Арена випадково отримує одну з карт з рівною ймовірністю: звичайний луг, «Гай» (золоте листя на бурій землі), «Мороз» (сніг, ялинки, ягоди горобини й шишки) або «Вулкан» (темна земля з жаром, обгорілі кущі й іскри замість трави). Усюди їжа має ту саму цінність, а вигляд карти однаковий в усіх гравців арени. Лише «Вулкан» змінює правила: на ньому є лава.",
-          ru: "Арена случайно получает одну из карт с равной вероятностью: обычный луг, «Роща» (золотая листва на бурой земле), «Мороз» (снег, ёлки, ягоды рябины и шишки) или «Вулкан» (тёмная земля с жаром, обгорелые кусты и искры вместо травы). Везде еда имеет ту же ценность, а вид карты одинаков у всех игроков арены. Только «Вулкан» меняет правила: на нём есть лава.",
-          en: "Each arena gets a random map with equal probability: the regular meadow, Grove (golden leaves on brown soil), Frost (snow, firs, rowan berries and cones) or Volcano (dark ground with embers, charred bushes and sparks instead of grass). Food is worth the same everywhere, and the map looks the same to everyone on the arena. Only Volcano changes the rules: it has lava.",
+          ua: "Арена випадково отримує одну з карт з рівною ймовірністю: звичайний луг, «Гай» (золоте листя на бурій землі), «Мороз» (сніг, ялинки, ягоди горобини й шишки) або «Вулкан» (темна земля з жаром, обгорілі кущі й іскри замість трави). Усюди їжа має ту саму цінність, а вигляд карти однаковий в усіх гравців арени. Правила змінюють «Вулкан» (лава) і «Небо» (хмари над порожнечею, див. окрему картку).",
+          ru: "Арена случайно получает одну из карт с равной вероятностью: обычный луг, «Роща» (золотая листва на бурой земле), «Мороз» (снег, ёлки, ягоды рябины и шишки) или «Вулкан» (тёмная земля с жаром, обгорелые кусты и искры вместо травы). Везде еда имеет ту же ценность, а вид карты одинаков у всех игроков арены. Правила меняют «Вулкан» (лава) и «Небо» (облака над пустотой, см. отдельную карточку).",
+          en: "Each arena gets a random map with equal probability: the regular meadow, Grove (golden leaves on brown soil), Frost (snow, firs, rowan berries and cones) or Volcano (dark ground with embers, charred bushes and sparks instead of grass). Food is worth the same everywhere, and the map looks the same to everyone on the arena. Volcano (lava) and Sky (clouds over a void, see its own card) change the rules.",
         },
       },
       {
@@ -595,6 +616,17 @@ export const INFO_SECTIONS: InfoSection[] = [
           en: "The night map is available only from {from}:00 to {to}:00 Kyiv time and appears more often then (weight ×{weight}); the map changes only on a new arena. It is dark everywhere: you only see inside the light radius around you ({minR} to {maxR}, depending softly on mass, by square root); other players, bots, food and bonuses outside it are not sent to you. Starfall works and its stars are visible to all. The Alpha has a faint red halo. No rain or wind here. Food gives mass and a “light charge” (up to +{food}% radius; flowers and ears give more than grass) that fades over time (the “Light” bar). Rare bonuses: the Flashlight and the Jar of fireflies.",
         },
         params: { from: num("night.fromHour"), to: num("night.toHour"), weight: num("night.weightMul"), minR: num("night.minR"), maxR: num("night.maxR"), food: num("night.foodBonusPct") },
+      },
+      {
+        id: "sky",
+        icon: "bonus:wings",
+        title: { ua: "Карта «Небо»", ru: "Карта «Небо»", en: "“Sky” map" },
+        text: {
+          ua: "Небо з {clouds} пухнастими хмарами-платформами, що плавно пливуть над порожнечею (хмари не перетинаються й не залишають поле). Ходити можна лише по хмарах: якщо центр клітини довго над просвітом, вона падає й гине, а її маса нікому не дістається. Новачок на стартовому щиті й гравець на паузі не падають, їх м'яко повертає на хмару. Боти й «Вожак» ходять лише по хмарах. Їжа, кущі й бонуси ростуть лише на хмарах; «Зорепад» працює, вітру й дощу немає. Тут росте «Веселка»: цінна їжа з масою як кілька звичайних і зарядом прискорення на {boost} с (не більше {max} одночасно).",
+          ru: "Небо с {clouds} пушистыми облаками-платформами, плавно плывущими над пустотой (облака не пересекаются и не покидают поле). Ходить можно только по облакам: если центр клетки долго над просветом, она падает и погибает, а её масса никому не достаётся. Новичок на стартовом щите и игрок на паузе не падают, их мягко возвращает на облако. Боты и «Вожак» ходят только по облакам. Еда, кусты и бонусы растут только на облаках; «Звездопад» работает, ветра и дождя нет. Здесь растёт «Радуга»: ценная еда с массой как несколько обычных и зарядом ускорения на {boost} с (не больше {max} одновременно).",
+          en: "A sky with {clouds} fluffy cloud platforms drifting over the void (clouds never overlap or leave the field). You can walk only on clouds: if a cell's center stays over a gap too long, it falls and dies, and its mass goes to nobody. A newcomer on the start shield and a paused player don't fall; they are gently returned to a cloud. Bots and the Alpha walk only on clouds. Food, bushes and bonuses grow only on clouds; Starfall works, no wind or rain. The Rainbow grows here: valuable food worth the mass of several regular ones plus a {boost} s speed charge (at most {max} at a time).",
+        },
+        params: { clouds: num("sky.clouds"), boost: num("sky.rainbowBoostSec"), max: num("sky.rainbowMax") },
       },
       {
         id: "lava",

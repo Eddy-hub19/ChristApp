@@ -10,7 +10,7 @@ export const EXTRA_PAID_FROM = 34;
 /** Скін «Вожака» (36): зарезервований, не продається й не обирається. */
 export const BOSS_SKIN_ID = 36;
 /** Усього номерів (у межах - і зарезервований «Вожак»). */
-export const TOTAL_SKINS = 57;
+export const TOTAL_SKINS = 69;
 /** Скін «Лавового чудовиська» (47): зарезервований (дзеркало MONSTER_SKIN на сервері). */
 export const MONSTER_SKIN_ID = 47;
 /** Скіни «Вожака» за картою арени (36 луг, 50 гай, 51 мороз, 52 вулкан): зарезервовані, поза TOTAL_SKINS. */
@@ -42,6 +42,13 @@ export const PREMIUM_SKIN_ROWS: readonly (readonly number[])[] = [
   [56],
 ];
 export const PREMIUM_SKIN_IDS: readonly number[] = PREMIUM_SKIN_ROWS.flat();
+/** «Легендарні» скіни рядами лобі (два ряди по 6, після «Преміум»): дзеркало LEGENDARY_SKIN_IDS на сервері. */
+export const LEGENDARY_SKIN_ROWS: readonly (readonly number[])[] = [
+  [57, 58, 59, 60, 61, 62],
+  [63, 64, 65, 66, 67, 68],
+];
+export const LEGENDARY_SKIN_IDS: readonly number[] = LEGENDARY_SKIN_ROWS.flat();
+export const isLegendarySkin = (id: number) => LEGENDARY_SKIN_IDS.includes(id);
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) => (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
 /** Зняті з продажу (зеркало HIDDEN_SKINS на сервері): потрібні, поки профіль не завантажено й сервер ще не прислав config.hiddenSkins. */

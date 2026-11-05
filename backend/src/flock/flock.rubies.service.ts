@@ -18,6 +18,7 @@ import {
   SPECIAL_FROM,
   premiumCollectionIds,
   isHiddenSkin,
+  isLegendarySkin,
   isLobbyHiddenSkin,
   isPaidSkin,
   isPremiumSkin,
@@ -31,6 +32,7 @@ const R = FLOCK_CONFIG.rubies;
 export type FlockErrorCode =
   | 'invalid_version'
   | 'skin_hidden'
+  | 'skin_not_for_sale'
   | 'invalid_skin'
   | 'invalid_artifact'
   | 'skin_free'
@@ -183,6 +185,8 @@ export class FlockRubiesService {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
         specialSkinPrice: R.specialSkinPrice,
+        legendaryPrices: { ...R.legendaryPrices },
+        legendaryForSale: R.legendaryForSale,
         premiumCollectionReward: R.premiumCollectionReward,
         artifactPrice: FLOCK_CONFIG.artifacts.price,
         totalArtifacts: NUM_ARTIFACTS,
@@ -402,6 +406,9 @@ export class FlockRubiesService {
     if (!isPaidSkin(skinId)) throw fail(BadRequestException, 'skin_free');
     // скриті скіни купити не можна (вже куплені лишаються доступними, див. canUseSkin)
     if (isHiddenSkin(skinId)) throw fail(BadRequestException, 'skin_hidden');
+    // «Легендарні»: продаж закрито (R.legendaryForSale), лише видача адміном; перевірка саме тут, у єдиній точці покупки
+    if (isLegendarySkin(skinId) && !R.legendaryForSale)
+      throw fail(BadRequestException, 'skin_not_for_sale');
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
       const owned = await tx.flockSkinPurchase.findUnique({
@@ -461,6 +468,35 @@ export class FlockRubiesService {
   }
 
   /** Адмін: видати артефакт безкоштовно (запис у журналі з delta 0, щоб лишився слід). */
+  /** Адмін: видати скін безкоштовно (рубіни не списуються); єдиний шлях отримати «Легендарний» скін, поки продаж закрито. */
+  async adminGrantSkin(actorId: string, userId: string, skinId: number) {
+    if (!isSelectableSkin(skinId) || !isPaidSkin(skinId))
+      throw fail(BadRequestException, 'invalid_skin');
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+    if (!user) throw fail(NotFoundException, 'user_not_found');
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const owned = await tx.flockSkinPurchase.findUnique({
+        where: { userId_skinId: { userId, skinId } },
+      });
+      if (owned) throw fail(ConflictException, 'already_owned');
+      await tx.flockSkinPurchase.create({
+        data: { userId, skinId, price: 0 },
+      });
+      await this.apply(tx, userId, balance, {
+        delta: 0,
+        reason: RubyReason.SKIN_PURCHASE,
+        skinId,
+        note: 'admin grant',
+        actorId,
+      });
+      return { skinId };
+    });
+  }
+
   async adminGrantArtifact(
     actorId: string,
     userId: string,

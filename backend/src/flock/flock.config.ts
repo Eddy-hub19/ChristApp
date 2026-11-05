@@ -203,6 +203,8 @@ export const FLOCK_CONFIG = {
     /** Лише карта «Ніч»: «Ліхтарик» і «Пляшка зі світлячками» (див. night). */
     lantern: 30_000,
     jar: 45_000,
+    /** Лише карта «Небо»: «Крильця» (клітина летить і не падає в просвіти). */
+    wings: 10_000,
   },
   /**
    * Бонус «Сопілка пастуха» (kind pipe): поки діє, усі клітини гравців і ботів у радіусі radiusCells × радіус клітини
@@ -529,6 +531,38 @@ export const FLOCK_CONFIG = {
    * Заряд світла росте від їжі (foodCharge за видом: трава, квітка, колосок, шерсть), тримається до chargeCap і гасне chargeDecayPerSec.
    * Дощу й вітру на карті нема (rain.maps / wind.maps), «Зорепад» працює (зірки видно всім). Бонуси світла з'являються лише тут.
    */
+  /**
+   * Карта «Небо» (id 6): небо з хмарами-платформами. Хмари в клітинках сітки cols x cols пливуть по формулі від часу світу
+   * (flock.sky.ts), не перетинаються й не виходять за межі. Клітина, чий центр поза хмарою довше fallGraceMs (і без «Крильців»),
+   * падає й гине (маса нікому); новачок на стартовому щиті, гравець на паузі й після «Хреста» не гинуть - їх м'яко повертає
+   * на найближчу хмару зі швидкістю pushOutSpeed. «Привид» і бонус «Щит» від падіння не рятують.
+   */
+  sky: {
+    /** 4 x 4 = 16 хмар (мін 10, макс 16 за вимогою). */
+    cols: 4,
+    /** Розмір хмари - частка своєї клітинки (покриття ~60-65 % карти). */
+    fillMin: 0.77,
+    fillMax: 0.89,
+    /** Зазор між хмарою й межею клітинки (мін. просвіт між сусідніми = 2 x це). */
+    edgeGap: 22,
+    /** Період плавання по осях, мс. */
+    periodMinMs: 32_000,
+    periodMaxMs: 64_000,
+    /** Скільки мс центр клітини може бути над порожнечею, перш ніж вона впаде (щоб встигати перестрибувати просвіти). */
+    fallGraceMs: 900,
+    /** Швидкість повернення на хмару захищеної клітини (одиниць за с). */
+    pushOutSpeed: 280,
+    /** Після кінця «Крильців» над порожнечею: скільки мс клітину м'яко повертає на хмару замість падіння. */
+    wingsEndSafeMs: 1800,
+    /** Нормальний крок синхронізації годинника хмар (мс) і відступ ШІ від краю хмари (частка радіуса). */
+    syncMs: 5000,
+    botEdgeK: 0.8,
+    /** «Веселка»: цінна їжа лише на хмарах; одночасно не більше maxCount; маса = massFoods x звичайної їжі; заряд ускорення boostMs. */
+    rainbow: { maxCount: 4, spawnEveryMs: 6000, massFoods: 6, boostMs: 3000 },
+    /** «Крильця»: шанс чергового бонуса, множник швидкості; на полі не більше одного, лише «Небо». */
+    wings: { spawnChance: 0.12, speedMultiplier: 1.1, blinkMs: 2000 },
+  },
+
   night: {
     timeZone: 'Europe/Kyiv',
     fromHour: 20,
@@ -583,6 +617,15 @@ export const FLOCK_CONFIG = {
     premiumFrom: 18,
     /** Вартість «особливого» скіна (ряд 24-33, без анімації) - окремо від звичайних і преміум. */
     specialSkinPrice: 150,
+    /**
+     * «Легендарні» скіни (57-68): ціна кожного окремо. Продаж ЗАКРИТО (legendaryForSale: false): сервер відхиляє покупку
+     * (`skin_not_for_sale`), скін можна лише отримати від адміна. Прапор не змінюють ні міграції, ні скрипти: лише ручна правка тут.
+     */
+    legendaryPrices: {
+      57: 250, 58: 250, 59: 250, 60: 250, 61: 250, 62: 250,
+      63: 250, 64: 250, 65: 250, 66: 250, 67: 250, 68: 250,
+    } as Record<number, number>,
+    legendaryForSale: false,
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
     /** Разова нагорода за повну колекцію преміум-скінів, що зараз у продажу (без HIDDEN_SKINS); поза dailyLimit. */
@@ -816,6 +859,8 @@ export interface FlockMapDef {
   lava?: boolean;
   /** Карта режиму «Замки»: не бере участі у випадковому виборі звичайної арени. */
   team?: boolean;
+  /** Карта «Небо»: хмари-платформи над порожнечею (див. FLOCK_CONFIG.sky). */
+  sky?: boolean;
   /** Нічна карта: лише у вікні night.fromHour..toHour (за Києвом), з підвищеною вагою; світло гравця (див. FLOCK_CONFIG.night). */
   night?: boolean;
 }
@@ -833,6 +878,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 4, name: 'lake', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true },
   /** «Ніч»: у випадковому виборі лише вночі (isNightOpen), вага x night.weightMultiplier. */
   { id: 5, name: 'night', layout: 'clusters', thornStyle: 'night', thorns: {}, weight: 1, night: true },
+  /** «Небо»: хмари над порожнечею, у випадковому виборі наравні з іншими (вага weight). */
+  { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1, sky: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -873,6 +920,16 @@ export function clientGameConfig() {
       winReward: c.circle.winReward,
       endHoldMs: c.circle.endHoldMs,
       totalMs: c.circle.warmupMs + c.circle.stages.reduce((a, st) => a + st.holdMs + st.shrinkMs, 0) + c.circle.finalHoldMs,
+    },
+    sky: {
+      clouds: c.sky.cols * c.sky.cols,
+      fallGraceMs: c.sky.fallGraceMs,
+      wingsSec: Math.round(c.bonusDurations.wings / 1000),
+      wingsSpeedPct: Math.round((c.sky.wings.speedMultiplier - 1) * 100),
+      rainbowMax: c.sky.rainbow.maxCount,
+      rainbowMassFoods: c.sky.rainbow.massFoods,
+      rainbowBoostSec: Math.round(c.sky.rainbow.boostMs / 1000),
+      syncMs: c.sky.syncMs,
     },
     night: {
       fromHour: c.night.fromHour,
@@ -969,6 +1026,8 @@ export function clientGameConfig() {
       skinPrice: c.rubies.skinPrice,
       premiumSkinPrice: c.rubies.premiumSkinPrice,
       specialSkinPrice: c.rubies.specialSkinPrice,
+      legendaryPrices: { ...c.rubies.legendaryPrices },
+      legendaryForSale: c.rubies.legendaryForSale,
       premiumCollectionReward: c.rubies.premiumCollectionReward,
     },
     skinPerks: Object.fromEntries(Object.entries(c.skinPerks).map(([k, v]) => [k, { ...v }])),
@@ -1010,7 +1069,12 @@ export const BONUS_KINDS = Object.keys(
  * 36 - «Вожак» (поза вибором), 37-40 нові безкоштовні вовки, 41-46 другий ряд преміум (анімовані). Групи задано явними списками.
  */
 export const EXTRA_PAID_FROM = 34;
-export const NUM_SKINS = 57;
+export const NUM_SKINS = 69;
+/** «Легендарні» скіни: 12 штук у кінці нумерації (два ряди по 6 у лобі після «Преміум»), статичні, без бонусів. */
+export const LEGENDARY_SKIN_IDS: readonly number[] = [57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68];
+export const isLegendarySkin = (id: number) => LEGENDARY_SKIN_IDS.includes(id);
+/** Чи відкрито продаж «Легендарних» (поки false: купити неможливо, лише видача адміном). */
+export const legendaryForSale = () => FLOCK_CONFIG.rubies.legendaryForSale;
 /** Нові «особливі» скіни в кінці нумерації: 48 «Медова овечка», 49 «Небесна овечка» (47 зарезервовано під MONSTER_SKIN). */
 export const NEW_SPECIAL_SKIN_IDS: readonly number[] = [48, 49, 53, 54, 55];
 /** Скін «Вожака»: гравець обрати не може, у лобі його нема (номер у діапазоні, але зарезервований). */
@@ -1078,7 +1142,9 @@ export const isSpecialSkin = (id: number) =>
   (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
 /** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
-  isSpecialSkin(id)
+  isLegendarySkin(id)
+    ? (FLOCK_CONFIG.rubies.legendaryPrices[id] ?? 250)
+    : isSpecialSkin(id)
     ? FLOCK_CONFIG.rubies.specialSkinPrice
     : isPremiumSkin(id)
       ? FLOCK_CONFIG.rubies.premiumSkinPrice

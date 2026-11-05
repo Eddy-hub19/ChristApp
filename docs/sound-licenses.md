@@ -37,9 +37,9 @@ that generated it; the owner must check the plan's commercial-use terms before s
 
 ## Sounds still synthesized (no file)
 
-eatCell, eaten, bonusEnd, split, throw, sprint (loop), spawnBoost, burn, starFall, pipe, freeze. They are generated in
+eatCell, eaten, bonusEnd, split, throw, sprint (loop), spawnBoost, burn, starFall, pipe, freeze, and all "Sky" map sounds: skyAmbient (angelic choir loop; variants choir-a/-b/-c, active a), skyEnter, rainbow, wingsPick, wingsFlap, wingsEnd, fall (loaded lazily on entering the map by the engine; nothing is downloaded). They are generated in
 code by `flockSoundDefs.ts` (no third-party material, no license needed).
 
 ## Not used
 
-Freesound was skipped (no `FREESOUND_API_KEY` in the local `.env`). Envato Elements and sources without explicit CC0 are not used.
+Freesound was skipped (no `FREESOUND_API_KEY` in the local `.env`); ElevenLabs was not used for the Sky sounds (no `ELEVENLABS_API_KEY`). Envato Elements and sources without explicit CC0 are not used.

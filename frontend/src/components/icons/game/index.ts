@@ -21,6 +21,7 @@ export {
   FenceIcon,
   AlphaIcon,
   PipeIcon,
+  WingsIcon,
   WindIcon,
   CircleZoneIcon,
   CastleIcon,

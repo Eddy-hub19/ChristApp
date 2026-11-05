@@ -302,6 +302,13 @@ export const grantAdminMemberArtifact = (memberId: string, artifact: number) =>
     body: JSON.stringify({ artifact }),
   });
 
+/** Выдать скин «Отары» бесплатно (в т.ч. «Легендарный», пока продажа закрыта). */
+export const grantAdminMemberSkin = (memberId: string, skin: number) =>
+  adminJson<{ skinId: number }>(`/members/${memberId}/skins`, {
+    method: "POST",
+    body: JSON.stringify({ skin }),
+  });
+
 /** amount > 0 нараховує, amount < 0 списує; причина обов'язкова (сервер перевіряє теж). */
 export const adjustAdminMemberRubies = (memberId: string, amount: number, reason: string) =>
   adminJson<{ rubies: number }>(`/members/${memberId}/rubies`, {

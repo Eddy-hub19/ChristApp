@@ -1,5 +1,6 @@
 import type { NavHazard } from './flock.nav';
 import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
+import { generateSky, inCore, nearestCloudPoint, onCloud, randomCorePoint, type SkyLayout } from './flock.sky';
 import {
   BONUS_KINDS,
   FLOCK_CONFIG,
@@ -141,6 +142,8 @@ export interface Cell {
   mergeAt: number;
   /** Імунітет до куща (щоб клітина не вибухала щотіку). */
   thornImmuneUntil: number;
+  /** Скільки мс центр клітини вже над порожнечею (карта «Небо»). */
+  voidMs?: number;
 }
 
 export interface Player {
@@ -162,6 +165,10 @@ export interface Player {
   lavaSafeUntil: number;
   /** Загинув у лаві (екран смерті: «згорів»). */
   burned: boolean;
+  /** Загинув, впавши з хмари (карта «Небо»). */
+  fell: boolean;
+  /** Були «Крильця» на попередньому тіку (щоб м'яко повернути на хмару, коли вони скінчаться над порожнечею). */
+  hadWings: boolean;
   /** Загинув поза колом режиму «Звужуване коло». */
   zoneDeath: boolean;
   alive: boolean;
@@ -301,8 +308,11 @@ export interface DeathEvent {
 
 /** Бонуси, що з'являються як звичайні (без рідкісних «Ножиць»: їх спавнить окремий шанс). */
 const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
-  (k) => k !== 'scissors' && k !== 'eagle' && k !== 'pipe' && k !== 'lantern' && k !== 'jar',
+  (k) => k !== 'scissors' && k !== 'eagle' && k !== 'pipe' && k !== 'lantern' && k !== 'jar' && k !== 'wings',
 );
+
+/** Вид їжі «Веселка» (0-2 - трава й квіти; 3 - шерсть після «Ножиць»; 4 - лише карта «Небо»). */
+export const RAINBOW_KIND = 4;
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
 /**
@@ -363,6 +373,13 @@ export class FlockWorld {
   readonly deaths: DeathEvent[] = [];
   /** Клітини, що цього тіку згоріли в лаві: [x, y, радіус] (очищається щотіку). */
   readonly lavaEvents: [number, number, number][] = [];
+  /** Клітини, що цього тіку впали з хмари: [x, y, радіус] (очищається щотіку). */
+  readonly fallEvents: [number, number, number][] = [];
+  /** Хмари (лише карта «Небо»). */
+  readonly sky: SkyLayout | null = null;
+  /** «Веселок» на полі (не більше C.sky.rainbow.maxCount). */
+  private rainbowCount = 0;
+  private rainbowTimer = 0;
   /** Річка лави (лише карта «Вулкан»). */
   readonly lava: LavaLayout | null = null;
   /** Хто зараз перший за масою (для "часу в топ-1"). */
@@ -402,10 +419,15 @@ export class FlockWorld {
         },
       ];
     }
+    if (map.sky) this.sky = generateSky(rng, C.worldSize, C.sky);
     const lava = this.lava;
+    const sky = this.sky;
     const avoid = lava
       ? (x: number, y: number, mass: number) => lavaBlocked(lava, x, y, C.lava.clearMargin + radiusOf(mass))
-      : undefined;
+      : sky
+        ? // кущі лише в «ядрі» хмари: воно завжди під хмарою, тож кущ не повисне над порожнечею
+          (x: number, y: number, mass: number) => !inCore(sky, x, y, radiusOf(mass) + 20)
+        : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
       for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
@@ -472,6 +494,8 @@ export class FlockWorld {
       bossCeil: opts.bossCeil ?? C.boss.maxMass,
       lavaSafeUntil: 0,
       burned: false,
+      fell: false,
+      hadWings: false,
       zoneDeath: false,
       alive: false,
       team: opts.team ?? 0,
@@ -559,6 +583,8 @@ export class FlockWorld {
       p.lavaSafeUntil = this.now + this.spawnShieldMsOf(p);
     }
     p.burned = false;
+    p.fell = false;
+    p.hadWings = false;
     p.zoneDeath = false;
   }
 
@@ -580,6 +606,23 @@ export class FlockWorld {
   }
 
   private safeSpawn() {
+    if (this.sky) {
+      // «Небо»: лише ядро хмари, подалі від інших клітин і кущів
+      let bp: [number, number] = [C.worldSize / 2 - this.sky.cell / 2, C.worldSize / 2 - this.sky.cell / 2];
+      let bd = -1;
+      for (let i = 0; i < 8; i++) {
+        const pt = randomCorePoint(this.sky, this.rng, 80);
+        if (!pt) continue;
+        let d = Infinity;
+        for (const c of this.cellsById.values()) d = Math.min(d, Math.hypot(c.x - pt[0], c.y - pt[1]) - radiusOf(c.mass));
+        for (const t of this.thorns) d = Math.min(d, Math.hypot(t.x - pt[0], t.y - pt[1]) - radiusOf(t.mass));
+        if (d > bd) {
+          bd = d;
+          bp = pt;
+        }
+      }
+      return { x: bp[0], y: bp[1] };
+    }
     // запасна точка - центр світу; на карті з лавою центр у річці, тож береться ділянка над нею
     let best = this.lava
       ? { x: C.worldSize / 2, y: this.lava.y0 - 300 }
@@ -747,7 +790,18 @@ export class FlockWorld {
 
   /** Точка в забороненій для об'єктів зоні лави (з відступом). Без лави - завжди false. */
   private lavaBlockedAt(x: number, y: number, margin: number = C.lava.clearMargin) {
+    if (this.sky !== null) return !inCore(this.sky, x, y, Math.max(0, margin - C.lava.clearMargin));
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
+  }
+
+  /** Лише лава (без хмар): для зірок «Зорепаду», що можуть падати й над порожнечею. */
+  private lavaOnlyAt(x: number, y: number, margin: number) {
+    return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
+  }
+
+  /** Центр клітини зараз над хмарою (на інших картах - завжди true). */
+  private overGround(x: number, y: number, margin = 0) {
+    return this.sky === null || onCloud(this.sky, x, y, this.now, margin);
   }
 
   // ---------- спавн ----------
@@ -757,6 +811,11 @@ export class FlockWorld {
     this.nextFoodId = id + 1;
     let x = this.rand(20, C.worldSize - 20);
     let y = this.rand(20, C.worldSize - 20);
+    if (this.sky) {
+      const pt = randomCorePoint(this.sky, this.rng, C.foodRadius + 10);
+      if (!pt) return;
+      [x, y] = pt;
+    }
     // не в лаві й не впритул до неї (кілька спроб; лава - вузька смуга, тож майже завжди вистачає однієї)
     for (let t = 0; t < 6 && this.lavaBlockedAt(x, y, C.lava.clearMargin + C.foodRadius); t++) {
       x = this.rand(20, C.worldSize - 20);
@@ -771,6 +830,7 @@ export class FlockWorld {
   }
 
   private removeFood(food: Food) {
+    if (food.kind === RAINBOW_KIND) this.rainbowCount = Math.max(0, this.rainbowCount - 1);
     this.foodById.delete(food.id);
     const chunk = chunkIndexOf(food.x, food.y);
     this.foodChunks[chunk].delete(food.id);
@@ -799,7 +859,12 @@ export class FlockWorld {
       this.night && !scissors && !eagle && !pipe && !this.bonuses.some((b) => b.kind === 'lantern') && this.rng() < C.night.lanternChance;
     const jar =
       this.night && !scissors && !eagle && !pipe && !lantern && !this.bonuses.some((b) => b.kind === 'jar') && this.rng() < C.night.jarChance;
-    const kind = lantern
+    // «Крильця»: лише «Небо», рідкісні, на полі не більше одних
+    const wings =
+      !!this.sky && !scissors && !eagle && !pipe && !this.bonuses.some((b) => b.kind === 'wings') && this.rng() < C.sky.wings.spawnChance;
+    const kind = wings
+      ? 'wings'
+      : lantern
       ? 'lantern'
       : jar
         ? 'jar'
@@ -812,6 +877,11 @@ export class FlockWorld {
           : REGULAR_BONUS_KINDS[Math.floor(this.rng() * REGULAR_BONUS_KINDS.length)];
     let bx = this.rand(120, C.worldSize - 120);
     let by = this.rand(120, C.worldSize - 120);
+    if (this.sky) {
+      const pt = randomCorePoint(this.sky, this.rng, 60);
+      if (!pt) return;
+      [bx, by] = pt;
+    }
     for (let t = 0; t < 6 && this.lavaBlockedAt(bx, by, C.lava.clearMargin + 40); t++) {
       bx = this.rand(120, C.worldSize - 120);
       by = this.rand(120, C.worldSize - 120);
@@ -872,6 +942,7 @@ export class FlockWorld {
     this.reviveEvents.length = 0;
     this.deaths.length = 0;
     this.lavaEvents.length = 0;
+    this.fallEvents.length = 0;
     this.rainEvents.length = 0;
     this.windEvents.length = 0;
     const nowMs = this.now;
@@ -912,6 +983,7 @@ export class FlockWorld {
     this.stepFood();
     this.stepThorns();
     this.stepLava(dt);
+    this.stepSky(dt);
     this.stepCircle(dt);
     this.stepBonuses();
 
@@ -1042,6 +1114,7 @@ export class FlockWorld {
     if (this.now < p.frozenUntil) return 0;
     let m = p.monster ? C.monsters.speedMultiplier : this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) m *= C.speedMultiplier;
+    if (this.hasEffect(p, 'wings')) m *= C.sky.wings.speedMultiplier;
     if (this.hasArtifact(p, ARTIFACT.shoes)) m *= 1 + C.artifacts.shoesSpeedBonus;
     const perkSpeed = this.perk(p).speed;
     if (perkSpeed) m *= 1 + perkSpeed;
@@ -1182,6 +1255,8 @@ export class FlockWorld {
           const nx = f.x + (dx / d) * step;
           const ny = f.y + (dy / d) * step;
           if (this.lava && inLava(this.lava, nx, ny)) return;
+          // і не виходить за «ядро» хмари: їжа не повисає над порожнечею
+          if (this.sky && !inCore(this.sky, nx, ny, 0)) return;
           f.x = nx;
           f.y = ny;
           const chunk = chunkIndexOf(f.x, f.y);
@@ -1217,6 +1292,8 @@ export class FlockWorld {
       });
       // кинута маса, що приземлилась у лаву, згорає
       if (!eaten && this.lava && inLava(this.lava, b.x, b.y)) eaten = true;
+      // кинута маса, що впала повз хмару, зникає
+      if (!eaten && !this.overGround(b.x, b.y)) eaten = true;
       if (eaten) this.blobs.splice(i, 1);
     }
   }
@@ -1314,6 +1391,12 @@ export class FlockWorld {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
           // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
+          if (f.kind === RAINBOW_KIND) {
+            // «Веселка»: маса як кілька звичайних їжин і заряд ускорення на кілька секунд
+            c.mass += base * C.sky.rainbow.massFoods;
+            p.boostUntil = Math.max(p.boostUntil, this.now + C.sky.rainbow.boostMs);
+            continue;
+          }
           c.mass += f.mass ?? (f.kind === 0 || f.kind === 1 ? base * gfK : base);
           if (this.night && !p.bot) p.light = Math.min(C.night.chargeCap, p.light + (C.night.foodCharge[f.kind] ?? 1));
         }
@@ -1368,6 +1451,115 @@ export class FlockWorld {
         break;
       }
     }
+  }
+
+  /**
+   * Карта «Небо»: клітина, чий центр довше fallGraceMs над порожнечею (поза хмарами) і без «Крильців», падає. Маса нікому, кожна клітина
+   * окремо; остання - смерть гравця (`fell`). Новачка на стартовому щиті, гравця на паузі й після «Хреста» не вбиваємо: м'яко
+   * повертаємо на найближчу хмару. Коли «Крильця» скінчились над порожнечею - так само (вікно wingsEndSafeMs).
+   */
+  private stepSky(dt: number) {
+    const sky = this.sky;
+    if (!sky) return;
+    const S = C.sky;
+    this.stepRainbow(dt);
+    for (const p of this.players.values()) {
+      if (!p.alive || p.monster || p.boss) continue;
+      const wings = this.hasEffect(p, 'wings');
+      if (p.hadWings && !wings) p.lavaSafeUntil = Math.max(p.lavaSafeUntil, this.now + S.wingsEndSafeMs);
+      p.hadWings = wings;
+      const safe = p.paused || this.now < p.lavaSafeUntil;
+      for (const c of [...p.cells]) {
+        if (onCloud(sky, c.x, c.y, this.now)) {
+          c.voidMs = 0;
+          continue;
+        }
+        if (wings) {
+          c.voidMs = 0;
+          continue;
+        }
+        if (safe) {
+          c.voidMs = 0;
+          const [tx, ty] = nearestCloudPoint(sky, c.x, c.y, this.now, radiusOf(c.mass) * 0.3);
+          const d = Math.hypot(tx - c.x, ty - c.y);
+          if (d > 0.5) {
+            const step = Math.min(d, S.pushOutSpeed * dt);
+            c.x += ((tx - c.x) / d) * step;
+            c.y += ((ty - c.y) / d) * step;
+          }
+          continue;
+        }
+        c.voidMs = (c.voidMs ?? 0) + dt * 1000;
+        if (c.voidMs >= S.fallGraceMs) this.fallCell(p, c);
+      }
+      if (p.bot) this.guardSky(p);
+    }
+    // «Вожак» теж ходить лише по хмарах (не падає: його ведемо стражем)
+    for (const p of this.players.values()) if (p.alive && p.boss) this.guardSky(p);
+  }
+
+  /** «Веселка»: раз на spawnEveryMs, якщо їх менше за maxCount, виростає нова в ядрі випадкової хмари. */
+  private stepRainbow(dt: number) {
+    const R = C.sky.rainbow;
+    this.rainbowTimer += dt * 1000;
+    if (this.rainbowTimer < R.spawnEveryMs) return;
+    this.rainbowTimer = 0;
+    if (this.rainbowCount >= R.maxCount || !this.sky) return;
+    const pt = randomCorePoint(this.sky, this.rng, C.foodRadius + 30);
+    if (!pt) return;
+    const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
+    this.nextFoodId = id + 1;
+    const food: Food = { id, x: pt[0], y: pt[1], kind: RAINBOW_KIND };
+    this.foodById.set(id, food);
+    const chunk = chunkIndexOf(food.x, food.y);
+    this.foodChunks[chunk].set(id, food);
+    this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
+    this.rainbowCount++;
+  }
+
+  private fallCell(p: Player, c: Cell) {
+    this.fallEvents.push([Math.round(c.x), Math.round(c.y), Math.round(radiusOf(c.mass))]);
+    this.dropCell(p, c);
+    if (p.cells.length > 0) return;
+    p.alive = false;
+    p.fell = true;
+    p.diedAt = this.now;
+    p.killerPid = 0;
+    p.phrase = null;
+    this.deaths.push({ pid: p.id, killerPid: 0 });
+  }
+
+  /**
+   * Страж ШІ на «Небі» (боти й «Вожак»): дивиться вперед по курсу туди, де буде хмара в момент приходу, і, якщо там порожнеча,
+   * повертає курс до найближчого безпечного напрямку; зовсім без виходу - до найближчої хмари. Дешево: до 19 перевірок на ШІ за тік.
+   */
+  private guardSky(p: Player) {
+    const sky = this.sky;
+    if (!sky || p.cells.length === 0 || p.paused) return;
+    const cc = this.centroid(p);
+    const c0 = p.cells[0];
+    const r = radiusOf(c0.mass);
+    const speed = Math.max(60, this.speedFor(p, c0));
+    const look = Math.max(110, speed * 0.9) + r;
+    const margin = r * C.sky.botEdgeK;
+    const safeAt = (a: number) => {
+      const d = look;
+      const x = cc.x + Math.cos(a) * d;
+      const y = cc.y + Math.sin(a) * d;
+      return onCloud(sky, x, y, this.now + (d / speed) * 1000, margin) && onCloud(sky, cc.x + Math.cos(a) * d * 0.5, cc.y + Math.sin(a) * d * 0.5, this.now + (d / speed) * 500, margin * 0.5);
+    };
+    if (safeAt(p.angle)) return;
+    for (let k = 1; k <= 9; k++) {
+      for (const s of [1, -1]) {
+        const a = p.angle + s * k * 0.35;
+        if (safeAt(a)) {
+          p.angle = a;
+          return;
+        }
+      }
+    }
+    const [tx, ty] = nearestCloudPoint(sky, cc.x, cc.y, this.now + 800, margin);
+    p.angle = Math.atan2(ty - cc.y, tx - cc.x);
   }
 
   private burnCell(p: Player, c: Cell) {
@@ -1434,6 +1626,7 @@ export class FlockWorld {
         if (taker) return;
         const pl = this.players.get(c.pid);
         if (!pl || pl.paused) return; // у паузі бонуси не підбираються
+        if (b.kind === 'wings' && pl.bot) return; // «Крильця» ботам не діставаються
         if (Math.hypot(c.x - b.x, c.y - b.y) < radiusOf(c.mass) + C.bonusReach) {
           taker = pl;
           takerCell = c;
@@ -1737,6 +1930,8 @@ export class FlockWorld {
           const ny = t.y + (dy / d) * step;
           // біля лави не тягнемо: берег лишається безпечним
           if (this.lava && this.lavaBlockedAt(nx, ny, C.lava.clearMargin)) return;
+          // «Сопілка» не затягує в просвіт між хмарами
+          if (!this.overGround(nx, ny, 10)) return;
           t.x = nx;
           t.y = ny;
         });
@@ -1883,7 +2078,7 @@ export class FlockWorld {
       }
       x = Math.min(hi, Math.max(lo, x));
       y = Math.min(hi, Math.max(lo, y));
-      if (this.lavaBlockedAt(x, y, C.lava.clearMargin + 60)) continue;
+      if (this.lavaOnlyAt(x, y, C.lava.clearMargin + 60)) continue;
       if (lc) {
         const dl = Math.hypot(x - lc.x, y - lc.y);
         if (dl < Z.leaderClearRadius) continue;

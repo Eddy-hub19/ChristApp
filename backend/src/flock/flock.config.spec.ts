@@ -6,6 +6,7 @@ import {
   MONSTER_SKIN,
   isSelectableSkin,
   EXTRA_PAID_FROM,
+  LEGENDARY_SKIN_IDS,
   NUM_SKINS,
   PREMIUM_FROM,
   SPECIAL_FROM,
@@ -22,7 +23,17 @@ describe('скіни: ціни й діапазони', () => {
     expect(FREE_SKINS).toBe(12);
     expect(PREMIUM_FROM).toBe(18);
     expect(SPECIAL_FROM).toBe(24);
-    expect(NUM_SKINS).toBe(57);
+    expect(NUM_SKINS).toBe(69);
+    // «Легендарні» 57..68: платні, окрема ціна, продаж закрито
+    expect(LEGENDARY_SKIN_IDS).toEqual([57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68]);
+    for (const id of LEGENDARY_SKIN_IDS) {
+      expect(isPaidSkin(id)).toBe(true);
+      expect(isPremiumSkin(id)).toBe(false);
+      expect(isSpecialSkin(id)).toBe(false);
+      expect(isHiddenSkin(id)).toBe(false);
+      expect(skinPriceOf(id)).toBe(250);
+    }
+    expect(C.rubies.legendaryForSale).toBe(false);
     for (let id = 41; id < MONSTER_SKIN; id++) {
       expect(isPremiumSkin(id)).toBe(true);
       expect(isPaidSkin(id)).toBe(true);

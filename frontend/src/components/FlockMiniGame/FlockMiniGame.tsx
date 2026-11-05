@@ -6,8 +6,8 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon } from "@/components/icons/game";
-import { HIDDEN_SKIN_IDS, isLobbySelectableSkin, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
+import { HIDDEN_SKIN_IDS, isLegendarySkin, isLobbySelectableSkin, LEGENDARY_SKIN_ROWS, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -83,7 +83,7 @@ type Hud = {
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky"] as const;
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null };
 const MINIMAP_SIZE = 96;
@@ -553,6 +553,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (eagleOn && !eagleWasOn.current) setEagleHint(Date.now());
     eagleWasOn.current = eagleOn;
   }, [eagleOn]);
+  const wingsOn = hud.effects.some((e) => e.kind === "wings");
+  const wingsWasOn = useRef(false);
+  const [wingsHint, setWingsHint] = useState<number | null>(null);
+  useEffect(() => {
+    if (wingsOn && !wingsWasOn.current) setWingsHint(Date.now());
+    wingsWasOn.current = wingsOn;
+  }, [wingsOn]);
+  useEffect(() => {
+    if (wingsHint === null) return;
+    const id = setTimeout(() => setWingsHint(null), 2600);
+    return () => clearTimeout(id);
+  }, [wingsHint]);
   const pipeOn = hud.effects.some((e) => e.kind === "pipe");
   const pipeWasOn = useRef(false);
   useEffect(() => {
@@ -720,7 +732,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const premiumRows = splitRows(visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins));
 
   const priceOf = (i: number) =>
-    isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 150) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 200) : (me?.config.skinPrice ?? 50);
+    isLegendarySkin(i)
+      ? (me?.config.legendaryPrices?.[i] ?? 250)
+      : isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 150) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 200) : (me?.config.skinPrice ?? 50);
 
   /** Строки бонуса скина с иконкой («+10% радіус підбору»). */
   const perkLines = (id: number) => {
@@ -737,6 +751,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     );
   };
 
+  /** «Легендарні»: продаж закрито (сервер: config.legendaryForSale) - без ціни й кнопки «Купити», замість них «Скоро». */
+  const notForSale = (i: number) => isLegendarySkin(i) && !(me?.config.legendaryForSale ?? false);
+
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
     return (
@@ -745,7 +762,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         type="button"
         role="radio"
         aria-checked={skin === i}
-        aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
+        aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${notForSale(i) ? t("rubies.soon") : t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
         title={t(`skins.${i}`)}
         className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={() => openSkin(i)}
@@ -762,8 +779,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <Lock size={12} aria-hidden />
             </span>
             <span className={styles.priceTag}>
-              <RubyIcon size={11} />
-              {priceOf(i)}
+              {notForSale(i) ? (
+                t("rubies.soon")
+              ) : (
+                <>
+                  <RubyIcon size={11} />
+                  {priceOf(i)}
+                </>
+              )}
             </span>
           </>
         ) : null}
@@ -1169,6 +1192,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <EagleEyeIcon size={30} /> {t("events.eagle", { sec: Math.round((hud.effects.find((e) => e.kind === "eagle")?.totalMs ?? 10000) / 1000) })}
             </div>
           ) : null}
+          {wingsHint !== null ? (
+            <div key={wingsHint} className={styles.eagleBanner} role="status">
+              <WingsIcon size={30} /> {t("sky.wingsHint", { sec: Math.round((hud.effects.find((e) => e.kind === "wings")?.totalMs ?? 10000) / 1000) })}
+            </div>
+          ) : null}
           {pipeHint !== null ? (
             <div key={pipeHint} className={styles.eagleBanner} role="status">
               <PipeIcon size={30} /> {t("pipe.hint")}
@@ -1196,6 +1224,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <div key={entryArenaId} className={styles.mapToast} role="status">
               {t(`mapNames.${mapToast}`)}
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
+              {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
             </div>
           ) : null}
           {zorepad !== null ? (
@@ -1316,12 +1345,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   title={t(`bonuses.${e.kind}`)}
                   className={[e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? styles.effectLabeled : "", e.kind === "eagle" ? styles.effectEagle : ""].filter(Boolean).join(" ") || undefined}
                 >
-                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : e.kind === "lantern" || e.kind === "light" ? <LanternIcon size={22} /> : e.kind === "jar" ? <FirefliesJarIcon size={22} /> : BONUS_ICON[e.kind]}</span>
+                  <span className={styles.effectIcon}>{e.kind === "eagle" ? <EagleEyeIcon size={22} /> : e.kind === "pipe" ? <PipeIcon size={22} /> : e.kind === "lantern" || e.kind === "light" ? <LanternIcon size={22} /> : e.kind === "jar" ? <FirefliesJarIcon size={22} /> : e.kind === "wings" ? <WingsIcon size={22} /> : BONUS_ICON[e.kind]}</span>
                   {e.kind === "boost" || e.kind === "freeze" || e.kind === "light" ? <span className={styles.effectLabel}>{t(`bonuses.${e.kind}`)}</span> : null}
                   <span className={styles.effectBar}>
                     <span style={{ width: `${Math.max(0, Math.min(100, (e.remainingMs / Math.max(1, e.totalMs)) * 100))}%` }} />
                   </span>
-                  {e.kind === "freeze" || e.kind === "eagle" || e.kind === "lantern" || e.kind === "jar" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
+                  {e.kind === "freeze" || e.kind === "eagle" || e.kind === "lantern" || e.kind === "jar" || e.kind === "wings" ? <span className={styles.effectTime}>{Math.max(1, Math.ceil(e.remainingMs / 1000))}</span> : null}
                 </li>
               ))}
             </ul>
@@ -1501,8 +1530,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {status === "dead" && death && !circleEnd ? (
         <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
-            <h2>{death.burned ? t("dead.burnedTitle") : t("dead.title")}</h2>
+            <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
+            {death.fell ? <p className={styles.sub}>{t("dead.fell")}</p> : null}
             {death.zone ? <p className={styles.sub}>{t("dead.zone")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
             <dl className={styles.summary}>
@@ -1725,6 +1755,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 ) : null}
               </>
             ) : null}
+            <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("legendary")}</h3>
+            {LEGENDARY_SKIN_ROWS.map((row, n) => (
+              <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("legendary")}>
+                {row.map((i) => skinButton(i))}
+              </div>
+            ))}
             {previewSkin === null && isSpecialSkin(skin) && perkList(me?.config.game, skin).length > 0 ? (
               <div className={styles.perkPanel}>
                 <strong>{t(`skins.${skin}`)}</strong>
@@ -1738,6 +1774,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   <strong>{t(`skins.${previewSkin}`)}</strong>
                   {perkLines(previewSkin)}
                   {(() => {
+                    if (notForSale(previewSkin)) {
+                      return (
+                        <>
+                          <span>{t("rubies.soonForSale")}</span>
+                          <div className={styles.buyButtons}>
+                            <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
+                              {t("rubies.cancel")}
+                            </button>
+                          </div>
+                        </>
+                      );
+                    }
                     const price = priceOf(previewSkin);
                     const missing = Math.max(0, price - (me?.rubies ?? 0));
                     if (confirming) {

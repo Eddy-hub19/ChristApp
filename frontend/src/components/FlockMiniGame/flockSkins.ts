@@ -118,6 +118,19 @@ export const SKINS: Skin[] = [
   { kind: "sheep", deco: "cocoa", fur: "#a06f4b", light: "#c78f66", face: "#3a2415", accent: "#f4b9a0" },
   // --- преміум (56 комета), 200 рубінів, з анімацією ---
   { kind: "sheep", deco: "comet", anim: { frames: 4, fps: 5 }, fur: "#c9d3ff", light: "#f1f3ff", face: "#25285a", accent: "#ffd95a" },
+  // --- «Легендарні» (57-68), по 250 рубінів (продаж закрито), статичні, без бонусів ---
+  { kind: "sheep", deco: "lgShell", fur: "#d7c4f0", light: "#f7e8d8", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgGlass", fur: "#d92f3b", light: "#43cf8b", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgAngel", fur: "#fdf1dc", light: "#ffffff", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgGate", fur: "#b496e0", light: "#e4d6f7", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgRays", fur: "#f7cf68", light: "#fff0b8", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgPrism", fur: "#a9d8f4", light: "#f7c8ea", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgOrigami", fur: "#fffaf0", light: "#ffffff", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgPorcelain", fur: "#f5f7ff", light: "#ffffff", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgMaple", fur: "#d2382a", light: "#f6a763", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgAmethyst", fur: "#7a559f", light: "#c8a6f2", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgSky", fur: "#1d6fd8", light: "#fbf4e6", face: "#17110f", accent: "#f6a6b8" },
+  { kind: "sheep", deco: "lgLily", fur: "#6a9be6", light: "#fff8ea", face: "#17110f", accent: "#f6a6b8" },
 ];
 
 export const SKIN_COUNT = SKINS.length;

@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound" | "lantern" | "jar";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound" | "lantern" | "jar" | "wings";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -614,6 +614,52 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Плашка маси більше не обрізає число й місце в таблиці",
           ru: "Плашка массы больше не обрезает число и место в таблице",
           en: "The mass tile no longer clips the number and the rank",
+        },
+      },
+    ],
+  },
+  {
+    version: 25,
+    date: "2026-11-06",
+    items: [
+      {
+        icon: "wings",
+        text: {
+          ua: "Нова карта «Небо»: пухнасті хмари пливуть над порожнечею. Не зійди з хмаринки: хто довго над просвітом, падає. Їжа й кущі лише на хмарах, вітру й дощу немає",
+          ru: "Новая карта «Небо»: пушистые облака плывут над пустотой. Не сойди с облачка: кто долго над просветом, падает. Еда и кусты только на облаках, ветра и дождя нет",
+          en: "New “Sky” map: fluffy clouds drift over the void. Don't step off the cloud: stay over a gap too long and you fall. Food and bushes only on clouds, no wind or rain",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "«Веселка» на «Небі»: цінна їжа, що росте лише на хмарах, дає масу як кілька квіток і короткий заряд прискорення",
+          ru: "«Радуга» на «Небе»: ценная еда, которая растёт только на облаках, даёт массу как несколько цветков и короткий заряд ускорения",
+          en: "The Rainbow on “Sky”: valuable food that grows only on clouds, gives mass like several flowers and a short speed charge",
+        },
+      },
+      {
+        icon: "wings",
+        text: {
+          ua: "Бонус «Крильця» (рідкісний, лише на «Небі»): 10 с летиш над просвітами, не падаєш і біжиш трохи швидше. Останні 2 с крильця мигають",
+          ru: "Бонус «Крылышки» (редкий, только на «Небе»): 10 с летишь над просветами, не падаешь и бежишь чуть быстрее. Последние 2 с крылышки мигают",
+          en: "The Wings bonus (rare, “Sky” only): for 10 s you fly over gaps without falling and run a bit faster. The wings blink for the last 2 s",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "Скоро: нова категорія скінів «Легендарні» (12 скінів)",
+          ru: "Скоро: новая категория скинов «Легендарные» (12 скинов)",
+          en: "Coming soon: a new “Legendary” skin category (12 skins)",
+        },
+      },
+      {
+        icon: "names",
+        text: {
+          ua: "У лобі два ряди овечок по шість; вовки лишилися ботам і режиму «Замки»",
+          ru: "В лобби два ряда овечек по шесть; волки остались ботам и режиму «Замки»",
+          en: "The lobby now has two rows of six sheep; wolves stay with bots and the Castles mode",
         },
       },
     ],

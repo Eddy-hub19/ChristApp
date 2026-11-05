@@ -152,6 +152,22 @@ export class AdminController {
     );
   }
 
+  /** Видати учаснику скін «Отари» безкоштовно (в т.ч. «Легендарний», поки продаж закрито). */
+  @Post('members/:id/skins')
+  async grantSkin(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { skin?: unknown },
+  ) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    return this.flockRubies.adminGrantSkin(
+      actor.id,
+      id,
+      typeof body?.skin === 'number' ? body.skin : NaN,
+    );
+  }
+
   /** Видати учаснику артефакт «Отари» безкоштовно (рубіни не списуються). */
   @Post('members/:id/artifacts')
   async grantArtifact(
