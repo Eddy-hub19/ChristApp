@@ -256,6 +256,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const phraseLangRef = useRef(toPhraseLang(locale));
   phraseLangRef.current = toPhraseLang(locale);
   const [infoOpen, setInfoOpen] = useState(false);
+  /** Секція «Обери вигляд» (звичайні скіни) згортається кліком по заголовку. */
+  const [regularOpen, setRegularOpen] = useState(true);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   /** Версия «Що нового», просмотренная ДО этого открытия игры (для точки «Нове» во вкладке «Оновлення»). */
@@ -1672,16 +1674,25 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             </div>
             <p className={styles.sub}>{t("tagline")}</p>
 
-            <h3 className={styles.h3}>{t("chooseSkin")}</h3>
-            {FREE_SKIN_ROWS.map((row, n) => (
-              <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("chooseSkin")}>
-                {row.map((i) => skinButton(i))}
-              </div>
-            ))}
-            {paidIds.length > 0 ? (
-              <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
-                {paidIds.map((i) => skinButton(i))}
-              </div>
+            <h3 className={styles.h3}>
+              <button type="button" className={styles.h3Toggle} aria-expanded={regularOpen} onClick={() => setRegularOpen((v) => !v)}>
+                {t("chooseSkin")}
+                <ChevronDown size={14} aria-hidden className={regularOpen ? undefined : styles.h3Closed} />
+              </button>
+            </h3>
+            {regularOpen ? (
+              <>
+                {FREE_SKIN_ROWS.map((row, n) => (
+                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("chooseSkin")}>
+                    {row.map((i) => skinButton(i))}
+                  </div>
+                ))}
+                {paidIds.length > 0 ? (
+                  <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
+                    {paidIds.map((i) => skinButton(i))}
+                  </div>
+                ) : null}
+              </>
             ) : null}
             {specialIds.length > 0 ? (
               <>
