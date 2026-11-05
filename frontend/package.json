@@ -20,7 +20,6 @@
     "@vimeo/player": "^2.30.4",
     "agora-rtc-sdk-ng": "^4.24.3",
     "axios": "^1.15.0",
-    "cloudinary": "^2.9.0",
     "epubjs": "^0.3.93",
     "framer-motion": "^12.38.0",
     "hls.js": "^1.7.3",
@@ -35,11 +34,10 @@
     "react-dom": "19.2.3",
     "react-icons": "^5.7.0",
     "sass": "^1.97.3",
-    "socket.io-client": "^4.8.3",
-    "streamifier": "^0.1.1"
+    "server-only": "^0.0.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "@types/multer": "^2.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
