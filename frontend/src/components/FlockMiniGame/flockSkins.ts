@@ -17,7 +17,10 @@ export type SkinDeco = "wreath" | "bell" | "cloud" | "gold" | "wolfwool" | "star
   // «Вожак» по картах: гай (50), мороз (51), вулкан (52)
   | "alphaGrove" | "alphaFrost" | "alphaVolcano"
   // «Лавове чудовисько» (47): орда карты «Вулкан», тоже вне NUM_SKINS
-  | "magma";
+  | "magma"
+  // «Легендарні» (12 скінів у кінці нумерації), статичні; малюються в flockLegendaryDeco.ts
+  | "lgShell" | "lgOrigami" | "lgPorcelain" | "lgMaple" | "lgAmethyst" | "lgGlass"
+  | "lgAngel" | "lgSky" | "lgGate" | "lgRays" | "lgPrism" | "lgLily";
 
 /** Легка анімація преміум-скіна: кілька готових кадрів шару-спрайта (без обчислень на кадр). */
 export interface SkinAnim {
