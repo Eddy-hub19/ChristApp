@@ -5,7 +5,7 @@
 import type { FlockModel, ModelSoundSink } from "./flockModel";
 import { playFlockSound, setFlockSoundListener, startFlockLoop, stopFlockLoop } from "./flockSound";
 
-const FOOD_SOUND = ["eatGrass", "eatFlower", "eatFlower", "eatFlower"] as const;
+const FOOD_SOUND = ["eatGrass", "eatFlower", "eatFlower", "eatFlower", "rainbow"] as const;
 
 const sink: ModelSoundSink = (kind, x, y, self, arg) => {
   const o = { x, y, self };
@@ -23,6 +23,7 @@ const sink: ModelSoundSink = (kind, x, y, self, arg) => {
     case "starPick":
     case "scissors":
     case "burn":
+    case "fall":
     case "phrase":
       playFlockSound(kind, o);
       break;
@@ -31,10 +32,11 @@ const sink: ModelSoundSink = (kind, x, y, self, arg) => {
       break;
     case "bonus":
       // у «Ножиць» и «Сопілки» свои звуки (событие/эффект на клетке)
-      if (arg !== "scissors" && arg !== "pipe") playFlockSound("bonus", o);
+      if (arg === "wings") playFlockSound("wingsPick", o);
+      else if (arg !== "scissors" && arg !== "pipe") playFlockSound("bonus", o);
       break;
     case "bonusEnd":
-      playFlockSound("bonusEnd", o);
+      playFlockSound(arg === "wings" ? "wingsEnd" : "bonusEnd", o);
       break;
   }
 };
@@ -47,6 +49,8 @@ export function attachFlockSounds(model: FlockModel) {
 let sprintOn = false;
 let windOn = false;
 let rainLevel = 0;
+let skyOn = false;
+let lastFlap = 0;
 
 /** Покадровое: слушатель (камера) и петли. Вызывать из цикла отрисовки. */
 export function tickFlockSound(model: FlockModel, now: number) {
@@ -66,6 +70,20 @@ export function tickFlockSound(model: FlockModel, now: number) {
     else stopFlockLoop("wind");
   }
 
+  // «Небо»: фон-хор (лише на цій карті, підпорядкований «Фоновим звукам»), вхід на карту й шелест крилець
+  const sky = model.sky !== null;
+  if (sky !== skyOn) {
+    skyOn = sky;
+    if (sky) {
+      startFlockLoop("skyAmbient");
+      playFlockSound("skyEnter", { self: true });
+    } else stopFlockLoop("skyAmbient");
+  }
+  if (sky && model.hasEffect("wings") && now - lastFlap > 420) {
+    lastFlap = now;
+    playFlockSound("wingsFlap", { self: true });
+  }
+
   const rain = Math.round(model.rainStrength(now) * 5) / 5;
   if (rain !== rainLevel) {
     rainLevel = rain;
@@ -79,6 +97,8 @@ export function resetFlockSoundLoops() {
   sprintOn = false;
   windOn = false;
   rainLevel = 0;
+  skyOn = false;
+  stopFlockLoop("skyAmbient");
   stopFlockLoop("sprint");
   stopFlockLoop("wind");
   stopFlockLoop("rain");

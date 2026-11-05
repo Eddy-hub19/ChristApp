@@ -5,6 +5,7 @@ import {
   FLOCK_CONFIG as C,
   HIDDEN_SKINS,
   FREE_SKINS,
+  LEGENDARY_SKIN_IDS,
   NUM_SKINS,
   PREMIUM_FROM,
   PREMIUM_SKIN_IDS,
@@ -259,7 +260,7 @@ d('FlockRubiesService (БД)', () => {
   it('перевірка скіна при вході: преміум без покупки недоступний, куплений - доступний, чужий і неіснуючий - ні', async () => {
     openSkins();
     const u = await makeUser();
-    for (let id = PREMIUM_FROM; id < NUM_SKINS; id++) {
+    for (let id = PREMIUM_FROM; id < LEGENDARY_SKIN_IDS[0]; id++) {
       if (!isPaidSkin(id)) continue; // безкоштовні вовки й зарезервований «Вожак» не рахуємо
       expect(await svc.canUseSkin(u.id, id)).toBe(false);
     }
@@ -417,9 +418,9 @@ d('FlockRubiesService (БД)', () => {
       rubies: 60,
       skinId: SPECIAL_FROM,
     });
-    expect(await svc.buySkin(u.id, NUM_SKINS - 1)).toEqual({
+    expect(await svc.buySkin(u.id, LEGENDARY_SKIN_IDS[0] - 1)).toEqual({
       rubies: 20,
-      skinId: NUM_SKINS - 1,
+      skinId: LEGENDARY_SKIN_IDS[0] - 1,
     });
     const purchase = await prisma.flockSkinPurchase.findUnique({
       where: { userId_skinId: { userId: u.id, skinId: SPECIAL_FROM } },
@@ -457,7 +458,7 @@ d('FlockRubiesService (БД)', () => {
 
   it('особливий скін: перевірка при вході - без покупки недоступний, куплений - доступний, поза діапазоном - ні', async () => {
     const u = await makeUser();
-    for (let id = SPECIAL_FROM; id < NUM_SKINS; id++) {
+    for (let id = SPECIAL_FROM; id < LEGENDARY_SKIN_IDS[0]; id++) {
       if (!isPaidSkin(id)) continue; // безкоштовні вовки й зарезервований «Вожак» не рахуємо
       expect(await svc.canUseSkin(u.id, id)).toBe(false);
     }

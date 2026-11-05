@@ -9,6 +9,8 @@ import {
 } from "./flockProtocol";
 import { PHRASE_MAX_MS } from "./flockPhrases";
 import type { LavaBurn, LavaGeom } from "./flockLava";
+import { createSky, onCloud as skyOnCloud, skyTime, type SkyState, type SkyWelcome } from "./flockSky";
+import type { SkyFall } from "./flockSkyRender";
 import { inWater, type CastleCfg, type CastleMsg, type Team } from "./flockCastles";
 
 export interface FlockCfg {
@@ -39,6 +41,8 @@ export interface FlockCfg {
   view: { base: number; perSqrtMass: number; max: number };
   /** Відсування камери при бонусі «Орлиний зір» (1 - немає; без поля - старий сервер). */
   eagleZoom?: number;
+  /** Карта «Небо»: параметри хмар, годинник світу, час до падіння (welcome.sky); без поля - не «Небо». */
+  sky?: SkyWelcome;
   /** Річка лави карти «Вулкан» (серверна геометрія); без поля - лави нема. */
   lava?: LavaGeom;
   /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
@@ -211,7 +215,7 @@ export interface ActiveEffect {
 }
 
 /** Звуковые события модели (без аллокаций: числа и строки). arg - доп. параметр (вид еды, вид бонуса, задержка мс). */
-export type ModelSoundKind = "food" | "eatCell" | "eaten" | "bonus" | "bonusEnd" | "split" | "throw" | "spawnBoost" | "freeze" | "pipe" | "starFall" | "starPick" | "scissors" | "burn" | "phrase";
+export type ModelSoundKind = "food" | "eatCell" | "eaten" | "bonus" | "bonusEnd" | "split" | "throw" | "spawnBoost" | "freeze" | "pipe" | "starFall" | "starPick" | "scissors" | "burn" | "phrase" | "fall";
 export type ModelSoundSink = (kind: ModelSoundKind, x: number, y: number, self: boolean, arg?: number | string) => void;
 
 const PHASE_STEP = 1.37;
@@ -257,6 +261,10 @@ export class FlockModel {
   readonly scissorsWaves: RScissorsWave[] = [];
   /** Клітини, що згоріли в лаві (анімація «згоріла»). */
   readonly lavaBurns: LavaBurn[] = [];
+  /** «Небо»: стан хмар (null - інша карта), клітини, що впали (анімація) і скільки мс своя клітина вже над порожнечею. */
+  sky: SkyState | null = null;
+  readonly falls: SkyFall[] = [];
+  selfVoidMs = 0;
   effects: ActiveEffect[] = [];
   /** pid -> активна швидка фраза: id і локальний час (годинник кадру) її кінця. Прибирається, коли гравець зник із зони. */
   readonly phrases = new Map<number, { id: number; end: number; /** Свій текст (id = 0). */ text?: string }>();
@@ -310,6 +318,7 @@ export class FlockModel {
     const s = this.cfg.speed;
     let v = Math.max(s.min, s.base * Math.pow(mass, s.exp)) * startFactor * (1 + (this.selfPerks.speed ?? 0));
     if (boosted) v *= s.boost;
+    if (this.sky && this.hasEffect("wings")) v *= this.sky.wingsSpeed;
     if (sprint && s.sprint) {
       // та сама формула, що на сервері (sprintedMultiplier): +бонус до решти множників, але не вище стелі
       const m = startFactor * (boosted ? s.boost : 1);
@@ -731,6 +740,50 @@ export class FlockModel {
     }
   }
 
+  /** «Небо»: ініціалізація хмар з welcome. */
+  initSky(w: SkyWelcome | undefined, recvMs: number = this.localNow) {
+    if (w) this.sky = createSky(w, this.cfg.world, recvMs);
+  }
+
+  /** Подія `sy`: годинник світу (перепривʼязка якоря) і pid із «Крильцями». */
+  applySkySync(msg: unknown, recvMs: number = this.localNow) {
+    const s = this.sky;
+    const e = msg as { t?: unknown; w?: unknown } | null;
+    if (!s || !e || typeof e.t !== "number") return;
+    s.srv = e.t;
+    s.local = recvMs;
+    s.wings = new Set(Array.isArray(e.w) ? (e.w as unknown[]).filter((v): v is number => typeof v === "number") : []);
+  }
+
+  /** Подія `fl`: клітини, що впали з хмари ([[x, y, r], ...]) - анімація «сорвался». */
+  applyFall(msg: unknown, recvMs: number = this.localNow) {
+    const list = (msg as { e?: unknown } | null)?.e;
+    if (!Array.isArray(list)) return;
+    for (const e of list) {
+      if (!Array.isArray(e) || typeof e[0] !== "number" || typeof e[1] !== "number") continue;
+      if (this.falls.length >= 24) this.falls.shift();
+      this.falls.push({ x: e[0], y: e[1], r: Number(e[2]) || 20, t0: recvMs });
+      this.sound?.("fall", e[0], e[1], false);
+    }
+  }
+
+  /** Своя клітина над порожнечею: рахуємо час для кільця-попередження (без «Крильців»). */
+  private trackVoid(dt: number) {
+    const s = this.sky;
+    if (!s) return;
+    const t = skyTime(s, this.localNow);
+    let over = false;
+    if (!this.hasEffect("wings") && !this.hasEffect("shield")) {
+      for (const c of this.ownCells()) {
+        if (!skyOnCloud(s, c.x, c.y, t)) {
+          over = true;
+          break;
+        }
+      }
+    }
+    this.selfVoidMs = over ? this.selfVoidMs + dt * 1000 : 0;
+  }
+
   /** Серія днів на 1-му місці ({p: pid держателя, d: днів}); d <= 0 - серії нема. */
   applyStreak(msg: unknown) {
     const e = msg as { p?: unknown; d?: unknown } | null;
@@ -790,6 +843,7 @@ export class FlockModel {
   step(dt: number, input: { angle: number; power: number; sprint?: boolean }, now?: number) {
     dt = Math.min(dt, 0.1);
     this.localNow = now ?? this.localNow + dt * 1000;
+    this.trackVoid(dt);
     const base = this.clockBase ?? this.localNow;
     const srvNow = this.localNow - base; // оцінка поточного часу сервера
     const target = srvNow - this.interpDelay; // момент, який хочемо малювати для чужих

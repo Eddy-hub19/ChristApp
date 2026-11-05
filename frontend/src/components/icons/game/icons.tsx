@@ -427,6 +427,20 @@ export function PipeIcon(props: ColorIconProps) {
   );
 }
 
+/** Бонус «Крильця» (карта «Небо»): пара білих крилець із золотою обводкою. */
+export function WingsIcon(props: ColorIconProps) {
+  const g = useGradient("#ffffff", "#cfe6ff");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M11.2 14.2C8.6 9 5.4 6.4 1.8 6.8c.4 4.4 2.6 8.4 6.6 10.2z" fill={g.fill} {...stroke} />
+      <path d="M12.8 14.2c2.6-5.2 5.8-7.8 9.4-7.4-.4 4.4-2.6 8.4-6.6 10.2z" fill={g.fill} {...stroke} />
+      <path d="M5.2 9.6c1.6 1.4 2.6 3.2 3.2 5M18.8 9.6c-1.6 1.4-2.6 3.2-3.2 5" stroke="#9cc4ef" strokeWidth="1" strokeLinecap="round" />
+      <ellipse cx="12" cy="16.2" rx="1.6" ry="2.4" fill="#f4c542" {...stroke} />
+    </ColorIconSvg>
+  );
+}
+
 /** Ветер: три волнистых росчерка. */
 export function WindIcon(props: ColorIconProps) {
   return (

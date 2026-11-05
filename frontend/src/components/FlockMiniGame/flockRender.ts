@@ -1,3 +1,4 @@
+import { drawCloudBorder, drawFalls, drawSkyMinimap, drawSkyWorld, drawVoidRing, drawVoidVignette, drawWings } from "./flockSkyRender";
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
 import { circle, drawCreature } from "./flockCreature";
@@ -57,6 +58,7 @@ const BONUS_STYLE: Record<string, { color: string; icon: string }> = {
   lantern: { color: "#ffd75e", icon: "🔦" },
   jar: { color: "#8dffb0", icon: "✨" },
   boost: { color: "#ff9f43", icon: "🚀" },
+  wings: { color: "#9fd2ff", icon: "🪽" },
 };
 export const BONUS_ICON: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.icon]));
 export const BONUS_COLOR: Record<string, string> = Object.fromEntries(Object.entries(BONUS_STYLE).map(([k, v]) => [k, v.color]));
@@ -142,7 +144,7 @@ const FOOD_PX = 64;
 const foodCache = new Map<string, HTMLCanvasElement>();
 function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
   // шерсть (kind 3) однакова на всіх картах; на не-лугових картах трава/квітка/колосок - свої спрайти, без залежності від теми
-  const gk = kind === 3 ? "meadow" : ground;
+  const gk = kind === 3 || kind === 4 ? "meadow" : ground;
   // ключ включает карту и вид: раньше числовые индексы разных карт пересекались (листья «просачивались» на мороз)
   const i = `${gk}-${kind}-${dark && gk === "meadow" ? "d" : "l"}`;
   const cached = foodCache.get(i);
@@ -176,6 +178,25 @@ function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
       c.beginPath();
       c.arc(0, 0, 5.5, 0, TAU);
       c.fill();
+    } else if (kind === 4) {
+      // «Веселка» (карта «Небо»): райдужна дуга на двох білих хмаринках
+      c.lineWidth = 3.2;
+      ["#ff5a5a", "#ffb03a", "#ffe45a", "#5ccf6a", "#4aa8ff", "#9a6bff"].forEach((col, i) => {
+        c.strokeStyle = col;
+        c.beginPath();
+        c.arc(0, 8, 17 - i * 2.7, Math.PI, 0);
+        c.stroke();
+      });
+      c.fillStyle = "#ffffff";
+      c.strokeStyle = "#c9dcf0";
+      c.lineWidth = 1.2;
+      for (const sx of [-1, 1]) {
+        c.beginPath();
+        c.arc(sx * 15, 10, 5.2, 0, TAU);
+        c.arc(sx * 11, 7, 4.6, 0, TAU);
+        c.fill();
+        c.stroke();
+      }
     } else if (kind === 3) {
       // жмут шерсті (клаптик після «Ножиць»): пухнасті хмаринки
       c.fillStyle = dark ? "#f4f1ea" : "#ffffff";
@@ -412,11 +433,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   const y0 = m.camY - halfH;
   const y1 = m.camY + halfH;
 
+  // «Небо»: фон і хмари-платформи замість пасовища
+  const sky = m.sky;
+  if (sky) drawSkyWorld(ctx, m, sky, x0, x1, y0, y1, scale * dpr, o.time);
   // пасовище: колір + сітка-трава + пучки одним готовим патерном (тайл у кеші), а не лініями щокадру
-  ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
-  ctx.fillRect(0, 0, world, world);
+  if (!sky) {
+    ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
+    ctx.fillRect(0, 0, world, world);
+  }
   // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
-  if (groundOf(m.cfg.map) === "meadow") {
+  if (!sky && groundOf(m.cfg.map) === "meadow") {
     const sun = sunlightPattern(ctx, scale * dpr);
     if (sun) {
       ctx.globalAlpha = theme.dark ? 0.55 : 1;
@@ -425,17 +451,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       ctx.globalAlpha = 1;
     }
   }
-  // межа світу
-  ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
+  // межа світу (на «Небі» - хмарний бордюр)
+  if (!sky) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  ctx.strokeRect(0, 0, world, world);
+  if (!sky) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
   const castleMode = Boolean(m.cfg.castle);
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
-  drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
+  if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
+  else drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
   drawPuddles(ctx, m, x0, x1, y0, y1);
   drawCircleZone(ctx, m, world, scale, o.time);
@@ -445,12 +472,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   const fsz = Math.max(2 * (m.cfg.foodRadius ?? 8.5), FOOD_MIN_PX / scale);
   const pad = fsz * 1.8;
   const ground = groundOf(m.cfg.map);
-  const sprites = [foodSprite(0, theme.dark, ground), foodSprite(1, theme.dark, ground), foodSprite(2, theme.dark, ground), foodSprite(3, theme.dark, ground)];
+  // на світлому небі їжа завжди «денна» (кольори не залежать від теми застосунку)
+  const fd = theme.dark && !sky;
+  const sprites = [foodSprite(0, fd, ground), foodSprite(1, fd, ground), foodSprite(2, fd, ground), foodSprite(3, fd, ground), foodSprite(4, fd, ground)];
   for (const f of m.foods.values()) {
     if (f.x < x0 - pad || f.x > x1 + pad || f.y < y0 - pad || f.y > y1 + pad) continue;
     const s = far ? fsz : fsz * (1 + Math.sin(o.time * 2 + f.id) * 0.06);
     // шерсть трохи більша за траву: це зрізана маса, її видно
-    const sz = f.kind === 3 ? s * 1.5 : s;
+    const sz = f.kind === 3 ? s * 1.5 : f.kind === 4 ? s * 1.7 : s;
     ctx.drawImage(sprites[f.kind] ?? sprites[0], f.x - sz / 2, f.y - sz / 2, sz, sz);
   }
   // кинута маса
@@ -584,7 +613,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       if (lavaDistance(m.cfg.lava, c.x, c.y) < r * 2) drawLavaWarning(ctx, c.x, c.y, r, o.time, scale);
     }
   }
+  // «Небо»: падіння клітин і кільце-попередження біля просвіту
+  if (m.sky) {
+    drawFalls(ctx, m.falls, m.localNow, x0, x1, y0, y1);
+    if (m.selfVoidMs > 120) {
+      const own = m.ownCells();
+      for (const c of own) drawVoidRing(ctx, c.x, c.y, m.radiusOf(c.mass), Math.min(1, m.selfVoidMs / m.sky.graceMs), o.time, scale);
+    }
+  }
   ctx.restore();
+  if (m.sky) drawVoidVignette(ctx, W, H, Math.min(1, m.selfVoidMs / m.sky.graceMs));
   if (night) {
     // темний шар зі світлом гравця; зірки, ореол «Вожака» й світлячки - поверх нього (у світових координатах)
     const reduce = prefersReducedMotion();
@@ -651,6 +689,11 @@ function drawCell(ctx: CanvasRenderingContext2D, m: FlockModel, c: RCell, o: Dra
   if (paused) ctx.globalAlpha = 0.42;
   // «Прискорення» (кнопка) і бонус «Прискорення»: однаковий світлий слід за клітиною (своя - за передбаченням, чужі - за бітом від сервера); без сліду при «зменшити рух»
   if (((own && m.sprintActive) || (c.fx & (FX_SPRINT | FX_SPEED)) !== 0) && !prefersReducedMotion()) drawSprintTrail(ctx, c.x, c.y, r, ang);
+  // «Небо»: тінь і змах крилець під клітиною, що летить
+  if (m.sky && (own ? m.hasEffect("wings") : m.sky.wings.has(c.pid))) {
+    const left = own ? (m.effects.find((e) => e.kind === "wings")?.remainingMs ?? 99999) : 99999;
+    drawWings(ctx, c.x, c.y, r, ang, o.time, scale, o.dpr, left < 2000);
+  }
   const artifact = meta?.artifact && LARGEST.get(c.pid) === c.id ? meta.artifact : 0;
   drawCreatureCached(ctx, meta?.skin ?? 0, c.x, c.y, r, ang, c.phase, wobble, scale, o.dpr, o.time, artifact);
   if ((c.fx & FX_FROZEN) !== 0) {
@@ -719,6 +762,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   ctx.fillStyle = theme.dark ? "rgba(18,34,24,0.72)" : "rgba(235,248,225,0.78)";
   ctx.fillRect(0, 0, size, size);
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
+  if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   const k = size / 256;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
   for (const p of m.cfg.castle || m.cfg.night ? [] : m.board.map) {

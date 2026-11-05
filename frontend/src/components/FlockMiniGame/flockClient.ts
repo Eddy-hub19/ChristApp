@@ -66,6 +66,8 @@ export interface DeathInfo {
   killer: string | null;
   /** Згорів у лаві (карта «Вулкан»). */
   burned?: boolean;
+  /** Впав з хмари (карта «Небо»). */
+  fell?: boolean;
   /** Загинув поза колом (режим «Звужуване коло»). */
   zone?: boolean;
 }
@@ -227,6 +229,7 @@ export class FlockClient {
         // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
         this.mode = cfg.mode === "circle" ? "circle" : cfg.mode === "castles" ? "castles" : "normal";
         if (cfg.castle) this.team = cfg.castle.team;
+        this.model.initSky(cfg.sky, performance.now());
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.model.applyRain(cfg.rain, performance.now());
         this.model.applyWind(cfg.wind, performance.now());
@@ -275,7 +278,7 @@ export class FlockClient {
         clearFlockSession();
         this.stored = null;
         this.setStatus("dead");
-        playFlockSound(info?.burned ? "burn" : "death", { self: true });
+        playFlockSound(info?.burned ? "burn" : info?.fell ? "fall" : "death", { self: true });
         this.opts.onDeath(info);
       });
     });
@@ -302,6 +305,13 @@ export class FlockClient {
     socket.on("qr", (msg: { r?: unknown }) => {
       const r = msg?.r;
       if (r === "profanity" || r === "muted" || r === "disabled") this.opts.onSayRejected?.(r);
+    });
+    // «Небо»: падіння клітин і синхронізація годинника хмар
+    socket.on("fl", (msg: unknown) => {
+      this.later(() => this.model?.applyFall(msg, performance.now()));
+    });
+    socket.on("sy", (msg: unknown) => {
+      this.later(() => this.model?.applySkySync(msg, performance.now()));
     });
     socket.on("lv", (msg: unknown) => {
       this.later(() => this.model?.applyLava(msg, performance.now()));

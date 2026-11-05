@@ -10,7 +10,7 @@ export const EXTRA_PAID_FROM = 34;
 /** Скін «Вожака» (36): зарезервований, не продається й не обирається. */
 export const BOSS_SKIN_ID = 36;
 /** Усього номерів (у межах - і зарезервований «Вожак»). */
-export const TOTAL_SKINS = 57;
+export const TOTAL_SKINS = 69;
 /** Скін «Лавового чудовиська» (47): зарезервований (дзеркало MONSTER_SKIN на сервері). */
 export const MONSTER_SKIN_ID = 47;
 /** Скіни «Вожака» за картою арени (36 луг, 50 гай, 51 мороз, 52 вулкан): зарезервовані, поза TOTAL_SKINS. */
@@ -25,9 +25,15 @@ export const FREE_SKIN_ROWS: readonly (readonly number[])[] = [
 /** Зняті безкоштовні скіни (були третім рядом): 6 ягня, 7 баран, 10 собака, 11 персикова вівця. Нумерація й спрайти лишаються; дзеркало REMOVED_SKINS на сервері. */
 export const REMOVED_SKIN_IDS: readonly number[] = [6, 7, 10, 11];
 export const FREE_SKIN_IDS: readonly number[] = FREE_SKIN_ROWS.flat();
+/** Безкоштовні вовки, схованi з вибору лобі (дзеркало LOBBY_HIDDEN_SKINS на сервері): лише боти й «Замки». Лишаються в FREE_SKIN_IDS, щоб не вважатись платними. */
+export const LOBBY_HIDDEN_SKIN_IDS: readonly number[] = [8, 9, 37, 38, 39, 40];
+/** Безкоштовні ряди лобі без схованих скінів і без порожніх рядів. */
+export const LOBBY_FREE_SKIN_ROWS: readonly (readonly number[])[] = FREE_SKIN_ROWS.map((row) => row.filter((id) => !LOBBY_HIDDEN_SKIN_IDS.includes(id))).filter((row) => row.length > 0);
 /** Скін, який можна обрати (не «Вожак», у межах нумерації). */
 export const isSelectableSkin = (id: number) =>
   Number.isInteger(id) && id >= 0 && id < TOTAL_SKINS && id !== MONSTER_SKIN_ID && !BOSS_SKIN_IDS.includes(id) && !REMOVED_SKIN_IDS.includes(id);
+/** Скін, який гравець може обрати у звичайних аренах (без схованих у лобі вовків). */
+export const isLobbySelectableSkin = (id: number) => isSelectableSkin(id) && !LOBBY_HIDDEN_SKIN_IDS.includes(id);
 export const isPaidSkin = (id: number) => isSelectableSkin(id) && !FREE_SKIN_IDS.includes(id);
 /** Преміум-скіни рядами лобі (ряд = шість скінів з анімацією). */
 export const PREMIUM_SKIN_ROWS: readonly (readonly number[])[] = [
@@ -36,6 +42,13 @@ export const PREMIUM_SKIN_ROWS: readonly (readonly number[])[] = [
   [56],
 ];
 export const PREMIUM_SKIN_IDS: readonly number[] = PREMIUM_SKIN_ROWS.flat();
+/** «Легендарні» скіни рядами лобі (два ряди по 6, після «Преміум»): дзеркало LEGENDARY_SKIN_IDS на сервері. */
+export const LEGENDARY_SKIN_ROWS: readonly (readonly number[])[] = [
+  [57, 58, 59, 60, 61, 62],
+  [63, 64, 65, 66, 67, 68],
+];
+export const LEGENDARY_SKIN_IDS: readonly number[] = LEGENDARY_SKIN_ROWS.flat();
+export const isLegendarySkin = (id: number) => LEGENDARY_SKIN_IDS.includes(id);
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) => (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
 /** Зняті з продажу (зеркало HIDDEN_SKINS на сервері): потрібні, поки профіль не завантажено й сервер ще не прислав config.hiddenSkins. */

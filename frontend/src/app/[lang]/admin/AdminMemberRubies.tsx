@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { ARTIFACT_IDS } from "@/components/FlockMiniGame/flockArtifacts";
+import { LEGENDARY_SKIN_IDS } from "@/lib/rubies";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import {
   AdminHttpError,
@@ -11,6 +12,7 @@ import {
   adminMemberFlockQueryKey,
   fetchAdminMemberFlock,
   grantAdminMemberArtifact,
+  grantAdminMemberSkin,
 } from "@/lib/queries/adminQueries";
 import styles from "./admin.module.scss";
 
@@ -23,6 +25,7 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [grantId, setGrantId] = useState<number>(ARTIFACT_IDS[0]);
+  const [skinGrantId, setSkinGrantId] = useState<number>(LEGENDARY_SKIN_IDS[0]);
   const [error, setError] = useState<string | null>(null);
 
   const query = useQuery({
@@ -54,6 +57,18 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
     onError: (e) => {
       const code = e instanceof AdminHttpError ? e.message : "";
       setError(["already_owned", "invalid_artifact", "user_not_found"].includes(code) ? code : "generic");
+    },
+  });
+
+  const grantSkin = useMutation({
+    mutationFn: (skin: number) => grantAdminMemberSkin(memberId, skin),
+    onSuccess: async () => {
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: adminMemberFlockQueryKey(memberId) });
+    },
+    onError: (e) => {
+      const code = e instanceof AdminHttpError ? e.message : "";
+      setError(["already_owned", "invalid_skin", "user_not_found"].includes(code) ? code : "generic");
     },
   });
 
@@ -109,6 +124,24 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 </select>
                 <button type="submit" className={styles.btn} disabled={grant.isPending}>
                   {t("grantBtn")}
+                </button>
+              </form>
+              <form
+                className={styles.rubiesForm}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  grantSkin.mutate(skinGrantId);
+                }}
+              >
+                <select className={styles.field} value={skinGrantId} onChange={(e) => setSkinGrantId(Number(e.target.value))} aria-label={t("pickSkin")}>
+                  {LEGENDARY_SKIN_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {tf(`skins.${id}`)}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className={styles.btn} disabled={grantSkin.isPending}>
+                  {t("grantSkinBtn")}
                 </button>
               </form>
               <form className={styles.rubiesForm} onSubmit={submit}>

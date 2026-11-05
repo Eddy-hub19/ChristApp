@@ -20,4 +20,9 @@ All files are CC0 (public domain dedication) from OpenGameArt unless noted. Deta
 | wind | wind | wind1 | Luke.RUSTLTD | https://opengameart.org/content/wind1 | CC0 | wind1.wav (12 s, seamless loop by crossfade) | 72.3 KB | 2026-10-30 |
 | rain | rain | Rain (loopable) | Ylmir | https://opengameart.org/content/rain-loopable | CC0 | Rain OGG/1.ogg (10 s, seamless loop by crossfade) | 64.1 KB | 2026-10-30 |
 
+### "Sky" map sounds (synthesized in the engine, no files, 0 KB downloaded)
+
+skyAmbient (soft angelic choir "aa" loop with light bells; voicings choir-a / choir-b / choir-c in `flockSoundDefs.ts`, active: a), skyEnter, rainbow (harp up), wingsPick, wingsFlap, wingsEnd, fall.
+No third-party material. Freesound / OpenGameArt CC0 and ElevenLabs were not used for these: neither `FREESOUND_API_KEY` nor `ELEVENLABS_API_KEY` exists in the local env. If real files are added later, list source, author, link and license here.
+
 Generated (ElevenLabs): none yet; if added, rights depend on the account plan and must be verified by the owner.

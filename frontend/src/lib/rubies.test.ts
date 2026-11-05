@@ -74,7 +74,7 @@ describe("скіни: платні 12..17, преміум 18..23 і особли
 
   it("особливі 24..33: номери в межах u8 без зміни протоколу, видимі (не в прихованих), статичні, назви в трьох мовах", () => {
     expect(SPECIAL_FROM).toBe(24);
-    expect(TOTAL_SKINS).toBe(57);
+    expect(TOTAL_SKINS).toBe(69);
     expect(TOTAL_SKINS).toBeLessThanOrEqual(256);
     expect(SPECIAL_SKIN_IDS).toEqual([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 48, 49, 53, 54, 55]);
     expect(isSpecialSkin(23)).toBe(false);

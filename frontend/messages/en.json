@@ -221,6 +221,8 @@
       "grantArtifact": "Grant an artifact",
       "artifactWorn": "worn",
       "grantBtn": "Grant",
+      "pickSkin": "Pick a skin",
+      "grantSkinBtn": "Grant skin",
       "pickArtifact": "Pick an artifact",
       "amountLabel": "Ruby amount",
       "amountPlaceholder": "± amount",
@@ -243,7 +245,8 @@
         "invalid_amount": "Enter a non-zero whole number",
         "insufficient_balance": "Can't deduct more than the current balance",
         "user_not_found": "User not found",
-        "already_owned": "The player already owns this artifact",
+        "already_owned": "The player already owns it",
+        "invalid_skin": "Unknown skin",
         "invalid_artifact": "Unknown artifact",
         "generic": "The operation failed"
       }
@@ -1384,6 +1387,7 @@
     },
     "premium": "Premium",
     "special": "Special",
+    "legendary": "Legendary",
     "modes": {
       "title": "Modes",
       "close": "Close",
@@ -1482,7 +1486,8 @@
       "frost": "Winter frost",
       "volcano": "Volcano",
       "lake": "Forest and lake",
-      "night": "Night"
+      "night": "Night",
+      "sky": "Sky"
     },
     "hud": {
       "mass": "Mass",
@@ -1494,6 +1499,8 @@
     "dead": {
       "title": "You got eaten",
       "by": "Eaten by {name}",
+      "fellTitle": "You fell off the cloud",
+      "fell": "You stepped off the cloud and fell through the sky. Stay on the clouds or catch the Wings.",
       "burnedTitle": "You burned",
       "burned": "You fell into the lava. Use the bridges to cross the river.",
       "zone": "You ended up outside the circle and lost all your mass.",
@@ -1527,6 +1534,7 @@
       "streakAwardSum": "#1 streak reward: +{count} rubies"
     },
     "bonuses": {
+      "wings": "Wings",
       "pipe": "Shepherd's pipe",
       "speed": "Speed boost",
       "magnet": "Magnet",
@@ -1594,7 +1602,19 @@
       "53": "Berry sheep",
       "54": "Winter sheep",
       "55": "Cocoa sheep",
-      "56": "Comet sheep"
+      "56": "Comet sheep",
+      "57": "Pearl shell",
+      "58": "Stained glass",
+      "59": "Angelic",
+      "60": "Heavenly gate",
+      "61": "Radiance",
+      "62": "Prism",
+      "63": "Origami",
+      "64": "Porcelain",
+      "65": "Maple",
+      "66": "Amethyst",
+      "67": "Sky blue",
+      "68": "Lilies"
     },
     "rubies": {
       "name": "Rubies",
@@ -1610,9 +1630,12 @@
       "cancel": "Cancel",
       "buying": "Buying…",
       "owned": "Owned",
+      "soon": "Soon",
+      "soonForSale": "Coming soon to the shop",
       "preview": "Preview",
       "reward": "You're first! +{count, plural, one {# ruby} other {# rubies}}",
       "errors": {
+        "skin_not_for_sale": "This skin is not for sale yet",
         "not_enough": "Not enough rubies",
         "already_owned": "You already own this skin",
         "generic": "Purchase failed, please try again"
@@ -1760,6 +1783,10 @@
         "daily": "Daily limit of win rewards reached",
         "botLimit": "Limit of rewards for games against bots reached"
       }
+    },
+    "sky": {
+      "mapSub": "Don't step off the cloud",
+      "wingsHint": "Wings: fly for {sec} s and never fall"
     },
     "night": {
       "mapSub": "You only see what is near you",

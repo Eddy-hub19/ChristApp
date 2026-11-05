@@ -137,6 +137,9 @@ class Arena {
   /** «Лавові чудовиська» (лише карта з лавою): не боти за ліміти й таблицю лідерів, свій регулятор. */
   readonly monsters = new Set<number>();
   private monsterRespawn = new Map<number, number>();
+  /** «Небо»: останнє розсилання годинника хмар (час світу) і набір pid із «Крильцями». */
+  private skySyncAt = -1e9;
+  private skyWingsKey = '';
   /** Високе навантаження: чудовиськ прибрано (першими, до ботів), повертаються після спокійних оцінок. */
   private monstersShed = false;
   private monstersLowStreak = 0;
@@ -920,6 +923,19 @@ class Arena {
     }));
     // лава: клітини, що згоріли (одне мале повідомлення всім; клієнт малює «згоріла» лише у видимому)
     const lavaMsg = w.lavaEvents.length ? { e: w.lavaEvents } : null;
+    // «Небо»: клітини, що впали (анімація «сорвался»), і синхронізація годинника хмар + хто з «Крильцями» (раз на syncMs або при зміні)
+    const fallMsg = w.fallEvents.length ? { e: w.fallEvents } : null;
+    let skyMsg: { t: number; w: number[] } | null = null;
+    if (w.sky) {
+      const wingPids: number[] = [];
+      for (const pl of w.players.values()) if (pl.alive && w.hasEffect(pl, 'wings')) wingPids.push(pl.id);
+      const key = wingPids.join(',');
+      if (key !== this.skyWingsKey || w.now - this.skySyncAt >= C.sky.syncMs) {
+        this.skyWingsKey = key;
+        this.skySyncAt = w.now;
+        skyMsg = { t: Math.round(w.now), w: wingPids };
+      }
+    }
     const revived = new Set(w.reviveEvents);
     const bossMsgs = this.bossMsgs;
     for (const s of this.sessions.values()) {
@@ -944,6 +960,8 @@ class Arena {
       if (rainMsg) send(key, 'rn', rainMsg);
       if (windMsg) send(key, 'wd', windMsg);
       if (lavaMsg) send(key, 'lv', lavaMsg);
+      if (fallMsg) send(key, 'fl', fallMsg);
+      if (skyMsg) send(key, 'sy', skyMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       // «Хрест»: «Друге життя» - лише самому гравцеві
       if (revived.has(s.pid)) send(key, 'rv', {});
@@ -964,6 +982,7 @@ class Arena {
           topMs: Math.round(p.topMs),
           killer: w.players.get(p.killerPid)?.name ?? null,
           burned: p.burned || undefined,
+          fell: p.fell || undefined,
           zone: p.zoneDeath || undefined,
         });
         if (this.mode === 'normal') this.hooks.onMass?.(s.userId, p.maxMass);
@@ -1275,6 +1294,8 @@ export interface JoinResult {
   thornStyle?: ThornStyle;
   /** Річка лави карти «Вулкан» (y0, y1 і мости по x). */
   lava?: { y0: number; y1: number; bridges: { x0: number; x1: number }[] };
+  /** Карта «Небо»: час світу на момент входу (мс) і хмари [cx, cy, hx, hy, ax, ay, px, py, fx, fy] (клієнт рахує положення за формулою). */
+  sky?: { t: number; c: number[][]; syncMs: number; grace: number; wings: number };
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
@@ -1452,6 +1473,15 @@ export class FlockManager {
       mapId: s.arena.mapId,
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       lava: s.arena.world.lava ?? undefined,
+      sky: s.arena.world.sky
+        ? {
+            t: Math.round(s.arena.world.now),
+            c: s.arena.world.sky.clouds.map((k) => [k.cx, k.cy, k.hx, k.hy, k.ax, k.ay, k.px, k.py, k.fx, k.fy]),
+            syncMs: C.sky.syncMs,
+            grace: C.sky.fallGraceMs,
+            wings: C.sky.wings.speedMultiplier,
+          }
+        : undefined,
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),

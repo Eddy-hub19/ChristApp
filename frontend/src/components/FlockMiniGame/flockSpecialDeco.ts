@@ -31,6 +31,11 @@ export function specialExtent(skin: Skin): number {
     case "berry":
     case "winter":
       return 1.3;
+    case "lgAngel":
+    case "lgAmethyst":
+      return 1.5;
+    case "lgGate":
+      return 1.4;
     case "candy":
       return 1.65;
     case "sushi":

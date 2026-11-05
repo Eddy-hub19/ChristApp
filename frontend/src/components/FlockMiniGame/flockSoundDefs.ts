@@ -104,6 +104,90 @@ function noiseLoop(e: SynthEnv, ftype: BiquadFilterType, freq: number, q: number
   return nodes;
 }
 
+/**
+ * Фон «Неба»: м'який хор ангелів «аа» (акорд пилкоподібних голосів через два формантні фільтри) з легкими дзвіночками.
+ * Безперервні осцилятори (без перезапуску) - петля без клацання на стику. Три варіанти голосів (choir-a, -b, -c), активний один.
+ */
+const CHOIR_VARIANTS: Record<string, number[]> = {
+  a: [220, 277.2, 329.6, 440, 554.4],
+  b: [196, 246.9, 293.7, 392, 587.3],
+  c: [233.1, 293.7, 349.2, 466.2, 622.3],
+};
+const ACTIVE_CHOIR = "a";
+
+function skyChoirLoop(e: SynthEnv): AudioScheduledSourceNode[] {
+  const nodes: AudioScheduledSourceNode[] = [];
+  const master = e.ctx.createGain();
+  master.gain.value = 0.5;
+  master.connect(e.out);
+  // формантний «аа»: дві смуги
+  const f1 = e.ctx.createBiquadFilter();
+  f1.type = "bandpass";
+  f1.frequency.value = 760;
+  f1.Q.value = 2.2;
+  const f2 = e.ctx.createBiquadFilter();
+  f2.type = "bandpass";
+  f2.frequency.value = 1200;
+  f2.Q.value = 3;
+  const mix = e.ctx.createGain();
+  mix.gain.value = 0.55;
+  f1.connect(mix);
+  f2.connect(mix);
+  mix.connect(master);
+  for (const f of CHOIR_VARIANTS[ACTIVE_CHOIR]) {
+    for (const det of [-5, 4]) {
+      const o = e.ctx.createOscillator();
+      const g = e.ctx.createGain();
+      o.type = "sawtooth";
+      o.frequency.value = f;
+      o.detune.value = det;
+      g.gain.value = 0.05;
+      o.connect(g);
+      g.connect(f1);
+      g.connect(f2);
+      o.start();
+      nodes.push(o);
+    }
+  }
+  // повільне «дихання» хору (тремоло гучності) і плавання форманти
+  const lfo = e.ctx.createOscillator();
+  const depth = e.ctx.createGain();
+  lfo.frequency.value = 0.11;
+  depth.gain.value = 0.18;
+  lfo.connect(depth);
+  depth.connect(master.gain);
+  lfo.start();
+  nodes.push(lfo);
+  const lfo2 = e.ctx.createOscillator();
+  const d2 = e.ctx.createGain();
+  lfo2.frequency.value = 0.07;
+  d2.gain.value = 140;
+  lfo2.connect(d2);
+  d2.connect(f2.frequency);
+  lfo2.start();
+  nodes.push(lfo2);
+  // легкі дзвіночки: високі синуси з повільною пульсацією гучності (різні частоти пульсації - не збігаються)
+  for (const [freq, rate] of [[1318.5, 0.23], [1760, 0.17], [2093, 0.31]] as const) {
+    const o = e.ctx.createOscillator();
+    const g = e.ctx.createGain();
+    const l = e.ctx.createOscillator();
+    const ld = e.ctx.createGain();
+    o.type = "sine";
+    o.frequency.value = freq;
+    g.gain.value = 0.012;
+    l.frequency.value = rate;
+    ld.gain.value = 0.012;
+    l.connect(ld);
+    ld.connect(g.gain);
+    o.connect(g);
+    g.connect(master);
+    o.start();
+    l.start();
+    nodes.push(o, l);
+  }
+  return nodes;
+}
+
 /** Нота колокольчика: основной тон + обертон, длинный спад. */
 function bell(e: SynthEnv, freq: number, at: number, dur: number, peak: number) {
   tone(e, "sine", freq, freq, at, dur, peak);
@@ -136,7 +220,15 @@ export type SoundId =
   | "phrase"
   | "click"
   | "coins"
-  | "melody";
+  | "melody"
+  // карта «Небо» (синтез у рушії, файлів нема: нічого не вантажиться)
+  | "skyAmbient"
+  | "skyEnter"
+  | "rainbow"
+  | "wingsPick"
+  | "wingsFlap"
+  | "wingsEnd"
+  | "fall";
 
 export const SOUNDS: Record<SoundId, SoundDef> = {
   eatGrass: {
@@ -399,6 +491,76 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
         tone(e, "sine", f * 2, f * 2, i * 0.07, 0.12, 0.05, 0.002);
       });
       return 0.55;
+    },
+  },
+  skyAmbient: {
+    gain: 0.4,
+    ambient: true,
+    synth: () => 0,
+    loop: skyChoirLoop,
+  },
+  // вхід на карту: короткий наростаючий хор (1-2 с)
+  skyEnter: {
+    gain: 0.55,
+    ambient: true,
+    minGapMs: 3000,
+    synth: (e) => {
+      [330, 415, 494, 659].forEach((f, i) => tone(e, "triangle", f, f * 1.01, i * 0.12, 1.6 - i * 0.1, 0.16, 0.7));
+      bell(e, 1568, 0.9, 0.9, 0.12);
+      return 1.8;
+    },
+  },
+  // «Веселка»: арфа вгору
+  rainbow: {
+    gain: 0.75,
+    minGapMs: 120,
+    synth: (e) => {
+      [523, 659, 784, 1047, 1319].forEach((f, i) => {
+        tone(e, "triangle", f, f, i * 0.06, 0.55, 0.2, 0.004);
+        tone(e, "sine", f * 2, f * 2, i * 0.06, 0.3, 0.05, 0.004);
+      });
+      return 0.9;
+    },
+  },
+  // «Крильця»: змах пера й світлий дзвін
+  wingsPick: {
+    gain: 0.8,
+    minGapMs: 300,
+    synth: (e) => {
+      noiseBurst(e, "bandpass", 1800, 4200, 1.1, 0, 0.28, 0.16, 0.05);
+      bell(e, 1760, 0.08, 0.7, 0.22);
+      bell(e, 2349, 0.2, 0.7, 0.16);
+      return 0.95;
+    },
+  },
+  // шелест у польоті: не частіше за ~0,4 с
+  wingsFlap: {
+    gain: 0.35,
+    minGapMs: 400,
+    jitter: 0.1,
+    synth: (e) => {
+      noiseBurst(e, "bandpass", 2400, 1500, 0.8, 0, 0.16, 0.1, 0.03);
+      return 0.2;
+    },
+  },
+  // кінець «Крильців»: м'який спад
+  wingsEnd: {
+    gain: 0.55,
+    minGapMs: 300,
+    synth: (e) => {
+      tone(e, "sine", 880, 440, 0, 0.5, 0.2, 0.02);
+      noiseBurst(e, "lowpass", 1800, 500, 0.6, 0, 0.4, 0.06, 0.05);
+      return 0.55;
+    },
+  },
+  // падіння у просвіт: низхідний свист і тихий «пух» (не страшно)
+  fall: {
+    gain: 0.6,
+    minGapMs: 250,
+    synth: (e) => {
+      tone(e, "sine", 1200, 220, 0, 0.7, 0.2, 0.02);
+      tone(e, "sine", 90, 55, 0.65, 0.25, 0.22, 0.01);
+      return 0.95;
     },
   },
   melody: {

@@ -45,6 +45,8 @@ export const BONUS_CODE = [
   'jar',
   /** Не бонус із поля: заряд світла від їжі (лише в списку ефектів гравця; remainingMs = заряд x 100). */
   'light',
+  /** «Крильця» (карта «Небо»): клітина летить, не падає в просвіти. */
+  'wings',
 ] as const;
 
 export interface DecodedFood {
