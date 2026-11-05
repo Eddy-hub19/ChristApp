@@ -22,6 +22,13 @@ export const FEED_MAX = 30;
 const COLLAPSED_KEY = "christapp:flockFeedCollapsed";
 const TICK_MS = 5000;
 
+/** Ник у стрічці - не більше NAME_MAX символів (з «…»). */
+const NAME_MAX = 4;
+const shortName = (name: string) => {
+  const chars = Array.from(name);
+  return chars.length > NAME_MAX ? `${chars.slice(0, NAME_MAX).join("")}…` : name;
+};
+
 type Props = {
   items: FeedItem[];
   selfPid: number;
@@ -61,11 +68,16 @@ export default function FlockChatFeed({ items, selfPid, lang, hideOthers }: Prop
     const timer = setInterval(() => setNow(Date.now()), TICK_MS);
     return () => clearInterval(timer);
   }, [collapsed]);
-  // нове повідомлення: прокрутка донизу, якщо користувач і так біля кінця
+  // відкрили - одразу до останніх повідомлень; нове повідомлення - донизу, якщо користувач і так біля кінця
+  const stickRef = useRef(true);
+  useEffect(() => {
+    if (collapsed) stickRef.current = true;
+  }, [collapsed]);
   useEffect(() => {
     const el = listRef.current;
     if (!el || collapsed) return;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) el.scrollTop = el.scrollHeight;
+    if (stickRef.current || el.scrollHeight - el.scrollTop - el.clientHeight < 60) el.scrollTop = el.scrollHeight;
+    stickRef.current = false;
   }, [lastId, collapsed]);
 
   const toggle = useCallback(() => {
@@ -106,7 +118,7 @@ export default function FlockChatFeed({ items, selfPid, lang, hideOthers }: Prop
             const own = m.pid === selfPid;
             return (
               <li key={m.id} className={`${styles.row} ${own ? styles.own : ""}`}>
-                <span className={`${styles.name} ${m.team === 1 ? styles.teamSheep : m.team === 2 ? styles.teamWolf : ""}`}>{m.name}</span>
+                <span className={`${styles.name} ${m.team === 1 ? styles.teamSheep : m.team === 2 ? styles.teamWolf : ""}`} title={m.name}>{shortName(m.name)}</span>
                 <span className={styles.text}>{body}</span>
                 <span className={styles.time}>{ago(m.at)}</span>
               </li>

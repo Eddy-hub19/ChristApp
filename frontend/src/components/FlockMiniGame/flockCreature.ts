@@ -1,4 +1,5 @@
 import type { Skin } from "./flockSkins";
+import { drawLegendaryBody, drawLegendaryEars, isLegendaryDeco } from "./flockLegendaryDeco";
 import { drawSpecialBehind, drawSpecialFront } from "./flockSpecialDeco";
 
 const TAU = Math.PI * 2;
@@ -1018,6 +1019,8 @@ export function drawCreature(
   const layerMask = layers ? animLayers(skin) : 0;
   // «Веселкова вівця»: вовну (а не смугу збоку) малює шар позаду - тіло лишає лише мордочку й вуха
   const rainbowWool = skin.deco === "rainbow" && (bodyOnly || layerMask !== 0);
+  // «Легендарні»: вовну з візерунком малює окремий модуль, звичайні кулі й диск не потрібні
+  const legend = isLegendaryDeco(skin.deco);
   if (layerMask & LAYER_BEHIND) drawLayerRotated(c, skin, r, ang, frame, LAYER_BEHIND);
 
   if (skin.kind === "wolf" || skin.kind === "dog") {
@@ -1073,21 +1076,22 @@ export function drawCreature(
     const bumps = skin.kind === "lamb" ? 9 : 11;
     const br = r * (skin.kind === "lamb" ? 0.3 : 0.27);
     drawSpecialBehind(c, skin, r, ang);
-    if (!rainbowWool) {
+    if (legend) drawLegendaryBody(c, skin, r, ang);
+    if (!rainbowWool && !legend) {
       c.fillStyle = dark;
       circle(c, r * 0.05, r * 0.07, r * 0.98);
       c.fill();
     }
     c.fillStyle = skin.fur;
     // робот - гладкий металевий корпус без кучерявої шерсті
-    if (skin.deco !== "robot" && !rainbowWool) {
+    if (skin.deco !== "robot" && !rainbowWool && !legend) {
       for (let i = 0; i < bumps; i++) {
         const a = (i / bumps) * TAU + 0.2;
         circle(c, Math.cos(a) * r * 0.74, Math.sin(a) * r * 0.74, br);
         c.fill();
       }
     }
-    if (!rainbowWool) {
+    if (!rainbowWool && !legend) {
       circle(c, 0, 0, r * (skin.deco === "robot" ? 0.95 : 0.82));
       c.fill();
       c.fillStyle = skin.light;
@@ -1117,6 +1121,7 @@ export function drawCreature(
       c.ellipse(Math.cos(a) * r * 0.78, Math.sin(a) * r * 0.78, r * 0.22, r * 0.12, a, 0, TAU);
       c.fill();
     }
+    if (legend) drawLegendaryEars(c, skin, r, ang);
     // мордочка
     c.fillStyle = skin.face;
     c.beginPath();

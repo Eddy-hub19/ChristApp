@@ -2,7 +2,7 @@
 .feed {
   display: flex;
   flex-direction: column;
-  width: min(230px, calc(56vw - 28px));
+  width: min(168px, calc(56vw - 28px));
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
@@ -84,7 +84,7 @@
 }
 
 .name {
-  max-width: 9ch;
+  max-width: 5ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
