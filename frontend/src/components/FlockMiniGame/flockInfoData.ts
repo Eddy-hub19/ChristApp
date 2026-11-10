@@ -21,6 +21,8 @@ export interface InfoEntry {
   title: L;
   text: L;
   params?: Record<string, InfoParam>;
+  /** Показывать запись, только если это число/флаг из config.game не равен false (пока профиль не загружен - показываем). Нужно, чтобы выключенная в конфиге карта или бонус не описывались. */
+  when?: string;
 }
 
 export interface InfoSection {
@@ -365,6 +367,7 @@ export const INFO_SECTIONS: InfoSection[] = [
       },
       {
         id: "lantern",
+        when: "night.enabled",
         icon: "bonus:lantern",
         title: { ua: "Ліхтарик", ru: "Фонарик", en: "Flashlight" },
         text: {
@@ -387,6 +390,7 @@ export const INFO_SECTIONS: InfoSection[] = [
       },
       {
         id: "jar",
+        when: "night.enabled",
         icon: "bonus:jar",
         title: { ua: "Пляшка зі світлячками", ru: "Банка со светлячками", en: "Jar of fireflies" },
         text: {
@@ -610,6 +614,7 @@ export const INFO_SECTIONS: InfoSection[] = [
       },
       {
         id: "night",
+        when: "night.enabled",
         icon: "bonus:lantern",
         title: { ua: "Карта «Ніч»", ru: "Карта «Ночь»", en: "“Night” map" },
         text: {
@@ -749,6 +754,17 @@ export function artifactDescParams(game: Record<string, unknown> | undefined): R
     revivePct: get("artifacts.reviveMassFraction", "pct"),
     censerRadius: get("artifacts.censerRadius"),
   };
+}
+
+/** Запись скрыта, если её `when` в config.game явно false (выключено в конфиге). */
+export function isInfoEntryVisible(e: Pick<InfoEntry, "when">, game: Record<string, unknown> | undefined): boolean {
+  if (!e.when) return true;
+  let cur: unknown = game;
+  for (const key of e.when.split(".")) {
+    if (cur === null || typeof cur !== "object") return true;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur !== false;
 }
 
 /** Подставляет числа в текст; если клиенту число не прислали (ещё грузится профиль) - «…». */

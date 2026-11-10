@@ -90,7 +90,7 @@ function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: A
       ))}
       <p className={styles.metaSmall}>{next === null ? t("nextNone") : t("nextSet", { map: name(next) })}</p>
       <div className={styles.pills} role="group" aria-label={t("next")}>
-        {PICKABLE_MAPS.map(({ k, id }) => (
+        {PICKABLE_MAPS.filter(({ id }) => id !== NIGHT_ID || maps?.nightEnabled !== false).map(({ k, id }) => (
           <button
             key={k}
             type="button"

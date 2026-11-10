@@ -1539,7 +1539,7 @@ export class FlockManager {
 
   /** Адмін: карта для наступної створеної арени (null - зняти примус). */
   setNextMap(id: number | null): boolean {
-    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team)) return false;
+    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team && (!m.night || C.night.enabled))) return false;
     this.forcedNextMap = id;
     return true;
   }
@@ -1550,7 +1550,7 @@ export class FlockManager {
   }
 
   mapAdmin() {
-    return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs, nightOpen: isNightOpen(this.now()) };
+    return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs, nightOpen: isNightOpen(this.now()), nightEnabled: C.night.enabled };
   }
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
