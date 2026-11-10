@@ -510,18 +510,20 @@ export const FLOCK_CONFIG = {
       noticeRadius: 420,
     },
     /** Нагорода переможцям: лише сервер, через журнал рубінів (TEAM_WIN), поза добовим лімітом арени. */
-    reward: 30,
+    reward: 20,
     /** Матч зараховується до нагороди лише якщо тривав не менше. */
     minMatchMs: 120_000,
     /** Не AFK: за матч не менше стількох дій (зміна напрямку/сили) і пройдена відстань не менше стількох одиниць. */
     afkMinActions: 20,
     afkMinMoveDist: 600,
     /** Оплачуваних перемог на добу (доба за Києвом). */
-    dailyWinLimit: 5,
+    dailyWinLimit: 3,
     /** Матч «проти ботів» (живого суперника не було ≥ botOnlyEnemyHumanMs): нагород лише botOnlyRewardLimit за період. */
     botOnlyRewardLimit: 3,
     /** 'day' - лічильник скидається опівночі за Києвом, 'lifetime' - назавжди. */
-    botOnlyRewardPeriod: 'day' as 'day' | 'lifetime',
+    botOnlyRewardPeriod: 'lifetime' as 'day' | 'lifetime',
+    /** Для 'lifetime': перемоги проти ботів рахуються лише з цієї дати (YYYY-MM-DD, початок за UTC), попередні не враховуються (м'яке впровадження). */
+    botOnlyCountFrom: '2026-11-10',
     botOnlyEnemyHumanMs: 60_000,
   },
 
@@ -600,14 +602,22 @@ export const FLOCK_CONFIG = {
   // --- рубіни (внутрішньоігрова валюта, лише від сервера) ---
   rubies: {
     /** Нагорода за 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
-    top1Reward: 10,
+    top1Reward: 5,
     top1MassThreshold: 3000,
     /** Нагорода тому, хто з'їв «Вожака» (поза dailyLimit). */
-    bossKillReward: 5,
+    bossKillReward: 3,
+    /** Скільки рубінів за «Вожака» можна отримати за добу (за Києвом); понад це перемога без нагороди. */
+    bossKillDailyLimit: 15,
+    /**
+     * Спільна добова межа заробітку на всі ігрові джерела разом: ARENA_TOP1 (з перемогою в колі), ARENA_BOSS і TEAM_WIN.
+     * Не рахуються: ARENA_STREAK (один гравець на добу), ENTRY_BONUS і PREMIUM_COLLECTION (разові), ADMIN_ADJUST.
+     * Кожне джерело зберігає й свій ліміт; цей потолок їх доповнює (виплата обрізається до залишку).
+     */
+    dailyEarnCap: 80,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
     /** Разовий бонус кожному гравцеві за перший вхід у гру (не входить у dailyLimit). */
     entryBonus: 20,
-    dailyLimit: 100,
+    dailyLimit: 40,
     dailyTimeZone: 'Europe/Kyiv',
     /** Вартість звичайного платного скіна. */
     skinPrice: 50,
@@ -631,7 +641,7 @@ export const FLOCK_CONFIG = {
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
     /** Разова нагорода за повну колекцію преміум-скінів, що зараз у продажу (без HIDDEN_SKINS); поза dailyLimit. */
-    premiumCollectionReward: 300,
+    premiumCollectionReward: 150,
   },
 
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
@@ -657,7 +667,7 @@ export const FLOCK_CONFIG = {
      * Нагорода за кожну ЗАКРИТУ добу поспіль на 1-му місці (поза rubies.dailyLimit): день N серії = streakRewards[N-1].
      * Після останнього елемента серія починається заново (довжина циклу = streakRewards.length).
      */
-    streakRewards: [10, 20, 30] as readonly number[],
+    streakRewards: [5, 10, 15] as readonly number[],
     /** Мінімальна маса, з якою день зараховується переможцю (щоб не виграти день порожньою грою). */
     minMass: 1000,
     /** Не частіше ніж раз на стільки мс пишемо рекорд одного гравця в БД. */
@@ -1023,6 +1033,8 @@ export function clientGameConfig() {
       top1Reward: c.rubies.top1Reward,
       top1MassThreshold: c.rubies.top1MassThreshold,
       dailyLimit: c.rubies.dailyLimit,
+      dailyEarnCap: c.rubies.dailyEarnCap,
+      bossKillDailyLimit: c.rubies.bossKillDailyLimit,
       entryBonus: c.rubies.entryBonus,
       bossKillReward: c.rubies.bossKillReward,
       skinPrice: c.rubies.skinPrice,

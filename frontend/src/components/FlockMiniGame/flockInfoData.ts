@@ -116,9 +116,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "ruby",
         title: { ua: "Як отримати", ru: "Как получить", en: "How to earn" },
         text: {
-          ua: "Займи 1-ше місце в «Топ-10» з масою від {mass}: {reward} рубінів, один раз за життя. Не більше {limit} рубінів на арені за добу (за часом Києва). Вожак і боти не рахуються. Ще: {entry} рубінів за перший вхід у гру й {boss} за перемогу над Вожаком.",
-          ru: "Займи 1-е место в «Топ-10» с массой от {mass}: {reward} рубинов, один раз за жизнь. Не больше {limit} рубинов на арене в сутки (по времени Киева). Вожак и боты не считаются. Ещё: {entry} рубинов за первый вход в игру и {boss} за победу над Вожаком.",
-          en: "Finish 1st in the Top 10 with a mass of {mass}+: {reward} rubies, once per life. Up to {limit} rubies a day on the arena (Kyiv time). The Alpha and bots don't count. Also: {entry} rubies for your first visit and {boss} for defeating the Alpha.",
+          ua: "Займи 1-ше місце в «Топ-10» з масою від {mass}: {reward} рубінів, один раз за життя. Не більше {limit} рубінів на арені за добу (за часом Києва). Вожак і боти не рахуються. Ще: {entry} рубінів за перший вхід у гру й {boss} за перемогу над Вожаком (не більше {bossLimit} за добу). Усі ігрові джерела разом (арена, Вожак, «Замки») дають не більше {cap} рубінів за добу.",
+          ru: "Займи 1-е место в «Топ-10» с массой от {mass}: {reward} рубинов, один раз за жизнь. Не больше {limit} рубинов на арене в сутки (по времени Киева). Вожак и боты не считаются. Ещё: {entry} рубинов за первый вход в игру и {boss} за победу над Вожаком (не больше {bossLimit} в сутки). Все игровые источники вместе (арена, Вожак, «Замки») дают не больше {cap} рубинов в сутки.",
+          en: "Finish 1st in the Top 10 with a mass of {mass}+: {reward} rubies, once per life. Up to {limit} rubies a day on the arena (Kyiv time). The Alpha and bots don't count. Also: {entry} rubies for your first visit and {boss} for defeating the Alpha (up to {bossLimit} a day). All in-game sources together (arena, the Alpha, Castles) pay at most {cap} rubies a day.",
         },
         params: {
           mass: num("rubies.top1MassThreshold"),
@@ -126,6 +126,8 @@ export const INFO_SECTIONS: InfoSection[] = [
           limit: num("rubies.dailyLimit"),
           entry: num("rubies.entryBonus"),
           boss: num("rubies.bossKillReward"),
+          bossLimit: num("rubies.bossKillDailyLimit"),
+          cap: num("rubies.dailyEarnCap"),
         },
       },
       {
