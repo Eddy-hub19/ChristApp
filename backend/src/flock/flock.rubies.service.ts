@@ -78,7 +78,7 @@ export class FlockRubiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN, DAILY_QUEST): rubies.dailyEarnCap
+   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN; щоденні завдання сюди НЕ входять): rubies.dailyEarnCap
    * мінус уже зароблене сьогодні. Разові (вхід, колекція), серія й адмінські правки сюди не входять.
    */
   private async earnCapLeft(tx: Tx | PrismaService, userId: string, now: Date): Promise<number> {
@@ -86,7 +86,7 @@ export class FlockRubiesService {
       _sum: { delta: true },
       where: {
         userId,
-        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN, RubyReason.DAILY_QUEST] },
+        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN] },
         delta: { gt: 0 },
         createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) },
       },
@@ -164,14 +164,11 @@ export class FlockRubiesService {
     return { amount: give, balance: next };
   }
 
-  /** Рубіни за завдання в зовнішній транзакції: обрізаються до залишку спільного добового потолка (повертає 0, коли потолок вичерпано). */
-  async grantQuestRubiesInTx(tx: Tx, userId: string, amount: number, note: string, now = new Date()): Promise<{ amount: number; balance: number }> {
+  /** Рубіни за завдання в зовнішній транзакції: поза добовим потолком ігрових джерел (dailyEarnCap), своя фіксована сума. */
+  async grantQuestRubiesInTx(tx: Tx, userId: string, amount: number, note: string): Promise<{ amount: number; balance: number }> {
     const balance = await this.lockProfile(tx, userId);
-    const left = await this.earnCapLeft(tx, userId, now);
-    const give = Math.max(0, Math.min(amount, left));
-    if (give <= 0) return { amount: 0, balance };
-    const next = await this.apply(tx, userId, balance, { delta: give, reason: RubyReason.DAILY_QUEST, note });
-    return { amount: give, balance: next };
+    const next = await this.apply(tx, userId, balance, { delta: amount, reason: RubyReason.DAILY_QUEST, note });
+    return { amount, balance: next };
   }
 
   async ownedSkins(userId: string): Promise<number[]> {

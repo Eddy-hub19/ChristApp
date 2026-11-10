@@ -242,7 +242,7 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * «Забрати»: у транзакції - прапор взято (updateMany лише для claimedAt IS NULL), потім нарахування.
-   * Повторний або паралельний запит нічого не нараховує. Якщо нагорода не може бути видана (стеля смарагдів, добовий потолок рубінів), позначка
+   * Повторний або паралельний запит нічого не нараховує. Якщо нагорода не може бути видана (стеля смарагдів), позначка
    * знімається разом з відкатом транзакції й завдання лишається доступним.
    */
   async claim(userId: string, slot: number, now = new Date()) {
@@ -266,8 +266,7 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
         if (r.amount <= 0) throw fail(BadRequestException, 'emerald_cap');
         return { type: 'emeralds' as const, amount: r.amount, balance: r.balance };
       }
-      const r = await this.rubies.grantQuestRubiesInTx(tx, userId, reward.amount, `${u.day}:${def.id}`, now);
-      if (r.amount <= 0) throw fail(BadRequestException, 'daily_cap');
+      const r = await this.rubies.grantQuestRubiesInTx(tx, userId, reward.amount, `${u.day}:${def.id}`);
       return { type: 'rubies' as const, amount: r.amount, balance: r.balance };
     });
     row.claimed = true;

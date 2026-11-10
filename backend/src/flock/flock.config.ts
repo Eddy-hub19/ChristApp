@@ -612,10 +612,10 @@ export const FLOCK_CONFIG = {
     bossKillDailyLimit: 15,
     /**
      * Спільна добова межа заробітку на всі ігрові джерела разом: ARENA_TOP1 (з перемогою в колі), ARENA_BOSS і TEAM_WIN.
-     * Не рахуються: ARENA_STREAK (один гравець на добу), ENTRY_BONUS і PREMIUM_COLLECTION (разові), ADMIN_ADJUST.
+     * Не рахуються: щоденні завдання (DAILY_QUEST), ARENA_STREAK (один гравець на добу), ENTRY_BONUS і PREMIUM_COLLECTION (разові), ADMIN_ADJUST.
      * Кожне джерело зберігає й свій ліміт; цей потолок їх доповнює (виплата обрізається до залишку).
      */
-    dailyEarnCap: 80,
+    dailyEarnCap: 100,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
     /** Разовий бонус кожному гравцеві за перший вхід у гру (не входить у dailyLimit). */
     entryBonus: 20,
@@ -656,7 +656,7 @@ export const FLOCK_CONFIG = {
   // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
   quests: {
     enabled: true,
-    /** Нагороди за слотами: 0 - просте (рубіни), 1 - середнє (рубіни), 2 - складне (смарагди). Рубіни входять у rubies.dailyEarnCap. */
+    /** Нагороди за слотами: 0 - просте (рубіни), 1 - середнє (рубіни), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
     rewards: {
       simple: { type: 'rubies', amount: 4 },
       medium: { type: 'rubies', amount: 6 },
