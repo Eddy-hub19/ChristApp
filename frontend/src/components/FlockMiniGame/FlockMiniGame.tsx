@@ -87,7 +87,7 @@ type Hud = {
   /** Режим «Замки»: шапка матчу (null - інший режим або ще нема `cm`). */
   castle: CastleHudData | null;
   /** Карта «Арена»: HUD хвиль (з таймером паузи, що тікає локально); null - інша карта. */
-  coliseum: { hud: ColiseumHud; nextMs: number; leftMs: number | null } | null;
+  coliseum: { hud: ColiseumHud; nextMs: number; leftMs: number | null; carry: number; carryMax: number } | null;
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
@@ -989,7 +989,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           return w ? { phase: w.phase, angle: w.angle } : null;
         })(),
         pipeCalled: performance.now() - model.pipeCalledAt < 1500,
-        coliseum: model.coliseum && model.coliseumHud ? { hud: model.coliseumHud, nextMs: Math.max(0, (model.coliseumHud.next ?? 0) - (performance.now() - model.coliseumHudAt)), leftMs: model.coliseumHud.tl === undefined ? null : Math.max(0, model.coliseumHud.tl - (performance.now() - model.coliseumHudAt)) } : null,
+        coliseum: model.coliseum && model.coliseumHud ? { hud: model.coliseumHud, nextMs: Math.max(0, (model.coliseumHud.next ?? 0) - (performance.now() - model.coliseumHudAt)), carry: model.carry, carryMax: model.carryMax, leftMs: model.coliseumHud.tl === undefined ? null : Math.max(0, model.coliseumHud.tl - (performance.now() - model.coliseumHudAt)) } : null,
         castle: (() => {
           const cs = model.castle;
           const cc = model.cfg.castle;
@@ -1055,6 +1055,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       if (e.code === "Space") {
         e.preventDefault();
         if (!e.repeat) splitQueuedRef.current = true;
+      } else if (e.code === "KeyF" && playing && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // «Арена»: постріл стрілою
+        clientRef.current?.sendArrow();
       } else if (e.code === "KeyW") {
         throwHeldRef.current = true;
       } else if (e.code === "ShiftLeft" || e.code === "ShiftRight") {
@@ -1335,7 +1338,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   : t("events.bossAteLeader", { name: bossMsg.name })}
             </div>
           ) : null}
-          {hud.coliseum ? <FlockColiseumHud c={hud.coliseum.hud} nextMs={hud.coliseum.nextMs} leftMs={hud.coliseum.leftMs} /> : null}
+          {hud.coliseum ? <FlockColiseumHud c={hud.coliseum.hud} nextMs={hud.coliseum.nextMs} leftMs={hud.coliseum.leftMs} carry={hud.coliseum.carry} carryMax={hud.coliseum.carryMax} /> : null}
           {colNotice ? (
             <div key={colNotice.id} className={colStyles.notice} role="status">
               {t(colNotice.kind === "warn" ? "coliseum.roundWarn" : "coliseum.roundReset")}
@@ -1488,6 +1491,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             >
               {t("controls.throw")}
             </button>
+            {hud.coliseum ? (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                disabled={hud.coliseum.carry <= 0}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  clientRef.current?.sendArrow();
+                }}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                {t("controls.arrow", { n: hud.coliseum.carry })}
+              </button>
+            ) : null}
             {hud.sprintSupported ? (
               <button
                 type="button"

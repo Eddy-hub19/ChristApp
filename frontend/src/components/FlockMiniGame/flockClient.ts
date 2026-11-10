@@ -313,6 +313,7 @@ export class FlockClient {
     });
     socket.on("d", (info: DeathInfo) => {
       this.later(() => {
+        if (this.model) this.model.carry = 0; // запас стріл губиться зі смертю (сервер теж його скидає)
         // смерть = сесії більше нема: після неї відновлювати нічого
         this.wantPlay = false;
         this.stopHeartbeat();
@@ -413,6 +414,28 @@ export class FlockClient {
           this.opts.onColiseumNotice?.("reset");
         }
         if (this.model?.coliseumHud) this.opts.onColiseumHud?.(this.model.coliseumHud);
+      });
+    });
+    // «Арена»: стріли (рідкісні повідомлення, без потоку позицій): на землі, постріл, влучання, власний запас
+    socket.on("ra", (msg: { a?: [number, number, number, number][]; d?: number[] }) => {
+      this.later(() => this.model?.applyArrowItems(msg));
+    });
+    socket.on("as", (list: { id: number; pid: number; x: number; y: number; vx: number; vy: number; life: number }[]) => {
+      this.later(() => {
+        this.model?.applyShots(list);
+        if (this.model && list?.some((s) => s.pid === this.model!.cfg.pid)) playFlockSound("throw", { self: true });
+      });
+    });
+    socket.on("ah", (list: { id: number; x: number; y: number; pid: number }[]) => {
+      this.later(() => {
+        if (!this.model) return;
+        const own = this.model.applyHits(list);
+        playFlockSound("starPick", own ? { self: true } : { self: true, pitch: 0.8 });
+      });
+    });
+    socket.on("ac", (m: { n?: number }) => {
+      this.later(() => {
+        if (this.model && typeof m?.n === "number") this.model.carry = m.n;
       });
     });
     socket.on("tw", (res: TigerResult) => {
@@ -584,6 +607,13 @@ export class FlockClient {
     const send = () => s.emit("i", packed);
     if (this.lag > 0) setTimeout(send, this.lag);
     else send();
+  }
+
+  /** «Арена»: постріл (кнопка «Стріла» / F); запас і перезарядку перевіряє сервер, без тіла. */
+  sendArrow() {
+    const s = this.socket;
+    if (!s?.connected || this.status !== "playing" || this.pendingDeath || !this.model?.coliseum || this.model.carry <= 0) return;
+    s.emit("ar");
   }
 
   /** Швидка фраза: по мережі лише id (сервер перевіряє список і ліміт частоти). */

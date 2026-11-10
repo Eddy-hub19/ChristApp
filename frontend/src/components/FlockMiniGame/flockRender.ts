@@ -1,6 +1,7 @@
 import { deathDim, drawDeath, drawDeathDim } from "./flockDeathAnim";
 import { drawColiseumBack } from "./flockColiseumRender";
 import { drawColiseumMinimap } from "./flockColiseum";
+import { drawArrowInFlight, drawArrowOnGround } from "./flockArrow";
 import { drawCloudBorder, drawFalls, drawSkyMinimap, drawSkyWorld, drawVoidRing, drawVoidVignette, drawWings } from "./flockSkyRender";
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
@@ -503,6 +504,56 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     const pulse = 1 + Math.sin(o.time * 4 + b.id) * 0.12;
     const sz = BONUS_WORLD_SIZE * pulse;
     ctx.drawImage(bonusFullSprite(b.kind, BONUS_COLOR[b.kind] ?? "#fff", BONUS_ICON[b.kind] ?? "?", theme.dark), b.x - sz / 2, b.y - sz / 2, sz, sz);
+  }
+
+  // «Арена»: стріли на землі (зникають за ttl), у польоті (пряма за life мс) і спалахи влучань
+  if (m.coliseum) {
+    const nowMs = performance.now();
+    const ppu = scale * dpr;
+    for (const a of m.arrowItems.values()) {
+      if (a.expiresAt <= nowMs) continue;
+      if (a.x < x0 - 60 || a.x > x1 + 60 || a.y < y0 - 60 || a.y > y1 + 60) continue;
+      const left = a.expiresAt - nowMs;
+      // перед зникненням стріла блимає
+      if (left < 4000 && Math.floor(nowMs / 200) % 2 === 0) continue;
+      drawArrowOnGround(ctx, a.x, a.y, ((a.id * 2.399) % TAU) - Math.PI, ppu, Math.sin(o.time * 3 + a.id) * 1.5);
+    }
+    for (const s of m.shots.values()) {
+      const el = nowMs - s.at;
+      if (el >= s.life) {
+        m.shots.delete(s.id);
+        continue;
+      }
+      const t = el / 1000;
+      const x = s.x0 + s.vx * t;
+      const y = s.y0 + s.vy * t;
+      if (x < x0 - 160 || x > x1 + 160 || y < y0 - 160 || y > y1 + 160) continue;
+      drawArrowInFlight(ctx, x, y, Math.atan2(s.vy, s.vx), ppu);
+    }
+    for (let i = m.hitFx.length - 1; i >= 0; i--) {
+      const h = m.hitFx[i];
+      const k = (nowMs - h.at) / 380;
+      if (k >= 1) {
+        m.hitFx.splice(i, 1);
+        continue;
+      }
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = "#fff3b0";
+      ctx.lineWidth = 5 * (1 - k) + 1;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, 14 + 46 * k, 0, TAU);
+      ctx.stroke();
+      ctx.strokeStyle = "#ff9a3c";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let j = 0; j < 8; j++) {
+        const a = (j / 8) * TAU + 0.4;
+        ctx.moveTo(h.x + Math.cos(a) * (10 + 30 * k), h.y + Math.sin(a) * (10 + 30 * k));
+        ctx.lineTo(h.x + Math.cos(a) * (22 + 60 * k), h.y + Math.sin(a) * (22 + 60 * k));
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
   }
 
   // хвилі «Ножиць»: кільце, що розходиться, ножиці, що клацають, і клаптики шерсті, що розлітаються
