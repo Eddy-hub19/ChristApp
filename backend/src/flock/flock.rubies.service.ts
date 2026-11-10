@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, RubyReason } from '@prisma/client';
@@ -66,7 +67,26 @@ type Tx = Prisma.TransactionClient;
 /** Усі зміни рубінів: баланс + рядок журналу в одній транзакції, під блокуванням профілю. */
 @Injectable()
 export class FlockRubiesService {
+  private readonly log = new Logger(FlockRubiesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN): rubies.dailyEarnCap
+   * мінус уже зароблене сьогодні. Разові (вхід, колекція), серія й адмінські правки сюди не входять.
+   */
+  private async earnCapLeft(tx: Tx | PrismaService, userId: string, now: Date): Promise<number> {
+    const agg = await tx.rubyTransaction.aggregate({
+      _sum: { delta: true },
+      where: {
+        userId,
+        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN] },
+        delta: { gt: 0 },
+        createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) },
+      },
+    });
+    return Math.max(0, R.dailyEarnCap - (agg._sum.delta ?? 0));
+  }
 
   /** Створює профіль, якщо його ще нема, і блокує рядок до кінця транзакції. */
   private async lockProfile(tx: Tx, userId: string): Promise<number> {
@@ -236,7 +256,8 @@ export class FlockRubiesService {
         userId,
         botOnly: true,
         amount: { gt: 0 },
-        ...(T.botOnlyRewardPeriod === 'day' ? { createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } } : {}),
+        // 'lifetime' рахується лише з botOnlyCountFrom (м'яке впровадження: попередні перемоги не враховуються)
+        createdAt: { gte: T.botOnlyRewardPeriod === 'day' ? dayStartInZone(now, R.dailyTimeZone) : new Date(`${T.botOnlyCountFrom}T00:00:00Z`) },
       },
     });
   }
@@ -270,13 +291,21 @@ export class FlockRubiesService {
       });
       if (paidToday >= T.dailyWinLimit) return { rubies: 0, balance, reason: 'daily', botLeft };
       if (botOnly && botLeft <= 0) return { rubies: 0, balance, reason: 'botLimit', botLeft: 0 };
+      // общий дневной потолок на ігрові джерела: виплата обрізається до залишку, при нулі - без нагороди (слот перемоги не витрачається)
+      const capLeft = await this.earnCapLeft(tx, userId, now);
+      if (capLeft <= 0) {
+        this.log.log(`daily earn cap reached: TEAM_WIN ${T.reward} cut to 0`);
+        return { rubies: 0, balance, reason: 'daily', botLeft };
+      }
+      const amount = Math.min(T.reward, capLeft);
+      if (amount < T.reward) this.log.log(`daily earn cap: TEAM_WIN ${T.reward} cut to ${amount}`);
       const next = await this.apply(tx, userId, balance, {
-        delta: T.reward,
+        delta: amount,
         reason: RubyReason.TEAM_WIN,
         note: matchId,
       });
-      await tx.flockTeamReward.create({ data: { matchId, userId, botOnly, amount: T.reward } });
-      return { rubies: T.reward, balance: next, botLeft: botOnly ? botLeft - 1 : botLeft };
+      await tx.flockTeamReward.create({ data: { matchId, userId, botOnly, amount } });
+      return { rubies: amount, balance: next, botLeft: botOnly ? botLeft - 1 : botLeft };
     });
   }
 
@@ -297,7 +326,9 @@ export class FlockRubiesService {
         },
       });
       const left = R.dailyLimit - (agg._sum.delta ?? 0);
-      const amount = Math.min(reward, left);
+      const capLeft = await this.earnCapLeft(tx, userId, now);
+      const amount = Math.min(reward, left, capLeft);
+      if (amount < reward) this.log.log(`daily limit: ARENA_TOP1 ${reward} cut to ${Math.max(0, amount)} (arena left ${left}, earn cap left ${capLeft})`);
       if (amount <= 0) return null;
       const next = await this.apply(tx, userId, balance, {
         delta: amount,
@@ -323,15 +354,25 @@ export class FlockRubiesService {
   }
 
   /** Нагорода за перемогу над «Вожаком»: фіксована, не входить у добовий ліміт. */
-  async awardBossKill(userId: string): Promise<AwardResult | null> {
+  async awardBossKill(userId: string, now = new Date()): Promise<AwardResult | null> {
     if (R.bossKillReward <= 0) return null;
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
+      // ліміт за Вожака на добу (bossKillDailyLimit) і спільний добовий потолок (dailyEarnCap): виплата обрізається до залишку
+      const agg = await tx.rubyTransaction.aggregate({
+        _sum: { delta: true },
+        where: { userId, reason: RubyReason.ARENA_BOSS, createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } },
+      });
+      const bossLeft = R.bossKillDailyLimit - (agg._sum.delta ?? 0);
+      const capLeft = await this.earnCapLeft(tx, userId, now);
+      const amount = Math.min(R.bossKillReward, bossLeft, capLeft);
+      if (amount < R.bossKillReward) this.log.log(`daily limit: ARENA_BOSS ${R.bossKillReward} cut to ${Math.max(0, amount)} (boss left ${bossLeft}, earn cap left ${capLeft})`);
+      if (amount <= 0) return null;
       const next = await this.apply(tx, userId, balance, {
-        delta: R.bossKillReward,
+        delta: amount,
         reason: RubyReason.ARENA_BOSS,
       });
-      return { amount: R.bossKillReward, balance: next };
+      return { amount, balance: next };
     });
   }
 

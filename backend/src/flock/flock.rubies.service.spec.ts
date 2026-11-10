@@ -66,7 +66,7 @@ d('FlockRubiesService (БД)', () => {
     await pool.end();
   });
 
-  it('нагорода за 1-ше місце: +10, запис у журналі з балансом після', async () => {
+  it('нагорода за 1-ше місце: +top1Reward, запис у журналі з балансом після', async () => {
     const u = await makeUser();
     expect(await svc.awardTop1(u.id)).toEqual({
       amount: C.rubies.top1Reward,
@@ -77,13 +77,13 @@ d('FlockRubiesService (БД)', () => {
     });
     expect(tx).toHaveLength(1);
     expect(tx[0]).toMatchObject({
-      delta: 10,
-      balanceAfter: 10,
+      delta: C.rubies.top1Reward,
+      balanceAfter: C.rubies.top1Reward,
       reason: RubyReason.ARENA_TOP1,
     });
   });
 
-  it('добовий ліміт: після 100 нагород нових нема, а доба рахується за Києвом', async () => {
+  it('добовий ліміт арени: після вичерпання нових нема, а доба рахується за Києвом', async () => {
     const u = await makeUser();
     const now = new Date();
     const dayStart = dayStartInZone(now, C.rubies.dailyTimeZone);
