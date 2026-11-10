@@ -82,6 +82,8 @@ export interface ColiseumHud {
   tg?: { m: number; M: number };
   /** Наступною буде хвиля тигра. */
   tgNext?: boolean;
+  /** До таймауту раунду (мс), лише в хвилі й у тигра. */
+  tl?: number;
 }
 
 /**
@@ -99,11 +101,14 @@ export class ColiseumDirector {
   private gate = 0;
   private lastShed = false;
   private lastHumans = 0;
+  /** Початок раунду (перша хвиля, годинник світу) і чи вже було попередження про таймаут. */
+  private roundStartAt = 0;
+  private warned = false;
   /** Порядковий номер тигра (для унікального ключа перемоги). */
   tigerSeq = 0;
   /** Фаза чи номер хвилі змінилися від останнього зчитування (менеджер шле HUD одразу). */
   changed = true;
-  /** Короткі події для звуку й підказок: 'wave' | 'tiger' | 'tigerDown'. */
+  /** Короткі події для звуку й підказок: 'wave' | 'tiger' | 'tigerDown' | 'roundWarn' (за roundWarnMs до таймауту) | 'roundReset'. */
   readonly events: string[] = [];
 
   constructor(
@@ -132,6 +137,7 @@ export class ColiseumDirector {
     }
     if (this.frozenAt !== null) {
       this.pauseUntil += w.now - this.frozenAt;
+      this.roundStartAt += w.now - this.frozenAt;
       this.frozenAt = null;
     }
     if (this.phase === 0) {
@@ -154,6 +160,29 @@ export class ColiseumDirector {
     if (shed && !this.lastShed && this.phase === 2) this.trimWolves();
     this.lastShed = shed;
 
+    // таймаут раунду: тигр не переможений - скидання без нагород, цикл з хвилі 1
+    if ((this.phase === 2 || this.phase === 3) && this.roundStartAt > 0) {
+      const left = K.roundTimeoutMs - (w.now - this.roundStartAt);
+      if (left <= 0) {
+        for (const id of [...this.mobs]) {
+          w.removePlayer(id);
+          this.mobs.delete(id);
+        }
+        w.tigerDown.length = 0;
+        this.tigerPid = 0;
+        this.wave = 1;
+        this.roundStartAt = 0;
+        this.warned = false;
+        this.pauseUntil = w.now + K.wavePauseMs;
+        this.events.push('roundReset');
+        this.setPhase(1);
+        return {};
+      }
+      if (!this.warned && left <= K.roundWarnMs) {
+        this.warned = true;
+        this.events.push('roundWarn');
+      }
+    }
     if (this.phase === 1) {
       if (w.now >= this.pauseUntil) this.startNext(humans, shed);
       return {};
@@ -187,6 +216,8 @@ export class ColiseumDirector {
           this.mobs.delete(id);
         }
         this.wave = 1;
+        this.roundStartAt = 0;
+        this.warned = false;
         this.pauseUntil = w.now + K.wavePauseMs;
         this.setPhase(1);
         return { tigerDown: down };
@@ -238,6 +269,10 @@ export class ColiseumDirector {
       this.events.push('tiger');
       return;
     }
+    if (this.wave === 1) {
+      this.roundStartAt = this.w.now;
+      this.warned = false;
+    }
     const spec = waveSpec(this.wave, humans, shed);
     for (let i = 0; i < spec.count; i++) this.spawn({ wolf: true, mass: spec.mass * (0.85 + this.rng() * 0.3) });
     this.total = spec.count;
@@ -258,6 +293,7 @@ export class ColiseumDirector {
       h.next = Math.max(0, Math.round(this.pauseUntil - (this.frozenAt ?? w.now)));
       h.tgNext = this.wave > K.wavesBeforeTiger;
     }
+    if ((this.phase === 2 || this.phase === 3) && this.roundStartAt > 0) h.tl = Math.max(0, Math.round(K.roundTimeoutMs - ((this.frozenAt ?? w.now) - this.roundStartAt)));
     if (this.phase === 3) {
       const t = w.players.get(this.tigerPid);
       if (t?.maxHp && t.hp !== undefined) h.tg = { m: Math.max(0, Math.ceil(t.hp - 1e-6)), M: Math.round(t.maxHp) };

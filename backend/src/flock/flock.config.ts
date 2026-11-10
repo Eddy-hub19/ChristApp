@@ -708,6 +708,9 @@ export const FLOCK_CONFIG = {
     tigerSkin: 70,
     /** Пауза перед хвилею (мс) і перед повторним циклом. */
     wavePauseMs: 10_000,
+    /** Таймаут раунду від початку першої хвилі (мс): не переміг тигра - раунд скидається без нагород, цикл з хвилі 1; попередження за roundWarnMs. Без людей час стоїть. */
+    roundTimeoutMs: 12 * 60_000,
+    roundWarnMs: 60_000,
     /** Скільки хвиль вовків перед «Тигром»; потім цикл знову з легкої хвилі. */
     wavesBeforeTiger: 5,
     /** Вовків у хвилі k (1-based): base + perWave * (k - 1); маса вовка: massBase + massPerWave * (k - 1) (на початку, х випадково 0.85-1.15). */
@@ -1205,6 +1208,7 @@ export function clientGameConfig() {
       arrowCooldownMs: c.coliseum.arrows.cooldownMs,
       arrowLifetimeSec: Math.round(c.coliseum.arrows.lifetimeMs / 1000),
       arrowAimRange: c.coliseum.arrows.aimRange,
+      roundTimeoutMin: Math.round(c.coliseum.roundTimeoutMs / 60_000),
       emeraldDropEnabled: c.coliseum.reward.emeraldDropEnabled,
       minPresenceSec: Math.round(c.coliseum.reward.minPresenceMs / 1000),
       winsPerSkin: c.coliseum.skins.winsPerSkin,
