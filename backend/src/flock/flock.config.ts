@@ -1188,6 +1188,11 @@ export function clientGameConfig() {
       fallbackRubies: c.coliseum.skins.fallbackRubies,
       skinIds: [...c.coliseum.skins.ids],
     },
+    quests: {
+      simpleRubies: c.quests.rewards.simple.amount,
+      mediumRubies: c.quests.rewards.medium.amount,
+      hardEmeralds: c.quests.rewards.hard.amount,
+    },
     emeralds: {
       cap: c.emeralds.cap,
       legendaryEmeraldPrice: c.emeralds.legendaryEmeraldPrice,
