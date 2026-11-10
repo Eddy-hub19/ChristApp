@@ -248,7 +248,9 @@
         "ARTIFACT_PURCHASE_EMERALD": "Покупка артефакта за изумруды",
         "SKIN_PURCHASE_EMERALD": "Покупка скина за изумруды",
         "ARENA_TIGER_DROP": "Изумруд за победу над тигром",
-        "ARENA_COLISEUM_SKIN_FALLBACK": "Награда вместо скина за победы на «Арене»"
+        "ARENA_COLISEUM_SKIN_FALLBACK": "Награда вместо скина за победы на «Арене»",
+        "ARENA_COLISEUM": "Победа над тигром на «Арене»",
+        "ARENA_COLISEUM_SKIN": "Скин или награда за победы на «Арене»"
       },
       "notes": {
         "adminGrant": "Выдано админом",
@@ -271,7 +273,11 @@
       "emeraldAmountPlaceholder": "± изумруды",
       "emeraldAmountLabel": "Количество изумрудов",
       "emeraldApply": "Изменить изумруды",
-      "emeraldHistory": "История изумрудов"
+      "emeraldHistory": "История изумрудов",
+      "coliseumWins": "Побед над тигром",
+      "coliseumAmountPlaceholder": "± побед",
+      "coliseumAmountLabel": "Изменение счётчика побед над тигром",
+      "coliseumApply": "Изменить счётчик"
     },
     "title": "Админ",
     "subtitle": "Участники (сначала новые).",
@@ -1513,7 +1519,8 @@
       "volcano": "Вулкан",
       "lake": "Лес и озеро",
       "night": "Ночь",
-      "sky": "Небо"
+      "sky": "Небо",
+      "coliseum": "Арена"
     },
     "hud": {
       "mass": "Масса",
@@ -1906,6 +1913,31 @@
           "short": "Победить тигра"
         }
       }
+    },
+    "coliseum": {
+      "mapSub": "Овечки заодно. Собирай стрелы и бей тигра: {n} попадания = приз",
+      "wave": "Волна {n}",
+      "waveIn": "Волна {n} через {time}",
+      "tigerIn": "Тигр через {time}",
+      "wolves": "Волки: {n}/{t}",
+      "tiger": "Тигр",
+      "hits": "{left}/{max} попаданий",
+      "won": "Тигр повержен! +{rubies} рубинов",
+      "emerald": "+{n} изумруд",
+      "noHits": "Нужно {required} попадания, у тебя {hits}",
+      "short": "Ты был на арене слишком мало для награды",
+      "afk": "Ты не двигался, поэтому награды нет",
+      "daily": "Лимит побед на сегодня исчерпан",
+      "noReward": "Награды нет",
+      "toSkin": "До скина: {n} из {per}",
+      "skin": "Новый скин: {name}!",
+      "fbEmeralds": "Все скины собраны: +{n} изумрудов",
+      "fbRubies": "Все скины собраны: +{n} рубинов",
+      "close": "Закрыть",
+      "progress": "Побед над тигром: {n} из {per}",
+      "roundWarn": "Раунд скоро сбросится: 60 с",
+      "roundReset": "Время вышло: раунд сброшен без наград",
+      "roundLeft": "Раунд сбросится через {time}"
     }
   },
   "games": {

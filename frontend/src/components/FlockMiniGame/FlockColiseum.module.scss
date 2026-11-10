@@ -1,0 +1,185 @@
+/* HUD карти «Арена»: плашка хвиль/тигра й картка підсумку. */
+.hud {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 4;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 2 * 215px);
+  pointer-events: none;
+}
+
+.wave,
+.tiger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #2a1c12 82%, transparent);
+  color: #ffe9c2;
+  font-size: 13px;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+
+  strong {
+    font-weight: 800;
+  }
+}
+
+.tiger {
+  min-width: 220px;
+  border-radius: 14px;
+}
+
+.timer {
+  margin: 0 auto 4px;
+  width: max-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #8a1f14 85%, transparent);
+  color: #fff0e0;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.notice {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  z-index: 6;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 90vw;
+  padding: 8px 16px;
+  border-radius: 14px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff0e0;
+  background: color-mix(in srgb, #8a1f14 88%, transparent);
+  pointer-events: none;
+}
+
+.tigerName {
+  font-weight: 800;
+  color: #ffb355;
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.25s ease-out;
+}
+
+.hits {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* вузькі екрани: під «Топ-10» праворуч (ліворуч - стрічка чату, знизу - джойстик, кнопки й мінікарта) */
+@media (max-width: 640px) {
+  .hud {
+    top: calc(max(12px, env(safe-area-inset-top, 0px)) + 200px);
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    transform: none;
+    max-width: 190px;
+  }
+
+  .wave,
+  .tiger {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    border-radius: 12px;
+    white-space: normal;
+  }
+
+  .tiger {
+    min-width: 0;
+    width: 190px;
+  }
+
+  .bar {
+    width: 100%;
+    flex: none;
+  }
+}
+
+.result {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  z-index: 7;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 90vw;
+  padding: 14px 20px;
+  border-radius: 16px;
+  text-align: center;
+  background: color-mix(in srgb, #2a1c12 90%, transparent);
+  color: #ffe9c2;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  animation: resultIn 0.3s ease-out;
+}
+
+.resultTitle {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffd070;
+}
+
+.resultSkin {
+  font-size: 16px;
+  font-weight: 800;
+  color: #9be8b8;
+}
+
+.resultLine {
+  font-size: 14px;
+}
+
+.resultClose {
+  margin-top: 4px;
+  padding: 6px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #f0a21c;
+  color: #2a1c12;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@keyframes resultIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result {
+    animation: none;
+  }
+  .barFill {
+    transition: none;
+  }
+}

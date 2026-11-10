@@ -37,6 +37,15 @@ export function parseColiseum(raw: unknown): ColiseumGeo | null {
 /** Точка всередині арени (для мінікарти й клієнтських перевірок). */
 export const inColiseum = (g: ColiseumGeo, x: number, y: number, margin = 0) => Math.hypot(x - g.cx, y - g.cy) <= g.r - margin;
 
+/** Стіна «Арени»: точка не виходить за коло (радіус клітини r; те саме правило, що clampArena на сервері). */
+export function clampToColiseum(g: ColiseumGeo, x: number, y: number, r: number): [number, number] {
+  const lim = g.r - r * 0.3;
+  const dx = x - g.cx;
+  const dy = y - g.cy;
+  const d = Math.hypot(dx, dy);
+  return d > lim ? [g.cx + (dx / d) * lim, g.cy + (dy / d) * lim] : [x, y];
+}
+
 /** Палітра «Арени»: однакова на обидві теми застосунку. */
 export const COLISEUM = {
   sand: "#e2c48a",
@@ -61,7 +70,9 @@ export interface ColiseumHud {
   next?: number;
   tg?: { m: number; M: number };
   tgNext?: boolean;
-  e?: ("wave" | "tiger" | "tigerDown")[];
+  /** Мс до скидання раунду за часом (лише у фазах хвилі й тигра). */
+  tl?: number;
+  e?: ("wave" | "tiger" | "tigerDown" | "roundWarn" | "roundReset")[];
 }
 
 /** Частка маси тигра 0..1 для полоски. */

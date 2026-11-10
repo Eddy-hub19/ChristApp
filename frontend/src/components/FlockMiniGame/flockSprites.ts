@@ -1,3 +1,5 @@
+import { TIGER_SKIN } from "./flockColiseum";
+import { drawTigerCached } from "./flockTiger";
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
 import { GROUND_SPAN, SUNLIGHT_SPAN, paintGround, paintSunlight, type Ground } from "./flockGround";
 import { ARTIFACT_EXTENT, anchorFor, drawArtifact, drawArtifactShape } from "./flockArtifacts";
@@ -134,6 +136,11 @@ export function drawCreatureCached(
   /** Надітий артефакт (0 - нічого); малюється шаром поверх скіна. */
   artifact = 0,
 ) {
+  // тигр «Арени» (скін 70) малюється власним кешованим спрайтом
+  if (skinId === TIGER_SKIN) {
+    drawTigerCached(ctx, x, y, r, ang, scale, dpr, time);
+    return;
+  }
   const rPx = r * scale * dpr;
   const skin = skinOf(skinId);
   const frame = animFrame(skin, time, { reduceMotion: prefersReducedMotion(), rPx });

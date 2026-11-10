@@ -738,6 +738,44 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 29,
+    date: "2026-11-11",
+    items: [
+      {
+        icon: "trophy",
+        text: {
+          ua: "Нова карта «Арена»: колізей, де всі овечки — одна команда. Вони не їдять одна одну й разом б'ються з хвилями вовків, а потім із тигром-босом",
+          ru: "Новая карта «Арена»: колизей, где все овечки — одна команда. Они не едят друг друга и вместе бьются с волнами волков, а потом с тигром-боссом",
+          en: "A new map, the Colosseum: every sheep is on the same team. They don't eat each other and fight waves of wolves together, then the Tiger boss",
+        },
+      },
+      {
+        icon: "boost",
+        text: {
+          ua: "Тигра не з'їсти: збирай стріли з землі й стріляй клавішею F (на телефоні — кнопка «Стріла»). Достатньо кількох влучань, щоб отримати приз",
+          ru: "Тигра не съесть: собирай стрелы с земли и стреляй клавишей F (на телефоне — кнопка «Стріла»). Достаточно нескольких попаданий, чтобы получить приз",
+          en: "The Tiger can't be eaten: pick up arrows from the ground and shoot with F (the Arrow button on phones). A few hits are enough to earn a prize",
+        },
+      },
+      {
+        icon: "ruby",
+        text: {
+          ua: "За перемогу над тигром — рубіни й шанс на смарагд (є ліміт на добу). Раунд без перемоги за ліміт часу скидається без нагород",
+          ru: "За победу над тигром — рубины и изумруд (есть лимит в сутки). Раунд без победы по лимиту времени сбрасывается без наград",
+          en: "Defeating the Tiger pays rubies and an emerald (with a daily limit). A round without a win resets on a time limit with no rewards",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "Перемоги над тигром ведуть вічний рахунок: за певну кількість перемог видається один із «Легендарних» скінів другого ряду. Прогрес видно в лобі й у вікні «i»",
+          ru: "Победы над тигром ведут вечный счёт: за определённое число побед выдаётся один из «Легендарных» скинов второго ряда. Прогресс виден в лобби и в окне «i»",
+          en: "Tiger wins are counted forever: a set number of wins grants one of the second-row Legendary skins. Your progress is shown in the lobby and in the “i” window",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

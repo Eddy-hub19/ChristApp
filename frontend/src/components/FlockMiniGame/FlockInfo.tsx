@@ -15,6 +15,8 @@ import styles from "./FlockInfo.module.scss";
 
 type Props = {
   game?: FlockGameConfig;
+  /** «Арена»: прогрес лічильника перемог над тигром (показується в записі про карту). */
+  coliseum?: { wins: number; perSkin: number; toSkin: number };
   /** Последняя версия «Що нового», просмотренная ДО этого открытия игры: более новые помечаются «Нове». */
   seenBefore: number;
   /** Вкладка «Оновлення» открыта: считается просмотром. */
@@ -37,7 +39,7 @@ function EntryIcon({ icon }: { icon: InfoEntry["icon"] }) {
 }
 
 /** Шторка (телефон) / окно (десктоп) «Про гру» с вкладками «Про гру» и «Оновлення». */
-export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }: Props) {
+export default function FlockInfo({ game, coliseum, seenBefore, onUpdatesViewed, onClose }: Props) {
   const t = useTranslations("flock");
   const locale = useLocale();
   const lang: InfoLang = locale === "ru" || locale === "en" ? locale : "ua";
@@ -122,6 +124,7 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
                                 <span className={styles.entryText}>
                                   <strong>{s.artifacts ? t(`artifacts.items.${n}.name`) : e.title[lang]}</strong>
                                   <span>{s.artifacts ? t(`artifacts.items.${n}.desc`, artifactDescParams(game)) : fillInfoText(e.text[lang], e.params, game)}</span>
+                                  {e.id === "coliseum" && coliseum ? <strong>{t("coliseum.progress", { n: coliseum.toSkin, per: coliseum.perSkin })}</strong> : null}
                                 </span>
                               </li>
                             );

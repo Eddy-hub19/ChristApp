@@ -1,4 +1,6 @@
 import { deathDim, drawDeath, drawDeathDim } from "./flockDeathAnim";
+import { drawColiseumBack } from "./flockColiseumRender";
+import { drawColiseumMinimap } from "./flockColiseum";
 import { drawCloudBorder, drawFalls, drawSkyMinimap, drawSkyWorld, drawVoidRing, drawVoidVignette, drawWings } from "./flockSkyRender";
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
@@ -438,14 +440,17 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
 
   // «Небо»: фон і хмари-платформи замість пасовища
   const sky = m.sky;
+  // «Арена»: піщане коло, стіна, трибуни й ворота замість пасовища й загорожі
+  const col = m.coliseum;
+  if (col) drawColiseumBack(ctx, col, { x0, y0, x1, y1 }, scale * dpr, o.time);
   if (sky) drawSkyWorld(ctx, m, sky, x0, x1, y0, y1, scale * dpr, o.time);
   // пасовище: колір + сітка-трава + пучки одним готовим патерном (тайл у кеші), а не лініями щокадру
-  if (!sky) {
+  if (!sky && !col) {
     ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
     ctx.fillRect(0, 0, world, world);
   }
   // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
-  if (!sky && groundOf(m.cfg.map) === "meadow") {
+  if (!sky && !col && groundOf(m.cfg.map) === "meadow") {
     const sun = sunlightPattern(ctx, scale * dpr);
     if (sun) {
       ctx.globalAlpha = theme.dark ? 0.55 : 1;
@@ -455,9 +460,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
   }
   // межа світу (на «Небі» - хмарний бордюр)
-  if (!sky) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
+  if (!sky && !col) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  if (!sky) ctx.strokeRect(0, 0, world, world);
+  if (!sky && !col) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
@@ -465,7 +470,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
+  else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
   drawPuddles(ctx, m, x0, x1, y0, y1);
   drawCircleZone(ctx, m, world, scale, o.time);
@@ -770,6 +775,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   ctx.fillRect(0, 0, size, size);
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
+  if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
   for (const p of m.cfg.castle || m.cfg.night ? [] : m.board.map) {
@@ -790,9 +796,11 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
     ctx.stroke();
   }
   // загорожа: тонка рамка по периметру
-  ctx.strokeStyle = fenceMiniColor(fenceStyleOf(m.cfg.map));
-  ctx.lineWidth = 2;
-  ctx.strokeRect(1, 1, size - 2, size - 2);
+  if (!m.coliseum) {
+    ctx.strokeStyle = fenceMiniColor(fenceStyleOf(m.cfg.map));
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, size - 2, size - 2);
+  }
   ctx.fillStyle = "#ffd24a";
   circle(ctx, (m.camX / w) * size, (m.camY / w) * size, 3.4);
   ctx.fill();

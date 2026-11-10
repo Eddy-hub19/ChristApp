@@ -134,6 +134,7 @@ export const SKINS: Skin[] = [
 ];
 
 export const SKIN_COUNT = SKINS.length;
+const TIGER_SKIN_ID = 70;
 /** Скин «Вожака» (бот-босс); в лобби его нет. */
 export const BOSS_SKIN = 36;
 /** Скин «Лавового чудовиська» (орда карты «Вулкан»); в лобби его нет (дзеркало MONSTER_SKIN на сервере). */
@@ -142,7 +143,11 @@ export const MONSTER_SKIN = 47;
 export const BOSS_SKINS: readonly number[] = [BOSS_SKIN, 50, 51, 52];
 export const isBossSkin = (id: number) => BOSS_SKINS.includes(id);
 
+/** Скін тигра-боса «Арени» (70, поза нумерацією SKINS): малюється окремо (flockTiger.ts); тут лише запасні кольори. */
+const TIGER_DEF: Skin = { kind: "wolf", fur: "#f08a24", light: "#ffb355", face: "#fff1d9", accent: "#ffd23a" };
+
 export function skinOf(id: number): Skin {
+  if (id === TIGER_SKIN_ID) return TIGER_DEF;
   return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];
 }
 

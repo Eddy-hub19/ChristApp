@@ -9,6 +9,7 @@ import {
 } from "./flockProtocol";
 import { PHRASE_MAX_MS } from "./flockPhrases";
 import type { LavaBurn, LavaGeom } from "./flockLava";
+import { clampToColiseum, parseColiseum, type ColiseumGeo, type ColiseumHud } from "./flockColiseum";
 import { createSky, onCloud as skyOnCloud, skyTime, type SkyState, type SkyWelcome } from "./flockSky";
 import type { SkyFall } from "./flockSkyRender";
 import { deathDone as animDone, skipDeath as animSkip, deathSkippable, startDeath, stepDeath, type DeathAnim, type DeathInfoIn } from "./flockDeathAnim";
@@ -44,6 +45,8 @@ export interface FlockCfg {
   eagleZoom?: number;
   /** Карта «Небо»: параметри хмар, годинник світу, час до падіння (welcome.sky); без поля - не «Небо». */
   sky?: SkyWelcome;
+  /** «Арена»: коло, ворота, колони й камені (welcome.coliseum); без поля - інша карта. */
+  coliseum?: unknown;
   /** Річка лави карти «Вулкан» (серверна геометрія); без поля - лави нема. */
   lava?: LavaGeom;
   /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
@@ -263,6 +266,11 @@ export class FlockModel {
   /** Клітини, що згоріли в лаві (анімація «згоріла»). */
   readonly lavaBurns: LavaBurn[] = [];
   /** «Небо»: стан хмар (null - інша карта), клітини, що впали (анімація) і скільки мс своя клітина вже над порожнечею. */
+  /** «Арена»: геометрія з welcome (null - інша карта), останній HUD хвиль `cw` і результат поразки тигра `tw` не тут, а в клієнті. */
+  coliseum: ColiseumGeo | null = null;
+  coliseumHud: ColiseumHud | null = null;
+  /** Коли (performance.now) прийшов останній `cw`: від нього рахуємо таймер паузи між хвилями. */
+  coliseumHudAt = 0;
   sky: SkyState | null = null;
   readonly falls: SkyFall[] = [];
   selfVoidMs = 0;
@@ -745,6 +753,20 @@ export class FlockModel {
     }
   }
 
+  /** «Арена»: геометрія кола з welcome. */
+  initColiseum(raw: unknown) {
+    this.coliseum = parseColiseum(raw);
+    this.coliseumHud = null;
+  }
+
+  /** Подія `cw`: HUD хвиль; повертає короткі події ('wave' | 'tiger' | 'tigerDown') для звуків і підказок. */
+  applyColiseumHud(msg: ColiseumHud): ColiseumHud["e"] {
+    if (!this.coliseum || typeof msg?.ph !== "number") return undefined;
+    this.coliseumHud = msg;
+    this.coliseumHudAt = typeof performance !== "undefined" ? performance.now() : 0;
+    return msg.e;
+  }
+
   /** «Небо»: ініціалізація хмар з welcome. */
   initSky(w: SkyWelcome | undefined, recvMs: number = this.localNow) {
     if (w) this.sky = createSky(w, this.cfg.world, recvMs);
@@ -892,6 +914,8 @@ export class FlockModel {
           const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
+          // стіна «Арени»: те саме коло, що на сервері
+          if (this.coliseum) [c.x, c.y] = clampToColiseum(this.coliseum, c.x, c.y, this.radiusOf(c.mass));
         }
         // снос вітром (ту саму формулу рахує сервер); на паузі й у кущі не діє
         if (!castle && windOn && !this.insideBush(c.x, c.y, c.mass)) {

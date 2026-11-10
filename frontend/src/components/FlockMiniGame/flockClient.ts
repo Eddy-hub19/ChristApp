@@ -1,3 +1,4 @@
+import type { ColiseumHud } from "./flockColiseum";
 import { prefersReducedMotion } from "./flockSprites";
 import createSocket from "socket.io-client";
 import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
@@ -105,6 +106,12 @@ export interface FlockClientOptions {
   onDying?: (dying: boolean) => void;
   onNotice?: (notice: FlockNotice) => void;
   onReward?: (reward: RewardInfo) => void;
+  /** «Арена»: HUD хвиль `cw` (приходить ~раз на секунду). */
+  onColiseumHud?: (hud: ColiseumHud) => void;
+  /** «Арена»: тигра повержено - підсумок для гравця (`tw`): нагорода або причина її відсутності, лічильник перемог, скін. */
+  onTigerResult?: (res: TigerResult) => void;
+  /** «Арена»: ліміт часу раунду - попередження за хвилину (warn) і скидання без нагород (reset). */
+  onColiseumNotice?: (kind: "warn" | "reset") => void;
   /** Завдання дня виконано (рідкісна подія `qd`): показати плашку, нагороду забирають у вікні завдань. */
   onQuestDone?: (slot: number) => void;
   /** Стрічка повідомлень арени (подія `qf`): усім в арені, також тим, хто не бачить автора. */
@@ -119,6 +126,23 @@ export interface FlockClientOptions {
   onScissors?: (r: { taker: boolean; victim: boolean; count: number; gain: number }) => void;
   /** «Хрест»: нас з'їли, але «Друге життя» одразу повернуло овечку. */
   onRevive?: () => void;
+}
+
+/** Підсумок поразки тигра (`tw`, лише цьому гравцеві). Нагороду пише сервер; reason - чому її нема. */
+export interface TigerResult {
+  counted?: boolean;
+  reason?: "noHits" | "short" | "afk" | "daily";
+  hits?: number;
+  required?: number;
+  rubies: number;
+  emeralds: number;
+  skinId?: number;
+  fallback?: { emeralds?: number; rubies?: number };
+  wins: number;
+  perSkin: number;
+  toSkin: number;
+  duplicate?: boolean;
+  balance?: number;
 }
 
 type Sock = ReturnType<typeof createSocket>;
@@ -246,6 +270,7 @@ export class FlockClient {
         this.mode = cfg.mode === "circle" ? "circle" : cfg.mode === "castles" ? "castles" : "normal";
         if (cfg.castle) this.team = cfg.castle.team;
         this.model.initSky(cfg.sky, performance.now());
+        this.model.initColiseum(cfg.coliseum);
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
         this.model.applyRain(cfg.rain, performance.now());
         this.model.applyWind(cfg.wind, performance.now());
@@ -371,6 +396,27 @@ export class FlockClient {
       else if (msg?.k === 3) playFlockSound("bossHorn", { self: true, pitch: 0.8 });
       else if (msg?.k === 2) playFlockSound("bonus", { self: true });
       if (msg?.k === 1 || msg?.k === 2 || msg?.k === 3) this.opts.onBoss?.({ kind: msg.k, name: typeof msg.n === "string" ? msg.n : "" });
+    });
+    // «Арена»: HUD хвиль (звуки: ріг тигра, дзвіночок хвилі) і підсумок поразки тигра
+    socket.on("cw", (msg: ColiseumHud) => {
+      this.later(() => {
+        const ev = this.model?.applyColiseumHud(msg);
+        if (ev?.includes("tiger")) playFlockSound("bossHorn", { self: true });
+        if (ev?.includes("wave")) playFlockSound("starWarn", { self: true });
+        if (ev?.includes("tigerDown")) playFlockSound("bonus", { self: true });
+        if (ev?.includes("roundWarn")) {
+          playFlockSound("starWarn", { self: true });
+          this.opts.onColiseumNotice?.("warn");
+        }
+        if (ev?.includes("roundReset")) {
+          playFlockSound("bonusEnd", { self: true });
+          this.opts.onColiseumNotice?.("reset");
+        }
+        if (this.model?.coliseumHud) this.opts.onColiseumHud?.(this.model.coliseumHud);
+      });
+    });
+    socket.on("tw", (res: TigerResult) => {
+      if (typeof res?.wins === "number") this.opts.onTigerResult?.(res);
     });
     socket.on("qd", (m: { slot?: number }) => {
       if (typeof m?.slot === "number") this.opts.onQuestDone?.(m.slot);

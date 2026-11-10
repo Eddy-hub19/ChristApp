@@ -9,6 +9,7 @@ import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon } from "@/components/icons/game";
 import {
   AdminHttpError,
+  adjustAdminMemberColiseum,
   adjustAdminMemberEmeralds,
   adjustAdminMemberRubies,
   adminMemberFlockQueryKey,
@@ -35,6 +36,8 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
   const [reason, setReason] = useState("");
   const [eAmount, setEAmount] = useState("");
   const [eReason, setEReason] = useState("");
+  const [cAmount, setCAmount] = useState("");
+  const [cReason, setCReason] = useState("");
   const [grantId, setGrantId] = useState<number>(ARTIFACT_IDS[0]);
   const [skinGrantId, setSkinGrantId] = useState<number>(LEGENDARY_SKIN_IDS[0]);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +75,29 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
       setError(["reason_required", "invalid_amount", "insufficient_balance", "emerald_cap", "user_not_found"].includes(code) ? code : "generic");
     },
   });
+
+  const adjustC = useMutation({
+    mutationFn: ({ delta, why }: { delta: number; why: string }) => adjustAdminMemberColiseum(memberId, delta, why),
+    onSuccess: async () => {
+      setCAmount("");
+      setCReason("");
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: adminMemberFlockQueryKey(memberId) });
+    },
+    onError: (e) => {
+      const code = e instanceof AdminHttpError ? e.message : "";
+      setError(["reason_required", "invalid_amount", "user_not_found"].includes(code) ? code : "generic");
+    },
+  });
+
+  const submitC = (e: React.FormEvent) => {
+    e.preventDefault();
+    const delta = Number(cAmount);
+    if (!cReason.trim()) return setError("reason_required");
+    if (!Number.isInteger(delta) || delta === 0) return setError("invalid_amount");
+    setError(null);
+    adjustC.mutate({ delta, why: cReason.trim() });
+  };
 
   const submitE = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +164,8 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 <span className={styles.rubiesBalance}>
                   <EmeraldIcon size={14} /> {tf("emeralds.count", { count: data.emeralds ?? 0 })}
                 </span>
+                <br />
+                <strong>{t("coliseumWins")}</strong> {data.coliseum ? `${data.coliseum.wins} (${data.coliseum.toSkin}/${data.coliseum.perSkin})` : 0}
                 <br />
                 <strong>{t("skins")}</strong>{" "}
                 {data.ownedSkins.length ? data.ownedSkins.map((id) => tf(`skins.${id}`)).join(", ") : t("noSkins")}
@@ -231,6 +259,31 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 />
                 <button type="submit" className={styles.btn} disabled={adjustE.isPending}>
                   {adjustE.isPending ? t("applying") : t("emeraldApply")}
+                </button>
+              </form>
+              <form className={styles.rubiesForm} onSubmit={submitC}>
+                <input
+                  type="number"
+                  className={`${styles.field} ${styles.fieldNarrow}`}
+                  step={1}
+                  inputMode="numeric"
+                  value={cAmount}
+                  onChange={(e) => setCAmount(e.target.value)}
+                  placeholder={t("coliseumAmountPlaceholder")}
+                  aria-label={t("coliseumAmountLabel")}
+                />
+                <input
+                  type="text"
+                  className={`${styles.field} ${styles.fieldGrow}`}
+                  maxLength={300}
+                  value={cReason}
+                  onChange={(e) => setCReason(e.target.value)}
+                  placeholder={t("reasonPlaceholder")}
+                  aria-label={t("reasonLabel")}
+                  required
+                />
+                <button type="submit" className={styles.btn} disabled={adjustC.isPending}>
+                  {adjustC.isPending ? t("applying") : t("coliseumApply")}
                 </button>
               </form>
               {error ? <p className={styles.error}>{t(`errors.${error}`)}</p> : null}

@@ -23,6 +23,10 @@ import { CUSTOM_COOLDOWN_MS, CUSTOM_MAX_LEN, loadHidePhrases, PHRASES, saveHideP
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
+import { FlockColiseumHud, TigerResultCard } from "./FlockColiseumHud";
+import colStyles from "./FlockColiseum.module.scss";
+import type { ColiseumHud } from "./flockColiseum";
+import type { TigerResult } from "./flockClient";
 import FlockQuests from "./FlockQuests";
 import FlockModes from "./FlockModes";
 import FlockCastlesLobby from "./FlockCastlesLobby";
@@ -82,12 +86,14 @@ type Hud = {
   pipeCalled: boolean;
   /** Режим «Замки»: шапка матчу (null - інший режим або ще нема `cm`). */
   castle: CastleHudData | null;
+  /** Карта «Арена»: HUD хвиль (з таймером паузи, що тікає локально); null - інша карта. */
+  coliseum: { hud: ColiseumHud; nextMs: number; leftMs: number | null } | null;
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum"] as const;
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
 const MINIMAP_SIZE = 96;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
@@ -265,6 +271,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [questsOpen, setQuestsOpen] = useState(false);
   /** Плашка «Завдання виконано» у грі (значення - метка часу появи). */
   const [questToast, setQuestToast] = useState<number | null>(null);
+  /** «Арена»: підсумок поразки тигра (картка по центру, зникає сама або за кнопкою). */
+  const [colNotice, setColNotice] = useState<{ id: number; kind: "warn" | "reset" } | null>(null);
+  const [tigerResult, setTigerResult] = useState<(TigerResult & { id: number }) | null>(null);
   /** Секція «Обери вигляд» (звичайні скіни) згортається кліком по заголовку. */
   const [regularOpen, setRegularOpen] = useState(true);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
@@ -504,6 +513,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
         onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count, gain: r.gain }),
         onRevive: () => setReviveMsg(Date.now()),
+        onColiseumNotice: (kind) => setColNotice({ id: Date.now(), kind }),
+        onTigerResult: (res) => {
+          setTigerResult({ ...res, id: Date.now() });
+          setMe((m) =>
+            m
+              ? {
+                  ...m,
+                  rubies: typeof res.balance === "number" ? res.balance : m.rubies,
+                  emeralds: (m.emeralds ?? 0) + (res.emeralds > 0 ? res.emeralds : 0),
+                  ownedSkins: res.skinId !== undefined && !m.ownedSkins.includes(res.skinId) ? [...m.ownedSkins, res.skinId] : m.ownedSkins,
+                  coliseum: { wins: res.wins, perSkin: res.perSkin, toSkin: res.toSkin },
+                }
+              : m,
+          );
+        },
         onQuestDone: () => {
           setQuestToast(Date.now());
           setMe((m) => (m ? { ...m, questsClaimable: (m.questsClaimable ?? 0) + 1 } : m));
@@ -655,6 +679,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const id = setTimeout(() => setBossMsg(null), 3200);
     return () => clearTimeout(id);
   }, [bossMsg]);
+
+  useEffect(() => {
+    if (colNotice === null) return;
+    const id = setTimeout(() => setColNotice(null), 5000);
+    return () => clearTimeout(id);
+  }, [colNotice]);
+
+  useEffect(() => {
+    if (tigerResult === null) return;
+    const id = setTimeout(() => setTigerResult(null), 12000);
+    return () => clearTimeout(id);
+  }, [tigerResult]);
 
   useEffect(() => {
     if (questToast === null) return;
@@ -953,6 +989,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           return w ? { phase: w.phase, angle: w.angle } : null;
         })(),
         pipeCalled: performance.now() - model.pipeCalledAt < 1500,
+        coliseum: model.coliseum && model.coliseumHud ? { hud: model.coliseumHud, nextMs: Math.max(0, (model.coliseumHud.next ?? 0) - (performance.now() - model.coliseumHudAt)), leftMs: model.coliseumHud.tl === undefined ? null : Math.max(0, model.coliseumHud.tl - (performance.now() - model.coliseumHudAt)) } : null,
         castle: (() => {
           const cs = model.castle;
           const cc = model.cfg.castle;
@@ -1271,6 +1308,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {t(`mapNames.${mapToast}`)}
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
               {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
+              {mapToast === "coliseum" ? <small className={styles.mapToastSub}>{t("coliseum.mapSub", { n: (me?.config.game?.coliseum as { arrowHitsRequired?: number } | undefined)?.arrowHitsRequired ?? 3 })}</small> : null}
             </div>
           ) : null}
           {zorepad !== null ? (
@@ -1296,6 +1334,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   ? t("events.bossDefeated", { name: bossMsg.name })
                   : t("events.bossAteLeader", { name: bossMsg.name })}
             </div>
+          ) : null}
+          {hud.coliseum ? <FlockColiseumHud c={hud.coliseum.hud} nextMs={hud.coliseum.nextMs} leftMs={hud.coliseum.leftMs} /> : null}
+          {colNotice ? (
+            <div key={colNotice.id} className={colStyles.notice} role="status">
+              {t(colNotice.kind === "warn" ? "coliseum.roundWarn" : "coliseum.roundReset")}
+            </div>
+          ) : null}
+          {tigerResult ? (
+            <TigerResultCard
+              key={tigerResult.id}
+              r={tigerResult}
+              skinName={tigerResult.skinId !== undefined ? t(`skins.${tigerResult.skinId}`) : null}
+              preview={tigerResult.skinId !== undefined ? <SkinPreview skinId={tigerResult.skinId} artifactId={0} size={72} /> : null}
+              onClose={() => setTigerResult(null)}
+            />
           ) : null}
           {questToast ? (
             <div key={questToast} className={styles.questToast} role="status">
@@ -1602,6 +1655,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
             </dl>
             {death.killed.length > 0 ? <p className={styles.killed}>{death.killed.join(", ")}</p> : null}
+            {clientRef.current?.model?.coliseum && me?.coliseum ? <p className={styles.sub}>{t("coliseum.toSkin", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
             <div className={styles.cardButtons}>
               <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
                 {t("again")}
@@ -1742,7 +1796,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       ) : null}
       {soundOpen ? <FlockSoundSettings onClose={() => setSoundOpen(false)} /> : null}
       {questsOpen && showLobby ? <FlockQuests onClose={closeQuests} onChanged={onQuestsChanged} /> : null}
-      {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
+      {infoOpen && showLobby ? <FlockInfo game={me?.config.game} coliseum={me?.coliseum} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
       {showLobby ? (
         <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
@@ -1914,6 +1968,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <dd>{formatDuration(stats.topMs)}</dd>
               </div>
             </dl>
+
+            {me?.coliseum ? <p className={styles.sub}>{t("coliseum.progress", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
 
             <FlockDailyBoard initial={me?.daily} />
 

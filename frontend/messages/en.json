@@ -248,7 +248,9 @@
         "ARTIFACT_PURCHASE_EMERALD": "Artifact bought with emeralds",
         "SKIN_PURCHASE_EMERALD": "Skin bought with emeralds",
         "ARENA_TIGER_DROP": "Emerald for defeating the tiger",
-        "ARENA_COLISEUM_SKIN_FALLBACK": "Reward instead of a skin for Colosseum wins"
+        "ARENA_COLISEUM_SKIN_FALLBACK": "Reward instead of a skin for Colosseum wins",
+        "ARENA_COLISEUM": "Tiger defeated on the Colosseum",
+        "ARENA_COLISEUM_SKIN": "Skin or reward for Colosseum wins"
       },
       "notes": {
         "adminGrant": "Granted by an admin",
@@ -271,7 +273,11 @@
       "emeraldAmountPlaceholder": "± emeralds",
       "emeraldAmountLabel": "Amount of emeralds",
       "emeraldApply": "Change emeralds",
-      "emeraldHistory": "Emerald history"
+      "emeraldHistory": "Emerald history",
+      "coliseumWins": "Tiger wins",
+      "coliseumAmountPlaceholder": "± wins",
+      "coliseumAmountLabel": "Change tiger-win counter",
+      "coliseumApply": "Change counter"
     },
     "title": "Admin",
     "subtitle": "Members (newest first).",
@@ -1513,7 +1519,8 @@
       "volcano": "Volcano",
       "lake": "Forest and lake",
       "night": "Night",
-      "sky": "Sky"
+      "sky": "Sky",
+      "coliseum": "Colosseum"
     },
     "hud": {
       "mass": "Mass",
@@ -1906,6 +1913,31 @@
           "short": "Defeat the tiger"
         }
       }
+    },
+    "coliseum": {
+      "mapSub": "Sheep fight together. Collect arrows and hit the tiger: {n} hits = a prize",
+      "wave": "Wave {n}",
+      "waveIn": "Wave {n} in {time}",
+      "tigerIn": "Tiger in {time}",
+      "wolves": "Wolves: {n}/{t}",
+      "tiger": "Tiger",
+      "hits": "{left}/{max} hits",
+      "won": "Tiger defeated! +{rubies} rubies",
+      "emerald": "+{n} emerald",
+      "noHits": "You need {required} hits, you have {hits}",
+      "short": "You were on the arena too briefly for a reward",
+      "afk": "You were not moving, so no reward",
+      "daily": "Today's win limit is reached",
+      "noReward": "No reward",
+      "toSkin": "To the skin: {n} of {per}",
+      "skin": "New skin: {name}!",
+      "fbEmeralds": "All skins collected: +{n} emeralds",
+      "fbRubies": "All skins collected: +{n} rubies",
+      "close": "Close",
+      "progress": "Tiger wins: {n} of {per}",
+      "roundWarn": "The round resets soon: 60 s",
+      "roundReset": "Time is up: the round was reset with no rewards",
+      "roundLeft": "Round resets in {time}"
     }
   },
   "games": {

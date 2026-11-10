@@ -42,6 +42,8 @@ export interface FlockMe {
   premiumCollectionClaimed?: boolean;
   statsImported: boolean;
   stats: FlockStats;
+  /** «Арена»: засчитані перемоги над тигром, кроку до скіна (perSkin) і прогрес поточного кола. */
+  coliseum?: { wins: number; perSkin: number; toSkin: number };
   config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; legendaryForSale?: boolean; legendaryEmeraldPrice?: number; legendaryEmeraldSale?: boolean; emeraldCap?: number; shieldPrice?: number; premiumCollectionReward?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
 }
 

@@ -274,6 +274,7 @@ export type AdminMemberFlock = {
   /** Смарагди: баланс і журнал (EmeraldTransaction). */
   emeralds?: number;
   emeraldTransactions?: AdminRubyTransaction[];
+  coliseum?: { wins: number; perSkin: number; toSkin: number };
   ownedSkins: number[];
   ownedArtifacts?: number[];
   selectedArtifact?: number;
@@ -323,6 +324,13 @@ export const adjustAdminMemberRubies = (memberId: string, amount: number, reason
 /** Смарагди: amount > 0 нараховує, amount < 0 списує; причина обов'язкова, запис у журналі смарагдів. */
 export const adjustAdminMemberEmeralds = (memberId: string, amount: number, reason: string) =>
   adminJson<{ emeralds: number }>(`/members/${memberId}/emeralds`, {
+    method: "POST",
+    body: JSON.stringify({ amount, reason }),
+  });
+
+/** Лічильник перемог над тигром («Арена»): amount ± змінює, причина обов'язкова, запис у журналі. */
+export const adjustAdminMemberColiseum = (memberId: string, amount: number, reason: string) =>
+  adminJson<{ wins: number; perSkin: number; toSkin: number }>(`/members/${memberId}/coliseum`, {
     method: "POST",
     body: JSON.stringify({ amount, reason }),
   });
