@@ -1,5 +1,5 @@
 /**
- * Карта «Небо»: світ - небо, ходити можна лише по хмарах-платформах. Хмари плавно пливуть, але строго всередині своєї клітинки
+ * Карта «Небо»: світ - небо, ходити можна лише по хмарах-платформах. Хмари кружляють по колу (оберт за ~20 с), але строго всередині своєї клітинки
  * сітки: тому вони НІКОЛИ не перетинаються й не виходять за межі світу. Положення хмари - формула від часу світу `t` (мс) і номера хмари;
  * у `welcome` йдуть лише параметри (раз), позицій на кожен тік немає. Клієнт рахує за тією самою формулою (дзеркало: frontend flockSky.ts).
  *
@@ -53,20 +53,25 @@ export function generateSky(rng: Rng, worldSize: number, cfg: SkyCfg): SkyLayout
       const fillY = cfg.fillMin + rng() * (cfg.fillMax - cfg.fillMin);
       const hx = r1((fillX * cell) / 2);
       const hy = r1((fillY * cell) / 2);
-      // вільне місце всередині клітинки мінус зазор; хмара пливе в його межах (часом майже стоїть)
-      const freeX = Math.max(0, cell / 2 - hx - cfg.edgeGap);
-      const freeY = Math.max(0, cell / 2 - hy - cfg.edgeGap);
+      // вільне місце всередині клітинки мінус зазор: хмара кружляє по колу такого радіуса (весь оберт за period мс),
+      // тож рухається по орбіті, а не лише туди-сюди; напрям (за/проти годинникової) випадковий
+      const free = Math.max(0, Math.min(cell / 2 - hx, cell / 2 - hy) - cfg.edgeGap);
+      const R = r1(free);
+      const per = Math.round(cfg.periodMinMs + rng() * (cfg.periodMaxMs - cfg.periodMinMs));
+      const dir = rng() < 0.5 ? 1 : -1;
+      const ph = r1(rng() * Math.PI * 2);
       clouds.push({
         cx: r1(mid(gx)),
         cy: r1(mid(gy)),
         hx,
         hy,
-        ax: r1(freeX * (0.6 + rng() * 0.4)),
-        ay: r1(freeY * (0.6 + rng() * 0.4)),
-        px: Math.round(cfg.periodMinMs + rng() * (cfg.periodMaxMs - cfg.periodMinMs)),
-        py: Math.round(cfg.periodMinMs + rng() * (cfg.periodMaxMs - cfg.periodMinMs)),
-        fx: r1(rng() * Math.PI * 2),
-        fy: r1(rng() * Math.PI * 2),
+        ax: R,
+        ay: R,
+        px: per,
+        py: per,
+        fx: ph,
+        // зсув фази на чверть оберту між осями дає коло (x ~ sin, y ~ cos)
+        fy: r1(ph + (dir * Math.PI) / 2),
       });
     }
   }
