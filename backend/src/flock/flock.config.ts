@@ -684,9 +684,78 @@ export const FLOCK_CONFIG = {
       { id: 'top1', tier: 'hard', kind: 'top1', target: 3000 },
       { id: 'castles', tier: 'hard', kind: 'castles', target: 1 },
       { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 300, maps: [3, 6] },
-      /** Заготовка для карти «Арена» (друга задача): вимкнена. */
-      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1, enabled: false },
+      /** Засчитана перемога над тигром на карті «Арена». */
+      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1 },
     ] as readonly QuestDef[],
+  },
+
+  // --- карта «Арена» (колізей): кооператив проти хвиль вовків і тигра (правила діють лише на ній) ---
+  coliseum: {
+    /** Радіус арени (коло по центру світу worldSize x worldSize; стіна - по краю). */
+    radius: 1560,
+    /** Ворота (кут у градусах від осі x): звідти виходять вовки й тигр; ширина - для малювання. */
+    gateAngles: [0, 90, 180, 270] as readonly number[],
+    gateWidth: 280,
+    /** Колони й камні в центрі (лише вигляд: клітини через них проходять; клієнт малює з геометрії welcome). */
+    pillarCount: 6,
+    pillarRing: 380,
+    pillarRadius: 46,
+    stoneCount: 9,
+    /** Їжі на арені (менше за повний світ: коло менше за квадрат). */
+    maxFood: 700,
+    /** Скіни вовків (випадковий з цих) і тигра (зарезервований id поза NUM_SKINS). */
+    wolfSkins: [8, 9, 37, 38, 39, 40] as readonly number[],
+    tigerSkin: 70,
+    /** Пауза перед хвилею (мс) і перед повторним циклом. */
+    wavePauseMs: 10_000,
+    /** Скільки хвиль вовків перед «Тигром»; потім цикл знову з легкої хвилі. */
+    wavesBeforeTiger: 5,
+    /** Вовків у хвилі k (1-based): base + perWave * (k - 1); маса вовка: massBase + massPerWave * (k - 1) (на початку, х випадково 0.85-1.15). */
+    wolves: { base: 4, perWave: 2, massBase: 40, massPerWave: 22, minCount: 2 },
+    /** Множник числа/маси за кількістю людей (проміжні значення інтерполюються): 1, 3, 6 гравців. */
+    playerScale: { 1: { count: 1, mass: 1 }, 3: { count: 2, mass: 1.35 }, 6: { count: 3.2, mass: 1.8 } } as Record<number, { count: number; mass: number }>,
+    /** Вовк, що довго не бачить овець, усе одно іде до найближчої. Швидкість вовків - частка від швидкості гравця. */
+    wolfSpeed: 0.92,
+    /** Тигр: маса появи за людьми (як playerScale.mass), поріг поразки (частка від максимуму), «регенерація» без овець поруч. */
+    tiger: {
+      massBase: 1600,
+      defeatFraction: 0.12,
+      /** Урон за дотик = маса торкнутої клітини овечки * damagePerMass, не більше maxDamagePerHit; той самий гравець - не частіше hitCooldownMs. */
+      damagePerMass: 0.22,
+      maxDamagePerHit: 140,
+      hitCooldownMs: 600,
+      /** Без дотиків овець regenDelayMs - відновлює regenPerSec (частка максимуму за секунду), до максимуму. */
+      regenDelayMs: 6_000,
+      regenPerSec: 0.012,
+      speed: 0.85,
+      /** Для кожного живого гравця тигр масштабується окремо (playerScale.mass). */
+    },
+    /** Регулятор навантаження: за високого навантаження хвиля стартує з цією часткою вовків (не менше wolves.minCount). */
+    shedFraction: 0.5,
+    /** Нагорода за поразку тигра: лише сервер, одна транзакція з унікальним ключем перемоги. */
+    reward: {
+      /** Гравець має бути на арені не менше minPresenceMs, не AFK (ввід за останні activeWindowMs), і нанести тигру урон від minDamage. */
+      minPresenceMs: 120_000,
+      activeWindowMs: 20_000,
+      minDamage: 40,
+      /** Засчитаних перемог на добу (за Києвом). */
+      dailyWinLimit: 3,
+      /** Рубіни: за перемогу + бонус від тигра (ARENA_COLISEUM, входять у rubies.dailyEarnCap). */
+      rubies: 10,
+      tigerBonusRubies: 5,
+      /** Смарагд: шанс у кожній засчитаній перемозі, не більше одного на добу; ARENA_TIGER_DROP. */
+      emeraldDropEnabled: true,
+      emeraldDropChance: 0.03,
+      emeraldDropDailyLimit: 1,
+    },
+    /** Скіни за перемоги: кожні winsPerSkin засчитаних перемог - випадковий скін другого ряду «Легендарних», якого ще нема. */
+    skins: {
+      winsPerSkin: 20,
+      ids: [63, 64, 65, 66, 67, 68] as readonly number[],
+      /** Якщо вже є всі: смарагди (у межах стелі), інакше рубіни (ARENA_COLISEUM, у межах dailyEarnCap). */
+      fallbackEmeralds: 20,
+      fallbackRubies: 50,
+    },
   },
 
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
@@ -922,6 +991,8 @@ export interface FlockMapDef {
   thornStyle: ThornStyle;
   /** Перекриття C.thorns для цієї карти. */
   thorns: Partial<ThornCfg>;
+  /** «Арена»: коло зі стіною, овечки заодно, хвилі вовків і тигр (правила - у FLOCK_CONFIG.coliseum). */
+  coliseum?: boolean;
   /** Вага при випадковому виборі карти арени (рівні ваги - рівна ймовірність). */
   weight: number;
   /** На карті є річка лави (C.lava): геометрія й мости створюються разом з ареною. */
@@ -949,6 +1020,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 5, name: 'night', layout: 'clusters', thornStyle: 'night', thorns: {}, weight: 1, night: true },
   /** «Небо»: хмари над порожнечею, у випадковому виборі наравні з іншими (вага weight). */
   { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1, sky: true },
+  /** «Арена» (колізей): овечки заодно проти хвиль вовків і тигра; кущів мало; у випадковому виборі наравні з іншими. */
+  { id: 7, name: 'coliseum', layout: 'scatter', thornStyle: 'bush', thorns: { min: 2, max: 3, minGap: 600 }, weight: 1, coliseum: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -1101,6 +1174,19 @@ export function clientGameConfig() {
       specialSkinPrice: c.rubies.specialSkinPrice,
       legendaryForSale: c.rubies.legendaryForSale,
       premiumCollectionReward: c.rubies.premiumCollectionReward,
+    },
+    coliseum: {
+      wavesBeforeTiger: c.coliseum.wavesBeforeTiger,
+      wavePauseSec: Math.round(c.coliseum.wavePauseMs / 1000),
+      rubies: c.coliseum.reward.rubies + c.coliseum.reward.tigerBonusRubies,
+      dailyWinLimit: c.coliseum.reward.dailyWinLimit,
+      emeraldChancePct: Math.round(c.coliseum.reward.emeraldDropChance * 100),
+      emeraldDropEnabled: c.coliseum.reward.emeraldDropEnabled,
+      minPresenceSec: Math.round(c.coliseum.reward.minPresenceMs / 1000),
+      winsPerSkin: c.coliseum.skins.winsPerSkin,
+      fallbackEmeralds: c.coliseum.skins.fallbackEmeralds,
+      fallbackRubies: c.coliseum.skins.fallbackRubies,
+      skinIds: [...c.coliseum.skins.ids],
     },
     emeralds: {
       cap: c.emeralds.cap,

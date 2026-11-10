@@ -169,6 +169,23 @@ export class AdminController {
     );
   }
 
+  /** Скоригувати лічильник перемог над тигром («Арена»); причина обов'язкова, запис у журналі. */
+  @Post('members/:id/coliseum')
+  async adjustColiseum(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { amount?: unknown; reason?: unknown },
+  ) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    return this.flockRubies.adminAdjustColiseumWins(
+      actor.id,
+      id,
+      typeof body?.amount === 'number' ? body.amount : NaN,
+      typeof body?.reason === 'string' ? body.reason : '',
+    );
+  }
+
   /** Видати учаснику скін «Отари» безкоштовно (в т.ч. «Легендарний», поки продаж закрито). */
   @Post('members/:id/skins')
   async grantSkin(

@@ -55,6 +55,8 @@ model User {
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
   emeraldTransactions EmeraldTransaction[] @relation("EmeraldTxUser")
   flockDailyQuests    FlockDailyQuest[]  @relation("FlockQuestUser")
+  flockColiseumWins   FlockColiseumWin[] @relation("FlockColiseumUser")
+  flockColiseumLogs   FlockColiseumLog[] @relation("FlockColiseumLogUser")
   puzzleImages        UserPuzzleImage[]
   puzzleUploadBlock   PuzzleUploadBlock?
   flockSkinPurchases  FlockSkinPurchase[]
@@ -359,6 +361,8 @@ model FlockProfile {
   premiumCollectionAt DateTime?
   /// Смарагди (друга валюта): змінюються лише разом із записом у EmeraldTransaction (одна транзакція), стеля накопичення - у конфігу.
   emeralds        Int       @default(0)
+  /// Засчитані перемоги над тигром на «Арені» за весь час (кожні coliseumWinsPerSkin - скін; не обнуляється).
+  coliseumWins    Int       @default(0)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -373,6 +377,8 @@ enum RubyReason {
   PREMIUM_COLLECTION
   TEAM_WIN
   DAILY_QUEST
+  ARENA_COLISEUM
+  ARENA_COLISEUM_SKIN
 }
 
 enum EmeraldReason {
@@ -528,4 +534,35 @@ model PuzzleUploadBlock {
   userId    String   @id
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+/// Перемоги над тигром на «Арені»: один рядок на (перемога, гравець) - захист від повторного нарахування й лічильник добових лімітів.
+model FlockColiseumWin {
+  winId     String
+  userId    String
+  /// Чи засчитана (не перевищено ліміт на добу): незасчитані пишуться з counted=false, щоб повторний розрахунок їх не змінив.
+  counted   Boolean  @default(false)
+  rubies    Int      @default(0)
+  emeralds  Int      @default(0)
+  /// Скін, виданий цією перемогою (кожна 20-та), якщо був.
+  skinId    Int?
+  createdAt DateTime @default(now())
+  user      User     @relation("FlockColiseumUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([winId, userId])
+  @@index([userId, createdAt])
+}
+
+/// Журнал ручних правок лічильника перемог «Арени» (адмін, з причиною).
+model FlockColiseumLog {
+  id        String   @id @default(uuid())
+  userId    String
+  delta     Int
+  winsAfter Int
+  note      String
+  actorId   String
+  createdAt DateTime @default(now())
+  user      User     @relation("FlockColiseumLogUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

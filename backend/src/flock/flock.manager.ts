@@ -23,6 +23,7 @@ import { initBoss, thinkBoss } from './flock.boss';
 import { initMonster, thinkMonster } from './flock.monsters';
 import { CircleRound, type CircleMsg } from './flock.circle';
 import { QuestTracker, type QuestEmit } from './flock.quest-tracker';
+import { ColiseumDirector, thinkMob } from './flock.coliseum';
 import { CastleMatch, type TeamSettlement } from './flock.castles';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
@@ -52,6 +53,12 @@ import {
 
 const C = FLOCK_CONFIG;
 
+/** Поразка тигра на «Арені»: кожній людині - чи може бути нагорода (reason - чому ні); нарахування й ліміти - на сервері БД. */
+export interface TigerWin {
+  winId: string;
+  players: { userId: string; connKey: string | null; reason?: 'noDamage' | 'short' | 'afk' }[];
+}
+
 export type SendFn = (
   connKey: string,
   event: string,
@@ -71,6 +78,8 @@ interface Session {
   knownChunks: Set<number>;
   knownPlayers: Set<number>;
   lastInputAt: number;
+  /** Коли гравець зайшов на арену (годинник менеджера). */
+  joinedAt: number;
   /** Скільки повідомлень вводу прийнято у поточному вікні (rate limit). */
   inputWindowStart: number;
   inputCount: number;
@@ -107,6 +116,8 @@ export interface FlockHooks {
     userId: string,
     run: { maxMass: number; kills: number; topMs: number },
   ) => void;
+  /** Тигра на «Арені» повалено: розрахунок нагород (лише сервер, через БД). */
+  onTigerDown?: (win: TigerWin) => void;
   /** Події щоденних завдань (лише пам'ять; запис у БД пакетний). */
   onQuest?: QuestEmit;
   /** Людина виграла раунд режиму «Звужуване коло» (рубіни нараховує лише сервер, у межах добового ліміту). */
@@ -128,6 +139,9 @@ class Arena {
   readonly world: FlockWorld;
   /** Прогрес щоденних завдань (null - «Замки» або без хука). */
   readonly quests: QuestTracker | null;
+  /** «Арена»: цикл хвиль вовків і тигр (null на інших картах). */
+  readonly coliseum: ColiseumDirector | null;
+  private coliseumHudAt = -1e9;
   /** Режим «Замки»: матч команд (null - інші режими). */
   readonly castle: CastleMatch | null = null;
   /** «Звужуване коло»: поточний раунд і його стан (running - іде, ended - показуємо підсумки до roundEndAt). */
@@ -227,6 +241,7 @@ class Arena {
           ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
           : pickMapId(rng));
     this.world = new FlockWorld(rng, this.mapId);
+    this.coliseum = this.world.arena ? new ColiseumDirector(this.world, rng) : null;
     this.quests = mode !== 'castles' && hooks.onQuest ? new QuestTracker(hooks.onQuest, this.mapId) : null;
     if (mode === 'castles') {
       this.castle = new CastleMatch(this.world, rng);
@@ -289,6 +304,7 @@ class Arena {
 
   /** Штатна кількість ботів: за людьми, з жорстким лімітом за числом людей (4-5 -> 2, 6 -> 0). */
   targetBots() {
+    if (this.coliseum) return 0; // на «Арені» лише вовки хвиль
     if (this.castle) return this.castle.wantedBots(1) + this.castle.wantedBots(2);
     const base = Math.max(
       C.botMin,
@@ -515,7 +531,7 @@ class Arena {
    * після lowEvalsToReturn спокійних оцінок поспіль, коли боти вже не обмежені. Повертає true, якщо цю оцінку витратили на них.
    */
   private shedMonsters(level: 'low' | 'normal' | 'high'): boolean {
-    if (level === 'high' && !this.monstersShed && this.monsters.size > 0) {
+    if (level === 'high' && !this.monstersShed && (this.monsters.size > 0 || this.coliseum)) {
       this.monstersShed = true;
       this.monstersLowStreak = 0;
       return true;
@@ -624,6 +640,67 @@ class Arena {
     this.bots.delete(id);
   }
 
+  /** Геометрія «Арени» для welcome: одна й та сама для клієнта й сервера. */
+  coliseumWelcome() {
+    const a = this.world.arena!;
+    const K = C.coliseum;
+    const pillars: [number, number, number][] = [];
+    for (let i = 0; i < K.pillarCount; i++) {
+      const ang = (i / K.pillarCount) * Math.PI * 2 + Math.PI / K.pillarCount;
+      pillars.push([Math.round(a.cx + Math.cos(ang) * K.pillarRing), Math.round(a.cy + Math.sin(ang) * K.pillarRing), K.pillarRadius]);
+    }
+    const stones: [number, number, number][] = [];
+    for (let i = 0; i < K.stoneCount; i++) {
+      const ang = i * 2.399963 + 0.7; // золотий кут: рівномірний розсип
+      const d = 140 + ((i * 97) % 7) * 70;
+      stones.push([Math.round(a.cx + Math.cos(ang) * d), Math.round(a.cy + Math.sin(ang) * d), 14 + ((i * 5) % 4) * 6]);
+    }
+    return {
+      cx: a.cx,
+      cy: a.cy,
+      r: a.r,
+      gates: [...K.gateAngles],
+      gateWidth: K.gateWidth,
+      pillars,
+      stones,
+      waves: K.wavesBeforeTiger,
+    };
+  }
+
+  /** Директор хвиль, HUD (`cw`) і розрахунок нагород за тигра. */
+  private stepColiseum() {
+    const dir = this.coliseum;
+    if (!dir) return;
+    const w = this.world;
+    const res = dir.step(this.sessions.size, this.monstersShed);
+    const win = res.tigerDown;
+    if (win) this.settleTiger(win);
+    const tg = dir.phase === 3;
+    const due = dir.changed || dir.events.length > 0 || w.now - this.coliseumHudAt >= (tg ? 300 : 1000);
+    if (!due) return;
+    this.coliseumHudAt = w.now;
+    dir.changed = false;
+    const msg = { ...dir.hud(), ...(dir.events.length ? { e: dir.events.splice(0) } : {}) };
+    for (const s of this.sessions.values()) if (s.connKey) this.send(s.connKey, 'cw', msg);
+  }
+
+  /** Нагороди за тигра рахує сервер (БД): тут лише відбір тих, хто бився, був достатньо довго й не AFK. */
+  private settleTiger(win: { pid: number; dmg: [number, number][] }) {
+    const K = C.coliseum.reward;
+    const now = this.now();
+    const dmg = new Map(win.dmg);
+    const players: { userId: string; connKey: string | null; reason?: 'noDamage' | 'short' | 'afk' }[] = [];
+    for (const s of this.sessions.values()) {
+      const d = dmg.get(s.pid) ?? 0;
+      let reason: 'noDamage' | 'short' | 'afk' | undefined;
+      if (d < K.minDamage) reason = 'noDamage';
+      else if (now - s.joinedAt < K.minPresenceMs) reason = 'short';
+      else if (now - s.lastInputAt > K.activeWindowMs) reason = 'afk';
+      players.push({ userId: s.userId, connKey: s.connKey, ...(reason ? { reason } : {}) });
+    }
+    this.hooks.onTigerDown?.({ winId: `${this.createdAt}:${this.id}:${this.coliseum!.tigerSeq}`, players });
+  }
+
   private bossDelay() {
     const B = C.boss;
     return B.respawnMinMs + this.rng() * (B.respawnMaxMs - B.respawnMinMs);
@@ -634,7 +711,7 @@ class Arena {
    * (високе навантаження, ліміт ботів 0 і жодного бота на арені).
    */
   private bossAllowed() {
-    if (this.mode !== 'normal') return false;
+    if (this.mode !== 'normal' || this.coliseum) return false; // на «Арені» роль Вожака в тигра
     return !(this.governor.loadCap === 0 && this.bots.size === 0);
   }
 
@@ -854,6 +931,7 @@ class Arena {
       }
       thinkBot(w, p, this.rng);
     }
+    if (this.coliseum) for (const id of this.coliseum.mobIds()) { const m = w.players.get(id); if (m) thinkMob(w, m); }
     this.stepRoundPre();
     this.stepMonsters();
     this.stepBossPre();
@@ -863,6 +941,7 @@ class Arena {
     this.castle?.step(1 / this.rate.hz);
     this.stepRoundPost();
     this.stepBossPost();
+    this.stepColiseum();
     this.quests?.step(w, this.sessions.values());
     const tC = performance.now();
     this.phase.think += tB - tA;
@@ -894,7 +973,7 @@ class Arena {
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
       // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
-      if (this.mode === 'normal') this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
+      if (this.mode === 'normal' && !this.coliseum) this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
       boardBuf = encodeBoard({
         top: ranked.slice(0, 10).map((t) => ({
           pid: t.id,
@@ -960,7 +1039,7 @@ class Arena {
       ) {
         s.massReported = mm;
         s.massReportedAt = w.now;
-        if (this.mode === 'normal') this.hooks.onMass?.(s.userId, mm);
+        if (this.mode === 'normal' && !this.coliseum) this.hooks.onMass?.(s.userId, mm);
       }
       if (castle) {
         if (cmSend) send(key, 'cm', castle.state(s.pid));
@@ -997,7 +1076,7 @@ class Arena {
           kb: w.players.get(p.killerPid)?.boss || undefined,
           zone: p.zoneDeath || undefined,
         });
-        if (this.mode === 'normal') this.hooks.onMass?.(s.userId, p.maxMass);
+        if (this.mode === 'normal' && !this.coliseum) this.hooks.onMass?.(s.userId, p.maxMass);
         this.hooks.onDeath?.(s.userId, {
           maxMass: p.maxMass,
           kills: p.kills,
@@ -1317,6 +1396,8 @@ export interface JoinResult {
   lava?: { y0: number; y1: number; bridges: { x0: number; x1: number }[] };
   /** Карта «Небо»: час світу на момент входу (мс) і хмари [cx, cy, hx, hy, ax, ay, px, py, fx, fy] (клієнт рахує положення за формулою). */
   sky?: { t: number; c: number[][]; syncMs: number; grace: number; wings: number };
+  /** «Арена»: коло, ворота, колони й камні (клієнт малює з цього; сервер рахує по тому ж колу). */
+  coliseum?: ReturnType<Arena['coliseumWelcome']>;
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
@@ -1444,6 +1525,7 @@ export class FlockManager {
       knownChunks: new Set(),
       knownPlayers: new Set(),
       lastInputAt: this.now(),
+      joinedAt: this.now(),
       inputWindowStart: this.now(),
       inputCount: 0,
       deadSent: false,
@@ -1504,6 +1586,7 @@ export class FlockManager {
             wings: C.sky.wings.speedMultiplier,
           }
         : undefined,
+      coliseum: s.arena.world.arena ? s.arena.coliseumWelcome() : undefined,
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),
@@ -1789,7 +1872,7 @@ export class FlockManager {
     const arena = s.arena;
     arena.quests?.leave(arena.world, s);
     const leaving = arena.world.players.get(s.pid);
-    if (leaving) this.hooks.onMass?.(s.userId, leaving.maxMass);
+    if (leaving && !arena.coliseum) this.hooks.onMass?.(s.userId, leaving.maxMass);
     arena.sessions.delete(s.userId);
     arena.castle?.remove(s.pid);
     arena.world.removePlayer(s.pid);

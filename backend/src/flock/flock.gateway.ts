@@ -73,6 +73,7 @@ export class FlockGateway
             })
             .catch((e) => this.log.error(`quests: ${String(e)}`));
         },
+        onTigerDown: (win) => void this.settleTiger(win),
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
@@ -163,6 +164,36 @@ export class FlockGateway
         }
       } catch (e) {
         this.log.error(`settleTeamMatch: ${String(e)}`);
+      }
+    }
+  }
+
+  /**
+   * Тигра на «Арені» повалено: кожній людині - картка `tw`. Нагорода (рубіни, смарагд, лічильник, скін) - у БД, одна транзакція з унікальним
+   * ключем перемоги; без урону, надто коротка присутність і AFK нагороди не мають (reason).
+   */
+  private async settleTiger(win: Parameters<NonNullable<FlockHooks['onTigerDown']>>[0]) {
+    for (const pl of win.players) {
+      try {
+        let body: object;
+        if (pl.reason) {
+          body = { reason: pl.reason, rubies: 0, emeralds: 0, ...(await this.rubies.coliseumProgressOf(pl.userId)) };
+        } else {
+          const res = await this.rubies.settleColiseumWin(pl.userId, win.winId);
+          body = res;
+          if (res.counted && !res.duplicate) {
+            void this.quests
+              .credit(pl.userId, [{ kind: 'tiger', n: 1, mode: 'add' }])
+              .then((done) => {
+                if (pl.connKey) for (const slot of done) this.ns?.sockets.get(pl.connKey)?.emit('qd', { slot });
+                return this.quests.flushUser(pl.userId);
+              })
+              .catch((e) => this.log.error(`quests: ${String(e)}`));
+          }
+        }
+        if (pl.connKey) this.ns?.sockets.get(pl.connKey)?.emit('tw', body);
+      } catch (e) {
+        this.log.error(`settleTiger: ${String(e)}`);
       }
     }
   }
