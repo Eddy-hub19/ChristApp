@@ -177,10 +177,10 @@ export class FlockGateway
       try {
         let body: object;
         if (pl.reason) {
-          body = { reason: pl.reason, rubies: 0, emeralds: 0, ...(await this.rubies.coliseumProgressOf(pl.userId)) };
+          body = { reason: pl.reason, hits: pl.hits, required: FLOCK_CONFIG.coliseum.reward.arrowHitsRequired, rubies: 0, emeralds: 0, ...(await this.rubies.coliseumProgressOf(pl.userId)) };
         } else {
           const res = await this.rubies.settleColiseumWin(pl.userId, win.winId);
-          body = res;
+          body = { ...res, hits: pl.hits, required: FLOCK_CONFIG.coliseum.reward.arrowHitsRequired };
           if (res.counted && !res.duplicate) {
             void this.quests
               .credit(pl.userId, [{ kind: 'tiger', n: 1, mode: 'add' }])
@@ -428,6 +428,12 @@ export class FlockGateway
       msg.aspect,
       msg.sprint,
     );
+  }
+
+  /** «Арена»: постріл стрілою (кнопка «Стріла» / F). Без тіла; ліміти (запас, перезарядка, стріл у польоті) перевіряє сервер. */
+  @SubscribeMessage('ar')
+  arrow(@ConnectedSocket() client: FlockSocket) {
+    this.manager.shoot(client.id);
   }
 
   /** Швидка фраза: тіло - лише id (число). Невідомий id / частота / мертвий гравець - мовчки ігноруються. */

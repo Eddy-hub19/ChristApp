@@ -713,8 +713,8 @@ export class FlockRubiesService {
 
   /**
    * Перемога над тигром («Арена»): одна транзакція з унікальним ключем (winId, userId), тож повторний розрахунок нічого не нараховує вдруге.
-   * Засчитується не більше dailyWinLimit на добу за Києвом. Нагороди: рубіни (ARENA_COLISEUM, у межах dailyEarnCap), шанс на смарагд
-   * (не більше emeraldDropDailyLimit на добу, у межах стелі), лічильник перемог і кожна winsPerSkin-та перемога - скін другого ряду
+   * Засчитується не більше dailyWinLimit на добу за Києвом. Нагороди: рубіни (ARENA_COLISEUM, у межах dailyEarnCap), смарагд
+   * (не більше emeraldDailyLimit на добу, у межах стелі), лічильник перемог і кожна winsPerSkin-та перемога - скін другого ряду
    * «Легендарних» (запис покупки з ціною 0) або, коли всі вже є, смарагди/рубіни.
    */
   async settleColiseumWin(userId: string, winId: string, now = new Date(), rng: () => number = Math.random): Promise<ColiseumWinResult> {
@@ -745,12 +745,12 @@ export class FlockRubiesService {
       const capLeft = await this.earnCapLeft(tx, userId, now);
       const rubies = Math.max(0, Math.min(K.reward.rubies + K.reward.tigerBonusRubies, capLeft));
       if (rubies > 0) bal = await this.apply(tx, userId, bal, { delta: rubies, reason: RubyReason.ARENA_COLISEUM, note: winId });
-      // смарагд: шанс, не більше одного на добу
+      // смарагд: за кожну засчитану перемогу emeraldPerWin, не більше emeraldDailyLimit на добу, у межах стелі накопичення
       let emeralds = 0;
-      if (K.reward.emeraldDropEnabled && rng() < K.reward.emeraldDropChance) {
+      if (K.reward.emeraldDropEnabled) {
         const dropsToday = await tx.flockColiseumWin.count({ where: { userId, emeralds: { gt: 0 }, createdAt: { gte: since } } });
-        if (dropsToday < K.reward.emeraldDropDailyLimit) {
-          const r = await this.grantEmeraldsInTx(tx, userId, 1, EmeraldReason.ARENA_TIGER_DROP, winId);
+        if (dropsToday < K.reward.emeraldDailyLimit) {
+          const r = await this.grantEmeraldsInTx(tx, userId, K.reward.emeraldPerWin, EmeraldReason.ARENA_TIGER_DROP, winId);
           emeralds = r.amount;
         }
       }

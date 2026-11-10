@@ -24,6 +24,7 @@ import { initMonster, thinkMonster } from './flock.monsters';
 import { CircleRound, type CircleMsg } from './flock.circle';
 import { QuestTracker, type QuestEmit } from './flock.quest-tracker';
 import { ColiseumDirector, thinkMob } from './flock.coliseum';
+import { coliseumGeometry } from './flock.coliseum.geo';
 import { CastleMatch, type TeamSettlement } from './flock.castles';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
@@ -56,7 +57,7 @@ const C = FLOCK_CONFIG;
 /** Поразка тигра на «Арені»: кожній людині - чи може бути нагорода (reason - чому ні); нарахування й ліміти - на сервері БД. */
 export interface TigerWin {
   winId: string;
-  players: { userId: string; connKey: string | null; reason?: 'noDamage' | 'short' | 'afk' }[];
+  players: { userId: string; connKey: string | null; reason?: 'noHits' | 'short' | 'afk'; hits: number }[];
 }
 
 export type SendFn = (
@@ -642,28 +643,20 @@ class Arena {
 
   /** Геометрія «Арени» для welcome: одна й та сама для клієнта й сервера. */
   coliseumWelcome() {
-    const a = this.world.arena!;
+    const g = coliseumGeometry();
     const K = C.coliseum;
-    const pillars: [number, number, number][] = [];
-    for (let i = 0; i < K.pillarCount; i++) {
-      const ang = (i / K.pillarCount) * Math.PI * 2 + Math.PI / K.pillarCount;
-      pillars.push([Math.round(a.cx + Math.cos(ang) * K.pillarRing), Math.round(a.cy + Math.sin(ang) * K.pillarRing), K.pillarRadius]);
-    }
-    const stones: [number, number, number][] = [];
-    for (let i = 0; i < K.stoneCount; i++) {
-      const ang = i * 2.399963 + 0.7; // золотий кут: рівномірний розсип
-      const d = 140 + ((i * 97) % 7) * 70;
-      stones.push([Math.round(a.cx + Math.cos(ang) * d), Math.round(a.cy + Math.sin(ang) * d), 14 + ((i * 5) % 4) * 6]);
-    }
     return {
-      cx: a.cx,
-      cy: a.cy,
-      r: a.r,
+      cx: g.cx,
+      cy: g.cy,
+      r: g.r,
       gates: [...K.gateAngles],
       gateWidth: K.gateWidth,
-      pillars,
-      stones,
+      pillars: g.pillars,
+      stones: g.stones,
       waves: K.wavesBeforeTiger,
+      /** Стріли, що лежать на землі зараз: [id, x, y, мс до зникнення]. */
+      arrows: this.world.arrowItemsSnapshot(),
+      carry: K.arrows.maxCarry,
     };
   }
 
@@ -675,6 +668,7 @@ class Arena {
     const res = dir.step(this.sessions.size, this.monstersShed);
     const win = res.tigerDown;
     if (win) this.settleTiger(win);
+    this.flushArrowEvents();
     const tg = dir.phase === 3;
     const due = dir.changed || dir.events.length > 0 || w.now - this.coliseumHudAt >= (tg ? 300 : 1000);
     if (!due) return;
@@ -684,19 +678,43 @@ class Arena {
     for (const s of this.sessions.values()) if (s.connKey) this.send(s.connKey, 'cw', msg);
   }
 
+  /** Події стріл (рідкісні окремі повідомлення, без потоку позицій): 'ra' - стріли на землі, 'as' - постріл, 'ah' - влучання, 'ac' - запас гравця. */
+  private flushArrowEvents() {
+    const w = this.world;
+    if (w.arrowAdd.length || w.arrowDel.length) {
+      const msg = { a: w.arrowAdd.splice(0), d: w.arrowDel.splice(0) };
+      for (const s of this.sessions.values()) if (s.connKey) this.send(s.connKey, 'ra', msg);
+    }
+    if (w.shotEvents.length) {
+      const msg = w.shotEvents.splice(0);
+      for (const s of this.sessions.values()) if (s.connKey) this.send(s.connKey, 'as', msg);
+    }
+    if (w.hitEvents.length) {
+      const msg = w.hitEvents.splice(0);
+      for (const s of this.sessions.values()) if (s.connKey) this.send(s.connKey, 'ah', msg);
+    }
+    if (w.carryEvents.size) {
+      for (const s of this.sessions.values()) {
+        const n = w.carryEvents.get(s.pid);
+        if (n !== undefined && s.connKey) this.send(s.connKey, 'ac', { n });
+      }
+      w.carryEvents.clear();
+    }
+  }
+
   /** Нагороди за тигра рахує сервер (БД): тут лише відбір тих, хто бився, був достатньо довго й не AFK. */
-  private settleTiger(win: { pid: number; dmg: [number, number][] }) {
+  private settleTiger(win: { pid: number; hits: [number, number][] }) {
     const K = C.coliseum.reward;
     const now = this.now();
-    const dmg = new Map(win.dmg);
-    const players: { userId: string; connKey: string | null; reason?: 'noDamage' | 'short' | 'afk' }[] = [];
+    const dmg = new Map(win.hits);
+    const players: TigerWin['players'] = [];
     for (const s of this.sessions.values()) {
       const d = dmg.get(s.pid) ?? 0;
-      let reason: 'noDamage' | 'short' | 'afk' | undefined;
-      if (d < K.minDamage) reason = 'noDamage';
+      let reason: 'noHits' | 'short' | 'afk' | undefined;
+      if (d < K.arrowHitsRequired) reason = 'noHits';
       else if (now - s.joinedAt < K.minPresenceMs) reason = 'short';
       else if (now - s.lastInputAt > K.activeWindowMs) reason = 'afk';
-      players.push({ userId: s.userId, connKey: s.connKey, ...(reason ? { reason } : {}) });
+      players.push({ userId: s.userId, connKey: s.connKey, hits: d, ...(reason ? { reason } : {}) });
     }
     this.hooks.onTigerDown?.({ winId: `${this.createdAt}:${this.id}:${this.coliseum!.tigerSeq}`, players });
   }
@@ -1707,6 +1725,20 @@ export class FlockManager {
   }
 
   /** Ввід: тільки напрямок/сила/кнопки. Не більше ~40 повідомлень/с на гравця. */
+  /** Постріл стрілою: лише «Арена», звичайний ліміт частоти вводу; решту перевіряє рушій. */
+  shoot(connKey: string) {
+    const s = this.byConn.get(connKey);
+    if (!s || !s.arena.world.arena) return;
+    const t = this.now();
+    if (t - s.inputWindowStart >= 1000) {
+      s.inputWindowStart = t;
+      s.inputCount = 0;
+    }
+    if (++s.inputCount > 40) return;
+    s.lastInputAt = t;
+    s.arena.world.queueArrow(s.pid);
+  }
+
   input(
     connKey: string,
     angle: number,

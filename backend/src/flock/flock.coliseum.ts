@@ -33,6 +33,9 @@ export function waveSpec(k: number, humans: number, shed = false): { count: numb
   return { count, mass: (K.wolves.massBase + K.wolves.massPerWave * (k - 1)) * s.mass };
 }
 
+/** Здоров'я тигра у влученнях: hitsBase для 1 гравця + hitsPerExtraPlayer за кожного наступного (1, 3, 6 -> 8, 18, 33). */
+export const tigerHits = (humans: number) => K.arrows.hitsBase + K.arrows.hitsPerExtraPlayer * Math.max(0, humans - 1);
+
 export const tigerMass = (humans: number) => Math.round(K.tiger.massBase * playerScale(humans).mass);
 
 /** Простий ШІ вовка/тигра: переслідує найближчу овечку, яку може з'їсти (тигр - будь-яку), вовк тікає від більших овець поруч. */
@@ -95,6 +98,7 @@ export class ColiseumDirector {
   private tigerPid = 0;
   private gate = 0;
   private lastShed = false;
+  private lastHumans = 0;
   /** Порядковий номер тигра (для унікального ключа перемоги). */
   tigerSeq = 0;
   /** Фаза чи номер хвилі змінилися від останнього зчитування (менеджер шле HUD одразу). */
@@ -118,7 +122,7 @@ export class ColiseumDirector {
   }
 
   /** Крок директора (раз на тік; важка робота лише раз на ~0,5 с). Повертає pid тигра, якого щойно повалено (або 0), і масу вбитих для підрахунку. */
-  step(humans: number, shed: boolean): { tigerDown?: { pid: number; dmg: [number, number][] } } {
+  step(humans: number, shed: boolean): { tigerDown?: { pid: number; hits: [number, number][] } } {
     const w = this.w;
     // нікого нема: цикл стоїть (таймери зсуваємо)
     if (humans === 0) {
@@ -165,6 +169,10 @@ export class ColiseumDirector {
       return {};
     }
     if (this.phase === 3) {
+      // здоров'я тигра у влученнях шкалюється числом людей (поточне - пропорційно)
+      const tg = w.players.get(this.tigerPid);
+      if (tg && tg.alive && humans !== this.lastHumans) w.rescaleTiger(tg, tigerHits(humans));
+      this.lastHumans = humans;
       const down = w.tigerDown.shift();
       if (down) {
         w.tigerDown.length = 0;
@@ -173,6 +181,11 @@ export class ColiseumDirector {
         if (p) w.removePlayer(this.tigerPid);
         this.mobs.delete(this.tigerPid);
         this.tigerPid = 0;
+        // решта вовків зникає (розчиняється)
+        for (const id of [...this.mobs]) {
+          w.removePlayer(id);
+          this.mobs.delete(id);
+        }
         this.wave = 1;
         this.pauseUntil = w.now + K.wavePauseMs;
         this.setPhase(1);
@@ -196,7 +209,7 @@ export class ColiseumDirector {
     }
   }
 
-  private spawn(opts: { wolf?: boolean; tiger?: boolean; mass: number }) {
+  private spawn(opts: { wolf?: boolean; tiger?: boolean; mass: number; hits?: number }) {
     const at = this.w.gatePoint(this.gate++);
     const jitter = () => (this.rng() - 0.5) * 120;
     const skin = K.wolfSkins[Math.floor(this.rng() * K.wolfSkins.length)];
@@ -207,6 +220,7 @@ export class ColiseumDirector {
       wolf: opts.wolf,
       tiger: opts.tiger,
       mass: opts.mass,
+      hits: opts.hits,
       at: { x: at.x + jitter(), y: at.y + jitter() },
     });
     this.mobs.add(p.id);
@@ -216,7 +230,8 @@ export class ColiseumDirector {
   private startNext(humans: number, shed: boolean) {
     if (this.wave > K.wavesBeforeTiger) {
       this.tigerSeq++;
-      const t = this.spawn({ tiger: true, mass: tigerMass(humans) });
+      const t = this.spawn({ tiger: true, mass: tigerMass(humans), hits: tigerHits(humans) });
+      this.lastHumans = humans;
       this.tigerPid = t.id;
       this.total = 1;
       this.setPhase(3);
@@ -245,7 +260,7 @@ export class ColiseumDirector {
     }
     if (this.phase === 3) {
       const t = w.players.get(this.tigerPid);
-      if (t?.maxHp) h.tg = { m: Math.max(0, Math.round(t.total)), M: Math.round(t.maxHp) };
+      if (t?.maxHp && t.hp !== undefined) h.tg = { m: Math.max(0, Math.ceil(t.hp - 1e-6)), M: Math.round(t.maxHp) };
     }
     return h;
   }

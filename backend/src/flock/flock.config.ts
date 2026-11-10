@@ -716,37 +716,54 @@ export const FLOCK_CONFIG = {
     playerScale: { 1: { count: 1, mass: 1 }, 3: { count: 2, mass: 1.35 }, 6: { count: 3.2, mass: 1.8 } } as Record<number, { count: number; mass: number }>,
     /** Вовк, що довго не бачить овець, усе одно іде до найближчої. Швидкість вовків - частка від швидкості гравця. */
     wolfSpeed: 0.92,
-    /** Тигр: маса появи за людьми (як playerScale.mass), поріг поразки (частка від максимуму), «регенерація» без овець поруч. */
+    /** Тигр: розмір (маса) за людьми як playerScale.mass; урон лише стрілами (arrows), маса від дотиків не міняється. */
     tiger: {
       massBase: 1600,
-      defeatFraction: 0.12,
-      /** Урон за дотик = маса торкнутої клітини овечки * damagePerMass, не більше maxDamagePerHit; той самий гравець - не частіше hitCooldownMs. */
-      damagePerMass: 0.22,
-      maxDamagePerHit: 140,
-      hitCooldownMs: 600,
-      /** Без дотиків овець regenDelayMs - відновлює regenPerSec (частка максимуму за секунду), до максимуму. */
-      regenDelayMs: 6_000,
-      regenPerSec: 0.012,
       speed: 0.85,
-      /** Для кожного живого гравця тигр масштабується окремо (playerScale.mass). */
+    },
+    /** Стріли (єдина зброя проти тигра; лише на цій карті). Усе рахує сервер за аналітичною траєкторією. */
+    arrows: {
+      /** Поява стріл на землі: раз на spawnEveryMs у випадковій точці кола (не в колонах), на полі не більше fieldCapBase + fieldCapPerPlayer * людей. */
+      spawnEveryMs: 2_000,
+      fieldCapBase: 4,
+      fieldCapPerPlayer: 3,
+      /** З убитого вовка стріла випадає з цим шансом на місці загибелі. */
+      wolfDropChance: 0.5,
+      /** Скільки стріла лежить на землі (мс), радіус підбору (додається до радіуса клітини), запас на гравця. */
+      lifetimeMs: 40_000,
+      pickupReach: 24,
+      maxCarry: 6,
+      /** Постріл: автоприцілювання в тигра в межах aimRange (з упередженням), інакше за напрямком руху; швидкість, дальність, радіус влучання (частка радіуса тигра + запас). */
+      aimRange: 1100,
+      speed: 950,
+      range: 1500,
+      hitRadiusK: 0.9,
+      hitRadiusPad: 12,
+      /** Не більше стріл одного гравця в польоті й перезарядка між пострілами. */
+      maxInFlight: 3,
+      cooldownMs: 500,
+      /** Здоров'я тигра у влученнях: base для 1 гравця + perExtraPlayer за кожного наступного; регенерація (влучань/с), за замовчуванням вимкнена. */
+      hitsBase: 8,
+      hitsPerExtraPlayer: 5,
+      regenHitsPerSec: 0,
     },
     /** Регулятор навантаження: за високого навантаження хвиля стартує з цією часткою вовків (не менше wolves.minCount). */
     shedFraction: 0.5,
     /** Нагорода за поразку тигра: лише сервер, одна транзакція з унікальним ключем перемоги. */
     reward: {
-      /** Гравець має бути на арені не менше minPresenceMs, не AFK (ввід за останні activeWindowMs), і нанести тигру урон від minDamage. */
+      /** Гравець має бути на арені не менше minPresenceMs, не AFK (ввід за останні activeWindowMs) і влучити в тигра не менше arrowHitsRequired разів. */
       minPresenceMs: 120_000,
       activeWindowMs: 20_000,
-      minDamage: 40,
+      arrowHitsRequired: 3,
       /** Засчитаних перемог на добу (за Києвом). */
       dailyWinLimit: 3,
       /** Рубіни: за перемогу + бонус від тигра (ARENA_COLISEUM, входять у rubies.dailyEarnCap). */
       rubies: 10,
       tigerBonusRubies: 5,
-      /** Смарагд: шанс у кожній засчитаній перемозі, не більше одного на добу; ARENA_TIGER_DROP. */
+      /** Смарагд за кожну засчитану перемогу (ARENA_TIGER_DROP, у межах стелі накопичення), не більше emeraldDailyLimit на добу. */
       emeraldDropEnabled: true,
-      emeraldDropChance: 0.03,
-      emeraldDropDailyLimit: 1,
+      emeraldPerWin: 1,
+      emeraldDailyLimit: 1,
     },
     /** Скіни за перемоги: кожні winsPerSkin засчитаних перемог - випадковий скін другого ряду «Легендарних», якого ще нема. */
     skins: {
@@ -1180,7 +1197,14 @@ export function clientGameConfig() {
       wavePauseSec: Math.round(c.coliseum.wavePauseMs / 1000),
       rubies: c.coliseum.reward.rubies + c.coliseum.reward.tigerBonusRubies,
       dailyWinLimit: c.coliseum.reward.dailyWinLimit,
-      emeraldChancePct: Math.round(c.coliseum.reward.emeraldDropChance * 100),
+      emeraldPerWin: c.coliseum.reward.emeraldPerWin,
+      arrowHitsRequired: c.coliseum.reward.arrowHitsRequired,
+      arrowMaxCarry: c.coliseum.arrows.maxCarry,
+      tigerHitsBase: c.coliseum.arrows.hitsBase,
+      tigerHitsPerExtraPlayer: c.coliseum.arrows.hitsPerExtraPlayer,
+      arrowCooldownMs: c.coliseum.arrows.cooldownMs,
+      arrowLifetimeSec: Math.round(c.coliseum.arrows.lifetimeMs / 1000),
+      arrowAimRange: c.coliseum.arrows.aimRange,
       emeraldDropEnabled: c.coliseum.reward.emeraldDropEnabled,
       minPresenceSec: Math.round(c.coliseum.reward.minPresenceMs / 1000),
       winsPerSkin: c.coliseum.skins.winsPerSkin,
