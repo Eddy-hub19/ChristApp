@@ -15,8 +15,20 @@ export const RUBY_REASONS = [
   "ARENA_STREAK",
   "PREMIUM_COLLECTION",
   "TEAM_WIN",
+  "DAILY_QUEST",
 ] as const;
 export type RubyReason = (typeof RUBY_REASONS)[number];
+
+/** Все значения enum EmeraldReason (журнал изумрудов; ADMIN_ADJUST общий с рубинами по подписи). */
+export const EMERALD_REASONS = [
+  "DAILY_QUEST_EMERALD",
+  "ARTIFACT_PURCHASE_EMERALD",
+  "SKIN_PURCHASE_EMERALD",
+  "ARENA_TIGER_DROP",
+  "ARENA_COLISEUM_SKIN_FALLBACK",
+  "ADMIN_ADJUST",
+] as const;
+export type EmeraldReason = (typeof EMERALD_REASONS)[number];
 
 export interface RubyTxLike {
   reason: string;
@@ -32,6 +44,8 @@ export interface RubyTxI18n {
   /** Название скина / артефакта (из flock.*). */
   skinName: (id: number) => string;
   artifactName: (id: number) => string;
+  /** Название задания дня по id (для заметки вида «2026-11-11:food»). */
+  questName?: (id: string) => string;
 }
 
 const warned = new Set<string>();
@@ -82,14 +96,18 @@ export function describeRubyTx(tx: RubyTxLike, i18n: RubyTxI18n): RubyTxView {
   let hint: string | null = null;
   const raw = tx.note?.trim() || "";
 
-  if (tx.reason === "SKIN_PURCHASE" && tx.skinId !== null) title += `: ${i18n.skinName(tx.skinId)}`;
-  if (tx.reason === "ARTIFACT_PURCHASE" && tx.artifactId) title += `: ${i18n.artifactName(tx.artifactId)}`;
+  if ((tx.reason === "SKIN_PURCHASE" || tx.reason === "SKIN_PURCHASE_EMERALD") && tx.skinId !== null) title += `: ${i18n.skinName(tx.skinId)}`;
+  if ((tx.reason === "ARTIFACT_PURCHASE" || tx.reason === "ARTIFACT_PURCHASE_EMERALD") && tx.artifactId) title += `: ${i18n.artifactName(tx.artifactId)}`;
 
   if (tx.reason === "ADMIN_ADJUST") {
     // причина, которую ввёл админ, - как есть
     note = raw || null;
   } else if (raw === "admin grant") {
     note = t("notes.adminGrant");
+  } else if (tx.reason === "DAILY_QUEST" || tx.reason === "DAILY_QUEST_EMERALD") {
+    // note: «ГГГГ-ММ-ДД:id задания»
+    const m = /^(\d{4})-(\d{2})-(\d{2}):([a-z0-9_]+)$/.exec(raw);
+    note = m ? t("notes.quest", { name: i18n.questName ? i18n.questName(m[4]) : m[4], date: `${m[3]}.${m[2]}` }) : raw || null;
   } else if (tx.reason === "ARENA_STREAK") {
     const m = STREAK_RE.exec(raw);
     if (m) note = t("notes.streakDay", { day: Number(m[1]), of: Number(m[2]), date: `${m[5]}.${m[4]}` });

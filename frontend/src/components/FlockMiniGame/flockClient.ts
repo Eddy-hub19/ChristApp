@@ -105,6 +105,8 @@ export interface FlockClientOptions {
   onDying?: (dying: boolean) => void;
   onNotice?: (notice: FlockNotice) => void;
   onReward?: (reward: RewardInfo) => void;
+  /** Завдання дня виконано (рідкісна подія `qd`): показати плашку, нагороду забирають у вікні завдань. */
+  onQuestDone?: (slot: number) => void;
   /** Стрічка повідомлень арени (подія `qf`): усім в арені, також тим, хто не бачить автора. */
   onFeed?: (m: FeedMsg) => void;
   /** Стартувала подія «Зорепад»: показати напис. */
@@ -369,6 +371,9 @@ export class FlockClient {
       else if (msg?.k === 3) playFlockSound("bossHorn", { self: true, pitch: 0.8 });
       else if (msg?.k === 2) playFlockSound("bonus", { self: true });
       if (msg?.k === 1 || msg?.k === 2 || msg?.k === 3) this.opts.onBoss?.({ kind: msg.k, name: typeof msg.n === "string" ? msg.n : "" });
+    });
+    socket.on("qd", (m: { slot?: number }) => {
+      if (typeof m?.slot === "number") this.opts.onQuestDone?.(m.slot);
     });
     socket.on("r", (r: RewardInfo) => {
       if (typeof r?.amount === "number" && typeof r?.balance === "number") this.opts.onReward?.(r);

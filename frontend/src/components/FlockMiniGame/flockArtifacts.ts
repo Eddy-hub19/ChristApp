@@ -6,11 +6,14 @@ import { specialExtent } from "./flockSpecialDeco";
  * 0 - нічого не надіто. Тут же - спрощена відрисовка для овечки (без свічення, іскор і диму: на малому розмірі це каша
  * і зайве навантаження) і точки кріплення для кожного виду істоти.
  */
-export type ArtifactKey = "shoes" | "priestHat" | "crown" | "magnet" | "hourglass" | "cross" | "censer";
+export type ArtifactKey = "shoes" | "priestHat" | "crown" | "magnet" | "hourglass" | "cross" | "censer" | "shield";
 
 /** Індекс = номер артефакта - 1. Порядок збігається з backend ARTIFACT. */
-export const ARTIFACT_KEYS: readonly ArtifactKey[] = ["shoes", "priestHat", "crown", "magnet", "hourglass", "cross", "censer"];
+export const ARTIFACT_KEYS: readonly ArtifactKey[] = ["shoes", "priestHat", "crown", "magnet", "hourglass", "cross", "censer", "shield"];
 export const ARTIFACT_IDS: readonly number[] = ARTIFACT_KEYS.map((_, i) => i + 1);
+/** Артефакти, що купуються за смарагди (решта - за рубіни): дзеркало backend ARTIFACT.shield. */
+export const EMERALD_ARTIFACT_IDS: readonly number[] = [8];
+export const isEmeraldArtifact = (id: number) => EMERALD_ARTIFACT_IDS.includes(id);
 /** Артефакти, прибрані з лобі (7 «Кадило»): не показуються, не надягаються; у грі, в БД і в адмінці лишаються. */
 export const LOBBY_HIDDEN_ARTIFACT_IDS: readonly number[] = [7];
 export const LOBBY_ARTIFACT_IDS: readonly number[] = ARTIFACT_IDS.filter((id) => !LOBBY_HIDDEN_ARTIFACT_IDS.includes(id));
@@ -27,6 +30,7 @@ const ICON_FILE: Record<ArtifactKey, string> = {
   hourglass: "hourglass",
   cross: "cross",
   censer: "censer",
+  shield: "shield",
 };
 export const artifactIconSrc = (id: number): string | null => {
   const k = artifactKey(id);
@@ -387,6 +391,41 @@ function drawCenser(c: CanvasRenderingContext2D, r: number, a: ArtifactAnchor) {
   });
 }
 
+/** «Щит»: маленький круглий щит збоку (золота кромка, синє поле, біла зірка). */
+function drawShield(c: CanvasRenderingContext2D, r: number, a: ArtifactAnchor) {
+  atSide(c, r, a, 1, (s) => {
+    const R = r * 0.2 * s;
+    const lw = Math.max(1, r * 0.035);
+    c.fillStyle = GOLD;
+    disc(c, 0, 0, R);
+    c.fill();
+    c.strokeStyle = OUTLINE;
+    c.lineWidth = lw;
+    c.stroke();
+    c.fillStyle = "#3a78d0";
+    disc(c, 0, 0, R * 0.72);
+    c.fill();
+    c.fillStyle = "#7ab6f5";
+    c.beginPath();
+    c.arc(0, 0, R * 0.72, Math.PI * 1.05, Math.PI * 1.6);
+    c.arc(0, 0, R * 0.4, Math.PI * 1.6, Math.PI * 1.05, true);
+    c.fill();
+    // біла зірка-емблема
+    c.fillStyle = "#ffffff";
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 === 0 ? R * 0.5 : R * 0.22;
+      c.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+    }
+    c.closePath();
+    c.fill();
+    c.fillStyle = GOLD_LIGHT;
+    disc(c, -R * 0.55, -R * 0.55, R * 0.12);
+    c.fill();
+  });
+}
+
 /** Малює артефакт у системі істоти (початок - центр тіла, +x - вперед). Контекст уже повернутий за напрямком. */
 export function drawArtifactShape(c: CanvasRenderingContext2D, id: number, r: number, a: ArtifactAnchor) {
   c.save();
@@ -412,6 +451,9 @@ export function drawArtifactShape(c: CanvasRenderingContext2D, id: number, r: nu
       break;
     case "censer":
       drawCenser(c, r, a);
+      break;
+    case "shield":
+      drawShield(c, r, a);
       break;
   }
   c.restore();

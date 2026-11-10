@@ -1,0 +1,119 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 8px;
+}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 1rem;
+}
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--muted, inherit);
+  opacity: 0.8;
+}
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 90%, var(--foreground, #888) 4%);
+}
+.cardHard {
+  border-color: color-mix(in srgb, #1fb572 55%, transparent);
+  background: color-mix(in srgb, #1fb572 9%, transparent);
+}
+.cardDone {
+  opacity: 0.6;
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground, #888) 8%, transparent);
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.name {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground, #888) 14%, transparent);
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #5be3a2, #1fb572);
+    transition: width 0.3s ease-out;
+  }
+}
+.numbers {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.claimBtn {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  color: #fff;
+  background: #1f9d5f;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+    background: color-mix(in srgb, var(--foreground, #888) 40%, transparent);
+  }
+}
+.claimed {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1f9d5f;
+}
+.note {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+.error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #d23b3b;
+}

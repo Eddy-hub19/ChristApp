@@ -23,6 +23,10 @@ export interface FlockMe {
   /** Какой день серии дал эту награду (1..N); 0 - сумма нескольких непоказанных наград. */
   streakAwardDay?: number;
   rubies: number;
+  /** Смарагди (друга валюта). */
+  emeralds?: number;
+  /** Скільки завдань дня виконано, але ще не взято (крапка на кнопці). */
+  questsClaimable?: number;
   ownedSkins: number[];
   selectedSkin: number;
   ownedArtifacts?: number[];
@@ -38,7 +42,7 @@ export interface FlockMe {
   premiumCollectionClaimed?: boolean;
   statsImported: boolean;
   stats: FlockStats;
-  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; legendaryPrices?: Record<number, number>; legendaryForSale?: boolean; premiumCollectionReward?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
+  config: { skinPrice: number; premiumSkinPrice?: number; specialSkinPrice?: number; legendaryForSale?: boolean; legendaryEmeraldPrice?: number; legendaryEmeraldSale?: boolean; emeraldCap?: number; shieldPrice?: number; premiumCollectionReward?: number; artifactPrice?: number; freeSkinIds?: number[]; premiumSkinIds?: number[]; specialFrom?: number; hiddenSkins?: number[]; totalSkins: number; top1Reward: number; top1MassThreshold: number; game?: FlockGameConfig };
 }
 
 /** Помилка від сервера з машинним кодом (`not_enough`, `already_owned`, ...). */
@@ -68,9 +72,9 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const fetchFlockMe = () => call<FlockMe>("/me");
 export const fetchFlockDaily = () => call<FlockDailyBoard>("/daily");
-export const buyFlockSkin = (skinId: number) => call<{ rubies: number; skinId: number; premiumCollection?: number }>(`/skins/${skinId}/buy`, { method: "POST" });
+export const buyFlockSkin = (skinId: number) => call<{ rubies?: number; emeralds?: number; skinId: number; premiumCollection?: number }>(`/skins/${skinId}/buy`, { method: "POST" });
 export const selectFlockSkin = (skin: number) => call<{ ok: true }>("/skin", { method: "PUT", body: JSON.stringify({ skin }) });
-export const buyFlockArtifact = (artifactId: number) => call<{ rubies: number; artifactId: number }>(`/artifacts/${artifactId}/buy`, { method: "POST" });
+export const buyFlockArtifact = (artifactId: number) => call<{ rubies?: number; emeralds?: number; artifactId: number }>(`/artifacts/${artifactId}/buy`, { method: "POST" });
 export const selectFlockArtifact = (artifact: number) => call<{ ok: true }>("/artifact", { method: "PUT", body: JSON.stringify({ artifact }) });
 export const importFlockStats = (stats: FlockStats) =>
   call<{ imported: boolean; stats: FlockStats }>("/stats/import", { method: "POST", body: JSON.stringify(stats) });
@@ -79,3 +83,24 @@ export const markWhatsNewSeen = (version: number) =>
 
 /** Лобі режиму «Замки»: скільки людей на кожній стороні (без входу в арену). */
 export const fetchCastlesLobby = () => call<import("./flockCastles").CastlesLobby>("/castles/lobby");
+
+/** Щоденні завдання (GET /flock/quests). */
+export interface FlockQuest {
+  slot: number;
+  id: string;
+  kind: string;
+  target: number;
+  progress: number;
+  claimed: boolean;
+  done: boolean;
+  reward: { type: "rubies" | "emeralds"; amount: number };
+}
+export interface FlockQuestsView {
+  day: string;
+  resetInMs: number;
+  quests: FlockQuest[];
+  claimable: number;
+}
+export const fetchFlockQuests = () => call<FlockQuestsView>("/quests");
+export const claimFlockQuest = (slot: number) =>
+  call<FlockQuestsView & { type: "rubies" | "emeralds"; amount: number; balance: number }>(`/quests/${slot}/claim`, { method: "POST" });

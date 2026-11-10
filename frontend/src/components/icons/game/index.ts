@@ -32,5 +32,8 @@ export {
   CastleIcon,
   LanternIcon,
   FirefliesJarIcon,
+  EmeraldIcon,
+  ArtifactShieldIcon,
+  QuestScrollIcon,
 } from "./icons";
 export { BonusIcon, BONUS_ICON_COMPONENTS } from "./bonusIcons";

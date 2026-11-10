@@ -271,6 +271,9 @@ export type AdminRubyTransaction = {
 
 export type AdminMemberFlock = {
   rubies: number;
+  /** Смарагди: баланс і журнал (EmeraldTransaction). */
+  emeralds?: number;
+  emeraldTransactions?: AdminRubyTransaction[];
   ownedSkins: number[];
   ownedArtifacts?: number[];
   selectedArtifact?: number;
@@ -313,6 +316,13 @@ export const grantAdminMemberSkin = (memberId: string, skin: number) =>
 /** amount > 0 нараховує, amount < 0 списує; причина обов'язкова (сервер перевіряє теж). */
 export const adjustAdminMemberRubies = (memberId: string, amount: number, reason: string) =>
   adminJson<{ rubies: number }>(`/members/${memberId}/rubies`, {
+    method: "POST",
+    body: JSON.stringify({ amount, reason }),
+  });
+
+/** Смарагди: amount > 0 нараховує, amount < 0 списує; причина обов'язкова, запис у журналі смарагдів. */
+export const adjustAdminMemberEmeralds = (memberId: string, amount: number, reason: string) =>
+  adminJson<{ emeralds: number }>(`/members/${memberId}/emeralds`, {
     method: "POST",
     body: JSON.stringify({ amount, reason }),
   });

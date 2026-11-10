@@ -6,6 +6,7 @@ import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
 import { ChevronDown, Crown, Lock, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
+import { EmeraldIcon, QuestScrollIcon } from "@/components/icons/game";
 import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
 import { HIDDEN_SKIN_IDS, isLegendarySkin, isLobbySelectableSkin, LEGENDARY_SKIN_ROWS, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
@@ -14,7 +15,7 @@ import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type CircleEndInfo, type DeathInfo, type FlockMode, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
-import { LOBBY_ARTIFACT_IDS, LOBBY_HIDDEN_ARTIFACT_IDS, artifactIconSrc, drawArtifact } from "./flockArtifacts";
+import { LOBBY_ARTIFACT_IDS, LOBBY_HIDDEN_ARTIFACT_IDS, artifactIconSrc, drawArtifact, isEmeraldArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
 import { PERK_ICON, perkList, perksOf } from "./flockSkinPerks";
 import FlockInvite from "./FlockInvite";
@@ -22,6 +23,7 @@ import { CUSTOM_COOLDOWN_MS, CUSTOM_MAX_LEN, loadHidePhrases, PHRASES, saveHideP
 import { isResumable, loadFlockSession } from "./flockSession";
 import FlockDailyBoard from "./FlockDailyBoard";
 import FlockInfo from "./FlockInfo";
+import FlockQuests from "./FlockQuests";
 import FlockModes from "./FlockModes";
 import FlockCastlesLobby from "./FlockCastlesLobby";
 import FlockChatFeed, { FEED_MAX, type FeedItem } from "./FlockChatFeed";
@@ -260,6 +262,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const phraseLangRef = useRef(toPhraseLang(locale));
   phraseLangRef.current = toPhraseLang(locale);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [questsOpen, setQuestsOpen] = useState(false);
+  /** Плашка «Завдання виконано» у грі (значення - метка часу появи). */
+  const [questToast, setQuestToast] = useState<number | null>(null);
   /** Секція «Обери вигляд» (звичайні скіни) згортається кліком по заголовку. */
   const [regularOpen, setRegularOpen] = useState(true);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
@@ -305,6 +310,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if ((e.target as HTMLElement).closest?.("button")) playFlockSound("click", { self: true });
   }, []);
   const closeInfo = useCallback(() => setInfoOpen(false), []);
+  const closeQuests = useCallback(() => setQuestsOpen(false), []);
+  const onQuestsChanged = useCallback((v: { rubies?: number; emeralds?: number; claimable: number }) => {
+    setMe((m) => (m ? { ...m, ...(v.rubies !== undefined ? { rubies: v.rubies } : {}), ...(v.emeralds !== undefined ? { emeralds: v.emeralds } : {}), questsClaimable: v.claimable } : m));
+  }, []);
   const closeArtifacts = useCallback(() => setArtifactsOpen(false), []);
 
   // запоминаем «просмотрено» до того, как плашка ниже пометит версию как просмотренную
@@ -495,6 +504,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         onBoss: (e) => setBossMsg({ id: Date.now(), kind: e.kind, name: e.name }),
         onScissors: (r) => setScissorsMsg({ id: Date.now(), taker: r.taker, count: r.count, gain: r.gain }),
         onRevive: () => setReviveMsg(Date.now()),
+        onQuestDone: () => {
+          setQuestToast(Date.now());
+          setMe((m) => (m ? { ...m, questsClaimable: (m.questsClaimable ?? 0) + 1 } : m));
+        },
         onReward: (r) => {
           setReward({ ...r, id: Date.now() });
           setMe((m) => (m ? { ...m, rubies: r.balance } : m));
@@ -643,6 +656,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     return () => clearTimeout(id);
   }, [bossMsg]);
 
+  useEffect(() => {
+    if (questToast === null) return;
+    const id = setTimeout(() => setQuestToast(null), 4000);
+    return () => clearTimeout(id);
+  }, [questToast]);
+
   // «+10»: підпис і анімація зникають самі
   useEffect(() => {
     if (!reward) return;
@@ -666,7 +685,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setBuyError(null);
     try {
       const res = await buyFlockSkin(i);
-      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
+      setMe((m) => (m ? { ...m, rubies: res.rubies ?? m.rubies, emeralds: res.emeralds ?? m.emeralds, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
       if (res.premiumCollection) setCollectionAward({ amount: res.premiumCollection, fromBuy: true });
       setSkin(i);
       playFlockSound("coins", { self: true });
@@ -683,7 +702,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   };
 
   const ownedArtifacts = me?.ownedArtifacts ?? [];
-  const artifactPrice = me?.config.artifactPrice ?? 350;
+  const artifactRubyPrice = me?.config.artifactPrice ?? 350;
+  /** Ціна артефакта: «Щит» - у смарагдах (config.shieldPrice), решта - у рубінах. */
+  const priceOfArtifact = (id: number) => (isEmeraldArtifact(id) ? (me?.config.shieldPrice ?? 100) : artifactRubyPrice);
+  const walletOfArtifact = (id: number) => (isEmeraldArtifact(id) ? (me?.emeralds ?? 0) : (me?.rubies ?? 0));
+  const artifactCurrency = (id: number, size: number) => (isEmeraldArtifact(id) ? <EmeraldIcon size={size} /> : <RubyIcon size={size} />);
   const artifactParams = artifactDescParams(me?.config.game);
 
   /** Тап по плитке: купленный - надеть/снять, не купленный - панель покупки. */
@@ -708,7 +731,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setArtifactError(null);
     try {
       const res = await buyFlockArtifact(id);
-      setMe((m) => (m ? { ...m, rubies: res.rubies, ownedArtifacts: [...(m.ownedArtifacts ?? []), id].sort((a, b) => a - b) } : m));
+      setMe((m) => (m ? { ...m, rubies: res.rubies ?? m.rubies, emeralds: res.emeralds ?? m.emeralds, ownedArtifacts: [...(m.ownedArtifacts ?? []), id].sort((a, b) => a - b) } : m));
       playFlockSound("coins", { self: true });
       setPreviewArtifact(null);
       setArtifactConfirming(false);
@@ -742,9 +765,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Премиум-скины (видимые) рядами по шесть без пустых ячеек: 11 -> 6 + 5. */
   const premiumRows = splitRows(visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins));
 
+  /** Ціна скіна: «Легендарні» - у смарагдах (config.legendaryEmeraldPrice), решта - у рубінах. */
   const priceOf = (i: number) =>
     isLegendarySkin(i)
-      ? (me?.config.legendaryPrices?.[i] ?? 250)
+      ? (me?.config.legendaryEmeraldPrice ?? 80)
       : isSpecialSkin(i) ? (me?.config.specialSkinPrice ?? 150) : isPremiumSkin(i) ? (me?.config.premiumSkinPrice ?? 200) : (me?.config.skinPrice ?? 50);
 
   /** Строки бонуса скина с иконкой («+10% радіус підбору»). */
@@ -762,8 +786,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     );
   };
 
-  /** «Легендарні»: продаж закрито (сервер: config.legendaryForSale) - без ціни й кнопки «Купити», замість них «Скоро». */
-  const notForSale = (i: number) => isLegendarySkin(i) && !(me?.config.legendaryForSale ?? false);
+  /** «Легендарні»: поки закрито продаж за смарагди (сервер: config.legendaryEmeraldSale) - без ціни й кнопки «Купити», замість них «Скоро». */
+  const notForSale = (i: number) => isLegendarySkin(i) && !(me?.config.legendaryEmeraldSale ?? false);
+  /** Іконка валюти ціни скіна. */
+  const priceIcon = (i: number, size: number) => (isLegendarySkin(i) ? <EmeraldIcon size={size} /> : <RubyIcon size={size} />);
 
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
@@ -794,7 +820,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 t("rubies.soon")
               ) : (
                 <>
-                  <RubyIcon size={11} />
+                  {priceIcon(i, 11)}
                   {priceOf(i)}
                 </>
               )}
@@ -1271,6 +1297,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   : t("events.bossAteLeader", { name: bossMsg.name })}
             </div>
           ) : null}
+          {questToast ? (
+            <div key={questToast} className={styles.questToast} role="status">
+              <QuestScrollIcon size={18} />
+              {t("quests.done")}
+            </div>
+          ) : null}
           {reward ? (
             <div key={reward.id} className={styles.rewardPop} role="status">
               <span className={styles.rewardAmount}>
@@ -1600,9 +1632,15 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           onClose={closeArtifacts}
           testId="flock-artifacts"
           headExtra={
-            <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
-              <RubyIcon size={18} />
-              <span>{me?.rubies ?? 0}</span>
+            <div className={styles.balances}>
+              <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+                <RubyIcon size={18} />
+                <span>{me?.rubies ?? 0}</span>
+              </div>
+              <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
+                <EmeraldIcon size={18} />
+                <span>{me?.emeralds ?? 0}</span>
+              </div>
             </div>
           }
         >
@@ -1628,7 +1666,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             key={id}
             type="button"
             aria-pressed={worn}
-            aria-label={owned ? `${name}${worn ? `: ${t("artifacts.worn")}` : ""}` : `${name}: ${t("rubies.locked")}, ${t("rubies.price", { price: artifactPrice })}`}
+            aria-label={owned ? `${name}${worn ? `: ${t("artifacts.worn")}` : ""}` : `${name}: ${t("rubies.locked")}, ${t("rubies.price", { price: priceOfArtifact(id) })}`}
             className={`${styles.artifact} ${worn ? styles.artifactWorn : ""} ${owned ? "" : styles.artifactLocked}`}
             onClick={() => openArtifact(id)}
           >
@@ -1641,8 +1679,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             ) : (
               <span className={styles.priceTag}>
                 <Lock size={11} aria-hidden />
-                <RubyIcon size={11} />
-                {artifactPrice}
+                {artifactCurrency(id, 11)}
+                {priceOfArtifact(id)}
               </span>
             )}
           </button>
@@ -1656,7 +1694,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           <span>{t(`artifacts.items.${previewArtifact}.desc`, artifactParams)}</span>
           {artifactConfirming ? (
             <>
-              <span>{t("rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: artifactPrice })}</span>
+              <span>{t(isEmeraldArtifact(previewArtifact) ? "emeralds.confirmText" : "rubies.confirmText", { name: t(`artifacts.items.${previewArtifact}.name`), price: priceOfArtifact(previewArtifact) })}</span>
               <div className={styles.buyButtons}>
                 <button type="button" className={styles.primary} disabled={artifactBusy} onClick={() => void buyArtifact(previewArtifact)}>
                   {artifactBusy ? t("rubies.buying") : t("rubies.confirm")}
@@ -1669,17 +1707,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : (
             <>
               <div className={styles.buyButtons}>
-                <button type="button" className={styles.primary} disabled={(me?.rubies ?? 0) < artifactPrice || !me} onClick={() => setArtifactConfirming(true)}>
-                  {t("rubies.buy", { price: artifactPrice })} <RubyIcon size={14} />
+                <button type="button" className={styles.primary} disabled={walletOfArtifact(previewArtifact) < priceOfArtifact(previewArtifact) || !me} onClick={() => setArtifactConfirming(true)}>
+                  {t("rubies.buy", { price: priceOfArtifact(previewArtifact) })} {artifactCurrency(previewArtifact, 14)}
                 </button>
                 <button type="button" className={styles.secondary} onClick={() => setPreviewArtifact(null)}>
                   {t("rubies.cancel")}
                 </button>
               </div>
-              {me && me.rubies < artifactPrice ? <span className={styles.missing}>{t("rubies.missing", { count: artifactPrice - me.rubies })}</span> : null}
+              {me && walletOfArtifact(previewArtifact) < priceOfArtifact(previewArtifact) ? (
+                <span className={styles.missing}>
+                  {isEmeraldArtifact(previewArtifact) ? t("emeralds.progress", { have: walletOfArtifact(previewArtifact), need: priceOfArtifact(previewArtifact) }) : t("rubies.missing", { count: priceOfArtifact(previewArtifact) - walletOfArtifact(previewArtifact) })}
+                </span>
+              ) : null}
             </>
           )}
-          {artifactError ? <span className={styles.error}>{t(`rubies.errors.${artifactError}`)}</span> : null}
+          {artifactError ? <span className={styles.error}>{artifactError === "not_enough" && isEmeraldArtifact(previewArtifact) ? t("emeralds.notEnough") : t(`rubies.errors.${artifactError}`)}</span> : null}
         </div>
       </div>
     ) : null}
@@ -1699,6 +1741,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         />
       ) : null}
       {soundOpen ? <FlockSoundSettings onClose={() => setSoundOpen(false)} /> : null}
+      {questsOpen && showLobby ? <FlockQuests onClose={closeQuests} onChanged={onQuestsChanged} /> : null}
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
       {showLobby ? (
@@ -1715,11 +1758,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
                   {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
                 </button>
+                <button type="button" className={`${styles.infoBtn} ${styles.questsBtn}`} onClick={() => setQuestsOpen(true)} aria-label={t("quests.open")} title={t("quests.title")} aria-haspopup="dialog">
+                  <QuestScrollIcon size={18} />
+                  {(me?.questsClaimable ?? 0) > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
+                </button>
                 <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
               </div>
-              <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
-                <RubyIcon size={18} />
-                <span>{me?.rubies ?? 0}</span>
+              <div className={styles.balances}>
+                <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+                  <RubyIcon size={18} />
+                  <span>{me?.rubies ?? 0}</span>
+                </div>
+                <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
+                  <EmeraldIcon size={18} />
+                  <span>{me?.emeralds ?? 0}</span>
+                </div>
               </div>
             </div>
             <p className={styles.sub}>{t("tagline")}</p>
@@ -1807,11 +1860,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                       );
                     }
                     const price = priceOf(previewSkin);
-                    const missing = Math.max(0, price - (me?.rubies ?? 0));
+                    const wallet = isLegendarySkin(previewSkin) ? (me?.emeralds ?? 0) : (me?.rubies ?? 0);
+                    const missing = Math.max(0, price - wallet);
                     if (confirming) {
                       return (
                         <>
-                          <span>{t("rubies.confirmText", { name: t(`skins.${previewSkin}`), price })}</span>
+                          <span>{t(isLegendarySkin(previewSkin) ? "emeralds.confirmText" : "rubies.confirmText", { name: t(`skins.${previewSkin}`), price })}</span>
                           <div className={styles.buyButtons}>
                             <button type="button" className={styles.primary} disabled={buying} onClick={() => void buy(previewSkin)}>
                               {buying ? t("rubies.buying") : t("rubies.confirm")}
@@ -1827,17 +1881,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                       <>
                         <div className={styles.buyButtons}>
                           <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => setConfirming(true)}>
-                            {t("rubies.buy", { price })} <RubyIcon size={14} />
+                            {t("rubies.buy", { price })} {priceIcon(previewSkin, 14)}
                           </button>
                           <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
                             {t("rubies.cancel")}
                           </button>
                         </div>
-                        {missing > 0 && me ? <span className={styles.missing}>{t("rubies.missing", { count: missing })}</span> : null}
+                        {missing > 0 && me ? (
+                          <span className={styles.missing}>
+                            {isLegendarySkin(previewSkin) ? t("emeralds.progress", { have: Math.min(wallet, price), need: price }) : t("rubies.missing", { count: missing })}
+                          </span>
+                        ) : null}
                       </>
                     );
                   })()}
-                  {buyError ? <span className={styles.error}>{t(`rubies.errors.${buyError}`)}</span> : null}
+                  {buyError ? <span className={styles.error}>{buyError === "not_enough" && isLegendarySkin(previewSkin) ? t("emeralds.notEnough") : t(`rubies.errors.${buyError}`)}</span> : null}
                 </div>
               </div>
             ) : null}

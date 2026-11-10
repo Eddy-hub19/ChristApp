@@ -2,7 +2,7 @@
  * Список новшеств «Отари». Для нового обновления достаточно ДОПИСАТЬ одну запись в конец `WHATS_NEW`
  * (version - целое, больше предыдущей). Тексты - одна строка на язык.
  */
-export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound" | "lantern" | "jar" | "wings";
+export type WhatsNewIcon = "ruby" | "star" | "skins" | "freeze" | "boost" | "names" | "leaf" | "shield" | "trophy" | "scissors" | "starfall" | "eye" | "lava" | "fence" | "alpha" | "rain" | "pipe" | "wind" | "sound" | "lantern" | "jar" | "wings" | "emerald" | "quest" | "artifactShield";
 export type WhatsNewLang = "ua" | "ru" | "en";
 
 export interface WhatsNewItem {
@@ -685,9 +685,55 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "ruby",
         text: {
-          ua: "Нова економіка рубінів: 1-ше місце — 5, Вожак — 3 (до 15 за добу), «Замки» — 20 (до 3 перемог за добу, проти ботів лише 3 за весь час), серія днів 5/10/15, колекція преміум — 150. Усі ігрові джерела разом дають не більше 80 рубінів за добу. Уже зароблене й куплене не змінюється",
-          ru: "Новая экономика рубинов: 1-е место — 5, Вожак — 3 (до 15 в сутки), «Замки» — 20 (до 3 побед в сутки, против ботов только 3 за всё время), серия дней 5/10/15, коллекция премиум — 150. Все игровые источники вместе дают не больше 80 рубинов в сутки. Уже заработанное и купленное не меняется",
-          en: "New ruby economy: 1st place — 5, the Alpha — 3 (up to 15 a day), Castles — 20 (up to 3 wins a day, only 3 ever against bots), day streak 5/10/15, premium collection — 150. All in-game sources together pay at most 80 rubies a day. What you already earned and bought is unchanged",
+          ua: "Нова економіка рубінів: 1-ше місце — 5, Вожак — 3 (до 15 за добу), «Замки» — 20 (до 3 перемог за добу, проти ботів лише 3 за весь час), серія днів 5/10/15, колекція преміум — 150. Усі ігрові джерела разом дають не більше 100 рубінів за добу. Уже зароблене й куплене не змінюється",
+          ru: "Новая экономика рубинов: 1-е место — 5, Вожак — 3 (до 15 в сутки), «Замки» — 20 (до 3 побед в сутки, против ботов только 3 за всё время), серия дней 5/10/15, коллекция премиум — 150. Все игровые источники вместе дают не больше 100 рубинов в сутки. Уже заработанное и купленное не меняется",
+          en: "New ruby economy: 1st place — 5, the Alpha — 3 (up to 15 a day), Castles — 20 (up to 3 wins a day, only 3 ever against bots), day streak 5/10/15, premium collection — 150. All in-game sources together pay at most 100 rubies a day. What you already earned and bought is unchanged",
+        },
+      },
+    ],
+  },
+  {
+    version: 28,
+    date: "2026-11-11",
+    items: [
+      {
+        icon: "emerald",
+        text: {
+          ua: "Нова валюта — смарагди. Їх дуже важко здобути: видаються за складні щоденні завдання, накопичити можна не більше 200. Передавати іншим гравцям не можна. Баланс — поруч із рубінами в лобі",
+          ru: "Новая валюта — изумруды. Их очень трудно добыть: выдаются за сложные ежедневные задания, накопить можно не больше 200. Передавать другим игрокам нельзя. Баланс — рядом с рубинами в лобби",
+          en: "A new currency: emeralds. They are very hard to get: handed out for the hard daily quests, and you can hold at most 200. They can't be given to other players. Your balance sits next to rubies in the lobby",
+        },
+      },
+      {
+        icon: "quest",
+        text: {
+          ua: "Щоденні завдання: три на день (два прості за рубіни й одне складне за смарагди). Кнопка зі сувоєм поруч із «i». Скидаються опівночі за Києвом, невзяте не копичиться. Нагороду забираєш сам кнопкою «Забрати»",
+          ru: "Ежедневные задания: три в день (два простых за рубины и одно сложное за изумруды). Кнопка со свитком рядом с «i». Сбрасываются в полночь по Киеву, невзятое не копится. Награду забираешь сам кнопкой «Забрати»",
+          en: "Daily quests: three a day (two easy ones for rubies and one hard one for emeralds). The scroll button next to “i”. They reset at Kyiv midnight and unclaimed rewards don't pile up. Press Claim to collect",
+        },
+      },
+      {
+        icon: "ruby",
+        text: {
+          ua: "Ігрові джерела рубінів разом тепер дають до 100 рубінів за добу. Нагороди за щоденні завдання сюди не входять",
+          ru: "Игровые источники рубинов вместе теперь дают до 100 рубинов в сутки. Награды за ежедневные задания сюда не входят",
+          en: "All in-game ruby sources together now pay up to 100 rubies a day. Daily quest rewards are not counted in it",
+        },
+      },
+      {
+        icon: "artifactShield",
+        text: {
+          ua: "Новий артефакт «Щит»: колючі кущі й ялинки не рвуть твою овечку. Ховатися під кущем, як і раніше, може лише менша за нього. Купується за смарагди, за рубіни — ні",
+          ru: "Новый артефакт «Щит»: колючие кусты и ёлки не рвут твою овечку. Прятаться под кустом, как и раньше, может только меньшая за него. Покупается за изумруды, за рубины — нет",
+          en: "A new artifact, the Shield: thorn bushes and firs no longer tear your sheep apart. Only a cell smaller than the bush can still hide under it. Bought with emeralds, not rubies",
+        },
+      },
+      {
+        icon: "skins",
+        text: {
+          ua: "«Легендарні» скіни купуватимуться лише за смарагди, не за рубіни. Поки що вони в лобі позначені «Скоро»",
+          ru: "«Легендарные» скины будут покупаться только за изумруды, не за рубины. Пока что они в лобби помечены «Скоро»",
+          en: "Legendary skins will be bought with emeralds only, not rubies. For now they are marked “Soon” in the lobby",
         },
       },
     ],

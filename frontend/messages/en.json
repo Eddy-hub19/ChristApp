@@ -242,11 +242,18 @@
         "PREMIUM_COLLECTION": "Premium collection completed",
         "SKIN_PURCHASE": "Skin purchase",
         "ARTIFACT_PURCHASE": "Artifact purchase",
-        "ADMIN_ADJUST": "Admin adjustment"
+        "ADMIN_ADJUST": "Admin adjustment",
+        "DAILY_QUEST": "Daily quest",
+        "DAILY_QUEST_EMERALD": "Daily hard quest",
+        "ARTIFACT_PURCHASE_EMERALD": "Artifact bought with emeralds",
+        "SKIN_PURCHASE_EMERALD": "Skin bought with emeralds",
+        "ARENA_TIGER_DROP": "Emerald for defeating the tiger",
+        "ARENA_COLISEUM_SKIN_FALLBACK": "Reward instead of a skin for Colosseum wins"
       },
       "notes": {
         "adminGrant": "Granted by an admin",
-        "streakDay": "Day {day} of {of}, {date}"
+        "streakDay": "Day {day} of {of}, {date}",
+        "quest": "{name} ({date})"
       },
       "balanceAfter": "balance {balance}",
       "errors": {
@@ -257,8 +264,14 @@
         "already_owned": "The player already owns it",
         "invalid_skin": "Unknown skin",
         "invalid_artifact": "Unknown artifact",
-        "generic": "The operation failed"
-      }
+        "generic": "The operation failed",
+        "emerald_cap": "Above the emerald cap"
+      },
+      "emeraldBalance": "Emeralds:",
+      "emeraldAmountPlaceholder": "± emeralds",
+      "emeraldAmountLabel": "Amount of emeralds",
+      "emeraldApply": "Change emeralds",
+      "emeraldHistory": "Emerald history"
     },
     "title": "Admin",
     "subtitle": "Members (newest first).",
@@ -1357,7 +1370,7 @@
     "chooseSkin": "Pick your look",
     "artifacts": {
       "title": "Artifacts",
-      "hint": "Worn on top of any skin, one at a time. Bought with rubies.",
+      "hint": "Worn over any skin, one at a time. Bought with rubies; the Shield with emeralds.",
       "none": "No artifact",
       "open": "Open artifacts",
       "close": "Close artifacts",
@@ -1391,6 +1404,10 @@
         "7": {
           "name": "Censer",
           "desc": "Bots and the Alpha keep away from you"
+        },
+        "8": {
+          "name": "Shield",
+          "desc": "Thorn bushes and firs can’t tear you. Bought with emeralds"
         }
       }
     },
@@ -1649,7 +1666,8 @@
         "skin_not_for_sale": "This skin is not for sale yet",
         "not_enough": "Not enough rubies",
         "already_owned": "You already own this skin",
-        "generic": "Purchase failed, please try again"
+        "generic": "Purchase failed, please try again",
+        "emerald_cap": "Emeralds are at the cap — spend some, then claim"
       }
     },
     "resuming": "Returning…",
@@ -1811,6 +1829,83 @@
       "min": "{n} min",
       "empty": "No messages yet",
       "unread": "New messages: {n}"
+    },
+    "emeralds": {
+      "name": "Emeralds",
+      "count": "{count, plural, one {# emerald} other {# emeralds}}",
+      "balance": "Emeralds: {count}",
+      "progress": "{have} of {need} emeralds",
+      "confirmText": "Buy “{name}” for {price, plural, one {# emerald} other {# emeralds}}?",
+      "notEnough": "Not enough emeralds"
+    },
+    "quests": {
+      "title": "Daily quests",
+      "open": "Open daily quests",
+      "close": "Close quests",
+      "today": "Today",
+      "resetIn": "New ones in: {time}",
+      "loading": "Loading…",
+      "claim": "Claim",
+      "claimed": "Claimed",
+      "done": "Quest complete! Claim the reward in the lobby",
+      "hint": "New quests appear at Kyiv midnight. Unclaimed rewards don’t pile up.",
+      "sec": "{n} / {of} s",
+      "errors": {
+        "generic": "Something went wrong, try again",
+        "emerald_cap": "Emeralds are at the cap — spend some, then claim",
+        "quest_claimed": "Already claimed",
+        "quest_not_done": "Quest not complete yet"
+      },
+      "items": {
+        "food": {
+          "title": "Eat {n} food",
+          "short": "Eat food"
+        },
+        "mass": {
+          "title": "Reach a mass of {n}",
+          "short": "Reach a mass"
+        },
+        "bonuses": {
+          "title": "Pick up {n} bonuses",
+          "short": "Pick up bonuses"
+        },
+        "alive": {
+          "title": "Survive {min} min without dying",
+          "short": "Survive without dying"
+        },
+        "prey": {
+          "title": "Eat {n} players or bots",
+          "short": "Eat players or bots"
+        },
+        "mass_big": {
+          "title": "Reach a mass of {n}",
+          "short": "Reach a big mass"
+        },
+        "sprint": {
+          "title": "Use Sprint for {n} s",
+          "short": "Use Sprint"
+        },
+        "boss": {
+          "title": "Defeat the Alpha",
+          "short": "Defeat the Alpha"
+        },
+        "top1": {
+          "title": "Finish 1st in the Top 10 with a mass of {n}",
+          "short": "1st in the Top 10"
+        },
+        "castles": {
+          "title": "Play a Castles match against real players",
+          "short": "Castles match against real players"
+        },
+        "survive_map": {
+          "title": "Survive {min} min on Volcano or Sky",
+          "short": "Survive on Volcano or Sky"
+        },
+        "tiger": {
+          "title": "Defeat the tiger on the Colosseum map",
+          "short": "Defeat the tiger"
+        }
+      }
     }
   },
   "games": {
