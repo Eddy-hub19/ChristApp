@@ -568,6 +568,8 @@ export const FLOCK_CONFIG = {
   },
 
   night: {
+    /** false - нічну карту вимкнено: не випадає, адмін не може її призначити (код карти лишається). */
+    enabled: false,
     timeZone: 'Europe/Kyiv',
     fromHour: 20,
     toHour: 6,
@@ -897,6 +899,7 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
 export function isNightOpen(atMs: number = Date.now()): boolean {
   const N = FLOCK_CONFIG.night;
+  if (!N.enabled) return false;
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', { timeZone: N.timeZone, hour: '2-digit', hourCycle: 'h23' }).format(new Date(atMs)),
   );
@@ -944,6 +947,7 @@ export function clientGameConfig() {
       syncMs: c.sky.syncMs,
     },
     night: {
+      enabled: c.night.enabled,
       fromHour: c.night.fromHour,
       toHour: c.night.toHour,
       weightMul: c.night.weightMultiplier,

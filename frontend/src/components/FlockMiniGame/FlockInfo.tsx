@@ -6,7 +6,7 @@ import { BONUS_ICON_COMPONENTS, BonusIcon } from "@/components/icons/game";
 import { artifactIconSrc } from "./flockArtifacts";
 import { BONUS_ICON } from "./flockRender";
 import type { FlockGameConfig } from "./flockApi";
-import { artifactDescParams, fillInfoText, INFO_SECTIONS, type InfoEntry, type InfoLang } from "./flockInfoData";
+import { artifactDescParams, fillInfoText, isInfoEntryVisible, INFO_SECTIONS, type InfoEntry, type InfoLang } from "./flockInfoData";
 import { ICONS } from "./FlockWhatsNew";
 import { WHATS_NEW } from "./flockWhatsNewData";
 import { latestVersion } from "./flockWhatsNewLogic";
@@ -112,7 +112,7 @@ export default function FlockInfo({ game, seenBefore, onUpdatesViewed, onClose }
                       <div id={`${titleId}-s-${s.id}`} className={styles.collapseInner} inert={!open}>
                         {s.intro ? <p className={styles.intro}>{fillInfoText(s.intro.text[lang], s.intro.params, game)}</p> : null}
                         <ul className={styles.list}>
-                          {s.entries.map((e) => {
+                          {s.entries.filter((e) => isInfoEntryVisible(e, game)).map((e) => {
                             const n = s.artifacts ? Number(e.icon.slice(9)) : 0;
                             return (
                               <li key={e.id} className={styles.entry}>
