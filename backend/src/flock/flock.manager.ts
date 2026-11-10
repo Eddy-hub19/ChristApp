@@ -22,6 +22,7 @@ import { initBot, pickBotName, thinkBot } from './flock.bots';
 import { initBoss, thinkBoss } from './flock.boss';
 import { initMonster, thinkMonster } from './flock.monsters';
 import { CircleRound, type CircleMsg } from './flock.circle';
+import { QuestTracker, type QuestEmit } from './flock.quest-tracker';
 import { CastleMatch, type TeamSettlement } from './flock.castles';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
@@ -106,6 +107,8 @@ export interface FlockHooks {
     userId: string,
     run: { maxMass: number; kills: number; topMs: number },
   ) => void;
+  /** Події щоденних завдань (лише пам'ять; запис у БД пакетний). */
+  onQuest?: QuestEmit;
   /** Людина виграла раунд режиму «Звужуване коло» (рубіни нараховує лише сервер, у межах добового ліміту). */
   onCircleWin?: (userId: string, connKey: string | null) => void;
   /** Матч «Замки» скінчився: вимірювання для нарахування нагород (рубіни нараховує лише шлюз, через БД). */
@@ -123,6 +126,8 @@ export type ArenaMode = 'normal' | 'circle' | 'castles';
 
 class Arena {
   readonly world: FlockWorld;
+  /** Прогрес щоденних завдань (null - «Замки» або без хука). */
+  readonly quests: QuestTracker | null;
   /** Режим «Замки»: матч команд (null - інші режими). */
   readonly castle: CastleMatch | null = null;
   /** «Звужуване коло»: поточний раунд і його стан (running - іде, ended - показуємо підсумки до roundEndAt). */
@@ -222,6 +227,7 @@ class Arena {
           ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
           : pickMapId(rng));
     this.world = new FlockWorld(rng, this.mapId);
+    this.quests = mode !== 'castles' && hooks.onQuest ? new QuestTracker(hooks.onQuest, this.mapId) : null;
     if (mode === 'castles') {
       this.castle = new CastleMatch(this.world, rng);
       this.world.team = this.castle.rules;
@@ -731,6 +737,7 @@ class Arena {
       for (const s of this.sessions.values()) {
         if (s.pid === d.killerPid && s.userId) {
           this.hooks.onBossKill?.(s.userId, s.connKey);
+          this.hooks.onQuest?.(s.userId, s.connKey, [{ kind: 'boss', n: 1, mode: 'add' }], false);
           break;
         }
       }
@@ -856,6 +863,7 @@ class Arena {
     this.castle?.step(1 / this.rate.hz);
     this.stepRoundPost();
     this.stepBossPost();
+    this.quests?.step(w, this.sessions.values());
     const tC = performance.now();
     this.phase.think += tB - tA;
     this.phase.world += tC - tB;
@@ -1022,9 +1030,12 @@ class Arena {
 
   /** 1-ше місце + маса від порога + ще не нагороджений у цьому житті -> хук (рубіни нараховує лише сервер). */
   private checkTop1(first: Player | undefined) {
-    if (!first || first.total < C.rubies.top1MassThreshold) return;
+    if (!first) return;
     for (const s of this.sessions.values()) {
       if (s.pid !== first.id) continue;
+      // завдання «1-ше місце з масою N» (поріг у пулі завдань, не залежить від порога рубінів)
+      if (first.alive && !first.paused && s.connKey) this.hooks.onQuest?.(s.userId, s.connKey, [{ kind: 'top1', n: first.total, mode: 'max' }], false);
+      if (first.total < C.rubies.top1MassThreshold) return;
       if (s.rewardedThisLife || !s.connKey || !first.alive) return;
       s.rewardedThisLife = true;
       this.hooks.onTop1?.(s.userId, s.connKey);
@@ -1776,6 +1787,7 @@ export class FlockManager {
     if (s.connKey) this.byConn.delete(s.connKey);
     this.byUser.delete(s.userId);
     const arena = s.arena;
+    arena.quests?.leave(arena.world, s);
     const leaving = arena.world.players.get(s.pid);
     if (leaving) this.hooks.onMass?.(s.userId, leaving.maxMass);
     arena.sessions.delete(s.userId);

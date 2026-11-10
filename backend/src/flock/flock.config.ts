@@ -632,18 +632,61 @@ export const FLOCK_CONFIG = {
     /** Вартість «особливого» скіна (ряд 24-33, без анімації) - окремо від звичайних і преміум. */
     specialSkinPrice: 150,
     /**
-     * «Легендарні» скіни (57-68): ціна кожного окремо. Продаж ЗАКРИТО (legendaryForSale: false): сервер відхиляє покупку
-     * (`skin_not_for_sale`), скін можна лише отримати від адміна. Прапор не змінюють ні міграції, ні скрипти: лише ручна правка тут.
+     * «Легендарні» скіни (57-68): продаються ЛИШЕ за смарагди (legendaryEmeraldPrice), за рубіни - ніколи. Поки legendaryEmeraldSale = false,
+     * сервер відхиляє покупку (`skin_not_for_sale`) будь-якого легендарного скіна, лишається видача адміном і нагороди сервера
+     * (вони пишуться як запис покупки з ціною 0, повз прапори продажу). Прапори не міняють ні міграції, ні скрипти: лише ручна правка тут.
      */
-    legendaryPrices: {
-      57: 250, 58: 250, 59: 250, 60: 250, 61: 250, 62: 250,
-      63: 250, 64: 250, 65: 250, 66: 250, 67: 250, 68: 250,
-    } as Record<number, number>,
     legendaryForSale: false,
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
     /** Разова нагорода за повну колекцію преміум-скінів, що зараз у продажу (без HIDDEN_SKINS); поза dailyLimit. */
     premiumCollectionReward: 150,
+  },
+
+  // --- смарагди (друга валюта; лише від сервера, передавати між гравцями не можна) ---
+  emeralds: {
+    /** Стеля накопичення: нарахування, що виходить за неї, обрізається (при повному балансі завдання не забирається). */
+    cap: 200,
+    /** Ціна кожного «Легендарного» скіна (57-68) у смарагдах. */
+    legendaryEmeraldPrice: 80,
+    /** Продаж «Легендарних» за смарагди: поки false, плитка - замочок і «Скоро», сервер відхиляє покупку. Вмикає лише власник вручну. */
+    legendaryEmeraldSale: false,
+  },
+
+  // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
+  quests: {
+    enabled: true,
+    /** Нагороди за слотами: 0 - просте (рубіни), 1 - середнє (рубіни), 2 - складне (смарагди). Рубіни входять у rubies.dailyEarnCap. */
+    rewards: {
+      simple: { type: 'rubies', amount: 4 },
+      medium: { type: 'rubies', amount: 6 },
+      hard: { type: 'emeralds', amount: 3 },
+    } as const,
+    /** Скільки мс сервер тримає прогрес у пам'яті перед записом у БД (плюс запис при смерті, виході й закритті арени). */
+    flushMs: 60_000,
+    /** Захист: прогрес лише того, хто рухався за останні activeWindowMs; крок вибірки руху - sampleMs, мінімальний зсув центра за крок - minMove. */
+    activeWindowMs: 20_000,
+    sampleMs: 1_000,
+    minMove: 6,
+    /** Та сама жертва вдруге не зараховується ціле вікно (мс), мінімальна маса жертви. */
+    sameVictimMs: 300_000,
+    minVictimMass: 60,
+    /** Пул (значення - в одиницях виду: штуки, маса, секунди). enabled:false - завдання не видається. */
+    pool: [
+      { id: 'food', tier: 'simple', kind: 'food', target: 80 },
+      { id: 'mass', tier: 'simple', kind: 'mass', target: 400 },
+      { id: 'bonuses', tier: 'simple', kind: 'bonuses', target: 3 },
+      { id: 'alive', tier: 'simple', kind: 'alive', target: 180 },
+      { id: 'prey', tier: 'medium', kind: 'prey', target: 3 },
+      { id: 'mass_big', tier: 'medium', kind: 'mass', target: 1500 },
+      { id: 'sprint', tier: 'medium', kind: 'sprint', target: 25 },
+      { id: 'boss', tier: 'hard', kind: 'boss', target: 1 },
+      { id: 'top1', tier: 'hard', kind: 'top1', target: 3000 },
+      { id: 'castles', tier: 'hard', kind: 'castles', target: 1 },
+      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 300, maps: [3, 6] },
+      /** Заготовка для карти «Арена» (друга задача): вимкнена. */
+      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1, enabled: false },
+    ] as readonly QuestDef[],
   },
 
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
@@ -846,8 +889,20 @@ export const FLOCK_CONFIG = {
     reviveShieldMs: 3000,
     /** 7 «Кадило»: боти й «Вожак» тримаються подалі від носія в цьому радіусі (на людей не діє). */
     censerRadius: 500,
+    /** 8 «Щит»: колючі кущі й ялинки не рвуть клітину (ховатися під кущем може лише менша за нього). Купується лише за смарагди. */
+    shieldEmeraldPrice: 100,
   },
 } as const;
+
+/** Завдання пулу щоденних завдань. */
+export interface QuestDef {
+  id: string;
+  tier: 'simple' | 'medium' | 'hard';
+  kind: 'food' | 'mass' | 'bonuses' | 'alive' | 'prey' | 'sprint' | 'boss' | 'top1' | 'castles' | 'survive_map' | 'tiger';
+  target: number;
+  enabled?: boolean;
+  maps?: readonly number[];
+}
 
 /** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
 /** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
@@ -1044,9 +1099,14 @@ export function clientGameConfig() {
       skinPrice: c.rubies.skinPrice,
       premiumSkinPrice: c.rubies.premiumSkinPrice,
       specialSkinPrice: c.rubies.specialSkinPrice,
-      legendaryPrices: { ...c.rubies.legendaryPrices },
       legendaryForSale: c.rubies.legendaryForSale,
       premiumCollectionReward: c.rubies.premiumCollectionReward,
+    },
+    emeralds: {
+      cap: c.emeralds.cap,
+      legendaryEmeraldPrice: c.emeralds.legendaryEmeraldPrice,
+      legendaryEmeraldSale: c.emeralds.legendaryEmeraldSale,
+      shieldPrice: c.artifacts.shieldEmeraldPrice,
     },
     skinPerks: Object.fromEntries(Object.entries(c.skinPerks).map(([k, v]) => [k, { ...v }])),
     dailyRecords: {
@@ -1158,10 +1218,10 @@ export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) =>
   (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
-/** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
+/** Ціна платного скіна в рубінах (для легендарних - ціна в СМАРАГДАХ, legendaryEmeraldPrice: за рубіни вони не продаються) (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
   isLegendarySkin(id)
-    ? (FLOCK_CONFIG.rubies.legendaryPrices[id] ?? 250)
+    ? FLOCK_CONFIG.emeralds.legendaryEmeraldPrice
     : isSpecialSkin(id)
     ? FLOCK_CONFIG.rubies.specialSkinPrice
     : isPremiumSkin(id)
@@ -1189,8 +1249,9 @@ export const ARTIFACT = {
   hourglass: 5,
   cross: 6,
   censer: 7,
+  shield: 8,
 } as const;
-export const NUM_ARTIFACTS = 7;
+export const NUM_ARTIFACTS = 8;
 /** Стеля тривалості хмаринки: значення в конфігу не може її перевищити. */
 export const PHRASE_MAX_MS = 30_000;
 export const phraseDurationMs = () =>

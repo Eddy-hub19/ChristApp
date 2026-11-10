@@ -31,9 +31,11 @@ describe('скіни: ціни й діапазони', () => {
       expect(isPremiumSkin(id)).toBe(false);
       expect(isSpecialSkin(id)).toBe(false);
       expect(isHiddenSkin(id)).toBe(false);
-      expect(skinPriceOf(id)).toBe(250);
+      expect(skinPriceOf(id)).toBe(C.emeralds.legendaryEmeraldPrice);
     }
     expect(C.rubies.legendaryForSale).toBe(false);
+    expect(C.emeralds.legendaryEmeraldSale).toBe(false);
+    expect(C.emeralds.legendaryEmeraldPrice).toBe(80);
     for (let id = 41; id < MONSTER_SKIN; id++) {
       expect(isPremiumSkin(id)).toBe(true);
       expect(isPaidSkin(id)).toBe(true);

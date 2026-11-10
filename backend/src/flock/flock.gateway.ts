@@ -24,6 +24,7 @@ import { FlockManager, type FlockHooks } from './flock.manager';
 import { enemyOf } from './flock.castles';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
+import { FlockQuestsService } from './flock.quests.service';
 import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
 
@@ -51,6 +52,7 @@ export class FlockGateway
     private readonly prisma: PrismaService,
     private readonly rubies: FlockRubiesService,
     private readonly daily: FlockDailyService,
+    private readonly quests: FlockQuestsService,
   ) {
     this.manager = new FlockManager(
       createSender((key) => this.ns?.sockets.get(key)),
@@ -61,6 +63,16 @@ export class FlockGateway
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onCircleWin: (userId, connKey) => void this.rewardCircleWin(userId, connKey),
         onTeamMatchEnd: (s) => void this.settleTeamMatch(s),
+        // щоденні завдання: лише пам'ять (запис у БД пакетний); про виконане - окреме рідкісне повідомлення `qd`
+        onQuest: (userId, connKey, events, flush) => {
+          void this.quests
+            .credit(userId, events)
+            .then((done) => {
+              if (connKey) for (const slot of done) this.ns?.sockets.get(connKey)?.emit('qd', { slot });
+              return flush ? this.quests.flushUser(userId) : undefined;
+            })
+            .catch((e) => this.log.error(`quests: ${String(e)}`));
+        },
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
@@ -117,6 +129,16 @@ export class FlockGateway
         else if (!pl.connKey) continue;
         else if (s.durationMs < T.minMatchMs) reason = 'short';
         else if (pl.actions < T.afkMinActions || pl.moved < T.afkMinMoveDist) reason = 'afk';
+        // завдання «матч Замків проти живих»: матч не проти самих ботів, не короткий і гравець не AFK (перемога не потрібна)
+        if (!botOnly && s.durationMs >= T.minMatchMs && pl.actions >= T.afkMinActions && pl.moved >= T.afkMinMoveDist) {
+          void this.quests
+            .credit(pl.userId, [{ kind: 'castles', n: 1, mode: 'add' }])
+            .then((done) => {
+              if (pl.connKey) for (const slot of done) this.ns?.sockets.get(pl.connKey)?.emit('qd', { slot });
+              return this.quests.flushUser(pl.userId);
+            })
+            .catch((e) => this.log.error(`quests: ${String(e)}`));
+        }
         let rubies = 0;
         let balance: number | undefined;
         let botLeft: number;

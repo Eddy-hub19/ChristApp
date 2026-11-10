@@ -202,6 +202,12 @@ export interface Player {
   killed: string[];
   kills: number;
   killerPid: number;
+  /** Лічильники щоденних завдань (читає й обнуляє менеджер арени раз на кілька секунд; без звернень до БД). */
+  qFood: number;
+  qBonus: number;
+  qSprintMs: number;
+  /** Жертви-гравці/боти (не Вожак), з'їдені від останнього зчитування: pid і маса на мить загибелі. */
+  qPrey: { id: number; mass: number }[];
   /** Скільки разів цей гравець за поточне життя запускав «Зорепад» (ліміт C.zorepad.maxPerPlayerLife). */
   zorepadCount: number;
   /** «Хрест»: «Друге життя» у цьому житті вже використане. */
@@ -522,6 +528,10 @@ export class FlockWorld {
       killed: [],
       kills: 0,
       killerPid: 0,
+      qFood: 0,
+      qBonus: 0,
+      qSprintMs: 0,
+      qPrey: [],
       phrase: null,
       zorepadCount: 0,
       reviveUsed: false,
@@ -1105,6 +1115,7 @@ export class FlockWorld {
       p.sprinting = false;
       return;
     }
+    p.qSprintMs += dt * 1000;
     const burn = Math.min(total * S.burnPerSec * (1 - (this.perk(p).sprintBurnLess ?? 0)) * dt, total - floor);
     const k = (total - burn) / total;
     for (const c of p.cells) c.mass *= k;
@@ -1341,6 +1352,7 @@ export class FlockWorld {
       victim.killerPid = eater.id;
       victim.phrase = null;
       eater.kills++;
+      if (!victim.boss && !victim.monster && eater.qPrey.length < 32) eater.qPrey.push({ id: victim.id, mass: victim.total });
       if (eater.killed.length < 8) eater.killed.push(victim.name);
       this.deaths.push({ pid: victim.id, killerPid: eater.id });
     }
@@ -1390,6 +1402,7 @@ export class FlockWorld {
         for (const f of EAT) {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
+          p.qFood++;
           // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
           if (f.kind === RAINBOW_KIND) {
             // «Веселка»: маса як кілька звичайних їжин і заряд ускорення на кілька секунд
@@ -1577,6 +1590,8 @@ export class FlockWorld {
   private stepThorns() {
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || p.monster || this.isGhost(p)) continue;
+      // «Щит»: кущі й ялинки не рвуть клітини носія (боти й режим «Замки» - hasArtifact дає false)
+      if (this.hasArtifact(p, ARTIFACT.shield)) continue;
       // popCell додає шматки в кінець p.cells: ітеруємо по початковій довжині без копії масиву
       const n = p.cells.length;
       for (let i = 0; i < n; i++) {
@@ -1639,6 +1654,7 @@ export class FlockWorld {
   }
 
   applyBonus(p: Player, cell: Cell, kind: BonusKind) {
+    p.qBonus++;
     if (kind === 'golden') {
       let big = cell;
       for (const c of p.cells) if (c.mass > big.mass) big = c;

@@ -152,6 +152,23 @@ export class AdminController {
     );
   }
 
+  /** Нарахувати (amount > 0) або списати (amount < 0) смарагди; причина обов'язкова, запис у журналі смарагдів. */
+  @Post('members/:id/emeralds')
+  async adjustEmeralds(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() body: { amount?: unknown; reason?: unknown },
+  ) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!actor?.id) throw new ForbiddenException('Invalid admin session');
+    return this.flockRubies.adminAdjustEmeralds(
+      actor.id,
+      id,
+      typeof body?.amount === 'number' ? body.amount : NaN,
+      typeof body?.reason === 'string' ? body.reason : '',
+    );
+  }
+
   /** Видати учаснику скін «Отари» безкоштовно (в т.ч. «Легендарний», поки продаж закрито). */
   @Post('members/:id/skins')
   async grantSkin(
