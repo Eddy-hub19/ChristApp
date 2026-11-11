@@ -118,9 +118,8 @@
   color: var(--foreground);
   background: var(--page-surface, var(--background));
   border-radius: 30px;
-  box-shadow:
-    0 2px 8px 0 rgba(38, 28, 16, 0.08),
-    0 6px 18px 0 rgba(38, 28, 16, 0.08);
+  /* Без внешней тени: по бокам и снизу карточки чата она давала светлое «свечение». */
+  box-shadow: none;
   /* Важливо для мобільної клавіатури: без фіксованої height контейнер коректно стискається у flex-режимі. */
   flex: 1 1 auto;
   height: auto;
@@ -810,7 +809,7 @@ html[data-theme="light"] .chat {
 }
 
 html[data-theme="dark"] .chat {
-  box-shadow: 1px 1px 20px 0px #474545;
+  box-shadow: none;
 
   .headerGlass {
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -889,7 +888,8 @@ html[data-theme="dark"] .chat {
   position: sticky;
   bottom: 0;
   z-index: 5;
-  margin-top: auto;
+  /* -10px = gap карточки: список сообщений доходит до самого поля ввода, и сообщения уходят под него, а не обрезаются выше с зазором. */
+  margin-top: -10px;
   flex-shrink: 0;
   width: 100%;
   padding-top: 6px;
