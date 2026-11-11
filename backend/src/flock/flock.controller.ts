@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
 import { FlockQuestsService } from './flock.quests.service';
+import { isLegendarySkin, isPremiumSkin, isSpecialSkin } from './flock.config';
 import { FlockGateway } from './flock.gateway';
 
 @Controller('flock')
@@ -82,8 +83,13 @@ export class FlockController {
   }
 
   @Post('skins/:id/buy')
-  buy(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
-    return this.rubies.buySkin(this.uid(req), id);
+  async buy(@Req() req: Request, @Param('id', ParseIntPipe) id: number) {
+    const userId = this.uid(req);
+    const res = await this.rubies.buySkin(userId, id);
+    // завдання «купити скін»: лише реальна покупка гравцем за рубіни (адмінська видача й нагороди сюди не доходять; легендарні - за смарагди, не рахуються)
+    const kind = isLegendarySkin(id) ? null : isSpecialSkin(id) || isPremiumSkin(id) ? 'buy_skin_special' : 'buy_skin_regular';
+    if (kind) void this.quests.credit(userId, [{ kind, n: 1, mode: 'add' }]).then(() => this.quests.flushUser(userId)).catch(() => undefined);
+    return res;
   }
 
   @Post('artifacts/:id/buy')

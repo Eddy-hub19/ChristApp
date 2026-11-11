@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import {
   AlphaIcon,
-  BoltIcon,
   CastleIcon,
   EmeraldIcon,
   FlockIcon,
@@ -24,15 +23,15 @@ import styles from "./FlockQuests.module.scss";
 const KIND_ICON: Record<string, ComponentType<ColorIconProps>> = {
   food: LeafIcon,
   mass: TrophyIcon,
-  bonuses: BoltIcon,
   alive: ShieldIcon,
-  prey: AlphaIcon,
   sprint: RocketIcon,
   boss: AlphaIcon,
   top1: TrophyIcon,
   castles: CastleIcon,
   survive_map: LavaIcon,
   tiger: FlockIcon,
+  buy_skin_regular: RubyIcon,
+  buy_skin_special: RubyIcon,
 };
 
 type Props = {

@@ -1873,28 +1873,16 @@
           "title": "Reach a mass of {n}",
           "short": "Reach a mass"
         },
-        "bonuses": {
-          "title": "Pick up {n} bonuses",
-          "short": "Pick up bonuses"
-        },
         "alive": {
           "title": "Survive {min} min without dying",
           "short": "Survive without dying"
-        },
-        "prey": {
-          "title": "Eat {n} players or bots",
-          "short": "Eat players or bots"
-        },
-        "mass_big": {
-          "title": "Reach a mass of {n}",
-          "short": "Reach a big mass"
         },
         "sprint": {
           "title": "Use Sprint for {n} s",
           "short": "Use Sprint"
         },
         "boss": {
-          "title": "Defeat the Alpha",
+          "title": "Defeat the Alpha {n} times",
           "short": "Defeat the Alpha"
         },
         "top1": {
@@ -1902,8 +1890,8 @@
           "short": "1st in the Top 10"
         },
         "castles": {
-          "title": "Play a Castles match against real players",
-          "short": "Castles match against real players"
+          "title": "Win {n} Castles matches",
+          "short": "Win Castles matches"
         },
         "survive_map": {
           "title": "Survive {min} min on Volcano or Sky",
@@ -1912,6 +1900,14 @@
         "tiger": {
           "title": "Defeat the tiger on the Colosseum map",
           "short": "Defeat the tiger"
+        },
+        "buy_skin_regular": {
+          "title": "Buy a regular paid skin",
+          "short": "Buy a regular skin"
+        },
+        "buy_skin_special": {
+          "title": "Buy a special or premium skin",
+          "short": "Buy a special or premium skin"
         }
       }
     },

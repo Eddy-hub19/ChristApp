@@ -8,8 +8,8 @@ import { dayKeyInZone, nextDayStartInZone, shiftDayKey } from './flock.time';
 const Q = FLOCK_CONFIG.quests;
 const TZ = FLOCK_CONFIG.rubies.dailyTimeZone;
 
-/** Слоти доби: 0 - просте, 1 - середнє (обидва за рубіни), 2 - складне (за смарагди). */
-export const QUEST_TIERS = ['simple', 'medium', 'hard'] as const;
+/** Слоти доби: 0 і 1 - легкі (за рубіни), 2 - складне (за смарагди). */
+export const QUEST_TIERS = ['simple', 'simple', 'hard'] as const;
 
 /** Подія для прогресу: add - додати n, max - прогрес = max(прогрес, n) (маса, тривалість життя). */
 export interface QuestEvent {
@@ -75,12 +75,20 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Вибір завдання слота: випадкове з пулу за складністю, без учорашнього (якщо є з чого обрати). */
-  private pick(slot: number, exclude: string | undefined): QuestDef | null {
+  private pick(slot: number, exclude: string | undefined, taken: string[] = []): QuestDef | null {
     const tier = QUEST_TIERS[slot];
-    const all = Q.pool.filter((d) => d.enabled !== false && d.tier === tier);
+    const all = Q.pool.filter((d) => d.enabled !== false && d.tier === tier && !taken.includes(d.id));
     const fresh = all.filter((d) => d.id !== exclude);
     const from = fresh.length ? fresh : all;
-    return from.length ? from[Math.floor(Math.random() * from.length)] : null;
+    if (!from.length) return null;
+    // вибір за вагами (weight, за замовчуванням 1)
+    const total = from.reduce((a, d) => a + (d.weight ?? 1), 0);
+    let r = Math.random() * total;
+    for (const d of from) {
+      r -= d.weight ?? 1;
+      if (r < 0) return d;
+    }
+    return from[from.length - 1];
   }
 
   /** Завдання доби гравця: читає з БД або створює (унікальність userId+day+slot захищає від гонки). */
@@ -90,10 +98,14 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
       const yesterday = await this.prisma.flockDailyQuest.findMany({ where: { userId, day: shiftDayKey(day, -1) } });
       const have = new Set(rows.map((r) => r.slot));
       const data: { userId: string; day: string; slot: number; questId: string }[] = [];
+      const taken = rows.map((r) => r.questId);
       for (let slot = 0; slot < QUEST_TIERS.length; slot++) {
         if (have.has(slot)) continue;
-        const def = this.pick(slot, yesterday.find((y) => y.slot === slot)?.questId);
-        if (def) data.push({ userId, day, slot, questId: def.id });
+        const def = this.pick(slot, yesterday.find((y) => y.slot === slot)?.questId, taken);
+        if (def) {
+          taken.push(def.id);
+          data.push({ userId, day, slot, questId: def.id });
+        }
       }
       if (data.length) await this.prisma.flockDailyQuest.createMany({ data, skipDuplicates: true });
       rows = await this.prisma.flockDailyQuest.findMany({ where: { userId, day }, orderBy: { slot: 'asc' } });

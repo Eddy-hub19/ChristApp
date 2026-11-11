@@ -16,14 +16,13 @@ interface St {
   lastAt: number;
   aliveMs: number;
   sprintAcc: number;
-  victims: Map<number, number>;
   deadSent: boolean;
 }
 
 /**
  * Лічильник прогресу щоденних завдань на боці арени: раз на sampleMs читає лічильники гравців (їжа, бонуси, жертви, рушення) і шле події.
  * Нічого не пише в БД і не працює на кожному тіку. Прогрес лише в живого (або щойно загиблого), не на паузі й лише якщо гравець рухався
- * за останні activeWindowMs (захист від AFK). Та сама жертва вдруге в межах sameVictimMs не рахується.
+ * за останні activeWindowMs (захист від AFK). 
  */
 export class QuestTracker {
   private readonly st = new Map<string, St>();
@@ -54,7 +53,7 @@ export class QuestTracker {
   private sample(w: FlockWorld, userId: string, connKey: string | null, p: Player, leaving: boolean) {
     let st = this.st.get(userId);
     if (!st) {
-      st = { x: 0, y: 0, hasPos: false, activeUntil: 0, life: p.spawnedAt, lastAt: w.now, aliveMs: 0, sprintAcc: 0, victims: new Map(), deadSent: false };
+      st = { x: 0, y: 0, hasPos: false, activeUntil: 0, life: p.spawnedAt, lastAt: w.now, aliveMs: 0, sprintAcc: 0, deadSent: false };
       this.st.set(userId, st);
     }
     const dt = Math.max(0, Math.min(w.now - st.lastAt, 5_000));
@@ -79,13 +78,9 @@ export class QuestTracker {
     }
     const active = w.now <= st.activeUntil;
     const food = p.qFood;
-    const bonus = p.qBonus;
     const sprintMs = p.qSprintMs;
-    const prey = p.qPrey;
     p.qFood = 0;
-    p.qBonus = 0;
     p.qSprintMs = 0;
-    p.qPrey = [];
     if (!active) {
       // не рухався: прогресу нема, але вихід і загибель усе одно записують те, що вже накопичено
       const done = leaving || (!p.alive && !st.deadSent);
@@ -95,23 +90,12 @@ export class QuestTracker {
     }
     const ev: QuestEvent[] = [];
     if (food > 0) ev.push({ kind: 'food', n: food, mode: 'add' });
-    if (bonus > 0) ev.push({ kind: 'bonuses', n: bonus, mode: 'add' });
     st.sprintAcc += sprintMs;
     if (st.sprintAcc >= 1000) {
       const sec = Math.floor(st.sprintAcc / 1000);
       st.sprintAcc -= sec * 1000;
       ev.push({ kind: 'sprint', n: sec, mode: 'add' });
     }
-    let kills = 0;
-    for (const v of prey) {
-      if (v.mass < Q.minVictimMass) continue;
-      const seen = st.victims.get(v.id);
-      if (seen !== undefined && w.now - seen < Q.sameVictimMs) continue;
-      st.victims.set(v.id, w.now);
-      kills++;
-    }
-    if (kills > 0) ev.push({ kind: 'prey', n: kills, mode: 'add' });
-    if (st.victims.size > 64) for (const [id, at] of st.victims) if (w.now - at >= Q.sameVictimMs) st.victims.delete(id);
     ev.push({ kind: 'mass', n: p.maxMass, mode: 'max' });
     if (p.alive) {
       st.aliveMs += dt;

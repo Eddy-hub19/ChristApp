@@ -656,10 +656,9 @@ export const FLOCK_CONFIG = {
   // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
   quests: {
     enabled: true,
-    /** Нагороди за слотами: 0 - просте (рубіни), 1 - середнє (рубіни), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
+    /** Нагороди за слотами: 0 і 1 - легкі (рубіни), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
     rewards: {
       simple: { type: 'rubies', amount: 4 },
-      medium: { type: 'rubies', amount: 6 },
       hard: { type: 'emeralds', amount: 3 },
     } as const,
     /** Скільки мс сервер тримає прогрес у пам'яті перед записом у БД (плюс запис при смерті, виході й закритті арени). */
@@ -668,24 +667,24 @@ export const FLOCK_CONFIG = {
     activeWindowMs: 20_000,
     sampleMs: 1_000,
     minMove: 6,
-    /** Та сама жертва вдруге не зараховується ціле вікно (мс), мінімальна маса жертви. */
-    sameVictimMs: 300_000,
-    minVictimMass: 60,
-    /** Пул (значення - в одиницях виду: штуки, маса, секунди). enabled:false - завдання не видається. */
+    /**
+     * Пул (target - в одиницях виду: штуки, маса, секунди; weight - вага при виборі, за замовчуванням 1; enabled:false - не видається).
+     * Слоти 0 і 1 беруть різні легкі, слот 2 - складне; учорашнє в тому ж слоті не повторюється.
+     * Завдання «купити скін» рахують лише покупку гравцем (рубіни): видача адміном, нагороди й смарагдова покупка не рахуються.
+     */
     pool: [
-      { id: 'food', tier: 'simple', kind: 'food', target: 80 },
-      { id: 'mass', tier: 'simple', kind: 'mass', target: 400 },
-      { id: 'bonuses', tier: 'simple', kind: 'bonuses', target: 3 },
-      { id: 'alive', tier: 'simple', kind: 'alive', target: 180 },
-      { id: 'prey', tier: 'medium', kind: 'prey', target: 3 },
-      { id: 'mass_big', tier: 'medium', kind: 'mass', target: 1500 },
-      { id: 'sprint', tier: 'medium', kind: 'sprint', target: 25 },
-      { id: 'boss', tier: 'hard', kind: 'boss', target: 1 },
-      { id: 'top1', tier: 'hard', kind: 'top1', target: 3000 },
-      { id: 'castles', tier: 'hard', kind: 'castles', target: 1 },
-      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 300, maps: [3, 6] },
+      { id: 'food', tier: 'simple', kind: 'food', target: 250 },
+      { id: 'sprint', tier: 'simple', kind: 'sprint', target: 60 },
+      { id: 'alive', tier: 'simple', kind: 'alive', target: 1200 },
+      { id: 'buy_skin_regular', tier: 'simple', kind: 'buy_skin_regular', target: 1 },
+      { id: 'mass', tier: 'hard', kind: 'mass', target: 30000, weight: 0.3 },
+      { id: 'boss', tier: 'hard', kind: 'boss', target: 50, weight: 0.3 },
+      { id: 'top1', tier: 'hard', kind: 'top1', target: 40000, weight: 0.3 },
+      { id: 'castles', tier: 'hard', kind: 'castles', target: 20, weight: 0.3 },
+      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 720, maps: [3, 6] },
       /** Засчитана перемога над тигром на карті «Арена». */
       { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1 },
+      { id: 'buy_skin_special', tier: 'hard', kind: 'buy_skin_special', target: 1 },
     ] as readonly QuestDef[],
   },
 
@@ -986,9 +985,11 @@ export const FLOCK_CONFIG = {
 /** Завдання пулу щоденних завдань. */
 export interface QuestDef {
   id: string;
-  tier: 'simple' | 'medium' | 'hard';
-  kind: 'food' | 'mass' | 'bonuses' | 'alive' | 'prey' | 'sprint' | 'boss' | 'top1' | 'castles' | 'survive_map' | 'tiger';
+  tier: 'simple' | 'hard';
+  kind: 'food' | 'mass' | 'alive' | 'sprint' | 'boss' | 'top1' | 'castles' | 'survive_map' | 'tiger' | 'buy_skin_regular' | 'buy_skin_special';
   target: number;
+  /** Вага при випадковому виборі (за замовчуванням 1). */
+  weight?: number;
   enabled?: boolean;
   maps?: readonly number[];
 }
@@ -1218,7 +1219,6 @@ export function clientGameConfig() {
     },
     quests: {
       simpleRubies: c.quests.rewards.simple.amount,
-      mediumRubies: c.quests.rewards.medium.amount,
       hardEmeralds: c.quests.rewards.hard.amount,
     },
     emeralds: {

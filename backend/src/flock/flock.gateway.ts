@@ -130,8 +130,8 @@ export class FlockGateway
         else if (!pl.connKey) continue;
         else if (s.durationMs < T.minMatchMs) reason = 'short';
         else if (pl.actions < T.afkMinActions || pl.moved < T.afkMinMoveDist) reason = 'afk';
-        // завдання «матч Замків проти живих»: матч не проти самих ботів, не короткий і гравець не AFK (перемога не потрібна)
-        if (!botOnly && s.durationMs >= T.minMatchMs && pl.actions >= T.afkMinActions && pl.moved >= T.afkMinMoveDist) {
+        // завдання «перемогти в Замках»: перемога команди гравця в матчі не проти самих ботів, не короткому, гравець не AFK
+        if (s.win === pl.team && !botOnly && s.durationMs >= T.minMatchMs && pl.actions >= T.afkMinActions && pl.moved >= T.afkMinMoveDist) {
           void this.quests
             .credit(pl.userId, [{ kind: 'castles', n: 1, mode: 'add' }])
             .then((done) => {

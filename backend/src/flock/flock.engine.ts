@@ -222,10 +222,7 @@ export interface Player {
   killerPid: number;
   /** Лічильники щоденних завдань (читає й обнуляє менеджер арени раз на кілька секунд; без звернень до БД). */
   qFood: number;
-  qBonus: number;
   qSprintMs: number;
-  /** Жертви-гравці/боти (не Вожак), з'їдені від останнього зчитування: pid і маса на мить загибелі. */
-  qPrey: { id: number; mass: number }[];
   /** Скільки разів цей гравець за поточне життя запускав «Зорепад» (ліміт C.zorepad.maxPerPlayerLife). */
   zorepadCount: number;
   /** «Хрест»: «Друге життя» у цьому житті вже використане. */
@@ -617,9 +614,7 @@ export class FlockWorld {
       kills: 0,
       killerPid: 0,
       qFood: 0,
-      qBonus: 0,
       qSprintMs: 0,
-      qPrey: [],
       phrase: null,
       zorepadCount: 0,
       reviveUsed: false,
@@ -1663,7 +1658,6 @@ export class FlockWorld {
       victim.phrase = null;
       eater.kills++;
       if (this.arena && victim.wolf && this.rng() < C.coliseum.arrows.wolfDropChance) this.addArrowItem(b.x, b.y);
-      if (!victim.boss && !victim.monster && eater.qPrey.length < 32) eater.qPrey.push({ id: victim.id, mass: victim.total });
       if (eater.killed.length < 8) eater.killed.push(victim.name);
       this.deaths.push({ pid: victim.id, killerPid: eater.id });
     }
@@ -1965,7 +1959,6 @@ export class FlockWorld {
   }
 
   applyBonus(p: Player, cell: Cell, kind: BonusKind) {
-    p.qBonus++;
     if (kind === 'golden') {
       let big = cell;
       for (const c of p.cells) if (c.mass > big.mass) big = c;
