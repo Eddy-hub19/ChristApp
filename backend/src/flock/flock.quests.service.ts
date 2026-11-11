@@ -47,6 +47,10 @@ export interface QuestView {
 
 const defOf = (id: string): QuestDef | undefined => Q.pool.find((d) => d.id === id);
 
+/** Нагорода слота: легкі - за порядком слота (4 і 6 рубінів), складне - смарагди. */
+const rewardOf = (def: QuestDef, slot: number): { type: 'rubies' | 'emeralds'; amount: number } =>
+  def.tier === 'hard' ? { ...Q.rewards.hard } : { ...(Q.rewards.simple[slot] ?? Q.rewards.simple[0]) };
+
 const fail = (Ex: typeof BadRequestException, code: string, extra = {}) => new Ex({ code, ...extra });
 
 /**
@@ -94,6 +98,15 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
   /** Завдання доби гравця: читає з БД або створює (унікальність userId+day+slot захищає від гонки). */
   private async loadFromDb(userId: string, day: string): Promise<UserQuests> {
     let rows = await this.prisma.flockDailyQuest.findMany({ where: { userId, day }, orderBy: { slot: 'asc' } });
+    // слот із завданням, якого вже нема в пулі (або воно вимкнене), без прогресу й не взятий: прибираємо, щоб видати нове
+    const stale = rows.filter((r) => {
+      const d = defOf(r.questId);
+      return (!d || d.enabled === false) && r.progress === 0 && !r.claimedAt;
+    });
+    if (stale.length) {
+      await this.prisma.flockDailyQuest.deleteMany({ where: { userId, day, slot: { in: stale.map((r) => r.slot) }, progress: 0, claimedAt: null } });
+      rows = await this.prisma.flockDailyQuest.findMany({ where: { userId, day }, orderBy: { slot: 'asc' } });
+    }
     if (rows.length < QUEST_TIERS.length) {
       const yesterday = await this.prisma.flockDailyQuest.findMany({ where: { userId, day: shiftDayKey(day, -1) } });
       const have = new Set(rows.map((r) => r.slot));
@@ -226,7 +239,7 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
         progress: Math.min(def.target, row.progress),
         claimed: row.claimed,
         done: row.progress >= def.target,
-        reward: { ...Q.rewards[def.tier] },
+        reward: rewardOf(def, row.slot),
       });
     }
     return out;
@@ -272,7 +285,7 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
       if (db.progress < def.target) throw fail(BadRequestException, 'quest_not_done');
       const marked = await tx.flockDailyQuest.updateMany({ where: { userId, day: u.day, slot, claimedAt: null }, data: { claimedAt: new Date() } });
       if (marked.count !== 1) throw fail(ConflictException, 'quest_claimed');
-      const reward = Q.rewards[def.tier];
+      const reward = rewardOf(def, slot);
       if (reward.type === 'emeralds') {
         const r = await this.rubies.grantEmeraldsInTx(tx, userId, reward.amount, EmeraldReason.DAILY_QUEST_EMERALD, `${u.day}:${def.id}`);
         if (r.amount <= 0) throw fail(BadRequestException, 'emerald_cap');

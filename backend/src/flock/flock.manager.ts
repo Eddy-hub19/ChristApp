@@ -1661,6 +1661,26 @@ export class FlockManager {
     for (const a of this.arenas.values()) if (a.mode === 'normal') a.retired = true;
   }
 
+  /**
+   * Адмін: прибрати звичайні арени без активних людей (їх немає або всі на паузі після обриву зв'язку), щоб наступний вхід створив нову карту
+   * (задану «Наступною картою» або випадкову). Арени, де хтось грає, не чіпає. Повертає, скільки арен прибрано.
+   */
+  recreateEmptyArenas(): number {
+    let n = 0;
+    for (const a of [...this.arenas.values()]) {
+      if (a.mode !== 'normal') continue;
+      const sessions = [...a.sessions.values()];
+      if (sessions.some((s) => s.pausedUntil === null)) continue;
+      for (const s of sessions) this.removeSession(s); // последняя сессия сама снимает арену
+      if (this.arenas.has(a.id)) {
+        a.stop();
+        this.arenas.delete(a.id);
+      }
+      n++;
+    }
+    return n;
+  }
+
   mapAdmin() {
     return { nextMap: this.forcedNextMap, lastMap: this.lastMapId, rotateMs: C.mapRotation.rotateMs, nightOpen: isNightOpen(this.now()), nightEnabled: C.night.enabled };
   }
@@ -1675,13 +1695,16 @@ export class FlockManager {
     const any = [...this.arenas.values()].find(fresh);
     if (any) return any;
     // ліміт арен - окремо для звичайних і для режиму «Звужуване коло» (звичайна арена від режиму не залежить)
-    const sameMode = [...this.arenas.values()].filter((a) => a.mode === mode).length;
+    // просрочені (30 хв) і закриті адміном арени в ліміт не рахуються: вони лише доживають з тими, хто в них грає, а нові гравці
+    // йдуть на нову карту. Інакше при maxArenas = 1 стара карта висіла б вічно. Запобіжник: усього арен режиму не більше 2x ліміту.
+    const all = [...this.arenas.values()].filter((a) => a.mode === mode);
+    const sameMode = all.filter((a) => !this.mapExpired(a)).length;
     const atLimit =
       mode === 'castles'
         ? !C.teamMode.enabled || sameMode >= C.teamMode.maxArenas
         : mode === 'circle'
           ? !C.circle.enabled || sameMode >= C.circle.maxArenas
-          : sameMode >= C.maxArenas;
+          : sameMode >= C.maxArenas || all.length >= 2 * C.maxArenas;
     if (atLimit) {
       // нову карту завести нема де: краще стара карта, ніж відмова
       if (mode !== 'normal') return null;

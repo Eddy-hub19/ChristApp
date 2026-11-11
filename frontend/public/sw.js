@@ -1,3 +1,4 @@
+// v10 → v11: сброс кешей, чтобы PWA не жил со старой HTML-оболочкой и старыми чанками после релиза «Отары» (смарагди, «Арена»).
 // v9 → v10: файлы /_next/static/ (имя содержит хеш содержимого, не меняются) теперь cache-first, а не
 // stale-while-revalidate: без лишней сетевой проверки на каждый чанк. Остальная статика - как раньше (SWR),
 // приватные ответы (запросы с Authorization) по-прежнему не кешируются.
@@ -6,10 +7,10 @@
 // бо сам sw.js між релізами не мінявся — версію піднімайте щоразу, коли міняється
 // що-небудь у SHELL_URLS/APP_SHELL чи стратегії кешування, інакше browser не
 // побачить новий service worker і не оновить кеш.
-const STATIC_CACHE = "christapp-static-v10";
-const RUNTIME_CACHE = "christapp-runtime-v10";
+const STATIC_CACHE = "christapp-static-v11";
+const RUNTIME_CACHE = "christapp-runtime-v11";
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v10";
+const API_SWR_CACHE = "christapp-api-swr-v11";
 const OFFLINE_URL = "/offline";
 /** Скільки чекати мережу для HTML-оболонки, перш ніж повернути закешовану версію. */
 const SHELL_NETWORK_TIMEOUT_MS = 1500;

@@ -350,7 +350,7 @@ export const adminFlockMutesQueryKey = () => ["admin", "flock-mutes"] as const;
 export const fetchAdminFlockMutes = () => adminJson<{ mutes: Record<string, number> }>("/flock-mutes");
 
 /** Назначить карту следующей созданной арене (mapId = null - случайная) и/или закрыть текущие арены для новых игроков. */
-export const setAdminFlockNextMap = (body: { mapId?: number | null; retire?: boolean }) =>
+export const setAdminFlockNextMap = (body: { mapId?: number | null; retire?: boolean; recreateEmpty?: boolean }) =>
   adminJson<AdminFlockMaps>("/flock/next-map", { method: "POST", body: JSON.stringify(body) });
 
 /** «Пазли»: картинки пользователей в админке (превью, автор, дата) и блокировка загрузки. */
