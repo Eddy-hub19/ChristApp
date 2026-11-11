@@ -736,7 +736,7 @@ export const FLOCK_CONFIG = {
     roundTimeoutMs: 12 * 60_000,
     roundWarnMs: 60_000,
     /** Скільки хвиль вовків перед «Тигром»; потім цикл знову з легкої хвилі. */
-    wavesBeforeTiger: 2,
+    wavesBeforeTiger: 3,
     /** Вовків у хвилі k (1-based): base + perWave * (k - 1); маса вовка: massBase + massPerWave * (k - 1) (на початку, х випадково 0.85-1.15). */
     wolves: { base: 4, perWave: 2, massBase: 520, massPerWave: 40, minCount: 2 },
     /** Множник числа/маси за кількістю людей (проміжні значення інтерполюються): 1, 3, 6 гравців. */
