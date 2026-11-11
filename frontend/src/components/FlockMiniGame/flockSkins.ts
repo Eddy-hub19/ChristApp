@@ -1,3 +1,5 @@
+import { TOTAL_SKINS } from "@/lib/rubies";
+
 export type SkinKind = "sheep" | "lamb" | "ram" | "wolf" | "dog";
 
 /** Прикраса поверх базового вигляду (платні скіни). */
@@ -146,9 +148,22 @@ export const isBossSkin = (id: number) => BOSS_SKINS.includes(id);
 /** Скін тигра-боса «Арени» (70, поза нумерацією SKINS): малюється окремо (flockTiger.ts); тут лише запасні кольори. */
 const TIGER_DEF: Skin = { kind: "wolf", fur: "#f08a24", light: "#ffb355", face: "#fff1d9", accent: "#ffd23a" };
 
+const warnedSkins = new Set<number>();
+const isDev = typeof process !== "undefined" && process.env.NODE_ENV !== "production";
+
+// у dev-режимі перевіряємо, що список спрайтів збігається з нумерацією сервера (TOTAL_SKINS = NUM_SKINS)
+if (isDev && SKINS.length !== TOTAL_SKINS) console.error(`[flock] SKINS.length (${SKINS.length}) != TOTAL_SKINS (${TOTAL_SKINS}): списки скінів клієнта розійшлися`);
+
+/** Скін за номером. Номер без спрайта: запасний скін 0 і одне dev-попередження на номер (раніше брався id % довжина: чужий вигляд мовчки). */
 export function skinOf(id: number): Skin {
   if (id === TIGER_SKIN_ID) return TIGER_DEF;
-  return SKINS[((id % SKINS.length) + SKINS.length) % SKINS.length];
+  const skin = Number.isInteger(id) ? SKINS[id] : undefined;
+  if (skin) return skin;
+  if (isDev && !warnedSkins.has(id)) {
+    warnedSkins.add(id);
+    console.warn(`[flock] немає спрайта для скіна ${id}: запасний скін 0`);
+  }
+  return SKINS[0];
 }
 
 /** Менший за цей екранний радіус (px) персонаж малюється без анімації: різницю не видно, а кеш і CPU економляться. */

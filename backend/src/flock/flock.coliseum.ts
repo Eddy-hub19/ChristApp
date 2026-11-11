@@ -43,6 +43,22 @@ export function thinkMob(w: FlockWorld, p: Player) {
   if (!p.alive || p.cells.length === 0) return;
   if ((w.tickNo + p.id) % C.botThinkEvery !== 0) return;
   const me = w.centroid(p);
+  if (p.frag) {
+    // осколок: не полює й не їсть, тікає від найближчої овечки; нікого поруч - стоїть
+    let near: { x: number; y: number; d: number } | null = null;
+    for (const o of w.players.values()) {
+      if (o.bot || !o.alive || o.paused || o.wolf || o.tiger) continue;
+      for (const c of o.cells) {
+        const d = Math.hypot(c.x - me.x, c.y - me.y);
+        if (d < 520 && (!near || d < near.d)) near = { x: c.x, y: c.y, d };
+      }
+    }
+    if (near) {
+      p.angle = Math.atan2(me.y - near.y, me.x - near.x);
+      p.power = K.wolfSpeed;
+    } else p.power = 0;
+    return;
+  }
   let myMass = 0;
   for (const c of p.cells) myMass = Math.max(myMass, c.mass);
   let chase: { x: number; y: number; d: number } | null = null;
@@ -57,8 +73,23 @@ export function thinkMob(w: FlockWorld, p: Player) {
     }
   }
   const sp = p.tiger ? K.tiger.speed : K.wolfSpeed;
+  // вовк їсть їжу, коли овечок поруч нема (далі за huntRange овець ігнорує, поки не знайде їжу ближче)
+  const near: { x: number; y: number; d: number } = { x: 0, y: 0, d: Infinity };
+  if (!p.tiger && (!chase || chase.d > K.huntRange)) {
+    w.foodNear(me.x, me.y, K.foodSeekRadius, (f) => {
+      const d = Math.hypot(f.x - me.x, f.y - me.y);
+      if (d < near.d) {
+        near.x = f.x;
+        near.y = f.y;
+        near.d = d;
+      }
+    });
+  }
+  const food = near.d < Infinity ? near : null;
   if (flee) {
     p.angle = Math.atan2(me.y - flee.y, me.x - flee.x);
+  } else if (food && (!chase || chase.d > K.huntRange)) {
+    p.angle = Math.atan2(food.y - me.y, food.x - me.x);
   } else if (chase) {
     p.angle = Math.atan2(chase.y - me.y, chase.x - me.x);
   } else {
@@ -66,6 +97,57 @@ export function thinkMob(w: FlockWorld, p: Player) {
     p.angle = a ? Math.atan2(a.cy - me.y, a.cx - me.x) : p.angle;
   }
   p.power = sp;
+  // стіна в центрі: кут повороту до цілі коригуємо обходом
+  const a = w.arena;
+  if (a && !flee) {
+    const tgt = food && (!chase || chase.d > K.huntRange) ? food : chase;
+    if (tgt) {
+      const wp = wallDetour(a, me, tgt, radiusOf(myMass));
+      if (wp !== tgt) p.angle = Math.atan2(wp.y - me.y, wp.x - me.x);
+    }
+  }
+}
+
+/**
+ * Обхід центральної стіни: якщо пряма до цілі перетинає стіну (розширену на радіус істоти), вовк чи тигр іде до найближчого кута.
+ * Так за стіною можна сховатись, але лише на час, поки істота оббігає її.
+ */
+export function wallDetour(a: { cx: number; cy: number }, from: { x: number; y: number }, to: { x: number; y: number }, r: number): { x: number; y: number } {
+  const hw = K.wall.w / 2 + r + 20;
+  const hh = K.wall.h / 2 + r + 20;
+  const fx = from.x - a.cx;
+  const fy = from.y - a.cy;
+  const tx = to.x - a.cx;
+  const ty = to.y - a.cy;
+  // перетин відрізка з прямокутником (slab-метод)
+  let t0 = 0;
+  let t1 = 1;
+  for (const [f, d, h] of [[fx, tx - fx, hw], [fy, ty - fy, hh]] as const) {
+    if (Math.abs(d) < 1e-9) {
+      if (Math.abs(f) > h) return to;
+    } else {
+      let u0 = (-h - f) / d;
+      let u1 = (h - f) / d;
+      if (u0 > u1) [u0, u1] = [u1, u0];
+      t0 = Math.max(t0, u0);
+      t1 = Math.min(t1, u1);
+      if (t0 > t1) return to;
+    }
+  }
+  let best = to;
+  let bestLen = Infinity;
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      const wx = sx * hw;
+      const wy = sy * hh;
+      const len = Math.hypot(wx - fx, wy - fy) + Math.hypot(tx - wx, ty - wy);
+      if (len < bestLen) {
+        bestLen = len;
+        best = { x: a.cx + wx, y: a.cy + wy };
+      }
+    }
+  }
+  return best;
 }
 
 export interface ColiseumHud {
@@ -144,6 +226,17 @@ export class ColiseumDirector {
       this.setPhase(1);
       this.pauseUntil = w.now + K.wavePauseMs;
     }
+    // нові осколки (від влучань стріл) беремо в перелік; регулятор навантаження забороняє розколи
+    for (const id of w.newMobs.splice(0)) this.mobs.add(id);
+    w.fragsAllowed = !shed;
+    // осколки, що пожили fragmentLifetimeMs, розчиняються (без нагороди)
+    for (const id of this.mobs) {
+      const f = w.players.get(id);
+      if (f?.frag && w.now >= (f.fragExpiresAt ?? 0)) {
+        w.removePlayer(id);
+        this.mobs.delete(id);
+      }
+    }
     // прибираємо загиблих вовків через пів секунди після смерті
     for (const id of [...this.mobs]) {
       const p = w.players.get(id);
@@ -188,9 +281,22 @@ export class ColiseumDirector {
       return {};
     }
     if (this.phase === 2) {
-      let alive = 0;
-      for (const id of this.mobs) if (w.players.get(id)?.alive) alive++;
-      if (alive === 0) {
+      // хвиля кінчається, коли вовків нема, а осколки (якщо лишились) важать менше за waveEndMass: їх прибираємо
+      let wolves = 0;
+      let fragMass = 0;
+      for (const id of this.mobs) {
+        const m = w.players.get(id);
+        if (!m?.alive) continue;
+        if (m.frag) fragMass += m.cells[0]?.mass ?? 0;
+        else wolves++;
+      }
+      if (wolves === 0 && fragMass < K.waveEndMass) {
+        for (const id of [...this.mobs]) {
+          if (w.players.get(id)?.frag) {
+            w.removePlayer(id);
+            this.mobs.delete(id);
+          }
+        }
         this.wave++;
         this.pauseUntil = w.now + K.wavePauseMs;
         this.setPhase(1);
@@ -230,7 +336,7 @@ export class ColiseumDirector {
     const keep = Math.max(K.wolves.minCount, Math.ceil(this.mobs.size * K.shedFraction));
     const wolves = [...this.mobs]
       .map((id) => this.w.players.get(id))
-      .filter((p): p is Player => !!p && p.alive && p.wolf)
+      .filter((p): p is Player => !!p && p.alive && p.wolf && !p.frag)
       .sort((a, b) => a.total - b.total);
     let over = wolves.length - keep;
     for (const p of wolves) {
@@ -274,7 +380,7 @@ export class ColiseumDirector {
       this.warned = false;
     }
     const spec = waveSpec(this.wave, humans, shed);
-    for (let i = 0; i < spec.count; i++) this.spawn({ wolf: true, mass: spec.mass * (0.85 + this.rng() * 0.3) });
+    for (let i = 0; i < spec.count; i++) this.spawn({ wolf: true, mass: spec.mass * (1 + this.rng() * 0.2) });
     this.total = spec.count;
     this.setPhase(2);
     this.events.push('wave');
@@ -286,7 +392,7 @@ export class ColiseumDirector {
     let n = 0;
     for (const id of this.mobs) {
       const p = w.players.get(id);
-      if (p?.alive && p.wolf) n++;
+      if (p?.alive && p.wolf && !p.frag) n++;
     }
     const h: ColiseumHud = { ph: this.phase, w: Math.min(this.wave, K.wavesBeforeTiger), n, t: this.total };
     if (this.phase === 1) {

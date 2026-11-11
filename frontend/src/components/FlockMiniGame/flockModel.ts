@@ -224,6 +224,9 @@ export type ModelSoundSink = (kind: ModelSoundKind, x: number, y: number, self: 
 
 const PHASE_STEP = 1.37;
 
+/** Скільки анімацій розколу вовка малюється одночасно. */
+export const MAX_SPLIT_FX = 8;
+
 export class FlockModel {
   cfg: FlockCfg;
   /** Бонусы своего скина (из config /flock/me): клиент предсказывает по ним скорость и разгон на старте. */
@@ -275,6 +278,8 @@ export class FlockModel {
   readonly arrowItems = new Map<number, { id: number; x: number; y: number; expiresAt: number }>();
   readonly shots = new Map<number, { id: number; pid: number; x0: number; y0: number; vx: number; vy: number; at: number; life: number }>();
   readonly hitFx: { x: number; y: number; at: number }[] = [];
+  /** Анімації розколу вовка (не більше MAX_SPLIT_FX одночасно). */
+  readonly splitFx: { x: number; y: number; r: number; at: number }[] = [];
   carry = 0;
   carryMax = 6;
   sky: SkyState | null = null;
@@ -792,11 +797,12 @@ export class FlockModel {
   }
 
   /** Подія `ah`: влучання - стріла зникає, у точці спалах. Повертає true, якщо влучила наша стріла. */
-  applyHits(list: { id: number; x: number; y: number; pid: number }[], nowMs: number = typeof performance !== "undefined" ? performance.now() : 0): boolean {
+  applyHits(list: { id: number; x: number; y: number; pid: number; sp?: number }[], nowMs: number = typeof performance !== "undefined" ? performance.now() : 0): boolean {
     let own = false;
     for (const h of list ?? []) {
       this.shots.delete(h.id);
       this.hitFx.push({ x: h.x, y: h.y, at: nowMs });
+      if (h.sp && this.splitFx.length < MAX_SPLIT_FX) this.splitFx.push({ x: h.x, y: h.y, r: h.sp, at: nowMs });
       if (h.pid === this.cfg.pid) own = true;
     }
     return own;

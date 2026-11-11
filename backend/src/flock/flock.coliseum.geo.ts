@@ -17,5 +17,6 @@ export function coliseumGeometry() {
     const d = 140 + ((i * 97) % 7) * 70;
     stones.push([Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), 14 + ((i * 5) % 4) * 6]);
   }
-  return { cx, cy, r: K.radius, pillars, stones };
+  const wall = { x: cx, y: cy, w: K.wall.w, h: K.wall.h };
+  return { cx, cy, r: K.radius, pillars, stones, wall };
 }

@@ -8,7 +8,7 @@ import { ChevronDown, Crown, Info, Lock, MoreVertical, Play, Swords, Volume2, X 
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon, QuestScrollIcon } from "@/components/icons/game";
 import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
-import { HIDDEN_SKIN_IDS, isLegendarySkin, isLobbySelectableSkin, LEGENDARY_SKIN_ROWS, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
+import { TOTAL_SKINS, HIDDEN_SKIN_IDS, isLegendarySkin, isLobbySelectableSkin, LEGENDARY_SKIN_ROWS, LOBBY_FREE_SKIN_ROWS, isPaidSkin, isPremiumSkin, isSpecialSkin, PAID_SKIN_IDS, PREMIUM_SKIN_IDS, SPECIAL_SKIN_IDS } from "@/lib/rubies";
 import { visibleSkinIds } from "./flockSkinVisibility";
 import { getDirectApiOrigin } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
@@ -104,19 +104,29 @@ function currentTheme(): Theme {
   return document.documentElement.dataset.theme === "light" ? THEMES.light : THEMES.dark;
 }
 
-/** Запомнить выбранный облик сразу при выборе (а не только при входе в игру): после перезагрузки или смерти он не слетает на белый. */
-function saveSkin(id: number) {
+/** Запомнить выбранный облик сразу при выборе (а не только при входе в игру) и на сервере: после перезагрузки, смерти, смены устройства он не слетает на белый. Ключ по пользователю; старый общий ключ читается как запасной. */
+const skinKey = (userId: string | undefined) => (userId ? `${SKIN_KEY}:${userId}` : SKIN_KEY);
+
+function saveSkin(id: number, userId?: string) {
   try {
-    localStorage.setItem(SKIN_KEY, String(id));
+    localStorage.setItem(skinKey(userId), String(id));
   } catch {
     /* сховище недоступне */
   }
+  // профиль на сервере - основной источник (все устройства); localStorage только запасной
+  void selectFlockSkin(id).catch(() => undefined);
 }
 
-function loadSkin() {
+function loadSkin(userId?: string) {
   try {
-    const v = Number(localStorage.getItem(SKIN_KEY));
-    return isLobbySelectableSkin(v) ? v : 0;
+    let raw = localStorage.getItem(skinKey(userId));
+    // общий старый ключ: только как запасной и только для бесплатных (владелец старого выбора неизвестен)
+    if (raw === null && userId) {
+      const legacy = localStorage.getItem(SKIN_KEY);
+      if (legacy !== null && !isPaidSkin(Number(legacy))) raw = legacy;
+    }
+    const v = Number(raw);
+    return raw !== null && isLobbySelectableSkin(v) ? v : 0;
   } catch {
     return 0;
   }
@@ -169,6 +179,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   const [status, setStatus] = useState<FlockStatus>("connecting");
   const [skin, setSkin] = useState(0);
+  const skinRef = useRef(0);
+  skinRef.current = skin;
+  /** Игрок выбрал облик сам / профиль уже применён: серверный выбор не затирает ручной. */
+  const skinTouchedRef = useRef(false);
+  const skinServerAppliedRef = useRef(false);
   const [stats, setStats] = useState<FlockStats>(EMPTY_FLOCK_STATS);
   const [me, setMe] = useState<FlockMe | null>(null);
   const [previewSkin, setPreviewSkin] = useState<number | null>(null);
@@ -227,6 +242,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const announcedRef = useRef(false);
   /** Шторка «Про гру» (кнопка «i») и раздел «Артефакти» в лобби: оба каждый раз стартуют свёрнутыми / закрытыми. */
   const [phrasesOpen, setPhrasesOpen] = useState(false);
+  const phrasesOpenRef = useRef(false);
+  phrasesOpenRef.current = phrasesOpen;
   /** Пауза між фразами (дзеркало серверного ліміту): кнопки сіріють, щоб не здавалось, що фраза "не пішла". */
   const [phraseCooldown, setPhraseCooldown] = useState(false);
   const [hideOthersPhrases, setHideOthersPhrases] = useState(false);
@@ -327,7 +344,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, [open, me, status, userId]);
 
   useEffect(() => {
-    setSkin(loadSkin());
+    setSkin(loadSkin(userId));
     const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
     setIsTouch(coarse);
     let stored: string | null = null;
@@ -417,7 +434,29 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       setStats(data.stats);
       // обраний скін мусить бути доступним (безкоштовний або куплений)
-      setSkin((cur) => (!isLobbySelectableSkin(cur) || (isPaidSkin(cur) && !data.ownedSkins.includes(cur)) ? 0 : cur));
+      // выбранный облик: при первой загрузке берём профиль с сервера (если там не 0), иначе локальный; недоступный не подменяем молча, а сообщаем
+      {
+        const usable = (id: number) => isLobbySelectableSkin(id) && (!isPaidSkin(id) || data.ownedSkins.includes(id));
+        if (process.env.NODE_ENV !== "production" && data.config.totalSkins !== TOTAL_SKINS) console.warn(`[flock] totalSkins сервера (${data.config.totalSkins}) != TOTAL_SKINS клиента (${TOTAL_SKINS})`);
+        const cur = skinRef.current;
+        let next = cur;
+        if (!skinTouchedRef.current && !skinServerAppliedRef.current) {
+          skinServerAppliedRef.current = true;
+          if (data.selectedSkin !== 0 && usable(data.selectedSkin)) next = data.selectedSkin;
+        }
+        if (!usable(next)) {
+          if (next !== 0) setNotice("skinUnavailable");
+          next = 0;
+        }
+        if (next !== cur) {
+          setSkin(next);
+          try {
+            localStorage.setItem(skinKey(userId), String(next));
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       // прибраний з лобі артефакт (кадило) не надіваємо, навіть якщо він був обраний раніше
       setArtifact(LOBBY_HIDDEN_ARTIFACT_IDS.includes(data.selectedArtifact ?? 0) ? 0 : (data.selectedArtifact ?? 0));
     } catch {
@@ -538,7 +577,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
   const play = useCallback((mode?: FlockMode) => {
     try {
-      localStorage.setItem(SKIN_KEY, String(skin));
+      localStorage.setItem(skinKey(userId), String(skin));
     } catch {
       /* ignore */
     }
@@ -550,7 +589,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setRoundWait(null);
     setModesOpen(false);
     clientRef.current?.join(skin, me?.ownedArtifacts?.includes(artifact) ? artifact : 0, mode, perksOf(me?.config.game, skin));
-  }, [skin, artifact, me]);
+  }, [skin, artifact, me, userId]);
 
   /** «Замки»: вхід у матч за обраними стороною й скіном (платні скіни й артефакти в режимі не діють). */
   const playCastles = useCallback((team: Team, skinId: number) => {
@@ -708,8 +747,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       return;
     }
     setPreviewSkin(null);
+    skinTouchedRef.current = true;
     setSkin(i);
-    saveSkin(i);
+    saveSkin(i, userId);
   };
 
   const buy = async (i: number) => {
@@ -719,8 +759,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       const res = await buyFlockSkin(i);
       setMe((m) => (m ? { ...m, rubies: res.rubies ?? m.rubies, emeralds: res.emeralds ?? m.emeralds, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
       if (res.premiumCollection) setCollectionAward({ amount: res.premiumCollection, fromBuy: true });
+      skinTouchedRef.current = true;
       setSkin(i);
-      saveSkin(i);
+      saveSkin(i, userId);
       playFlockSound("coins", { self: true });
       setPreviewSkin(null);
       setConfirming(false);
@@ -948,6 +989,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, [reconnecting]);
 
   /** Явний вихід: сервер прибирає овечку одразу, без паузи. */
+  /** «Арена»: після поразки гравця повертає в лобі (через мить після картки підсумків). */
+  const toLobby = useCallback(() => {
+    clientRef.current?.toLobby();
+    setDeath(null);
+  }, []);
+  const arenaDeath = status === "dead" && !!death && !!clientRef.current?.model?.coliseum;
+  useEffect(() => {
+    if (!arenaDeath) return;
+    const id = setTimeout(toLobby, 8000);
+    return () => clearTimeout(id);
+  }, [arenaDeath, toLobby]);
   const handleClose = useCallback(() => {
     clientRef.current?.leave();
     clientRef.current = null;
@@ -1123,7 +1175,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
         setPhrasesOpen((v) => !v);
       } else if (e.code === "Escape" && playing) {
-        setPhrasesOpen(false);
+        // Esc: спершу закриває панель фраз, інакше повертає в лобі (явний вихід з арени)
+        if (phrasesOpenRef.current) setPhrasesOpen(false);
+        else {
+          clientRef.current?.toLobby(true);
+          setDeath(null);
+        }
       } else if (e.code === "Escape" && !playing) {
         handleClose();
       }
@@ -1690,12 +1747,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {t("circle.next", { s: Math.max(0, Math.ceil((circleEnd.at + circleEnd.restartMs - (nowMs || circleEnd.at)) / 1000)) })}
             </p>
             <div className={styles.cardButtons}>
-              <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
-                {t("again")}
-              </button>
-              <button type="button" className={styles.secondary} onClick={handleClose}>
-                {t("close")}
-              </button>
+              {arenaDeath ? (
+                <button type="button" className={styles.primary} onClick={toLobby} autoFocus>
+                  {t("dead.toLobby")}
+                </button>
+              ) : (
+                <>
+                  <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
+                    {t("again")}
+                  </button>
+                  <button type="button" className={styles.secondary} onClick={handleClose}>
+                    {t("close")}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2010,6 +2075,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
               {notice === "teamUnbalanced" || notice === "teamFull" || notice === "skinSide" || notice === "castlesOff" ? <p className={styles.error}>{t(`castles.${notice === "teamUnbalanced" ? "errUnbalanced" : notice === "teamFull" ? "errFull" : notice === "skinSide" ? "errSkin" : "off"}`)}</p> : null}
               {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
+              {notice === "skinUnavailable" ? <p className={styles.error}>{t("status.skinUnavailable")}</p> : null}
               {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
               {notice === "roundRunning" ? (
                 <p className={styles.notice}>

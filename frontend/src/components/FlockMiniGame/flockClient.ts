@@ -31,7 +31,7 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
+export type FlockNotice = "expired" | "skinLocked" | "skinUnavailable" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
 
 /** Режим арени: звичайна або «Звужуване коло». */
 export type FlockMode = "normal" | "circle" | "castles";
@@ -215,7 +215,7 @@ export class FlockClient {
       auth: { token: this.opts.token },
       transports: ["websocket"],
       reconnection: true,
-      // Пауза на сервері триває resumePauseMs (зараз 30 с, приходить у welcome як pauseMs); перепідключаємось, поки є сенс, а далі сервер скаже "expired".
+      // Пауза на сервері триває resumePauseMs (зараз 60 с, приходить у welcome як pauseMs); перепідключаємось, поки є сенс, а далі сервер скаже "expired".
       reconnectionAttempts: Infinity,
       reconnectionDelay: 400,
       reconnectionDelayMax: 2000,
@@ -426,7 +426,7 @@ export class FlockClient {
         if (this.model && list?.some((s) => s.pid === this.model!.cfg.pid)) playFlockSound("throw", { self: true });
       });
     });
-    socket.on("ah", (list: { id: number; x: number; y: number; pid: number }[]) => {
+    socket.on("ah", (list: { id: number; x: number; y: number; pid: number; sp?: number }[]) => {
       this.later(() => {
         if (!this.model) return;
         const own = this.model.applyHits(list);
@@ -489,7 +489,12 @@ export class FlockClient {
         this.setStatus("ready");
         return;
       }
-      if (e?.code === "skin_locked") {
+      if (e?.code === "skin_unavailable") {
+        // скін знятий, схований чи поза нумерацією: сервер його не підміняє, лобі просить обрати інший
+        this.wantPlay = false;
+        this.opts.onNotice?.("skinUnavailable");
+        this.setStatus("ready");
+      } else if (e?.code === "skin_locked") {
         // скін не куплено: сервер на арену не пустив, повертаємось у лобі
         this.wantPlay = false;
         this.opts.onNotice?.("skinLocked");
@@ -631,6 +636,24 @@ export class FlockClient {
   }
 
   /** Явний вихід (хрестик): сервер одразу прибирає овечку, без паузи; токен забуваємо. */
+  /** Назад у лобі (без виходу з гри): після поразки на «Арені» або по Esc із живої гри; нова гра - за кнопкою «Грати». */
+  toLobby(leaveArena = false) {
+    // з живої гри (Esc): явний вихід з арени, без паузи на сервері
+    if (leaveArena) {
+      try {
+        this.socket?.emit("x");
+      } catch {
+        /* ignore */
+      }
+    }
+    this.pendingDeath = null;
+    this.wantPlay = false;
+    this.stopHeartbeat();
+    clearFlockSession();
+    this.stored = null;
+    this.setStatus("ready");
+  }
+
   leave() {
     this.pendingDeath = null;
     this.wantPlay = false;

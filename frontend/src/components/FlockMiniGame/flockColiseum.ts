@@ -16,6 +16,8 @@ export interface ColiseumGeo {
   gateWidth: number;
   pillars: [number, number, number][];
   stones: [number, number, number][];
+  /** Невелика стіна в центрі (центр x, y; розмір w x h): непрохідна, за нею можна сховатись від тигра. */
+  wall: { x: number; y: number; w: number; h: number };
   waves: number;
 }
 
@@ -30,6 +32,7 @@ export function parseColiseum(raw: unknown): ColiseumGeo | null {
     gateWidth: g.gateWidth ?? 280,
     pillars: Array.isArray(g.pillars) ? g.pillars : [],
     stones: Array.isArray(g.stones) ? g.stones : [],
+    wall: g.wall && typeof g.wall.w === "number" ? g.wall : { x: g.cx, y: g.cy, w: 360, h: 64 },
     waves: g.waves ?? 5,
   };
 }
@@ -43,7 +46,24 @@ export function clampToColiseum(g: ColiseumGeo, x: number, y: number, r: number)
   const dx = x - g.cx;
   const dy = y - g.cy;
   const d = Math.hypot(dx, dy);
-  return d > lim ? [g.cx + (dx / d) * lim, g.cy + (dy / d) * lim] : [x, y];
+  const [px, py] = d > lim ? [g.cx + (dx / d) * lim, g.cy + (dy / d) * lim] : [x, y];
+  return pushOutOfWall(g, px, py, r);
+}
+
+/** Центральна стіна: клітина (радіус r) виштовхується з прямокутника, як на сервері (pushOutOfWall). */
+export function pushOutOfWall(g: ColiseumGeo, x: number, y: number, r: number): [number, number] {
+  const hw = g.wall.w / 2;
+  const hh = g.wall.h / 2;
+  const dx = x - g.wall.x;
+  const dy = y - g.wall.y;
+  const qx = Math.max(-hw, Math.min(hw, dx));
+  const qy = Math.max(-hh, Math.min(hh, dy));
+  const ox = dx - qx;
+  const oy = dy - qy;
+  const d = Math.hypot(ox, oy);
+  if (d >= r) return [x, y];
+  if (d > 1e-6) return [g.wall.x + qx + (ox / d) * r, g.wall.y + qy + (oy / d) * r];
+  return hw - Math.abs(dx) < hh - Math.abs(dy) ? [g.wall.x + Math.sign(dx || 1) * (hw + r), y] : [x, g.wall.y + Math.sign(dy || 1) * (hh + r)];
 }
 
 /** Палітра «Арени»: однакова на обидві теми застосунку. */
@@ -107,6 +127,8 @@ export function drawColiseumMinimap(ctx: CanvasRenderingContext2D, g: ColiseumGe
   ctx.stroke();
   ctx.strokeStyle = COLISEUM.gateDark;
   ctx.lineWidth = Math.max(2, size * 0.05);
+  ctx.fillStyle = COLISEUM.wallDark;
+  ctx.fillRect((g.wall.x - g.wall.w / 2) * k, (g.wall.y - g.wall.h / 2) * k, Math.max(2, g.wall.w * k), Math.max(1.5, g.wall.h * k));
   for (const deg of g.gates) {
     const a = (deg * Math.PI) / 180;
     ctx.beginPath();

@@ -1,7 +1,7 @@
 import { deathDim, drawDeath, drawDeathDim } from "./flockDeathAnim";
 import { drawColiseumBack } from "./flockColiseumRender";
 import { drawColiseumMinimap } from "./flockColiseum";
-import { drawArrowInFlight, drawArrowOnGround } from "./flockArrow";
+import { drawArrowInFlight, drawArrowOnGround, drawSplitFx } from "./flockArrow";
 import { drawCloudBorder, drawFalls, drawSkyMinimap, drawSkyWorld, drawVoidRing, drawVoidVignette, drawWings } from "./flockSkyRender";
 import type { FlockModel, RCell } from "./flockModel";
 import { FX_FROZEN, FX_GHOST, FX_PAUSED, FX_SHIELD, FX_SPEED, FX_SPRINT } from "./flockProtocol";
@@ -553,6 +553,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       }
       ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+    // розкол вовка: вспышка 0,3 с
+    for (let i = m.splitFx.length - 1; i >= 0; i--) {
+      const f = m.splitFx[i];
+      const k = (nowMs - f.at) / 300;
+      if (k >= 1) {
+        m.splitFx.splice(i, 1);
+        continue;
+      }
+      drawSplitFx(ctx, f.x, f.y, f.r, k);
     }
   }
 
