@@ -653,6 +653,7 @@ class Arena {
       gateWidth: K.gateWidth,
       pillars: g.pillars,
       stones: g.stones,
+      wall: g.wall,
       waves: K.wavesBeforeTiger,
       /** Стріли, що лежать на землі зараз: [id, x, y, мс до зникнення]. */
       arrows: this.world.arrowItemsSnapshot(),

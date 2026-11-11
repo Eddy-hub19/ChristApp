@@ -796,6 +796,22 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           en: "Daily quests are now easy ones only, paid in rubies (4 and 6). There are no hard daily quests and no emerald for the Tiger any more. At most 3 emeralds a day from repeatable sources",
         },
       },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Стріла розколює вовка на осколки: вони тікають від овець і за 20 с розчиняються",
+          ru: "Стрела раскалывает волка на осколки: они убегают от овец и через 20 с растворяются",
+          en: "An arrow splits a wolf into fragments: they run from sheep and dissolve after 20 s",
+        },
+      },
+      {
+        icon: "trophy",
+        text: {
+          ua: "Арена: піщаний колізей зі стіною, трибунами й воротами, свій декор і їжа (суха солома, золоті крупинки), вовки з різними скінами, швидкий тигр і стіна в центрі, за якою можна сховатись",
+          ru: "Арена: песчаный колизей со стеной, трибунами и воротами, свой декор и еда (сухая солома, золотые песчинки), волки с разными скинами, быстрый тигр и стена в центре, за которой можно спрятаться",
+          en: "Arena: a sandy coliseum with a wall, tribunes and gates, its own decor and food (dry straw, golden sand grains), wolves with different skins, a fast tiger and a wall in the centre to hide behind",
+        },
+      },
     ],
   },
 ];

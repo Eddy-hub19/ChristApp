@@ -19,7 +19,7 @@ const KEY = "christapp:flock:session";
 /** Запас на розбіжність годинників і дорогу: сервер усе одно вирішує сам. */
 const GRACE_MS = 1500;
 /** Запасне значення, лише якщо в збереженій сесії немає pauseMs (його шле сервер із resumePauseMs). */
-const DEFAULT_PAUSE_MS = 30_000;
+const DEFAULT_PAUSE_MS = 60_000;
 /** Банер не показуємо, поки гра сама оновлює `savedAt` (вона робить це раз на ~2 с). */
 const ACTIVE_WINDOW_MS = 3500;
 

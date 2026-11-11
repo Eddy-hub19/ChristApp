@@ -62,6 +62,64 @@ function sandPattern(ctx: CanvasRenderingContext2D, pxPerUnit: number): CanvasPa
             c.stroke();
           }
       }
+      // декор землі: піщані хвилі (брижі), сліди, дрібні камінці й плями пилу
+      c.lineCap = "round";
+      c.strokeStyle = "rgba(255,240,200,0.30)";
+      c.lineWidth = 2.4;
+      for (let i = 0; i < 14; i++) {
+        const x = hash(i, 21) * SAND_SPAN;
+        const y = hash(i, 22) * SAND_SPAN;
+        const len = 40 + hash(i, 23) * 60;
+        for (const ox of [-SAND_SPAN, 0, SAND_SPAN])
+          for (const oy of [-SAND_SPAN, 0, SAND_SPAN]) {
+            c.beginPath();
+            c.moveTo(x + ox - len / 2, y + oy);
+            c.quadraticCurveTo(x + ox - len / 4, y + oy - 7, x + ox, y + oy);
+            c.quadraticCurveTo(x + ox + len / 4, y + oy + 7, x + ox + len / 2, y + oy);
+            c.stroke();
+          }
+      }
+      c.fillStyle = "rgba(120,80,30,0.20)";
+      for (let i = 0; i < 7; i++) {
+        const x = hash(i, 31) * SAND_SPAN;
+        const y = hash(i, 32) * SAND_SPAN;
+        const a = hash(i, 33) * TAU;
+        for (const ox of [-SAND_SPAN, 0, SAND_SPAN])
+          for (const oy of [-SAND_SPAN, 0, SAND_SPAN])
+            for (let k = 0; k < 4; k++) {
+              c.beginPath();
+              c.ellipse(x + ox + Math.cos(a) * k * 14 + (k % 2 ? 4 : -4) * Math.sin(a), y + oy + Math.sin(a) * k * 14 - (k % 2 ? 4 : -4) * Math.cos(a), 3.4, 5.4, a, 0, TAU);
+              c.fill();
+            }
+      }
+      for (let i = 0; i < 16; i++) {
+        const x = hash(i, 41) * SAND_SPAN;
+        const y = hash(i, 42) * SAND_SPAN;
+        const r = 2.4 + hash(i, 43) * 3.2;
+        for (const ox of [-SAND_SPAN, 0, SAND_SPAN])
+          for (const oy of [-SAND_SPAN, 0, SAND_SPAN]) {
+            c.fillStyle = "rgba(90,66,36,0.30)";
+            c.beginPath();
+            c.ellipse(x + ox + 0.8, y + oy + 1.2, r, r * 0.8, 0, 0, TAU);
+            c.fill();
+            c.fillStyle = "#a99572";
+            c.beginPath();
+            c.ellipse(x + ox, y + oy, r, r * 0.8, 0, 0, TAU);
+            c.fill();
+          }
+      }
+      for (let i = 0; i < 6; i++) {
+        c.fillStyle = "rgba(235,215,170,0.22)";
+        const x = hash(i, 51) * SAND_SPAN;
+        const y = hash(i, 52) * SAND_SPAN;
+        const w = 30 + hash(i, 53) * 40;
+        for (const ox of [-SAND_SPAN, 0, SAND_SPAN])
+          for (const oy of [-SAND_SPAN, 0, SAND_SPAN]) {
+            c.beginPath();
+            c.ellipse(x + ox, y + oy, w, w * 0.55, hash(i, 54) * TAU, 0, TAU);
+            c.fill();
+          }
+      }
       c.fillStyle = COLISEUM.sandSpeck;
       for (let i = 0; i < 90; i++) c.fillRect(hash(i, 11) * SAND_SPAN, hash(i, 12) * SAND_SPAN, 2.2, 2.2);
     }
@@ -416,6 +474,31 @@ export function drawColiseumBack(ctx: CanvasRenderingContext2D, g: ColiseumGeo, 
     const s = pillarSprite(pr, q);
     const w = s.width / q;
     ctx.drawImage(s, x - w / 2, y - w / 2, w, w);
+  }
+  // 6b. центральна стіна: кам'яний блок із тінню, верхньою гранню й швами
+  {
+    const { x, y, w, h } = g.wall;
+    if (inView(x, y, w, v)) {
+      ctx.fillStyle = "rgba(60,40,15,0.28)";
+      ctx.fillRect(x - w / 2 + 10, y - h / 2 + 14, w, h);
+      ctx.fillStyle = COLISEUM.wallDark;
+      ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx.fillStyle = COLISEUM.wall;
+      ctx.fillRect(x - w / 2 + 4, y - h / 2 + 4, w - 8, h - 16);
+      ctx.fillStyle = COLISEUM.wallLight;
+      ctx.fillRect(x - w / 2 + 4, y - h / 2 + 4, w - 8, 8);
+      ctx.strokeStyle = "rgba(70,56,36,0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 1; i < 6; i++) {
+        ctx.moveTo(x - w / 2 + (w * i) / 6, y - h / 2 + 12);
+        ctx.lineTo(x - w / 2 + (w * i) / 6, y + h / 2 - 12);
+      }
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#2a2118";
+      ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    }
   }
   // 7. глядачі й прапори (за стіною)
   const l = layout(g);

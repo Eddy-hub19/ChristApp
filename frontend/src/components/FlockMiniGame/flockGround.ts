@@ -3,11 +3,11 @@
  * Усе малюється один раз у кешований тайл / спрайт; кольори не залежать від теми застосунку (світла/темна).
  */
 
-export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night";
+export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night" | "arena";
 
 const TAU = Math.PI * 2;
 
-/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч. */
+/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч, 7 арена. */
 export function groundOf(map: number | undefined): Ground {
   switch (map) {
     case 1:
@@ -20,6 +20,8 @@ export function groundOf(map: number | undefined): Ground {
       return "lake";
     case 5:
       return "night";
+    case 7:
+      return "arena";
     default:
       return "meadow";
   }
@@ -403,6 +405,61 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
 export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground: Ground) {
   c.lineCap = "round";
   c.lineJoin = "round";
+  if (ground === "arena") {
+    if (kind === 0) {
+      // пучок сухої соломи: золотисті стебла з тонкою тінню
+      for (const [col, lw] of [["#8a6420", 4.6], ["#e3b94a", 3]] as [string, number][]) {
+        c.strokeStyle = col;
+        c.lineWidth = lw;
+        for (const a of [-0.6, -0.2, 0.2, 0.6]) {
+          c.beginPath();
+          c.moveTo(a * 6, 13);
+          c.quadraticCurveTo(a * 15, 0, a * 24, -13);
+          c.stroke();
+        }
+      }
+    } else if (kind === 1) {
+      // золоті крупинки піску: купка зерен
+      for (const [x, y, r] of [[-7, 4, 4.4], [5, 6, 4], [0, -5, 4.8], [9, -4, 3.2], [-9, -6, 3]]) {
+        c.fillStyle = "#8a6420";
+        c.beginPath();
+        c.arc(x + 0.6, y + 1, r, 0, TAU);
+        c.fill();
+        c.fillStyle = "#f1c94a";
+        c.beginPath();
+        c.arc(x, y, r, 0, TAU);
+        c.fill();
+        c.fillStyle = "rgba(255,246,200,0.9)";
+        c.beginPath();
+        c.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, TAU);
+        c.fill();
+      }
+    } else {
+      // сухий колосок
+      c.lineWidth = 3.6;
+      c.strokeStyle = "#8a6420";
+      c.beginPath();
+      c.moveTo(0, 14);
+      c.lineTo(0, -12);
+      c.stroke();
+      c.fillStyle = "#f1c94a";
+      c.strokeStyle = "#8a6420";
+      c.lineWidth = 1.2;
+      for (let i = 0; i < 4; i++) {
+        for (const sd of [-1, 1]) {
+          c.save();
+          c.translate(sd * 3, -10 + i * 5);
+          c.rotate(sd * 0.6);
+          c.beginPath();
+          c.ellipse(0, 0, 2.2, 4.6, 0, 0, TAU);
+          c.fill();
+          c.stroke();
+          c.restore();
+        }
+      }
+    }
+    return;
+  }
   if (ground === "autumn") {
     // красные и бордовые листочки: не сливаются с золотым фоном и золотым декором земли (он остаётся золотым)
     const looks: [string, string, number][] = [

@@ -159,6 +159,11 @@ export interface Player {
   /** «Арена»: вовк хвилі (бот; їсть овець, його їдять овечки) і тигр-бос (урон від дотиків овець замість з'їдання). */
   wolf: boolean;
   tiger: boolean;
+  /** «Арена»: осколок вовка після влучання стріли (бот): не полює, тікає від овець, не їсть, живе fragExpiresAt; глибина розколу й pid першого вовка. */
+  frag?: boolean;
+  fragDepth?: number;
+  fragOrigin?: number;
+  fragExpiresAt?: number;
   /** Точка появи (ворота «Арени»); без неї - безпечна точка. */
   spawnPoint?: { x: number; y: number };
   /** «Арена»: запас стріл у гравця, час останнього пострілу, запит пострілу цього тіку. */
@@ -432,7 +437,11 @@ export class FlockWorld {
   readonly arrowAdd: [number, number, number, number][] = [];
   readonly arrowDel: number[] = [];
   readonly shotEvents: { id: number; pid: number; x: number; y: number; vx: number; vy: number; t: number; life: number }[] = [];
-  readonly hitEvents: { id: number; x: number; y: number; pid: number; hp: number; max: number }[] = [];
+  readonly hitEvents: { id: number; x: number; y: number; pid: number; hp: number; max: number; sp?: number }[] = [];
+  /** Нові осколки вовків (pid): директор бере їх у свій перелік, щоб вести ШІ й розчинення. */
+  readonly newMobs: number[] = [];
+  /** Регулятор навантаження просить не розколювати вовків (стріла просто вбиває). */
+  fragsAllowed = true;
   /** Гравці, у яких цього тіку змінився запас стріл (pid -> новий запас). */
   readonly carryEvents = new Map<number, number>();
   private readonly geo = coliseumGeometry();
@@ -522,6 +531,32 @@ export class FlockWorld {
     }
   }
 
+  /** Центральна стіна «Арени»: кругла клітина виштовхується з прямокутника (найближчою стороною). */
+  private pushOutOfWall(c: Cell, r: number) {
+    const a = this.arena;
+    if (!a) return;
+    const hw = C.coliseum.wall.w / 2;
+    const hh = C.coliseum.wall.h / 2;
+    const dx = c.x - a.cx;
+    const dy = c.y - a.cy;
+    const qx = Math.max(-hw, Math.min(hw, dx));
+    const qy = Math.max(-hh, Math.min(hh, dy));
+    const ox = dx - qx;
+    const oy = dy - qy;
+    const d = Math.hypot(ox, oy);
+    if (d >= r) return;
+    if (d > 1e-6) {
+      c.x = a.cx + qx + (ox / d) * r;
+      c.y = a.cy + qy + (oy / d) * r;
+    } else {
+      // центр усередині стіни: виштовхуємо за найближчу сторону
+      const px = hw - Math.abs(dx);
+      const py = hh - Math.abs(dy);
+      if (px < py) c.x = a.cx + Math.sign(dx || 1) * (hw + r);
+      else c.y = a.cy + Math.sign(dy || 1) * (hh + r);
+    }
+  }
+
   private rand(min: number, max: number) {
     return min + this.rng() * (max - min);
   }
@@ -548,6 +583,8 @@ export class FlockWorld {
     /** «Арена»: вовк або тигр з масою появи `mass` у точці `at`. */
     wolf?: boolean;
     tiger?: boolean;
+    /** Осколок вовка: глибина розколу й pid вихідного вовка (маса появи - у mass). */
+    frag?: { depth: number; origin: number };
     mass?: number;
     /** Тигр: здоров'я у влученнях. */
     hits?: number;
@@ -576,6 +613,7 @@ export class FlockWorld {
       wolf: !!opts.wolf,
       tiger: !!opts.tiger,
       spawnPoint: opts.at,
+      ...(opts.frag ? { frag: true, fragDepth: opts.frag.depth, fragOrigin: opts.frag.origin, fragExpiresAt: this.now + C.coliseum.fragmentLifetimeMs } : {}),
       arrows: 0,
       arrowShotAt: -1e9,
       wantArrow: false,
@@ -1221,6 +1259,7 @@ export class FlockWorld {
 
   private speedFor(p: Player, c: Cell) {
     if (this.now < p.frozenUntil) return 0;
+    if (p.tiger) return C.coliseum.tiger.speedPx;
     let m = p.monster ? C.monsters.speedMultiplier : this.spawnBoostFactor(p);
     if (this.hasEffect(p, 'speed')) m *= C.speedMultiplier;
     if (this.hasEffect(p, 'wings')) m *= C.sky.wings.speedMultiplier;
@@ -1245,6 +1284,7 @@ export class FlockWorld {
       c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x));
       c.y = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.y));
       this.clampArena(c, r);
+      this.pushOutOfWall(c, r);
     }
   }
 
@@ -1421,10 +1461,11 @@ export class FlockWorld {
             !this.cellsById.has(a.id)
           )
             return;
-          if (a.mass < b.mass * C.eatRatio) return;
+          // тигр їсть будь-яку овечку, яку наздогнав, незалежно від маси
+          if (!p.tiger && a.mass < b.mass * C.eatRatio) return;
           const victim = this.players.get(b.pid);
           if (!victim || !victim.alive || victim.paused) return;
-          if (this.arena && this.coliseumNoEat(p, victim)) return;
+          if (this.arena && this.coliseumNoEat(p, victim, b.mass)) return;
           // боти не чіпають новачків (жорстке правило рушія, а не лише ШІ)
           if (
             p.bot &&
@@ -1446,7 +1487,10 @@ export class FlockWorld {
    * «Арена»: овечки заодно (не їдять одна одну), вовки й тигр - одна сторона; овечка тигра не з'їдає (його б'ють дотиками, див. stepTiger).
    * true - пара не взаємодіє (поїдання нема).
    */
-  private coliseumNoEat(eater: Player, victim: Player): boolean {
+  private coliseumNoEat(eater: Player, victim: Player, victimMass = 0): boolean {
+    if (eater.frag) return true; // осколки нікого не їдять
+    // осколок їстівний для овечки лише коли легший за середню овечку (fragEdibleMass)
+    if (victim.frag && victimMass > C.coliseum.fragEdibleMass) return true;
     const eMob = eater.wolf || eater.tiger;
     const vMob = victim.wolf || victim.tiger;
     if (eMob === vMob) return true; // овечка-овечка або вовк-вовк (тигр-вовк теж)
@@ -1611,38 +1655,136 @@ export class FlockWorld {
       tiger.cells[0].mass = tiger.bossStart;
       if (A.regenHitsPerSec > 0 && tiger.hp !== undefined && tiger.maxHp && tiger.hp < tiger.maxHp) tiger.hp = Math.min(tiger.maxHp, tiger.hp + A.regenHitsPerSec * dt);
     }
-    // снаряд: позиція = формула від часу; перевіряємо лише відрізок цього тіку проти тигра
+    // снаряд: позиція = формула від часу; перевіряємо лише відрізок цього тіку проти тигра й вовків з осколками (що раніше по ходу)
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const sh = this.shots[i];
       const t1 = Math.min(this.now, sh.endT);
+      const ax = sh.x0 + (sh.vx * (sh.lastT - sh.t0)) / 1000;
+      const ay = sh.y0 + (sh.vy * (sh.lastT - sh.t0)) / 1000;
+      const bx = sh.x0 + (sh.vx * (t1 - sh.t0)) / 1000;
+      const by = sh.y0 + (sh.vy * (t1 - sh.t0)) / 1000;
+      const sx = bx - ax;
+      const sy = by - ay;
+      const len2 = sx * sx + sy * sy;
+      const along = (cx: number, cy: number) => (len2 > 0 ? Math.max(0, Math.min(1, ((cx - ax) * sx + (cy - ay) * sy) / len2)) : 0);
+      let tigerU = Infinity;
       if (tiger && tiger.alive && tiger.cells[0] && tiger.hp !== undefined && tiger.hitsBy) {
         const tc = tiger.cells[0];
-        const ax = sh.x0 + (sh.vx * (sh.lastT - sh.t0)) / 1000;
-        const ay = sh.y0 + (sh.vy * (sh.lastT - sh.t0)) / 1000;
-        const bx = sh.x0 + (sh.vx * (t1 - sh.t0)) / 1000;
-        const by = sh.y0 + (sh.vy * (t1 - sh.t0)) / 1000;
         const R = radiusOf(tc.mass) * A.hitRadiusK + A.hitRadiusPad;
-        const sx = bx - ax;
-        const sy = by - ay;
-        const len2 = sx * sx + sy * sy;
-        const u = len2 > 0 ? Math.max(0, Math.min(1, ((tc.x - ax) * sx + (tc.y - ay) * sy) / len2)) : 0;
-        if (Math.hypot(ax + sx * u - tc.x, ay + sy * u - tc.y) <= R) {
-          tiger.hp -= 1;
-          tiger.hitsBy.set(sh.pid, (tiger.hitsBy.get(sh.pid) ?? 0) + 1);
-          this.hitEvents.push({ id: sh.id, x: Math.round(ax + sx * u), y: Math.round(ay + sy * u), pid: sh.pid, hp: Math.max(0, Math.ceil(tiger.hp - 1e-6)), max: tiger.maxHp ?? 0 });
-          this.shots.splice(i, 1);
-          if (tiger.hp <= 1e-6) {
-            tiger.alive = false;
-            tiger.diedAt = this.now;
-            tiger.killerPid = 0;
-            this.tigerDown.push({ pid: tiger.id, hits: [...tiger.hitsBy.entries()] });
-          }
-          continue;
+        const u = along(tc.x, tc.y);
+        if (Math.hypot(ax + sx * u - tc.x, ay + sy * u - tc.y) <= R) tigerU = u;
+      }
+      // вовки й осколки (не тигр): перший за ходом стріли
+      let mobU = Infinity;
+      let mobHit: { p: Player; c: Cell } | null = null;
+      for (const mp of this.players.values()) {
+        if (!mp.wolf || !mp.alive || mp.paused) continue;
+        // у перші секунди після появи біля воріт вовка не розколоти (стріла його пролітає)
+        if (!mp.frag && this.now - mp.spawnedAt < C.coliseum.splitGraceMs) continue;
+        const mc = mp.cells[0];
+        if (!mc) continue;
+        const R = radiusOf(mc.mass) * A.hitRadiusK + A.hitRadiusPad;
+        const u = along(mc.x, mc.y);
+        if (u < mobU && Math.hypot(ax + sx * u - mc.x, ay + sy * u - mc.y) <= R) {
+          mobU = u;
+          mobHit = { p: mp, c: mc };
         }
+      }
+      if (tigerU <= mobU && tigerU < Infinity && tiger && tiger.hitsBy && tiger.hp !== undefined) {
+        tiger.hp -= 1;
+        tiger.hitsBy.set(sh.pid, (tiger.hitsBy.get(sh.pid) ?? 0) + 1);
+        this.hitEvents.push({ id: sh.id, x: Math.round(ax + sx * tigerU), y: Math.round(ay + sy * tigerU), pid: sh.pid, hp: Math.max(0, Math.ceil(tiger.hp - 1e-6)), max: tiger.maxHp ?? 0 });
+        this.shots.splice(i, 1);
+        if (tiger.hp <= 1e-6) {
+          tiger.alive = false;
+          tiger.diedAt = this.now;
+          tiger.killerPid = 0;
+          this.tigerDown.push({ pid: tiger.id, hits: [...tiger.hitsBy.entries()] });
+        }
+        continue;
+      }
+      if (mobHit) {
+        // влучання по вовках і осколках НЕ рахуються в «влучання» для приза (hitsBy лише в тигра)
+        const hx = Math.round(ax + sx * mobU);
+        const hy = Math.round(ay + sy * mobU);
+        const ev: { id: number; x: number; y: number; pid: number; hp: number; max: number; sp?: number } = { id: sh.id, x: hx, y: hy, pid: sh.pid, hp: 0, max: 0 };
+        const sp = this.hitMob(mobHit.p, mobHit.c);
+        if (sp > 0) ev.sp = sp;
+        this.hitEvents.push(ev);
+        this.shots.splice(i, 1);
+        continue;
       }
       sh.lastT = t1;
       if (this.now >= sh.endT) this.shots.splice(i, 1);
     }
+  }
+
+  private enemyCount() {
+    let n = 0;
+    for (const p of this.players.values()) if ((p.wolf || p.tiger) && p.alive) n++;
+    return n;
+  }
+
+  private fragCountOf(origin: number) {
+    let n = 0;
+    for (const p of this.players.values()) if (p.frag && p.alive && p.fragOrigin === origin) n++;
+    return n;
+  }
+
+  /** Маса вбитого без розколу лишається їжею на місці (одна «шерсть» із власною масою): ніщо не береться з повітря й не зникає. */
+  private dropMassAsFood(x: number, y: number, mass: number) {
+    if (mass <= 0 || this.foodById.size >= this.foodCap + 40) return;
+    const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
+    this.nextFoodId = id + 1;
+    const food: Food = { id, x, y, kind: 3, mass };
+    this.foodById.set(id, food);
+    const chunk = chunkIndexOf(x, y);
+    this.foodChunks[chunk].set(id, food);
+    this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
+  }
+
+  /**
+   * Стріла влучила у вовка або осколок. Повертає радіус вовка, якщо він розколовся (для анімації), інакше 0.
+   * Правила: розкол на arrowSplitParts рівних частин (маса зберігається); не глибше arrowSplitDepth; масу нижче arrowSplitMinMass просто прибирає;
+   * ліміт осколків на вовка й стеля ворожих клітин на арені (coliseumEnemyCap) чи регулятор навантаження - вбиває без розколу (маса лишається їжею).
+   * Стріла випадає лише з вихідного вовка (глибина 0), з осколків - ніколи.
+   */
+  private hitMob(p: Player, c: Cell): number {
+    const K = C.coliseum;
+    const depth = p.fragDepth ?? 0;
+    const mass = c.mass;
+    const r = radiusOf(mass);
+    if (depth === 0 && this.rng() < K.arrows.wolfDropChance) this.addArrowItem(c.x, c.y);
+    const parts = K.arrowSplitParts;
+    const origin = p.fragOrigin ?? p.id;
+    if (mass < K.arrowSplitMinMass) {
+      this.removePlayer(p.id); // зовсім дрібний: зникає без розколу й без їжі
+      return 0;
+    }
+    const noSplit = depth >= K.arrowSplitDepth || !this.fragsAllowed || this.enemyCount() + parts - 1 > K.coliseumEnemyCap || this.fragCountOf(origin) + parts - 1 > K.maxFragmentsPerWolf || mass / parts < K.arrowSplitMinMass;
+    const x = c.x;
+    const y = c.y;
+    if (noSplit) {
+      this.removePlayer(p.id);
+      this.dropMassAsFood(x, y, mass);
+      return 0;
+    }
+    const base = this.rng() * Math.PI * 2;
+    const skin = p.skin;
+    const name = p.name;
+    this.removePlayer(p.id);
+    for (let k = 0; k < parts; k++) {
+      const ang = base + (k / parts) * Math.PI * 2;
+      const nm = mass / parts;
+      const f = this.addPlayer({ name, skin, bot: true, wolf: true, mass: nm, at: { x: x + Math.cos(ang) * r * 0.4, y: y + Math.sin(ang) * r * 0.4 }, frag: { depth: depth + 1, origin } });
+      const fc = f.cells[0];
+      if (fc) {
+        fc.vx = Math.cos(ang) * K.splitImpulse;
+        fc.vy = Math.sin(ang) * K.splitImpulse;
+      }
+      this.newMobs.push(f.id);
+    }
+    return Math.round(r);
   }
 
   /** Тигр: здоров'я у влученнях змінило максимум (людей стало більше/менше): поточне перераховується пропорційно. */
@@ -1662,7 +1804,7 @@ export class FlockWorld {
       victim.killerPid = eater.id;
       victim.phrase = null;
       eater.kills++;
-      if (this.arena && victim.wolf && this.rng() < C.coliseum.arrows.wolfDropChance) this.addArrowItem(b.x, b.y);
+      if (this.arena && victim.wolf && !victim.frag && this.rng() < C.coliseum.arrows.wolfDropChance) this.addArrowItem(b.x, b.y);
       if (eater.killed.length < 8) eater.killed.push(victim.name);
       this.deaths.push({ pid: victim.id, killerPid: eater.id });
     }
@@ -1693,7 +1835,7 @@ export class FlockWorld {
 
   private stepFood() {
     for (const p of this.players.values()) {
-      if (!p.alive || p.paused || this.isGhost(p)) continue;
+      if (!p.alive || p.paused || p.frag || this.isGhost(p)) continue;
       const perk = this.perk(p);
       const base =
         C.foodMass *

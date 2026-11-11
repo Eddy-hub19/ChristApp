@@ -130,7 +130,7 @@ export const FLOCK_CONFIG = {
 
   // --- сесія: відновлення після вильоту ---
   /** Скільки овечка чекає на арені (пауза), якщо гравець відключився не сам. Явний вихід - без паузи. */
-  resumePauseMs: 30_000,
+  resumePauseMs: 60_000,
   /** Щит одразу після повернення. */
   resumeShieldMs: 2000,
 
@@ -736,18 +736,40 @@ export const FLOCK_CONFIG = {
     roundTimeoutMs: 12 * 60_000,
     roundWarnMs: 60_000,
     /** Скільки хвиль вовків перед «Тигром»; потім цикл знову з легкої хвилі. */
-    wavesBeforeTiger: 5,
+    wavesBeforeTiger: 2,
     /** Вовків у хвилі k (1-based): base + perWave * (k - 1); маса вовка: massBase + massPerWave * (k - 1) (на початку, х випадково 0.85-1.15). */
-    wolves: { base: 4, perWave: 2, massBase: 40, massPerWave: 22, minCount: 2 },
+    wolves: { base: 4, perWave: 2, massBase: 520, massPerWave: 40, minCount: 2 },
     /** Множник числа/маси за кількістю людей (проміжні значення інтерполюються): 1, 3, 6 гравців. */
     playerScale: { 1: { count: 1, mass: 1 }, 3: { count: 2, mass: 1.35 }, 6: { count: 3.2, mass: 1.8 } } as Record<number, { count: number; mass: number }>,
     /** Вовк, що довго не бачить овець, усе одно іде до найближчої. Швидкість вовків - частка від швидкості гравця. */
     wolfSpeed: 0.92,
+    /** Вовк гониться за вівцею, якщо вона ближче huntRange; інакше їсть найближчу їжу в радіусі foodSeekRadius. */
+    huntRange: 700,
+    foodSeekRadius: 600,
     /** Тигр: розмір (маса) за людьми як playerScale.mass; урон лише стрілами (arrows), маса від дотиків не міняється. */
     tiger: {
       massBase: 1600,
-      speed: 0.85,
+      /** Множник ходу (частка від speedPx) і швидкість тигра в пікселях за секунду: він набагато швидший за овечок і їсть будь-яку, яку наздожене, незалежно від маси. */
+      speed: 1,
+      speedPx: 540,
     },
+    /** Стріла розколює вовка на arrowSplitParts рівних частин (маса зберігається); не глибше arrowSplitDepth; осколок легший за arrowSplitMinMass зникає без розколу. */
+    arrowSplitParts: 4,
+    arrowSplitDepth: 2,
+    arrowSplitMinMass: 12,
+    /** Скільки осколків може бути від одного вовка; стеля ворожих клітин (вовки, осколки, тигр) на арені: понад неї стріла вбиває без розколу. */
+    maxFragmentsPerWolf: 12,
+    coliseumEnemyCap: 80,
+    /** Осколок живе fragmentLifetimeMs і розчиняється без нагороди; їстівний для овець, коли легший за fragEdibleMass; поштовх розльоту (од./с). */
+    fragmentLifetimeMs: 20_000,
+    fragEdibleMass: 60,
+    splitImpulse: 520,
+    /** Хвиля закінчується, коли вовків нема, а решта осколків важить менше за waveEndMass (їх прибирають). */
+    waveEndMass: 40,
+    /** Вовка не розколоти в перші splitGraceMs після появи біля воріт. */
+    splitGraceMs: 2000,
+    /** Невелика стіна в центрі арени: непрохідна для всіх, за нею можна сховатись від тигра (він обходить її по кутах). Розмір у світових одиницях. */
+    wall: { w: 360, h: 64 },
     /** Стріли (єдина зброя проти тигра; лише на цій карті). Усе рахує сервер за аналітичною траєкторією. */
     arrows: {
       /** Поява стріл на землі: раз на spawnEveryMs у випадковій точці кола (не в колонах), на полі не більше fieldCapBase + fieldCapPerPlayer * людей. */
@@ -1230,6 +1252,8 @@ export function clientGameConfig() {
       dailyWinLimit: c.coliseum.reward.dailyWinLimit,
       emeraldPerWin: c.coliseum.reward.emeraldPerWin,
       arrowHitsRequired: c.coliseum.reward.arrowHitsRequired,
+      arrowSplitParts: c.coliseum.arrowSplitParts,
+      fragmentLifetimeSec: Math.round(c.coliseum.fragmentLifetimeMs / 1000),
       arrowMaxCarry: c.coliseum.arrows.maxCarry,
       tigerHitsBase: c.coliseum.arrows.hitsBase,
       tigerHitsPerExtraPlayer: c.coliseum.arrows.hitsPerExtraPlayer,

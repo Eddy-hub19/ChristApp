@@ -1525,6 +1525,7 @@
       "streakTitle": "1st-place streak: {days} days in a row"
     },
     "dead": {
+      "toLobby": "To the lobby",
       "title": "You got eaten",
       "by": "Eaten by {name}",
       "eatenBy": "{name} ate you",

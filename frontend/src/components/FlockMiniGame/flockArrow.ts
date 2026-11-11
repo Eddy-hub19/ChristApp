@@ -162,7 +162,47 @@ export function drawArrowInFlight(ctx: CanvasRenderingContext2D, x: number, y: n
   ctx.restore();
 }
 
+/** Спалах розколу вовка: один кешований спрайт (радіальний градієнт без shadowBlur), масштабується за радіусом і часом 0..1. */
+let flashSprite: HTMLCanvasElement | null = null;
+function splitFlash(): HTMLCanvasElement {
+  if (!flashSprite) {
+    const cv = mk(128, 128);
+    const c = cv.getContext("2d");
+    if (c) {
+      const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, "rgba(255,255,230,0.95)");
+      g.addColorStop(0.35, "rgba(255,214,120,0.7)");
+      g.addColorStop(0.7, "rgba(255,150,60,0.25)");
+      g.addColorStop(1, "rgba(255,120,40,0)");
+      c.fillStyle = g;
+      c.fillRect(0, 0, 128, 128);
+      // промені розльоту
+      c.strokeStyle = "rgba(255,245,200,0.9)";
+      c.lineWidth = 4;
+      c.lineCap = "round";
+      c.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * TAU + 0.3;
+        c.moveTo(64 + Math.cos(a) * 26, 64 + Math.sin(a) * 26);
+        c.lineTo(64 + Math.cos(a) * 56, 64 + Math.sin(a) * 56);
+      }
+      c.stroke();
+    }
+    flashSprite = cv;
+  }
+  return flashSprite;
+}
+
+/** Анімація розколу (0,3 с): вспышка розходиться від вовка; `r` - радіус вовка, `k` - прогрес 0..1. */
+export function drawSplitFx(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, k: number) {
+  const size = r * (1.6 + 2.2 * k);
+  ctx.globalAlpha = 1 - k;
+  ctx.drawImage(splitFlash(), x - size, y - size, size * 2, size * 2);
+  ctx.globalAlpha = 1;
+}
+
 export function clearArrowCaches() {
   groundCache.clear();
   flightCache.clear();
+  flashSprite = null;
 }

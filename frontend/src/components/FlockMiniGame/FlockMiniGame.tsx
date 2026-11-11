@@ -227,6 +227,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const announcedRef = useRef(false);
   /** Шторка «Про гру» (кнопка «i») и раздел «Артефакти» в лобби: оба каждый раз стартуют свёрнутыми / закрытыми. */
   const [phrasesOpen, setPhrasesOpen] = useState(false);
+  const phrasesOpenRef = useRef(false);
+  phrasesOpenRef.current = phrasesOpen;
   /** Пауза між фразами (дзеркало серверного ліміту): кнопки сіріють, щоб не здавалось, що фраза "не пішла". */
   const [phraseCooldown, setPhraseCooldown] = useState(false);
   const [hideOthersPhrases, setHideOthersPhrases] = useState(false);
@@ -948,6 +950,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, [reconnecting]);
 
   /** Явний вихід: сервер прибирає овечку одразу, без паузи. */
+  /** «Арена»: після поразки гравця повертає в лобі (через мить після картки підсумків). */
+  const toLobby = useCallback(() => {
+    clientRef.current?.toLobby();
+    setDeath(null);
+  }, []);
+  const arenaDeath = status === "dead" && !!death && !!clientRef.current?.model?.coliseum;
+  useEffect(() => {
+    if (!arenaDeath) return;
+    const id = setTimeout(toLobby, 8000);
+    return () => clearTimeout(id);
+  }, [arenaDeath, toLobby]);
   const handleClose = useCallback(() => {
     clientRef.current?.leave();
     clientRef.current = null;
@@ -1123,7 +1136,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
         setPhrasesOpen((v) => !v);
       } else if (e.code === "Escape" && playing) {
-        setPhrasesOpen(false);
+        // Esc: спершу закриває панель фраз, інакше повертає в лобі (явний вихід з арени)
+        if (phrasesOpenRef.current) setPhrasesOpen(false);
+        else {
+          clientRef.current?.toLobby(true);
+          setDeath(null);
+        }
       } else if (e.code === "Escape" && !playing) {
         handleClose();
       }
@@ -1690,12 +1708,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {t("circle.next", { s: Math.max(0, Math.ceil((circleEnd.at + circleEnd.restartMs - (nowMs || circleEnd.at)) / 1000)) })}
             </p>
             <div className={styles.cardButtons}>
-              <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
-                {t("again")}
-              </button>
-              <button type="button" className={styles.secondary} onClick={handleClose}>
-                {t("close")}
-              </button>
+              {arenaDeath ? (
+                <button type="button" className={styles.primary} onClick={toLobby} autoFocus>
+                  {t("dead.toLobby")}
+                </button>
+              ) : (
+                <>
+                  <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
+                    {t("again")}
+                  </button>
+                  <button type="button" className={styles.secondary} onClick={handleClose}>
+                    {t("close")}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

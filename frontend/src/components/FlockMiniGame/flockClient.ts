@@ -215,7 +215,7 @@ export class FlockClient {
       auth: { token: this.opts.token },
       transports: ["websocket"],
       reconnection: true,
-      // Пауза на сервері триває resumePauseMs (зараз 30 с, приходить у welcome як pauseMs); перепідключаємось, поки є сенс, а далі сервер скаже "expired".
+      // Пауза на сервері триває resumePauseMs (зараз 60 с, приходить у welcome як pauseMs); перепідключаємось, поки є сенс, а далі сервер скаже "expired".
       reconnectionAttempts: Infinity,
       reconnectionDelay: 400,
       reconnectionDelayMax: 2000,
@@ -426,7 +426,7 @@ export class FlockClient {
         if (this.model && list?.some((s) => s.pid === this.model!.cfg.pid)) playFlockSound("throw", { self: true });
       });
     });
-    socket.on("ah", (list: { id: number; x: number; y: number; pid: number }[]) => {
+    socket.on("ah", (list: { id: number; x: number; y: number; pid: number; sp?: number }[]) => {
       this.later(() => {
         if (!this.model) return;
         const own = this.model.applyHits(list);
@@ -631,6 +631,24 @@ export class FlockClient {
   }
 
   /** Явний вихід (хрестик): сервер одразу прибирає овечку, без паузи; токен забуваємо. */
+  /** Назад у лобі (без виходу з гри): після поразки на «Арені» або по Esc із живої гри; нова гра - за кнопкою «Грати». */
+  toLobby(leaveArena = false) {
+    // з живої гри (Esc): явний вихід з арени, без паузи на сервері
+    if (leaveArena) {
+      try {
+        this.socket?.emit("x");
+      } catch {
+        /* ignore */
+      }
+    }
+    this.pendingDeath = null;
+    this.wantPlay = false;
+    this.stopHeartbeat();
+    clearFlockSession();
+    this.stored = null;
+    this.setStatus("ready");
+  }
+
   leave() {
     this.pendingDeath = null;
     this.wantPlay = false;
