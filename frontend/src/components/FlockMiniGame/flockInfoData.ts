@@ -492,24 +492,6 @@ export const INFO_SECTIONS: InfoSection[] = [
         },
       },
       {
-        id: "circle",
-        icon: "trophy",
-        title: { ua: "Режим «Звужуване коло»", ru: "Режим «Сужающийся круг»", en: "“Shrinking circle” mode" },
-        text: {
-          ua: "Окрема арена (лобі → «Режими»). Розминка {warm} с, далі коло карти звужується у {stages} етапи до випадкового центру. Поза колом клітина втрачає масу ({loss}% за секунду). Раунд (до ~{minutes} хв) закінчується, коли лишився один живий або вийшов час: перемагає останній живий чи найбільший за масою. Переможцю-людині — {reward} рубінів у межах добового ліміту арени. Загиблий чекає наступного раунду (~{next} с після підсумків). Звичайна арена не змінюється.",
-          ru: "Отдельная арена (лобби → «Режимы»). Разминка {warm} с, затем круг карты сужается в {stages} этапа к случайному центру. Вне круга клетка теряет массу ({loss}% в секунду). Раунд (до ~{minutes} мин) заканчивается, когда остался один живой или вышло время: побеждает последний живой или самый большой по массе. Победителю-человеку — {reward} рубинов в пределах дневного лимита арены. Погибший ждёт следующего раунда (~{next} с после итогов). Обычная арена не меняется.",
-          en: "A separate arena (lobby → “Modes”). {warm} s warm-up, then the map's circle shrinks in {stages} stages toward a random center. Outside the circle a cell loses mass ({loss}% per second). A round (up to ~{minutes} min) ends when one player is left or time runs out: the last one alive or the biggest by mass wins. A human winner earns {reward} rubies within the arena's daily limit. If you die, you wait for the next round (~{next} s after the results). The regular arena is unchanged.",
-        },
-        params: {
-          warm: sec("circle.warmupMs"),
-          stages: num("circle.stages"),
-          loss: pct("circle.outsideLossPerSec"),
-          minutes: min("circle.totalMs"),
-          reward: num("circle.winReward"),
-          next: sec("circle.endHoldMs"),
-        },
-      },
-      {
         id: "castles",
         icon: "trophy",
         title: { ua: "Режим «Замки»", ru: "Режим «Замки»", en: "“Castles” mode" },
