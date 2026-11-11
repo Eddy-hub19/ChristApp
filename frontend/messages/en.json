@@ -162,12 +162,9 @@
     "lastRead": "Last read",
     "lastReadHint": "Reading is saved in the Bible",
     "randomVerse": "Random verse",
-    "recentNotesTitle": "Latest verse notes",
-    "recentNotesEmpty": "No notes yet — open verse notes to add one.",
     "recentChatsTitle": "Recent chats",
     "recentChatsEmpty": "No recent messages yet.",
     "recentYouLast": "You sent the last message",
-    "openVerseNotes": "Open verse notes",
     "openChat": "Open chat"
   },
   "admin": {
@@ -626,8 +623,6 @@
     "badgeNew": "New",
     "userPickerNoUsers": "No users available yet",
     "userPickerNoMatch": "No one matches your search",
-    "verseNotesAria": "Verse notes",
-    "verseNotesTitle": "Verse notes",
     "newChatAria": "Start a new chat",
     "newChatTitle": "New chat",
     "newChatImageAlt": "New chat",

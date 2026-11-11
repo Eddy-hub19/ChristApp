@@ -162,12 +162,9 @@
     "lastRead": "Останнє прочитане",
     "lastReadHint": "Читання зберігається в Біблії",
     "randomVerse": "Випадковий вірш",
-    "recentNotesTitle": "Останні замітки до віршів",
-    "recentNotesEmpty": "Поки немає заміток — відкрийте замітки до віршів.",
     "recentChatsTitle": "Останні чати",
     "recentChatsEmpty": "Поки немає недавніх повідомлень.",
     "recentYouLast": "Останнє повідомлення від вас",
-    "openVerseNotes": "Замітки до віршів",
     "openChat": "Чат"
   },
   "admin": {
@@ -626,8 +623,6 @@
     "badgeNew": "Новий",
     "userPickerNoUsers": "Поки немає доступних користувачів",
     "userPickerNoMatch": "Нікого не знайдено за запитом",
-    "verseNotesAria": "Нотатки до віршів",
-    "verseNotesTitle": "Нотатки до віршів",
     "newChatAria": "Створити новий чат",
     "newChatTitle": "Новий чат",
     "newChatImageAlt": "Новий чат",
