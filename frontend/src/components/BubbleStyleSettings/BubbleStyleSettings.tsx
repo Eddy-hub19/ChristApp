@@ -26,27 +26,30 @@ export function SampleBubble({
   own = false,
   text,
   mini = false,
+  preview = false,
   textStyle,
 }: {
   style: BubbleStyleId;
   own?: boolean;
   text: string;
   mini?: boolean;
+  /** Карточка выбора стиля: пустой пузырь с персонажем (как на макете). */
+  preview?: boolean;
   /** Шрифт/размер текста примера (экран «Шрифт»). */
   textStyle?: CSSProperties;
 }) {
   const styled = style !== "default";
-  const character = !mini && styled && BUBBLE_STYLES_WITH_CHARACTER.has(style);
+  const character = (!mini || preview) && styled && BUBBLE_STYLES_WITH_CHARACTER.has(style);
   return (
     <div
-      className={`${styles.sample} ${own ? styles.sampleOwn : ""} ${mini ? styles.sampleMini : ""}`}
+      className={`${styles.sample} ${own ? styles.sampleOwn : ""} ${mini ? styles.sampleMini : ""} ${preview ? styles.samplePreview : ""}`}
       data-bubble-style={styled ? style : undefined}
       data-bubble-own={styled && own ? "" : undefined}
       data-bubble-start={character ? "" : undefined}
       style={textStyle}
     >
       {character ? <span data-bs-char aria-hidden /> : null}
-      <span className={styles.sampleText}>{text}</span>
+      {text ? <span className={styles.sampleText}>{text}</span> : null}
     </div>
   );
 }
@@ -150,21 +153,14 @@ export default function BubbleStyleSettings({ onClose }: { onClose: () => void }
               onClick={() => setDraft(id)}
             >
               <span className={styles.cardPreview}>
-                <SampleBubble style={id} text="Aa" />
+                <SampleBubble style={id} text="" preview />
               </span>
               <span className={styles.cardName}>{t(`styles.${id}`)}</span>
             </button>
           ))}
         </div>
 
-        <div className={styles.example} aria-label={t("exampleTitle")}>
-          <p className={styles.exampleTitle}>{t("exampleTitle")}</p>
-          <SampleBubble style={current} text={t("exampleOther")} />
-          <SampleBubble style={current} own text={t("exampleOwn")} />
-          {RECOMMENDED_BACKGROUND[current] ? (
-            <p className={styles.hint}>{tBg("recommendedBg", { name: tBg(`items.${RECOMMENDED_BACKGROUND[current]}`) })}</p>
-          ) : null}
-        </div>
+        {RECOMMENDED_BACKGROUND[current] ? <p className={styles.hint}>{tBg("recommendedBg", { name: tBg(`items.${RECOMMENDED_BACKGROUND[current]}`) })}</p> : null}
 
         <div className={styles.actions}>
           <button
