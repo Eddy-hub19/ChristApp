@@ -1,0 +1,542 @@
+/* Лобби «Отари»: карточка облика, вкладки, карусель, задания, закреплённая кнопка «Грати».
+   Без backdrop-filter и крупных теней; анимации - только transform/opacity и короткие; светлая/тёмная темы - через переменные приложения. */
+
+$ruby: #e0112b;
+$emerald: #1fb572;
+
+.lobbyWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* сверху место под хрестик (12px + 40px + 12px) с учётом safe-area */
+  padding: calc(max(12px, env(safe-area-inset-top, 0px)) + 52px) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--background) 90%, transparent);
+  overscroll-behavior: contain;
+}
+
+.lobbyCard {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  min-height: 0;
+  max-height: 100%;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 98%, var(--background));
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.45);
+
+  h2 {
+    margin: 0;
+    font-size: 26px;
+    line-height: 1.1;
+  }
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-radius: 20px 20px 0 0;
+}
+
+.tagline {
+  margin: -6px 0 0;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
+/* --- закреплённый низ: «Грати», «Режими», «Запросити» --- */
+.dock {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  border-radius: 0 0 20px 20px;
+  background: color-mix(in srgb, var(--surface-elevated) 98%, var(--background));
+}
+.dockRow {
+  display: flex;
+  gap: 8px;
+}
+.play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 54px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+.dockBtn {
+  flex: 1 1 0;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dockInvite {
+  flex: 1 1 0;
+  display: block;
+
+  > button {
+    width: 100%;
+    height: 46px;
+    justify-content: center;
+    border-radius: 14px;
+    font-size: 15px;
+    backdrop-filter: none;
+  }
+}
+
+/* --- карточка выбранного облика --- */
+.showcase {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.showcasePreview {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 68%);
+}
+.showcaseInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 14px;
+  border-left: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  font-size: 13px;
+}
+.showcaseLabel {
+  font-size: 13px;
+  opacity: 0.7;
+}
+.showcaseName {
+  font-size: 20px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.currentChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* --- вкладки категорий --- */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 40px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.tabActive {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+.tabCount {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* --- карусель --- */
+.railRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rail {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  padding: 4px 3px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  /* плитка скина (стили .skin - из FlockMiniGame.module.scss): фиксированный размер, привязка при прокрутке */
+  > button {
+    flex: 0 0 62px;
+    width: 62px;
+    scroll-snap-align: start;
+  }
+}
+.allBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 62px;
+  padding: 0 10px 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.railPos {
+  margin: -6px 0 0;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+.allBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 12px;
+}
+.allHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.allGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 8px;
+}
+
+/* --- «Щоденні завдання» --- */
+.quests {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+.questsHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  h3 {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 17px;
+  }
+}
+.questsHeadIcon {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+.questsTimer {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.questsFold {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.flip {
+  transform: rotate(180deg);
+}
+.questsDone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.questsDoneIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, $emerald 25%, transparent);
+  color: $emerald;
+}
+.questsDoneText {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.questList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quest {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.questClaimed {
+  opacity: 0.6;
+}
+.questIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+.questMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.questTitle {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.questBar {
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+
+  span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transform-origin: left center;
+    transition: transform 0.25s ease-out;
+  }
+}
+.questNumbers {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.rewardRuby {
+  background: color-mix(in srgb, $ruby 14%, transparent);
+  border: 1px solid color-mix(in srgb, $ruby 36%, transparent);
+}
+.rewardEmerald {
+  background: color-mix(in srgb, $emerald 14%, transparent);
+  border: 1px solid color-mix(in srgb, $emerald 40%, transparent);
+}
+.questClaim {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+
+  &:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+.questTaken {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: $emerald;
+}
+.error {
+  margin: 0;
+  color: #e5484d;
+  font-size: 13px;
+}
+
+/* --- статистика одной строкой --- */
+.statsToggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.statCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.statLabel {
+  font-size: 11px;
+  opacity: 0.65;
+}
+.statValue {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.statsFull {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+
+  div {
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  }
+  dt {
+    font-size: 11px;
+    opacity: 0.65;
+  }
+  dd {
+    margin: 2px 0 0;
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (min-width: 720px) {
+  .lobbyCard {
+    width: min(520px, 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play,
+  .questClaim,
+  .questBar span {
+    transition: none;
+  }
+  .play:active:not(:disabled),
+  .questClaim:active:not(:disabled) {
+    transform: none;
+  }
+  .rail {
+    scroll-behavior: auto;
+  }
+}

@@ -1847,6 +1847,27 @@
       "confirmText": "Купить «{name}» за {price, plural, one {# изумруд} few {# изумруда} many {# изумрудов} other {# изумруда}}?",
       "notEnough": "Не хватает изумрудов"
     },
+    "lobby": {
+      "selected": "Выбранный облик",
+      "preview": "Просмотр",
+      "current": "Текущий",
+      "regular": "Обычные",
+      "all": "Все",
+      "allTitle": "Все облики",
+      "closeAll": "Закрыть список",
+      "position": "{n} из {m}",
+      "ownedAria": "Куплено {have} из {total}",
+      "questsTitle": "Ежедневные задания",
+      "resetInHours": "Сброс через {n} ч",
+      "resetInMin": "Сброс через {n} мин",
+      "claim": "Забрать",
+      "claimed": "Получено",
+      "questsAllDone": "{n} из {m}, награды получены",
+      "questsFold": "Свернуть задания",
+      "statBest": "Рекорд",
+      "statTop1": "Топ-1",
+      "statsToggle": "Показать или скрыть статистику"
+    },
     "quests": {
       "title": "Задания дня",
       "open": "Открыть ежедневные задания",

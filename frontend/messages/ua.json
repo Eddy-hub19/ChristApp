@@ -1847,6 +1847,27 @@
       "confirmText": "Купити «{name}» за {price, plural, one {# смарагд} few {# смарагди} many {# смарагдів} other {# смарагда}}?",
       "notEnough": "Не вистачає смарагдів"
     },
+    "lobby": {
+      "selected": "Вибраний обліок",
+      "preview": "Перегляд",
+      "current": "Поточний",
+      "regular": "Звичайні",
+      "all": "Усі",
+      "allTitle": "Усі скіни",
+      "closeAll": "Закрити список",
+      "position": "{n} з {m}",
+      "ownedAria": "Куплено {have} з {total}",
+      "questsTitle": "Щоденні завдання",
+      "resetInHours": "Скидання через {n} год",
+      "resetInMin": "Скидання через {n} хв",
+      "claim": "Забрати",
+      "claimed": "Отримано",
+      "questsAllDone": "{n} з {m}, нагороди отримано",
+      "questsFold": "Згорнути завдання",
+      "statBest": "Рекорд",
+      "statTop1": "Топ-1",
+      "statsToggle": "Показати або сховати статистику"
+    },
     "quests": {
       "title": "Завдання дня",
       "open": "Відкрити щоденні завдання",

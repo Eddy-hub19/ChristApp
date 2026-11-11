@@ -1847,6 +1847,27 @@
       "confirmText": "Buy “{name}” for {price, plural, one {# emerald} other {# emeralds}}?",
       "notEnough": "Not enough emeralds"
     },
+    "lobby": {
+      "selected": "Selected look",
+      "preview": "Preview",
+      "current": "Current",
+      "regular": "Regular",
+      "all": "All",
+      "allTitle": "All looks",
+      "closeAll": "Close the list",
+      "position": "{n} of {m}",
+      "ownedAria": "{have} of {total} owned",
+      "questsTitle": "Daily quests",
+      "resetInHours": "Resets in {n} h",
+      "resetInMin": "Resets in {n} min",
+      "claim": "Claim",
+      "claimed": "Claimed",
+      "questsAllDone": "{n} of {m}, rewards claimed",
+      "questsFold": "Collapse quests",
+      "statBest": "Best",
+      "statTop1": "Top 1",
+      "statsToggle": "Show or hide stats"
+    },
     "quests": {
       "title": "Daily quests",
       "open": "Open daily quests",
