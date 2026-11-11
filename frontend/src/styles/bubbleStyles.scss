@@ -1,6 +1,6 @@
 /*
  * Стили пузырей сообщений. Подключается в globals.scss; пузырь получает атрибуты:
- *   data-bubble-style="lamb|dove|lion|vine|thorns|ichthys"  - сам стиль (default - атрибута нет)
+ *   data-bubble-style="lamb|dove|lion|vine|ichthys"  - сам стиль (default - атрибута нет)
  *   data-bubble-own                           - свой пузырь (хвостик справа, персонаж справа)
  *   data-bubble-start                         - первое сообщение группы подряд идущих сообщений одного человека (рисуем персонажа)
  *   data-bubble-tone="dark"                   - принудительно тёмный вариант (кинозал всегда тёмный)
@@ -52,9 +52,6 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
 }
 [data-bubble-style="lion"] > [data-bs-char] {
   background-image: url("/bubbles/lion.svg");
-}
-[data-bubble-style="thorns"] > [data-bs-char] {
-  background-image: url("/bubbles/thorns.svg");
 }
 [data-bubble-style="ichthys"] > [data-bs-char] {
   background-image: url("/bubbles/ichthys.svg");
@@ -147,13 +144,6 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   --bs-radius: 16px;
 }
 
-[data-bubble-style="thorns"] {
-  --bs-bg: linear-gradient(165deg, #ecd4c8, #dfc0b0);
-  --bs-border: #6b4630;
-  --bs-text: #3a2418;
-  --bs-muted: #6b4a3a;
-  --bs-radius: 18px;
-}
 [data-bubble-style="ichthys"] {
   --bs-bg: linear-gradient(165deg, #fbf1df, #f4e2c4);
   --bs-border: #d0a24e;
@@ -190,13 +180,6 @@ html[data-theme="dark"] [data-bubble-style="vine"],
   --bs-border: #5d8a3e;
   --bs-text: #e5f2d6;
   --bs-muted: #a9c48f;
-}
-html[data-theme="dark"] [data-bubble-style="thorns"],
-[data-bubble-style="thorns"][data-bubble-tone="dark"] {
-  --bs-bg: linear-gradient(165deg, #4a3229, #3d2a22);
-  --bs-border: #9a6f55;
-  --bs-text: #f6e6dc;
-  --bs-muted: #cfae9c;
 }
 html[data-theme="dark"] [data-bubble-style="ichthys"],
 [data-bubble-style="ichthys"][data-bubble-tone="dark"] {

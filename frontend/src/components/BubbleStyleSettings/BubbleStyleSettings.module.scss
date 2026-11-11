@@ -173,6 +173,24 @@
   font-size: 12px;
 }
 
+/* Карточка стиля: пустой пузырь на всю ширину, персонаж выступает слева (как на макете). */
+.samplePreview {
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
+  min-height: 38px;
+  padding: 0;
+  margin-left: 18px;
+  border-radius: 14px 14px 14px 4px;
+
+  [data-bs-char] {
+    top: -30px;
+    left: -24px;
+    width: 54px;
+    height: 54px;
+  }
+}
+
 .sampleText {
   overflow-wrap: anywhere;
 }

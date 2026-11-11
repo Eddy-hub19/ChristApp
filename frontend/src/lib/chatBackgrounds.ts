@@ -111,6 +111,5 @@ export function chatRoomBackgroundKey(opts: { routeRoomId: string | undefined; d
 export const RECOMMENDED_BACKGROUND: Partial<Record<BubbleStyleId, ChatBackgroundId>> = {
   lamb: "pasture",
   vine: "vineyard",
-  thorns: "bethlehem",
   ichthys: "waves",
 };
