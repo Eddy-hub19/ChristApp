@@ -269,7 +269,6 @@ export class FlockGateway
       v?: unknown;
     },
   ) {
-    const skin = typeof body?.skin === 'number' ? Math.floor(body.skin) : 0;
     const resume =
       typeof body?.resume === 'string' && /^[0-9a-f]{32}$/.test(body.resume)
         ? body.resume
@@ -281,14 +280,20 @@ export class FlockGateway
         ? body.arena
         : undefined;
     const userId = client.data.userId!;
-    // знятий скін (збережений вибір із минулого) на арену не потрапляє: замість нього біла овечка
-    const clamped = Math.max(0, Math.min(NUM_SKINS - 1, skin));
     const castles = body?.mode === 'castles';
-    // знятий скін і схований у лобі вовк (старий збережений вибір) замінюються першою овечкою; «Замки» вовків лишають як є
-    const wanted =
-      isRemovedSkin(clamped) || (!castles && isLobbyHiddenSkin(clamped))
-        ? 0
-        : clamped;
+    // Скін ніколи не підміняється мовчки: недоступний (знятий, схований у лобі вовк, поза нумерацією) - явна помилка `skin_unavailable`.
+    // Без поля skin (старий клієнт) беремо обраний у профілі.
+    const rawSkin = typeof body?.skin === 'number' ? Math.floor(body.skin) : undefined;
+    const wanted = rawSkin ?? (castles ? 0 : await this.rubies.selectedSkinOf(userId));
+    if (
+      !Number.isInteger(wanted) ||
+      wanted < 0 ||
+      wanted >= NUM_SKINS ||
+      (!castles && (isRemovedSkin(wanted) || isLobbyHiddenSkin(wanted)))
+    ) {
+      client.emit('e', { code: 'skin_unavailable', skin: rawSkin });
+      return;
+    }
     // Скін перевіряє сервер: платний без покупки на арену не пускаємо (не підміняємо мовчки).
     // Перевіряємо завжди, навіть із resume: токен міг не підійти, і тоді створюється нова овечка з цим скіном.
     const team = typeof body?.team === 'number' ? Math.floor(body.team) : 0;
@@ -332,6 +337,8 @@ export class FlockGateway
       client.emit('e', { code: res.error, resumeFailed: !!res.resumeFailed, waitMs: res.waitMs });
       return;
     }
+    // обраний скін запам'ятовуємо в профілі (усі пристрої; безкоштовні теж), не блокуючи вхід
+    if (!castles) void this.rubies.rememberSelectedSkin(userId, wanted).catch(() => undefined);
     client.emit('w', {
       pid: res.pid,
       arenaId: res.arenaId,

@@ -31,7 +31,7 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
+export type FlockNotice = "expired" | "skinLocked" | "skinUnavailable" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
 
 /** Режим арени: звичайна або «Звужуване коло». */
 export type FlockMode = "normal" | "circle" | "castles";
@@ -489,7 +489,12 @@ export class FlockClient {
         this.setStatus("ready");
         return;
       }
-      if (e?.code === "skin_locked") {
+      if (e?.code === "skin_unavailable") {
+        // скін знятий, схований чи поза нумерацією: сервер його не підміняє, лобі просить обрати інший
+        this.wantPlay = false;
+        this.opts.onNotice?.("skinUnavailable");
+        this.setStatus("ready");
+      } else if (e?.code === "skin_locked") {
         // скін не куплено: сервер на арену не пустив, повертаємось у лобі
         this.wantPlay = false;
         this.opts.onNotice?.("skinLocked");

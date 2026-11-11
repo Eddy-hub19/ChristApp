@@ -284,11 +284,13 @@ export class FlockRubiesService {
       ownedSkins: skins,
       ownedArtifacts: artifacts,
       selectedArtifact,
-      // збережений знятий скін віддаємо як 0 (біла овечка); у БД він замінюється при наступному виборі скіна
-      selectedSkin:
-        isSelectableSkin(profile?.selectedSkin ?? 0) && !isLobbyHiddenSkin(profile?.selectedSkin ?? 0)
-          ? (profile?.selectedSkin ?? 0)
-          : 0,
+      // недоступний збережений скін віддаємо як 0 (клієнт покаже повідомлення); у БД він замінюється при наступному виборі
+      selectedSkin: (() => {
+        const sel = profile?.selectedSkin ?? 0;
+        // знятий скін, схований вовк і платний скін без покупки (відкликаний) віддаємо як 0; куплений (навіть знятий із продажу) лишається
+        if (!isSelectableSkin(sel) || isLobbyHiddenSkin(sel)) return 0;
+        return isPaidSkin(sel) && !skins.includes(sel) ? 0 : sel;
+      })(),
       whatsNewSeen: profile?.whatsNewSeen ?? 0,
       premiumCollectionClaimed: !!profile?.premiumCollectionAt,
       statsImported: !!profile?.statsImportedAt,
@@ -962,6 +964,30 @@ export class FlockRubiesService {
       where: { userId },
       create: { userId, selectedArtifact: artifact },
       update: { selectedArtifact: artifact },
+    });
+  }
+
+  /** Обраний скін профілю (для старого клієнта без поля skin у вході); недоступний або чужий - 0. */
+  async selectedSkinOf(userId: string): Promise<number> {
+    const profile = await this.prisma.flockProfile.findUnique({
+      where: { userId },
+      select: { selectedSkin: true },
+    });
+    const sel = profile?.selectedSkin ?? 0;
+    return (await this.canUseSkin(userId, sel)) ? sel : 0;
+  }
+
+  /** Запам'ятати скін, з яким гравець успішно зайшов на арену (перевірка доступності вже пройшла); пише лише при зміні. */
+  async rememberSelectedSkin(userId: string, skin: number) {
+    const profile = await this.prisma.flockProfile.findUnique({
+      where: { userId },
+      select: { selectedSkin: true },
+    });
+    if (profile?.selectedSkin === skin) return;
+    await this.prisma.flockProfile.upsert({
+      where: { userId },
+      create: { userId, selectedSkin: skin },
+      update: { selectedSkin: skin },
     });
   }
 

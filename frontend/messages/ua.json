@@ -1559,6 +1559,7 @@
       "resuming": "Повертаємось у гру…",
       "taken": "Гру відкрито в іншому вікні",
       "skinLocked": "Цей скін ще не куплено",
+      "skinUnavailable": "Цей скін зараз недоступний. Обери інший",
       "artifactLocked": "Цей артефакт ще не куплено",
       "entryBonus": "Бонус за вхід: +{count} 💎",
       "streakAward": "Ти був №1 {days, plural, one {# день} few {# дні} many {# днів} other {# дня}} поспіль! +{count} рубінів",
