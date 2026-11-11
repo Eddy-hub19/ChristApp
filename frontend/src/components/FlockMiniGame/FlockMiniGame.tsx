@@ -1721,7 +1721,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <RubyIcon size={18} />
                 <span>{me?.rubies ?? 0}</span>
               </div>
-              <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
+              <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={`${t("emeralds.name")}: ${t("emeralds.hint")}`}>
                 <EmeraldIcon size={18} />
                 <span>{me?.emeralds ?? 0}</span>
               </div>

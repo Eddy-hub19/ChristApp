@@ -55,6 +55,8 @@ model User {
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
   emeraldTransactions EmeraldTransaction[] @relation("EmeraldTxUser")
   flockDailyQuests    FlockDailyQuest[]  @relation("FlockQuestUser")
+  flockAchievementState FlockAchievementState? @relation("FlockAchStateUser")
+  flockAchievementClaims FlockAchievementClaim[] @relation("FlockAchClaimUser")
   flockColiseumWins   FlockColiseumWin[] @relation("FlockColiseumUser")
   flockColiseumLogs   FlockColiseumLog[] @relation("FlockColiseumLogUser")
   puzzleImages        UserPuzzleImage[]
@@ -390,6 +392,8 @@ enum EmeraldReason {
   ARENA_TIGER_DROP
   ARENA_COLISEUM_SKIN_FALLBACK
   ADMIN_ADJUST
+  ACHIEVEMENT_STREAK_EMERALD
+  ACHIEVEMENT_EMERALD
 }
 
 /// Журнал смарагдів: тільки додавання рядків.
@@ -426,6 +430,37 @@ model FlockDailyQuest {
 
   @@id([userId, day, slot])
   @@index([day])
+}
+
+/// «Складні досягнення» «Отари» (смарагди): серія днів гри, найбільша маса за життя, збір особливих скінів. Один рядок на гравця.
+model FlockAchievementState {
+  userId        String   @id
+  /// Скільки днів поспіль з >= minMinutes гри (0..days); при досягненні days чекає «Забрати».
+  streakCount   Int      @default(0)
+  /// Номер кола серії: після «Забрати» зростає, серія йде з нуля.
+  streakCycle   Int      @default(0)
+  /// Остання доба (Київ) із зарахованим днем серії, 'YYYY-MM-DD'.
+  streakLastDay String?
+  /// Доба, за яку лічиться playSeconds, і секунди живої гри за неї.
+  playDay       String?
+  playSeconds   Int      @default(0)
+  /// Найбільша маса за одне життя за весь час.
+  maxMass       Int      @default(0)
+  /// Усі особливі скіни, що зараз у продажу, куплені гравцем: фіксується назавжди.
+  specialsDone  Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+  user          User     @relation("FlockAchStateUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Видані нагороди досягнень. Первинний ключ = захист від повторної видачі: `streak:<коло>`, `mass`, `specials`.
+model FlockAchievementClaim {
+  userId    String
+  key       String
+  amount    Int
+  createdAt DateTime @default(now())
+  user      User     @relation("FlockAchClaimUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }
 
 /// Журнал рубінів: тільки додавання рядків.

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { CalendarCheck, Check, ChevronDown } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon, FlockIcon } from "@/components/icons/game";
-import { claimFlockQuest, fetchFlockQuests, FlockApiError, type FlockQuest, type FlockQuestsView } from "./flockApi";
+import { claimFlockQuest, fetchFlockAchievements, fetchFlockQuests, FlockApiError, type FlockQuest, type FlockQuestsView } from "./flockApi";
 import { KIND_ICON } from "./FlockQuests";
 import styles from "./FlockLobby.module.scss";
 
@@ -24,13 +24,16 @@ export default function FlockLobbyQuests({ active, onChanged }: Props) {
   const [busy, setBusy] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [expanded, setExpanded] = useState(false);
+  const [achClaimable, setAchClaimable] = useState(0);
 
   const load = useCallback(async () => {
     try {
-      const v = await fetchFlockQuests();
+      const [v, a] = await Promise.all([fetchFlockQuests(), fetchFlockAchievements().catch(() => null)]);
       setView({ ...v, at: Date.now() });
+      setAchClaimable(a?.claimable ?? 0);
       setError(null);
-      onChanged({ claimable: v.claimable });
+      // крапка на кнопці «Завдання»: невзяті щоденні + готові складні досягнення
+      onChanged({ claimable: v.claimable + (a?.claimable ?? 0) });
     } catch {
       setError("generic");
     }
@@ -57,7 +60,7 @@ export default function FlockLobbyQuests({ active, onChanged }: Props) {
     try {
       const r = await claimFlockQuest(q.slot);
       setView({ day: r.day, resetInMs: r.resetInMs, quests: r.quests, claimable: r.claimable, at: Date.now() });
-      onChanged({ ...(r.type === "emeralds" ? { emeralds: r.balance } : { rubies: r.balance }), claimable: r.claimable });
+      onChanged({ ...(r.type === "emeralds" ? { emeralds: r.balance } : { rubies: r.balance }), claimable: r.claimable + achClaimable });
     } catch (e) {
       const code = e instanceof FlockApiError ? e.code : null;
       setError(code === "emerald_cap" || code === "quest_claimed" || code === "quest_not_done" ? code : "generic");

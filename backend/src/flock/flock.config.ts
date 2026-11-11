@@ -651,12 +651,31 @@ export const FLOCK_CONFIG = {
     legendaryEmeraldPrice: 80,
     /** Продаж «Легендарних» за смарагди: поки false, плитка - замочок і «Скоро», сервер відхиляє покупку. Вмикає лише власник вручну. */
     legendaryEmeraldSale: false,
+    /**
+     * Не більше стількох смарагдів за добу (Київ) з усіх повторюваних джерел (серія днів, і вимкнені: щоденні завдання, тигр, запасна нагорода «Арени»).
+     * Разові досягнення (маса, особливі скіни) і ADMIN_ADJUST у потолок не входять. Те, що не влізло, не копичиться.
+     */
+    emeraldDailyCap: 3,
+  },
+
+  // --- «Складні досягнення»: ЄДИНЕ джерело смарагдів (разом з покупкою/видачею адміном) ---
+  achievements: {
+    enabled: true,
+    /** Грай не менше minMinutes хвилин на добу (за Києвом) days діб поспіль: нагорода, далі нове коло з нуля. Пропущена доба обнуляє серію. */
+    streak: { enabled: true, days: 14, minMinutes: 10, emeralds: 2 },
+    /** Разово: маса за одне життя (за найбільшою масою) не менша за target. */
+    mass: { enabled: true, target: 50000, emeralds: 2 },
+    /** Разово: куплено самим гравцем за рубіни всі особливі скіни, що зараз у продажу (без знятих). Новий особливий скін нагороду вдруге не дає. */
+    specials: { enabled: true, emeralds: 2 },
   },
 
   // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
   quests: {
     enabled: true,
-    /** Нагороди за слотами: 0 і 1 - легкі (рубіни: 4 і 6, за порядком слота), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
+    /**
+     * Нагороди легких завдань за порядком слота: 4 і 6 рубінів (поза rubies.dailyEarnCap). `hard` (смарагди) не видається:
+     * складних щоденних завдань нема (їх пул вимкнено), смарагди дають лише `achievements`.
+     */
     rewards: {
       simple: [
         { type: 'rubies', amount: 4 },
@@ -680,14 +699,16 @@ export const FLOCK_CONFIG = {
       { id: 'sprint', tier: 'simple', kind: 'sprint', target: 60 },
       { id: 'alive', tier: 'simple', kind: 'alive', target: 1200 },
       { id: 'buy_skin_regular', tier: 'simple', kind: 'buy_skin_regular', target: 1 },
-      { id: 'mass', tier: 'hard', kind: 'mass', target: 30000, weight: 0.3 },
-      { id: 'boss', tier: 'hard', kind: 'boss', target: 50, weight: 0.3 },
-      { id: 'top1', tier: 'hard', kind: 'top1', target: 40000, weight: 0.3 },
-      { id: 'castles', tier: 'hard', kind: 'castles', target: 20, weight: 0.3 },
-      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 720, maps: [3, 6] },
+      /** Особливий або преміум скін. */
+      { id: 'buy_skin_special', tier: 'simple', kind: 'buy_skin_special', target: 1 },
+      /** Складні щоденні (смарагди) вимкнено: смарагди тепер лише за `achievements`. Значення лишено на випадок повернення. */
+      { id: 'mass', tier: 'hard', kind: 'mass', target: 30000, weight: 0.3, enabled: false },
+      { id: 'boss', tier: 'hard', kind: 'boss', target: 50, weight: 0.3, enabled: false },
+      { id: 'top1', tier: 'hard', kind: 'top1', target: 40000, weight: 0.3, enabled: false },
+      { id: 'castles', tier: 'hard', kind: 'castles', target: 20, weight: 0.3, enabled: false },
+      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 720, maps: [3, 6], enabled: false },
       /** Засчитана перемога над тигром на карті «Арена». */
-      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1 },
-      { id: 'buy_skin_special', tier: 'hard', kind: 'buy_skin_special', target: 1 },
+      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1, enabled: false },
     ] as readonly QuestDef[],
   },
 
@@ -766,7 +787,7 @@ export const FLOCK_CONFIG = {
       rubies: 10,
       tigerBonusRubies: 5,
       /** Смарагд за кожну засчитану перемогу (ARENA_TIGER_DROP, у межах стелі накопичення), не більше emeraldDailyLimit на добу. */
-      emeraldDropEnabled: true,
+      emeraldDropEnabled: false,
       emeraldPerWin: 1,
       emeraldDailyLimit: 1,
     },
@@ -776,6 +797,8 @@ export const FLOCK_CONFIG = {
       ids: [63, 64, 65, 66, 67, 68] as readonly number[],
       /** Якщо вже є всі: смарагди (у межах стелі), інакше рубіни (ARENA_COLISEUM, у межах dailyEarnCap). */
       fallbackEmeralds: 20,
+      /** Запасна нагорода смарагдами вимкнена (смарагди лише з `achievements`): лишаються рубіни. */
+      fallbackEmeraldsEnabled: false,
       fallbackRubies: 50,
     },
   },
@@ -1222,7 +1245,15 @@ export function clientGameConfig() {
     },
     quests: {
       simpleRubies: c.quests.rewards.simple.map((r) => r.amount),
-      hardEmeralds: c.quests.rewards.hard.amount,
+      emeraldDailyCap: c.emeralds.emeraldDailyCap,
+    },
+    achievements: {
+      streakDays: c.achievements.streak.days,
+      streakMinutes: c.achievements.streak.minMinutes,
+      streakEmeralds: c.achievements.streak.emeralds,
+      massTarget: c.achievements.mass.target,
+      massEmeralds: c.achievements.mass.emeralds,
+      specialsEmeralds: c.achievements.specials.emeralds,
     },
     emeralds: {
       cap: c.emeralds.cap,

@@ -8,12 +8,12 @@ import { dayKeyInZone, nextDayStartInZone, shiftDayKey } from './flock.time';
 const Q = FLOCK_CONFIG.quests;
 const TZ = FLOCK_CONFIG.rubies.dailyTimeZone;
 
-/** Слоти доби: 0 і 1 - легкі (за рубіни), 2 - складне (за смарагди). */
-export const QUEST_TIERS = ['simple', 'simple', 'hard'] as const;
+/** Слоти доби: 0 і 1 - легкі (за рубіни: 4 і 6). Складних щоденних (смарагди) нема: смарагди лише за досягнення (flock.achievements.service). */
+export const QUEST_TIERS = ['simple', 'simple'] as const;
 
 /** Подія для прогресу: add - додати n, max - прогрес = max(прогрес, n) (маса, тривалість життя). */
 export interface QuestEvent {
-  kind: QuestDef['kind'];
+  kind: QuestDef['kind'] | 'play';
   n: number;
   mode: 'add' | 'max';
   /** Для survive_map: на якій карті арени. */
@@ -47,7 +47,7 @@ export interface QuestView {
 
 const defOf = (id: string): QuestDef | undefined => Q.pool.find((d) => d.id === id);
 
-/** Нагорода слота: легкі - за порядком слота (4 і 6 рубінів), складне - смарагди. */
+/** Нагорода слота: легкі - за порядком слота (4 і 6 рубінів). */
 const rewardOf = (def: QuestDef, slot: number): { type: 'rubies' | 'emeralds'; amount: number } =>
   def.tier === 'hard' ? { ...Q.rewards.hard } : { ...(Q.rewards.simple[slot] ?? Q.rewards.simple[0]) };
 
@@ -230,7 +230,8 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
     const out: QuestView[] = [];
     for (const row of u.rows) {
       const def = defOf(row.questId);
-      if (!def) continue;
+      // вимкнені (складні з виданими раніше смарагдами) і слоти поза чинними не показуємо
+      if (!def || def.enabled === false || row.slot >= QUEST_TIERS.length) continue;
       out.push({
         slot: row.slot,
         id: def.id,

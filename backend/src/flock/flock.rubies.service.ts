@@ -25,9 +25,11 @@ import {
   isPaidSkin,
   isPremiumSkin,
   isSelectableSkin,
+  isSpecialSkin,
   skinPriceOf,
 } from './flock.config';
 import { dayStartInZone } from './flock.time';
+import { latchSpecialsInTx } from './flock.achievements.logic';
 
 const R = FLOCK_CONFIG.rubies;
 const EM = FLOCK_CONFIG.emeralds;
@@ -45,6 +47,10 @@ export type FlockErrorCode =
   | 'invalid_amount'
   | 'insufficient_balance'
   | 'emerald_cap'
+  | 'emerald_daily_cap'
+  | 'invalid_achievement'
+  | 'achievement_not_done'
+  | 'achievement_claimed'
   | 'invalid_quest'
   | 'quest_not_done'
   | 'quest_claimed'
@@ -69,6 +75,14 @@ export interface AwardResult {
 }
 
 type Tx = Prisma.TransactionClient;
+
+/** Повторювані джерела смарагдів, що рахуються в добовий потолок EM.emeraldDailyCap (разові досягнення й ADMIN_ADJUST - ні). */
+const EMERALD_CAPPED_REASONS: readonly EmeraldReason[] = [
+  EmeraldReason.ACHIEVEMENT_STREAK_EMERALD,
+  EmeraldReason.DAILY_QUEST_EMERALD,
+  EmeraldReason.ARENA_TIGER_DROP,
+  EmeraldReason.ARENA_COLISEUM_SKIN_FALLBACK,
+];
 
 /** Усі зміни рубінів: баланс + рядок журналу в одній транзакції, під блокуванням профілю. */
 @Injectable()
@@ -126,6 +140,11 @@ export class FlockRubiesService {
     return next;
   }
 
+  /** Для сервісу досягнень: блокування профілю першим (єдиний порядок з покупкою скіна: профіль, потім стан досягнень - без взаємного блокування). */
+  async lockProfileInTx(tx: Tx, userId: string): Promise<void> {
+    await this.lockProfile(tx, userId);
+  }
+
   /** Баланс смарагдів (рядок профілю вже заблоковано lockProfile). */
   private async emeraldBalance(tx: Tx, userId: string): Promise<number> {
     const p = await tx.flockProfile.findUniqueOrThrow({ where: { userId }, select: { emeralds: true } });
@@ -146,8 +165,9 @@ export class FlockRubiesService {
   }
 
   /**
-   * Нарахування смарагдів у зовнішній транзакції (завдання, нагороди арени): під стелею накопичення EM.cap.
-   * Повертає нараховану суму (0, якщо баланс уже на стелі) і новий баланс.
+   * Нарахування смарагдів у зовнішній транзакції (досягнення, нагороди арени): під стелею накопичення EM.cap і, для повторюваних джерел
+   * (EMERALD_CAPPED_REASONS), під добовим потолком EM.emeraldDailyCap (доба за Києвом, разом з усіх таких джерел). Разові досягнення й адмінські
+   * правки в добовий потолок не входять. Те, що не влізло, не копичиться. Повертає нараховану суму (0 - нічого не видано) і причину обмеження.
    */
   async grantEmeraldsInTx(
     tx: Tx,
@@ -155,13 +175,32 @@ export class FlockRubiesService {
     amount: number,
     reason: EmeraldReason,
     note?: string,
-  ): Promise<{ amount: number; balance: number }> {
+    now: Date = new Date(),
+  ): Promise<{ amount: number; balance: number; limited?: 'daily' | 'balance' }> {
     await this.lockProfile(tx, userId);
     const balance = await this.emeraldBalance(tx, userId);
-    const give = Math.max(0, Math.min(amount, EM.cap - balance));
-    if (give <= 0) return { amount: 0, balance };
+    let room = amount;
+    let limited: 'daily' | 'balance' | undefined;
+    if (EMERALD_CAPPED_REASONS.includes(reason)) {
+      const agg = await tx.emeraldTransaction.aggregate({
+        _sum: { delta: true },
+        where: { userId, delta: { gt: 0 }, reason: { in: [...EMERALD_CAPPED_REASONS] }, createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } },
+      });
+      const left = Math.max(0, EM.emeraldDailyCap - (agg._sum.delta ?? 0));
+      if (left < room) {
+        room = left;
+        limited = 'daily';
+      }
+    }
+    const space = Math.max(0, EM.cap - balance);
+    if (space < room) {
+      room = space;
+      limited = 'balance';
+    }
+    const give = Math.max(0, room);
+    if (give <= 0) return { amount: 0, balance, limited };
     const next = await this.applyEmerald(tx, userId, balance, { delta: give, reason, ...(note ? { note } : {}) });
-    return { amount: give, balance: next };
+    return { amount: give, balance: next, ...(limited ? { limited } : {}) };
   }
 
   /** Рубіни за завдання в зовнішній транзакції: поза добовим потолком ігрових джерел (dailyEarnCap), своя фіксована сума. */
@@ -548,6 +587,8 @@ export class FlockRubiesService {
         reason: RubyReason.SKIN_PURCHASE,
         skinId,
       });
+      // особливий скін куплено самим гравцем: фіксуємо, якщо тепер зібрано всі особливі, що в продажу (нагороду забирають в «Завданнях»)
+      if (isSpecialSkin(skinId)) await latchSpecialsInTx(tx, userId);
       // купили останній преміум-скін колекції: нагорода в тій самій транзакції
       const bonus = isPremiumSkin(skinId)
         ? await this.claimPremiumCollectionInTx(tx, userId, next)
@@ -793,7 +834,10 @@ export class FlockRubiesService {
           await tx.flockSkinPurchase.create({ data: { userId, skinId, price: 0 } });
           bal = await this.apply(tx, userId, bal, { delta: 0, reason: RubyReason.ARENA_COLISEUM_SKIN, skinId, note: winId });
         } else {
-          const e = await this.grantEmeraldsInTx(tx, userId, K.skins.fallbackEmeralds, EmeraldReason.ARENA_COLISEUM_SKIN_FALLBACK, winId);
+          // запасні смарагди вимкнено (смарагди лише з досягнень): одразу рубіни
+          const e = K.skins.fallbackEmeraldsEnabled
+            ? await this.grantEmeraldsInTx(tx, userId, K.skins.fallbackEmeralds, EmeraldReason.ARENA_COLISEUM_SKIN_FALLBACK, winId)
+            : { amount: 0, balance: bal };
           if (e.amount > 0) {
             fallback = { emeralds: e.amount };
             emeralds += e.amount;

@@ -16,6 +16,7 @@ interface St {
   lastAt: number;
   aliveMs: number;
   sprintAcc: number;
+  playAcc: number;
   deadSent: boolean;
 }
 
@@ -53,7 +54,7 @@ export class QuestTracker {
   private sample(w: FlockWorld, userId: string, connKey: string | null, p: Player, leaving: boolean) {
     let st = this.st.get(userId);
     if (!st) {
-      st = { x: 0, y: 0, hasPos: false, activeUntil: 0, life: p.spawnedAt, lastAt: w.now, aliveMs: 0, sprintAcc: 0, deadSent: false };
+      st = { x: 0, y: 0, hasPos: false, activeUntil: 0, life: p.spawnedAt, lastAt: w.now, aliveMs: 0, sprintAcc: 0, playAcc: 0, deadSent: false };
       this.st.set(userId, st);
     }
     const dt = Math.max(0, Math.min(w.now - st.lastAt, 5_000));
@@ -98,6 +99,13 @@ export class QuestTracker {
     }
     ev.push({ kind: 'mass', n: p.maxMass, mode: 'max' });
     if (p.alive) {
+      // «день грав» для серії досягнення: жива гра в русі (не пауза, не AFK), цілі секунди
+      st.playAcc += dt;
+      if (st.playAcc >= 1000) {
+        const playSec = Math.floor(st.playAcc / 1000);
+        st.playAcc -= playSec * 1000;
+        ev.push({ kind: 'play', n: playSec, mode: 'add' });
+      }
       st.aliveMs += dt;
       const sec = Math.floor(st.aliveMs / 1000);
       ev.push({ kind: 'alive', n: sec, mode: 'max' });

@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
 import { FlockQuestsService } from './flock.quests.service';
+import { FlockAchievementsService } from './flock.achievements.service';
 import { isLegendarySkin, isPremiumSkin, isSpecialSkin } from './flock.config';
 import { FlockGateway } from './flock.gateway';
 
@@ -25,6 +26,7 @@ export class FlockController {
     private readonly daily: FlockDailyService,
     private readonly gateway: FlockGateway,
     private readonly quests: FlockQuestsService,
+    private readonly achievements: FlockAchievementsService,
   ) {}
 
   private uid(req: Request) {
@@ -41,7 +43,8 @@ export class FlockController {
     const [me, daily, questsClaimable] = await Promise.all([
       this.rubies.getMe(userId),
       this.daily.getBoard(userId),
-      this.quests.claimable(userId).catch(() => 0),
+      // крапка на кнопці «Завдання»: невзяті щоденні + складні досягнення
+      Promise.all([this.quests.claimable(userId), this.achievements.claimable(userId)]).then(([a, b]) => a + b).catch(() => 0),
     ]);
     return {
       ...me,
@@ -80,6 +83,18 @@ export class FlockController {
   @Post('quests/:slot/claim')
   questClaim(@Req() req: Request, @Param('slot', ParseIntPipe) slot: number) {
     return this.quests.claim(this.uid(req), slot);
+  }
+
+  /** «Складні досягнення» (смарагди): серія днів гри, маса за життя, збір особливих скінів. */
+  @Get('achievements')
+  achievementsList(@Req() req: Request) {
+    return this.achievements.list(this.uid(req));
+  }
+
+  /** «Забрати» нагороду досягнення (`streak` | `mass` | `specials`): сервер перевіряє, повтор не нараховує. */
+  @Post('achievements/:key/claim')
+  achievementClaim(@Req() req: Request, @Param('key') key: string) {
+    return this.achievements.claim(this.uid(req), key);
   }
 
   @Post('skins/:id/buy')

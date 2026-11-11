@@ -24,6 +24,7 @@ import { FlockManager, type FlockHooks } from './flock.manager';
 import { enemyOf } from './flock.castles';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
+import { FlockAchievementsService } from './flock.achievements.service';
 import { FlockQuestsService } from './flock.quests.service';
 import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
@@ -53,6 +54,7 @@ export class FlockGateway
     private readonly rubies: FlockRubiesService,
     private readonly daily: FlockDailyService,
     private readonly quests: FlockQuestsService,
+    private readonly achievements: FlockAchievementsService,
   ) {
     this.manager = new FlockManager(
       createSender((key) => this.ns?.sockets.get(key)),
@@ -65,6 +67,8 @@ export class FlockGateway
         onTeamMatchEnd: (s) => void this.settleTeamMatch(s),
         // щоденні завдання: лише пам'ять (запис у БД пакетний); про виконане - окреме рідкісне повідомлення `qd`
         onQuest: (userId, connKey, events, flush) => {
+          this.achievements.credit(userId, events);
+          if (flush) void this.achievements.flushUser(userId);
           void this.quests
             .credit(userId, events)
             .then((done) => {
