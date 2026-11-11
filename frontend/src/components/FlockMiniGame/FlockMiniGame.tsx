@@ -1848,7 +1848,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         </FlockSheet>
       ) : null}
       {modesOpen && showLobby ? (
-        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlay={() => play("circle")} onPlayCastles={() => setCastlesOpen(true)} onClose={() => setModesOpen(false)} />
+        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlayCastles={() => setCastlesOpen(true)} onClose={() => setModesOpen(false)} />
       ) : null}
       {castlesOpen && showLobby ? (
         <FlockCastlesLobby
