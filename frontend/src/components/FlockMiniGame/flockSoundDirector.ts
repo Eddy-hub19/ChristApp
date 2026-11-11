@@ -46,7 +46,6 @@ export function attachFlockSounds(model: FlockModel) {
   model.sound = sink;
 }
 
-let sprintOn = false;
 let windOn = false;
 let rainLevel = 0;
 let skyOn = false;
@@ -55,12 +54,6 @@ let lastFlap = 0;
 /** Покадровое: слушатель (камера) и петли. Вызывать из цикла отрисовки. */
 export function tickFlockSound(model: FlockModel, now: number) {
   setFlockSoundListener(model.camX, model.camY, model.camR);
-
-  if (model.sprintActive !== sprintOn) {
-    sprintOn = model.sprintActive;
-    if (sprintOn) startFlockLoop("sprint");
-    else stopFlockLoop("sprint");
-  }
 
   const wind = model.windStatus(now);
   const w = wind?.phase === "active";
@@ -93,12 +86,10 @@ export function tickFlockSound(model: FlockModel, now: number) {
 
 /** Игра закрылась/окончилась: сбрасываем петли. */
 export function resetFlockSoundLoops() {
-  sprintOn = false;
   windOn = false;
   rainLevel = 0;
   skyOn = false;
   setFlockSkyMusic(false);
-  stopFlockLoop("sprint");
   stopFlockLoop("wind");
   stopFlockLoop("rain");
 }
