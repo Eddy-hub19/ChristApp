@@ -1856,7 +1856,6 @@
       "all": "Усі",
       "allTitle": "Усі скіни",
       "closeAll": "Закрити список",
-      "position": "{n} з {m}",
       "ownedAria": "Куплено {have} з {total}",
       "questsTitle": "Щоденні завдання",
       "resetInHours": "Скидання через {n} год",
@@ -1867,7 +1866,14 @@
       "questsFold": "Згорнути завдання",
       "statBest": "Рекорд",
       "statTop1": "Топ-1",
-      "statsToggle": "Показати або сховати статистику"
+      "statsToggle": "Показати або сховати статистику",
+      "legendaryShort": "Легенд.",
+      "priceLabel": "Ціна:",
+      "owned": "Куплено",
+      "buy": "Купити",
+      "choose": "Обрати",
+      "done": "Готово",
+      "more": "Ще"
     },
     "quests": {
       "title": "Завдання дня",

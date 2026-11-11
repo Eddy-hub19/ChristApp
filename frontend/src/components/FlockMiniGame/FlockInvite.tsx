@@ -17,12 +17,16 @@ type Props = {
   /** Куди відкривається меню: вгору (HUD знизу) чи вниз. */
   direction?: "down" | "up";
   className?: string;
+  /** Только значок (компактная строка лобби): подпись уходит в aria-label и title. */
+  iconOnly?: boolean;
+  /** К какому краю кнопки прижато меню (для кнопки у правого края экрана). */
+  align?: "left" | "right";
 };
 
 type View = "menu" | "chats";
 
 /** Кнопка «Запросити»: системне «Поділитися» / копіювання посилання / надіслати в чат карткою-запрошенням. */
-export default function FlockInvite({ arenaId, direction = "down", className }: Props) {
+export default function FlockInvite({ arenaId, direction = "down", className, iconOnly = false, align = "left" }: Props) {
   const t = useTranslations("flock.invite");
   const tChat = useTranslations("chat");
   const locale = useLocale();
@@ -129,14 +133,22 @@ export default function FlockInvite({ arenaId, direction = "down", className }: 
   const visibleTargets = targets ? filterShareTargets(targets, search) : null;
 
   return (
-    <div className={`${styles.wrap} ${className ?? ""}`} ref={wrapRef}>
-      <button type="button" className={styles.trigger} onClick={() => (open ? close() : setOpen(true))} aria-expanded={open} aria-haspopup="menu">
-        <UserPlus size={16} aria-hidden />
-        <span>{t("button")}</span>
+    <div className={`${styles.wrap} ${align === "right" ? styles.wrapRight : ""} ${className ?? ""}`} ref={wrapRef}>
+      <button
+        type="button"
+        className={`${styles.trigger} ${iconOnly ? styles.iconOnly : ""}`}
+        onClick={() => (open ? close() : setOpen(true))}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={iconOnly ? t("button") : undefined}
+        title={iconOnly ? t("button") : undefined}
+      >
+        <UserPlus size={iconOnly ? 20 : 16} aria-hidden />
+        {iconOnly ? null : <span>{t("button")}</span>}
       </button>
 
       {open ? (
-        <div className={`${styles.menu} ${direction === "up" ? styles.up : ""}`} role="menu">
+        <div className={`${styles.menu} ${direction === "up" ? styles.up : ""} ${align === "right" ? styles.right : ""}`} role="menu">
           {view === "menu" ? (
             <>
               {canUseWebShare() ? (

@@ -1856,7 +1856,6 @@
       "all": "Все",
       "allTitle": "Все облики",
       "closeAll": "Закрыть список",
-      "position": "{n} из {m}",
       "ownedAria": "Куплено {have} из {total}",
       "questsTitle": "Ежедневные задания",
       "resetInHours": "Сброс через {n} ч",
@@ -1867,7 +1866,14 @@
       "questsFold": "Свернуть задания",
       "statBest": "Рекорд",
       "statTop1": "Топ-1",
-      "statsToggle": "Показать или скрыть статистику"
+      "statsToggle": "Показать или скрыть статистику",
+      "legendaryShort": "Легенд.",
+      "priceLabel": "Цена:",
+      "owned": "Куплено",
+      "buy": "Купить",
+      "choose": "Выбрать",
+      "done": "Готово",
+      "more": "Ещё"
     },
     "quests": {
       "title": "Задания дня",

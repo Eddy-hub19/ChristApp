@@ -16,7 +16,6 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  backdrop-filter: blur(6px);
 }
 
 .menu {
@@ -61,6 +60,21 @@
 .up {
   top: auto;
   bottom: calc(100% + 6px);
+}
+.wrapRight .toast {
+  left: auto;
+  right: 0;
+}
+.right {
+  left: auto;
+  right: 0;
+}
+.iconOnly {
+  justify-content: center;
+  width: 100%;
+  min-width: 52px;
+  height: 100%;
+  padding: 0;
 }
 
 .menuTitle {
