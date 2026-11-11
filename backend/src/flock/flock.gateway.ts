@@ -24,6 +24,7 @@ import { FlockManager, type FlockHooks } from './flock.manager';
 import { enemyOf } from './flock.castles';
 import { FlockDailyService } from './flock.daily.service';
 import { FlockRubiesService } from './flock.rubies.service';
+import { FlockQuestsService } from './flock.quests.service';
 import { createSender } from './flock.transport';
 import { decodeInput } from './protocol';
 
@@ -51,6 +52,7 @@ export class FlockGateway
     private readonly prisma: PrismaService,
     private readonly rubies: FlockRubiesService,
     private readonly daily: FlockDailyService,
+    private readonly quests: FlockQuestsService,
   ) {
     this.manager = new FlockManager(
       createSender((key) => this.ns?.sockets.get(key)),
@@ -61,6 +63,17 @@ export class FlockGateway
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onCircleWin: (userId, connKey) => void this.rewardCircleWin(userId, connKey),
         onTeamMatchEnd: (s) => void this.settleTeamMatch(s),
+        // щоденні завдання: лише пам'ять (запис у БД пакетний); про виконане - окреме рідкісне повідомлення `qd`
+        onQuest: (userId, connKey, events, flush) => {
+          void this.quests
+            .credit(userId, events)
+            .then((done) => {
+              if (connKey) for (const slot of done) this.ns?.sockets.get(connKey)?.emit('qd', { slot });
+              return flush ? this.quests.flushUser(userId) : undefined;
+            })
+            .catch((e) => this.log.error(`quests: ${String(e)}`));
+        },
+        onTigerDown: (win) => void this.settleTiger(win),
         onMass: (userId, mass) => void this.daily.recordMass(userId, mass),
         getStreak: () => this.daily.streakHolder,
         onDeath: (userId, run) =>
@@ -117,6 +130,16 @@ export class FlockGateway
         else if (!pl.connKey) continue;
         else if (s.durationMs < T.minMatchMs) reason = 'short';
         else if (pl.actions < T.afkMinActions || pl.moved < T.afkMinMoveDist) reason = 'afk';
+        // завдання «перемогти в Замках»: перемога команди гравця в матчі не проти самих ботів, не короткому, гравець не AFK
+        if (s.win === pl.team && !botOnly && s.durationMs >= T.minMatchMs && pl.actions >= T.afkMinActions && pl.moved >= T.afkMinMoveDist) {
+          void this.quests
+            .credit(pl.userId, [{ kind: 'castles', n: 1, mode: 'add' }])
+            .then((done) => {
+              if (pl.connKey) for (const slot of done) this.ns?.sockets.get(pl.connKey)?.emit('qd', { slot });
+              return this.quests.flushUser(pl.userId);
+            })
+            .catch((e) => this.log.error(`quests: ${String(e)}`));
+        }
         let rubies = 0;
         let balance: number | undefined;
         let botLeft: number;
@@ -141,6 +164,36 @@ export class FlockGateway
         }
       } catch (e) {
         this.log.error(`settleTeamMatch: ${String(e)}`);
+      }
+    }
+  }
+
+  /**
+   * Тигра на «Арені» повалено: кожній людині - картка `tw`. Нагорода (рубіни, смарагд, лічильник, скін) - у БД, одна транзакція з унікальним
+   * ключем перемоги; без урону, надто коротка присутність і AFK нагороди не мають (reason).
+   */
+  private async settleTiger(win: Parameters<NonNullable<FlockHooks['onTigerDown']>>[0]) {
+    for (const pl of win.players) {
+      try {
+        let body: object;
+        if (pl.reason) {
+          body = { reason: pl.reason, hits: pl.hits, required: FLOCK_CONFIG.coliseum.reward.arrowHitsRequired, rubies: 0, emeralds: 0, ...(await this.rubies.coliseumProgressOf(pl.userId)) };
+        } else {
+          const res = await this.rubies.settleColiseumWin(pl.userId, win.winId);
+          body = { ...res, hits: pl.hits, required: FLOCK_CONFIG.coliseum.reward.arrowHitsRequired };
+          if (res.counted && !res.duplicate) {
+            void this.quests
+              .credit(pl.userId, [{ kind: 'tiger', n: 1, mode: 'add' }])
+              .then((done) => {
+                if (pl.connKey) for (const slot of done) this.ns?.sockets.get(pl.connKey)?.emit('qd', { slot });
+                return this.quests.flushUser(pl.userId);
+              })
+              .catch((e) => this.log.error(`quests: ${String(e)}`));
+          }
+        }
+        if (pl.connKey) this.ns?.sockets.get(pl.connKey)?.emit('tw', body);
+      } catch (e) {
+        this.log.error(`settleTiger: ${String(e)}`);
       }
     }
   }
@@ -375,6 +428,12 @@ export class FlockGateway
       msg.aspect,
       msg.sprint,
     );
+  }
+
+  /** «Арена»: постріл стрілою (кнопка «Стріла» / F). Без тіла; ліміти (запас, перезарядка, стріл у польоті) перевіряє сервер. */
+  @SubscribeMessage('ar')
+  arrow(@ConnectedSocket() client: FlockSocket) {
+    this.manager.shoot(client.id);
   }
 
   /** Швидка фраза: тіло - лише id (число). Невідомий id / частота / мертвий гравець - мовчки ігноруються. */

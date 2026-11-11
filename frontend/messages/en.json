@@ -242,11 +242,20 @@
         "PREMIUM_COLLECTION": "Premium collection completed",
         "SKIN_PURCHASE": "Skin purchase",
         "ARTIFACT_PURCHASE": "Artifact purchase",
-        "ADMIN_ADJUST": "Admin adjustment"
+        "ADMIN_ADJUST": "Admin adjustment",
+        "DAILY_QUEST": "Daily quest",
+        "DAILY_QUEST_EMERALD": "Daily hard quest",
+        "ARTIFACT_PURCHASE_EMERALD": "Artifact bought with emeralds",
+        "SKIN_PURCHASE_EMERALD": "Skin bought with emeralds",
+        "ARENA_TIGER_DROP": "Emerald for defeating the tiger",
+        "ARENA_COLISEUM_SKIN_FALLBACK": "Reward instead of a skin for Colosseum wins",
+        "ARENA_COLISEUM": "Tiger defeated on the Colosseum",
+        "ARENA_COLISEUM_SKIN": "Skin or reward for Colosseum wins"
       },
       "notes": {
         "adminGrant": "Granted by an admin",
-        "streakDay": "Day {day} of {of}, {date}"
+        "streakDay": "Day {day} of {of}, {date}",
+        "quest": "{name} ({date})"
       },
       "balanceAfter": "balance {balance}",
       "errors": {
@@ -257,8 +266,18 @@
         "already_owned": "The player already owns it",
         "invalid_skin": "Unknown skin",
         "invalid_artifact": "Unknown artifact",
-        "generic": "The operation failed"
-      }
+        "generic": "The operation failed",
+        "emerald_cap": "Above the emerald cap"
+      },
+      "emeraldBalance": "Emeralds:",
+      "emeraldAmountPlaceholder": "± emeralds",
+      "emeraldAmountLabel": "Amount of emeralds",
+      "emeraldApply": "Change emeralds",
+      "emeraldHistory": "Emerald history",
+      "coliseumWins": "Tiger wins",
+      "coliseumAmountPlaceholder": "± wins",
+      "coliseumAmountLabel": "Change tiger-win counter",
+      "coliseumApply": "Change counter"
     },
     "title": "Admin",
     "subtitle": "Members (newest first).",
@@ -1357,7 +1376,7 @@
     "chooseSkin": "Pick your look",
     "artifacts": {
       "title": "Artifacts",
-      "hint": "Worn on top of any skin, one at a time. Bought with rubies.",
+      "hint": "Worn over any skin, one at a time. Bought with rubies; the Shield with emeralds.",
       "none": "No artifact",
       "open": "Open artifacts",
       "close": "Close artifacts",
@@ -1391,6 +1410,10 @@
         "7": {
           "name": "Censer",
           "desc": "Bots and the Alpha keep away from you"
+        },
+        "8": {
+          "name": "Shield",
+          "desc": "Thorn bushes and firs can’t tear you. Bought with emeralds"
         }
       }
     },
@@ -1448,7 +1471,8 @@
       "split": "Split",
       "throw": "Throw",
       "sprint": "Sprint",
-      "keys": "Mouse — move · Space — split · W — throw · Shift — sprint · T — phrases"
+      "keys": "Mouse — move · Space — split · W — throw · Shift — sprint · T — phrases",
+      "arrow": "Arrow ({n})"
     },
     "phrases": {
       "open": "Quick phrases",
@@ -1496,7 +1520,8 @@
       "volcano": "Volcano",
       "lake": "Forest and lake",
       "night": "Night",
-      "sky": "Sky"
+      "sky": "Sky",
+      "coliseum": "Colosseum"
     },
     "hud": {
       "mass": "Mass",
@@ -1649,7 +1674,8 @@
         "skin_not_for_sale": "This skin is not for sale yet",
         "not_enough": "Not enough rubies",
         "already_owned": "You already own this skin",
-        "generic": "Purchase failed, please try again"
+        "generic": "Purchase failed, please try again",
+        "emerald_cap": "Emeralds are at the cap — spend some, then claim"
       }
     },
     "resuming": "Returning…",
@@ -1811,6 +1837,105 @@
       "min": "{n} min",
       "empty": "No messages yet",
       "unread": "New messages: {n}"
+    },
+    "emeralds": {
+      "name": "Emeralds",
+      "count": "{count, plural, one {# emerald} other {# emeralds}}",
+      "balance": "Emeralds: {count}",
+      "progress": "{have} of {need} emeralds",
+      "confirmText": "Buy “{name}” for {price, plural, one {# emerald} other {# emeralds}}?",
+      "notEnough": "Not enough emeralds"
+    },
+    "quests": {
+      "title": "Daily quests",
+      "open": "Open daily quests",
+      "close": "Close quests",
+      "today": "Today",
+      "resetIn": "New ones in: {time}",
+      "loading": "Loading…",
+      "claim": "Claim",
+      "claimed": "Claimed",
+      "done": "Quest complete! Claim the reward in the lobby",
+      "hint": "New quests appear at Kyiv midnight. Unclaimed rewards don’t pile up.",
+      "sec": "{n} / {of} s",
+      "errors": {
+        "generic": "Something went wrong, try again",
+        "emerald_cap": "Emeralds are at the cap — spend some, then claim",
+        "quest_claimed": "Already claimed",
+        "quest_not_done": "Quest not complete yet"
+      },
+      "items": {
+        "food": {
+          "title": "Eat {n} food",
+          "short": "Eat food"
+        },
+        "mass": {
+          "title": "Reach a mass of {n}",
+          "short": "Reach a mass"
+        },
+        "alive": {
+          "title": "Survive {min} min without dying",
+          "short": "Survive without dying"
+        },
+        "sprint": {
+          "title": "Use Sprint for {n} s",
+          "short": "Use Sprint"
+        },
+        "boss": {
+          "title": "Defeat the Alpha {n} times",
+          "short": "Defeat the Alpha"
+        },
+        "top1": {
+          "title": "Finish 1st in the Top 10 with a mass of {n}",
+          "short": "1st in the Top 10"
+        },
+        "castles": {
+          "title": "Win {n} Castles matches",
+          "short": "Win Castles matches"
+        },
+        "survive_map": {
+          "title": "Survive {min} min on Volcano or Sky",
+          "short": "Survive on Volcano or Sky"
+        },
+        "tiger": {
+          "title": "Defeat the tiger on the Colosseum map",
+          "short": "Defeat the tiger"
+        },
+        "buy_skin_regular": {
+          "title": "Buy a regular paid skin",
+          "short": "Buy a regular skin"
+        },
+        "buy_skin_special": {
+          "title": "Buy a special or premium skin",
+          "short": "Buy a special or premium skin"
+        }
+      }
+    },
+    "coliseum": {
+      "mapSub": "Sheep fight together. Collect arrows and hit the tiger: {n} hits = a prize",
+      "wave": "Wave {n}",
+      "waveIn": "Wave {n} in {time}",
+      "tigerIn": "Tiger in {time}",
+      "wolves": "Wolves: {n}/{t}",
+      "tiger": "Tiger",
+      "hits": "{left}/{max} hits",
+      "won": "Tiger defeated! +{rubies} rubies",
+      "emerald": "+{n} emerald",
+      "noHits": "You need {required} hits, you have {hits}",
+      "short": "You were on the arena too briefly for a reward",
+      "afk": "You were not moving, so no reward",
+      "daily": "Today's win limit is reached",
+      "noReward": "No reward",
+      "toSkin": "To the skin: {n} of {per}",
+      "skin": "New skin: {name}!",
+      "fbEmeralds": "All skins collected: +{n} emeralds",
+      "fbRubies": "All skins collected: +{n} rubies",
+      "close": "Close",
+      "progress": "Tiger wins: {n} of {per}",
+      "roundWarn": "The round resets soon: 60 s",
+      "roundReset": "Time is up: the round was reset with no rewards",
+      "roundLeft": "Round resets in {time}",
+      "arrows": "Arrows: {n}/{max}"
     }
   },
   "games": {

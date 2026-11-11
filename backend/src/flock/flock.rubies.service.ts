@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, RubyReason } from '@prisma/client';
+import { EmeraldReason, Prisma, RubyReason } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   FLOCK_CONFIG,
@@ -13,6 +13,7 @@ import {
   FREE_SKIN_IDS,
   NUM_SKINS,
   NUM_ARTIFACTS,
+  ARTIFACT,
   HIDDEN_SKINS,
   isArtifactId,
   PREMIUM_SKIN_IDS,
@@ -29,6 +30,7 @@ import {
 import { dayStartInZone } from './flock.time';
 
 const R = FLOCK_CONFIG.rubies;
+const EM = FLOCK_CONFIG.emeralds;
 
 export type FlockErrorCode =
   | 'invalid_version'
@@ -42,6 +44,10 @@ export type FlockErrorCode =
   | 'reason_required'
   | 'invalid_amount'
   | 'insufficient_balance'
+  | 'emerald_cap'
+  | 'invalid_quest'
+  | 'quest_not_done'
+  | 'quest_claimed'
   | 'user_not_found';
 
 const fail = (
@@ -72,7 +78,7 @@ export class FlockRubiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN): rubies.dailyEarnCap
+   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN, ARENA_COLISEUM, ARENA_COLISEUM_SKIN; щоденні завдання сюди НЕ входять): rubies.dailyEarnCap
    * мінус уже зароблене сьогодні. Разові (вхід, колекція), серія й адмінські правки сюди не входять.
    */
   private async earnCapLeft(tx: Tx | PrismaService, userId: string, now: Date): Promise<number> {
@@ -80,7 +86,7 @@ export class FlockRubiesService {
       _sum: { delta: true },
       where: {
         userId,
-        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN] },
+        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN, RubyReason.ARENA_COLISEUM, RubyReason.ARENA_COLISEUM_SKIN] },
         delta: { gt: 0 },
         createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) },
       },
@@ -118,6 +124,51 @@ export class FlockRubiesService {
       data: { userId, balanceAfter: next, ...entry },
     });
     return next;
+  }
+
+  /** Баланс смарагдів (рядок профілю вже заблоковано lockProfile). */
+  private async emeraldBalance(tx: Tx, userId: string): Promise<number> {
+    const p = await tx.flockProfile.findUniqueOrThrow({ where: { userId }, select: { emeralds: true } });
+    return p.emeralds;
+  }
+
+  /** Зміна смарагдів: баланс + рядок журналу EmeraldTransaction в одній транзакції (профіль заблоковано). */
+  private async applyEmerald(
+    tx: Tx,
+    userId: string,
+    balance: number,
+    entry: { delta: number; reason: EmeraldReason; note?: string; skinId?: number; artifactId?: number; actorId?: string },
+  ): Promise<number> {
+    const next = balance + entry.delta;
+    await tx.flockProfile.update({ where: { userId }, data: { emeralds: next } });
+    await tx.emeraldTransaction.create({ data: { userId, balanceAfter: next, ...entry } });
+    return next;
+  }
+
+  /**
+   * Нарахування смарагдів у зовнішній транзакції (завдання, нагороди арени): під стелею накопичення EM.cap.
+   * Повертає нараховану суму (0, якщо баланс уже на стелі) і новий баланс.
+   */
+  async grantEmeraldsInTx(
+    tx: Tx,
+    userId: string,
+    amount: number,
+    reason: EmeraldReason,
+    note?: string,
+  ): Promise<{ amount: number; balance: number }> {
+    await this.lockProfile(tx, userId);
+    const balance = await this.emeraldBalance(tx, userId);
+    const give = Math.max(0, Math.min(amount, EM.cap - balance));
+    if (give <= 0) return { amount: 0, balance };
+    const next = await this.applyEmerald(tx, userId, balance, { delta: give, reason, ...(note ? { note } : {}) });
+    return { amount: give, balance: next };
+  }
+
+  /** Рубіни за завдання в зовнішній транзакції: поза добовим потолком ігрових джерел (dailyEarnCap), своя фіксована сума. */
+  async grantQuestRubiesInTx(tx: Tx, userId: string, amount: number, note: string): Promise<{ amount: number; balance: number }> {
+    const balance = await this.lockProfile(tx, userId);
+    const next = await this.apply(tx, userId, balance, { delta: amount, reason: RubyReason.DAILY_QUEST, note });
+    return { amount, balance: next };
   }
 
   async ownedSkins(userId: string): Promise<number[]> {
@@ -189,6 +240,8 @@ export class FlockRubiesService {
       : 0;
     return {
       rubies: profile?.rubies ?? 0,
+      emeralds: profile?.emeralds ?? 0,
+      coliseum: coliseumProgress(profile?.coliseumWins ?? 0),
       ownedSkins: skins,
       ownedArtifacts: artifacts,
       selectedArtifact,
@@ -205,8 +258,11 @@ export class FlockRubiesService {
         skinPrice: R.skinPrice,
         premiumSkinPrice: R.premiumSkinPrice,
         specialSkinPrice: R.specialSkinPrice,
-        legendaryPrices: { ...R.legendaryPrices },
         legendaryForSale: R.legendaryForSale,
+        legendaryEmeraldPrice: EM.legendaryEmeraldPrice,
+        legendaryEmeraldSale: EM.legendaryEmeraldSale,
+        emeraldCap: EM.cap,
+        shieldPrice: FLOCK_CONFIG.artifacts.shieldEmeraldPrice,
         premiumCollectionReward: R.premiumCollectionReward,
         artifactPrice: FLOCK_CONFIG.artifacts.price,
         totalArtifacts: NUM_ARTIFACTS,
@@ -447,9 +503,8 @@ export class FlockRubiesService {
     if (!isPaidSkin(skinId)) throw fail(BadRequestException, 'skin_free');
     // скриті скіни купити не можна (вже куплені лишаються доступними, див. canUseSkin)
     if (isHiddenSkin(skinId)) throw fail(BadRequestException, 'skin_hidden');
-    // «Легендарні»: продаж закрито (R.legendaryForSale), лише видача адміном; перевірка саме тут, у єдиній точці покупки
-    if (isLegendarySkin(skinId) && !R.legendaryForSale)
-      throw fail(BadRequestException, 'skin_not_for_sale');
+    // «Легендарні»: лише за смарагди, і лише коли відкрито продаж (EM.legendaryEmeraldSale); перевірка саме тут, у єдиній точці покупки
+    if (isLegendarySkin(skinId)) return this.buyLegendarySkin(userId, skinId);
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
       const owned = await tx.flockSkinPurchase.findUnique({
@@ -481,10 +536,28 @@ export class FlockRubiesService {
     });
   }
 
+  /** «Легендарний» скін за смарагди: прапор продажу, баланс, списання, запис покупки й журналу - в одній транзакції. */
+  private async buyLegendarySkin(userId: string, skinId: number) {
+    if (!EM.legendaryEmeraldSale) throw fail(BadRequestException, 'skin_not_for_sale');
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      const balance = await this.emeraldBalance(tx, userId);
+      const owned = await tx.flockSkinPurchase.findUnique({ where: { userId_skinId: { userId, skinId } } });
+      if (owned) throw fail(ConflictException, 'already_owned');
+      const price = EM.legendaryEmeraldPrice;
+      if (balance < price) throw fail(BadRequestException, 'not_enough', { missing: price - balance });
+      await tx.flockSkinPurchase.create({ data: { userId, skinId, price } });
+      const next = await this.applyEmerald(tx, userId, balance, { delta: -price, reason: EmeraldReason.SKIN_PURCHASE_EMERALD, skinId });
+      return { emeralds: next, skinId };
+    });
+  }
+
   /** Покупка артефакта: перевірка балансу, списання, запис покупки й журналу - атомарно (як у скінів). */
   async buyArtifact(userId: string, artifactId: number) {
     if (!isArtifactId(artifactId))
       throw fail(BadRequestException, 'invalid_artifact');
+    // «Щит» - лише за смарагди; решта артефактів - за рубіни
+    if (artifactId === ARTIFACT.shield) return this.buyShield(userId);
     return this.prisma.$transaction(async (tx) => {
       const balance = await this.lockProfile(tx, userId);
       const owned = await tx.flockArtifactPurchase.findUnique({
@@ -505,6 +578,21 @@ export class FlockRubiesService {
         artifactId,
       });
       return { rubies: next, artifactId };
+    });
+  }
+
+  private async buyShield(userId: string) {
+    const artifactId = ARTIFACT.shield;
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      const balance = await this.emeraldBalance(tx, userId);
+      const owned = await tx.flockArtifactPurchase.findUnique({ where: { userId_artifactId: { userId, artifactId } } });
+      if (owned) throw fail(ConflictException, 'already_owned');
+      const price = FLOCK_CONFIG.artifacts.shieldEmeraldPrice;
+      if (balance < price) throw fail(BadRequestException, 'not_enough', { missing: price - balance });
+      await tx.flockArtifactPurchase.create({ data: { userId, artifactId, price } });
+      const next = await this.applyEmerald(tx, userId, balance, { delta: -price, reason: EmeraldReason.ARTIFACT_PURCHASE_EMERALD, artifactId });
+      return { emeralds: next, artifactId };
     });
   }
 
@@ -600,16 +688,153 @@ export class FlockRubiesService {
     });
   }
 
+  /** Адмін: нарахувати або списати смарагди (delta ≠ 0), причина обов'язкова, баланс між 0 і стелею, запис у журналі EmeraldTransaction. */
+  async adminAdjustEmeralds(actorId: string, userId: string, delta: number, note: string) {
+    const reason = typeof note === 'string' ? note.trim() : '';
+    if (!reason) throw fail(BadRequestException, 'reason_required');
+    if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1_000_000)
+      throw fail(BadRequestException, 'invalid_amount');
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw fail(NotFoundException, 'user_not_found');
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      const balance = await this.emeraldBalance(tx, userId);
+      if (balance + delta < 0) throw fail(BadRequestException, 'insufficient_balance', { balance });
+      if (balance + delta > EM.cap) throw fail(BadRequestException, 'emerald_cap', { balance, cap: EM.cap });
+      const next = await this.applyEmerald(tx, userId, balance, {
+        delta,
+        reason: EmeraldReason.ADMIN_ADJUST,
+        note: reason.slice(0, 300),
+        actorId,
+      });
+      return { emeralds: next };
+    });
+  }
+
+  /**
+   * Перемога над тигром («Арена»): одна транзакція з унікальним ключем (winId, userId), тож повторний розрахунок нічого не нараховує вдруге.
+   * Засчитується не більше dailyWinLimit на добу за Києвом. Нагороди: рубіни (ARENA_COLISEUM, у межах dailyEarnCap), смарагд
+   * (не більше emeraldDailyLimit на добу, у межах стелі), лічильник перемог і кожна winsPerSkin-та перемога - скін другого ряду
+   * «Легендарних» (запис покупки з ціною 0) або, коли всі вже є, смарагди/рубіни.
+   */
+  async settleColiseumWin(userId: string, winId: string, now = new Date(), rng: () => number = Math.random): Promise<ColiseumWinResult> {
+    const K = FLOCK_CONFIG.coliseum;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const profile = await tx.flockProfile.findUniqueOrThrow({ where: { userId }, select: { coliseumWins: true } });
+      const done = await tx.flockColiseumWin.findUnique({ where: { winId_userId: { winId, userId } } });
+      if (done) {
+        return {
+          counted: done.counted,
+          ...(done.counted ? {} : { reason: 'daily' as const }),
+          rubies: done.rubies,
+          emeralds: done.emeralds,
+          ...(done.skinId ? { skinId: done.skinId } : {}),
+          ...coliseumProgress(profile.coliseumWins),
+          duplicate: true,
+        };
+      }
+      const since = dayStartInZone(now, R.dailyTimeZone);
+      const countedToday = await tx.flockColiseumWin.count({ where: { userId, counted: true, createdAt: { gte: since } } });
+      if (countedToday >= K.reward.dailyWinLimit) {
+        await tx.flockColiseumWin.create({ data: { winId, userId, counted: false } });
+        return { counted: false, reason: 'daily' as const, rubies: 0, emeralds: 0, ...coliseumProgress(profile.coliseumWins) };
+      }
+      let bal = balance;
+      // рубіни: у межах спільного добового потолка
+      const capLeft = await this.earnCapLeft(tx, userId, now);
+      const rubies = Math.max(0, Math.min(K.reward.rubies + K.reward.tigerBonusRubies, capLeft));
+      if (rubies > 0) bal = await this.apply(tx, userId, bal, { delta: rubies, reason: RubyReason.ARENA_COLISEUM, note: winId });
+      // смарагд: за кожну засчитану перемогу emeraldPerWin, не більше emeraldDailyLimit на добу, у межах стелі накопичення
+      let emeralds = 0;
+      if (K.reward.emeraldDropEnabled) {
+        const dropsToday = await tx.flockColiseumWin.count({ where: { userId, emeralds: { gt: 0 }, createdAt: { gte: since } } });
+        if (dropsToday < K.reward.emeraldDailyLimit) {
+          const r = await this.grantEmeraldsInTx(tx, userId, K.reward.emeraldPerWin, EmeraldReason.ARENA_TIGER_DROP, winId);
+          emeralds = r.amount;
+        }
+      }
+      const wins = profile.coliseumWins + 1;
+      await tx.flockProfile.update({ where: { userId }, data: { coliseumWins: wins } });
+      // кожна winsPerSkin-та перемога: скін (або запасна нагорода)
+      let skinId: number | undefined;
+      let fallback: { emeralds?: number; rubies?: number } | undefined;
+      if (wins % K.skins.winsPerSkin === 0) {
+        const owned = new Set(
+          (await tx.flockSkinPurchase.findMany({ where: { userId, skinId: { in: [...K.skins.ids] } }, select: { skinId: true } })).map((r) => r.skinId),
+        );
+        const left = K.skins.ids.filter((id) => !owned.has(id));
+        if (left.length > 0) {
+          skinId = left[Math.floor(rng() * left.length)];
+          await tx.flockSkinPurchase.create({ data: { userId, skinId, price: 0 } });
+          bal = await this.apply(tx, userId, bal, { delta: 0, reason: RubyReason.ARENA_COLISEUM_SKIN, skinId, note: winId });
+        } else {
+          const e = await this.grantEmeraldsInTx(tx, userId, K.skins.fallbackEmeralds, EmeraldReason.ARENA_COLISEUM_SKIN_FALLBACK, winId);
+          if (e.amount > 0) {
+            fallback = { emeralds: e.amount };
+            emeralds += e.amount;
+          } else {
+            const left2 = await this.earnCapLeft(tx, userId, now);
+            const give = Math.max(0, Math.min(K.skins.fallbackRubies, left2));
+            if (give > 0) {
+              bal = await this.apply(tx, userId, bal, { delta: give, reason: RubyReason.ARENA_COLISEUM_SKIN, note: winId });
+              fallback = { rubies: give };
+            }
+          }
+        }
+      }
+      const totalRubies = rubies + (fallback?.rubies ?? 0);
+      await tx.flockColiseumWin.create({ data: { winId, userId, counted: true, rubies: totalRubies, emeralds, skinId: skinId ?? null } });
+      return {
+        counted: true,
+        rubies: totalRubies,
+        emeralds,
+        balance: bal,
+        ...(skinId ? { skinId } : {}),
+        ...(fallback ? { fallback } : {}),
+        ...coliseumProgress(wins),
+      };
+    });
+  }
+
+  /** Прогрес лічильника «Арени» (для картки тих, кому нагорода не належить). */
+  async coliseumProgressOf(userId: string) {
+    const p = await this.prisma.flockProfile.findUnique({ where: { userId }, select: { coliseumWins: true } });
+    return coliseumProgress(p?.coliseumWins ?? 0);
+  }
+
+  /** Адмін: скоригувати лічильник перемог над тигром (з причиною, запис у журналі); виданих скінів це не змінює. */
+  async adminAdjustColiseumWins(actorId: string, userId: string, delta: number, note: string) {
+    const reason = typeof note === 'string' ? note.trim() : '';
+    if (!reason) throw fail(BadRequestException, 'reason_required');
+    if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 100_000) throw fail(BadRequestException, 'invalid_amount');
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw fail(NotFoundException, 'user_not_found');
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      const p = await tx.flockProfile.findUniqueOrThrow({ where: { userId }, select: { coliseumWins: true } });
+      const wins = Math.max(0, p.coliseumWins + delta);
+      await tx.flockProfile.update({ where: { userId }, data: { coliseumWins: wins } });
+      await tx.flockColiseumLog.create({ data: { userId, delta: wins - p.coliseumWins, winsAfter: wins, note: reason.slice(0, 300), actorId } });
+      return coliseumProgress(wins);
+    });
+  }
+
   async adminOverview(userId: string) {
-    const [me, transactions] = await Promise.all([
+    const [me, transactions, emeraldTransactions] = await Promise.all([
       this.getMe(userId),
       this.prisma.rubyTransaction.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         take: 100,
       }),
+      this.prisma.emeraldTransaction.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
     ]);
-    return { ...me, transactions };
+    return { ...me, transactions, emeraldTransactions };
   }
 
   /** Статистика після смерті: пише сервер за власними даними арени. */
@@ -681,6 +906,27 @@ export class FlockRubiesService {
       update: { selectedSkin: skin },
     });
   }
+}
+
+/** Результат розрахунку перемоги над тигром для картки гравця. */
+export interface ColiseumWinResult {
+  counted: boolean;
+  reason?: 'daily';
+  rubies: number;
+  emeralds: number;
+  balance?: number;
+  skinId?: number;
+  fallback?: { emeralds?: number; rubies?: number };
+  duplicate?: boolean;
+  wins: number;
+  perSkin: number;
+  toSkin: number;
+}
+
+/** Лічильник «Арени»: усього перемог і прогрес до наступного скіна (N з winsPerSkin). */
+export function coliseumProgress(wins: number) {
+  const per = FLOCK_CONFIG.coliseum.skins.winsPerSkin;
+  return { wins, perSkin: per, toSkin: wins % per };
 }
 
 function toStats(

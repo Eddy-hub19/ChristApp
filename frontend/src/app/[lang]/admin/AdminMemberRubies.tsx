@@ -6,8 +6,11 @@ import { useTranslations } from "next-intl";
 import { ARTIFACT_IDS } from "@/components/FlockMiniGame/flockArtifacts";
 import { LEGENDARY_SKIN_IDS } from "@/lib/rubies";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
+import { EmeraldIcon } from "@/components/icons/game";
 import {
   AdminHttpError,
+  adjustAdminMemberColiseum,
+  adjustAdminMemberEmeralds,
   adjustAdminMemberRubies,
   adminMemberFlockQueryKey,
   fetchAdminMemberFlock,
@@ -25,11 +28,16 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
     t: t as unknown as RubyTxI18n["t"],
     skinName: (id: number) => tf(`skins.${id}`),
     artifactName: (id: number) => tf(`artifacts.items.${id}.name`),
+    questName: (id: string) => (tf.has(`quests.items.${id}.short`) ? tf(`quests.items.${id}.short`) : id),
   };
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [eAmount, setEAmount] = useState("");
+  const [eReason, setEReason] = useState("");
+  const [cAmount, setCAmount] = useState("");
+  const [cReason, setCReason] = useState("");
   const [grantId, setGrantId] = useState<number>(ARTIFACT_IDS[0]);
   const [skinGrantId, setSkinGrantId] = useState<number>(LEGENDARY_SKIN_IDS[0]);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +61,52 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
       setError(["reason_required", "invalid_amount", "insufficient_balance", "user_not_found"].includes(code) ? code : "generic");
     },
   });
+
+  const adjustE = useMutation({
+    mutationFn: ({ delta, why }: { delta: number; why: string }) => adjustAdminMemberEmeralds(memberId, delta, why),
+    onSuccess: async () => {
+      setEAmount("");
+      setEReason("");
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: adminMemberFlockQueryKey(memberId) });
+    },
+    onError: (e) => {
+      const code = e instanceof AdminHttpError ? e.message : "";
+      setError(["reason_required", "invalid_amount", "insufficient_balance", "emerald_cap", "user_not_found"].includes(code) ? code : "generic");
+    },
+  });
+
+  const adjustC = useMutation({
+    mutationFn: ({ delta, why }: { delta: number; why: string }) => adjustAdminMemberColiseum(memberId, delta, why),
+    onSuccess: async () => {
+      setCAmount("");
+      setCReason("");
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: adminMemberFlockQueryKey(memberId) });
+    },
+    onError: (e) => {
+      const code = e instanceof AdminHttpError ? e.message : "";
+      setError(["reason_required", "invalid_amount", "user_not_found"].includes(code) ? code : "generic");
+    },
+  });
+
+  const submitC = (e: React.FormEvent) => {
+    e.preventDefault();
+    const delta = Number(cAmount);
+    if (!cReason.trim()) return setError("reason_required");
+    if (!Number.isInteger(delta) || delta === 0) return setError("invalid_amount");
+    setError(null);
+    adjustC.mutate({ delta, why: cReason.trim() });
+  };
+
+  const submitE = (e: React.FormEvent) => {
+    e.preventDefault();
+    const delta = Number(eAmount);
+    if (!eReason.trim()) return setError("reason_required");
+    if (!Number.isInteger(delta) || delta === 0) return setError("invalid_amount");
+    setError(null);
+    adjustE.mutate({ delta, why: eReason.trim() });
+  };
 
   const grant = useMutation({
     mutationFn: (artifact: number) => grantAdminMemberArtifact(memberId, artifact),
@@ -105,6 +159,13 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                 <span className={styles.rubiesBalance}>
                   <RubyIcon size={14} /> {tf("rubies.count", { count: data.rubies })}
                 </span>
+                <br />
+                <strong>{t("emeraldBalance")}</strong>{" "}
+                <span className={styles.rubiesBalance}>
+                  <EmeraldIcon size={14} /> {tf("emeralds.count", { count: data.emeralds ?? 0 })}
+                </span>
+                <br />
+                <strong>{t("coliseumWins")}</strong> {data.coliseum ? `${data.coliseum.wins} (${data.coliseum.toSkin}/${data.coliseum.perSkin})` : 0}
                 <br />
                 <strong>{t("skins")}</strong>{" "}
                 {data.ownedSkins.length ? data.ownedSkins.map((id) => tf(`skins.${id}`)).join(", ") : t("noSkins")}
@@ -175,6 +236,56 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
                   {adjust.isPending ? t("applying") : t("apply")}
                 </button>
               </form>
+              <form className={styles.rubiesForm} onSubmit={submitE}>
+                <input
+                  type="number"
+                  className={`${styles.field} ${styles.fieldNarrow}`}
+                  step={1}
+                  inputMode="numeric"
+                  value={eAmount}
+                  onChange={(e) => setEAmount(e.target.value)}
+                  placeholder={t("emeraldAmountPlaceholder")}
+                  aria-label={t("emeraldAmountLabel")}
+                />
+                <input
+                  type="text"
+                  className={`${styles.field} ${styles.fieldGrow}`}
+                  maxLength={300}
+                  value={eReason}
+                  onChange={(e) => setEReason(e.target.value)}
+                  placeholder={t("reasonPlaceholder")}
+                  aria-label={t("reasonLabel")}
+                  required
+                />
+                <button type="submit" className={styles.btn} disabled={adjustE.isPending}>
+                  {adjustE.isPending ? t("applying") : t("emeraldApply")}
+                </button>
+              </form>
+              <form className={styles.rubiesForm} onSubmit={submitC}>
+                <input
+                  type="number"
+                  className={`${styles.field} ${styles.fieldNarrow}`}
+                  step={1}
+                  inputMode="numeric"
+                  value={cAmount}
+                  onChange={(e) => setCAmount(e.target.value)}
+                  placeholder={t("coliseumAmountPlaceholder")}
+                  aria-label={t("coliseumAmountLabel")}
+                />
+                <input
+                  type="text"
+                  className={`${styles.field} ${styles.fieldGrow}`}
+                  maxLength={300}
+                  value={cReason}
+                  onChange={(e) => setCReason(e.target.value)}
+                  placeholder={t("reasonPlaceholder")}
+                  aria-label={t("reasonLabel")}
+                  required
+                />
+                <button type="submit" className={styles.btn} disabled={adjustC.isPending}>
+                  {adjustC.isPending ? t("applying") : t("coliseumApply")}
+                </button>
+              </form>
               {error ? <p className={styles.error}>{t(`errors.${error}`)}</p> : null}
               <h4 className={styles.rubiesH}>{t("history")}</h4>
               {data.transactions.length === 0 ? (
@@ -182,6 +293,37 @@ export default function AdminMemberRubies({ memberId }: { memberId: string }) {
               ) : (
                 <ul className={styles.rubiesLog}>
                   {data.transactions.map((tx) => {
+                    const v = describeRubyTx(tx, i18n);
+                    return (
+                      <li key={tx.id} title={v.hint ?? undefined}>
+                        <span className={tx.delta > 0 ? styles.plus : tx.delta < 0 ? styles.minus : styles.zero}>
+                          {tx.delta > 0 ? "+" : ""}
+                          {tx.delta}
+                        </span>
+                        <span className={styles.rubiesTx}>
+                          <span>{v.title}</span>
+                          {v.note || tx.actorId ? (
+                            <small className={styles.rubiesNote}>
+                              {v.note}
+                              {tx.actorId ? `${v.note ? " · " : ""}${t("by", { id: tx.actorId.slice(0, 8) })}` : ""}
+                            </small>
+                          ) : null}
+                        </span>
+                        <time dateTime={tx.createdAt}>
+                          <span>{v.date}</span>
+                          <small>{t("balanceAfter", { balance: tx.balanceAfter })}</small>
+                        </time>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <h4 className={styles.rubiesH}>{t("emeraldHistory")}</h4>
+              {(data.emeraldTransactions ?? []).length === 0 ? (
+                <p className={styles.meta}>{t("noHistory")}</p>
+              ) : (
+                <ul className={styles.rubiesLog}>
+                  {(data.emeraldTransactions ?? []).map((tx) => {
                     const v = describeRubyTx(tx, i18n);
                     return (
                       <li key={tx.id} title={v.hint ?? undefined}>

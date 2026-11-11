@@ -612,10 +612,10 @@ export const FLOCK_CONFIG = {
     bossKillDailyLimit: 15,
     /**
      * Спільна добова межа заробітку на всі ігрові джерела разом: ARENA_TOP1 (з перемогою в колі), ARENA_BOSS і TEAM_WIN.
-     * Не рахуються: ARENA_STREAK (один гравець на добу), ENTRY_BONUS і PREMIUM_COLLECTION (разові), ADMIN_ADJUST.
+     * Не рахуються: щоденні завдання (DAILY_QUEST), ARENA_STREAK (один гравець на добу), ENTRY_BONUS і PREMIUM_COLLECTION (разові), ADMIN_ADJUST.
      * Кожне джерело зберігає й свій ліміт; цей потолок їх доповнює (виплата обрізається до залишку).
      */
-    dailyEarnCap: 80,
+    dailyEarnCap: 100,
     /** Скільки рубінів можна заробити на арені за добу (доба за часом Києва). */
     /** Разовий бонус кожному гравцеві за перший вхід у гру (не входить у dailyLimit). */
     entryBonus: 20,
@@ -632,18 +632,149 @@ export const FLOCK_CONFIG = {
     /** Вартість «особливого» скіна (ряд 24-33, без анімації) - окремо від звичайних і преміум. */
     specialSkinPrice: 150,
     /**
-     * «Легендарні» скіни (57-68): ціна кожного окремо. Продаж ЗАКРИТО (legendaryForSale: false): сервер відхиляє покупку
-     * (`skin_not_for_sale`), скін можна лише отримати від адміна. Прапор не змінюють ні міграції, ні скрипти: лише ручна правка тут.
+     * «Легендарні» скіни (57-68): продаються ЛИШЕ за смарагди (legendaryEmeraldPrice), за рубіни - ніколи. Поки legendaryEmeraldSale = false,
+     * сервер відхиляє покупку (`skin_not_for_sale`) будь-якого легендарного скіна, лишається видача адміном і нагороди сервера
+     * (вони пишуться як запис покупки з ціною 0, повз прапори продажу). Прапори не міняють ні міграції, ні скрипти: лише ручна правка тут.
      */
-    legendaryPrices: {
-      57: 250, 58: 250, 59: 250, 60: 250, 61: 250, 62: 250,
-      63: 250, 64: 250, 65: 250, 66: 250, 67: 250, 68: 250,
-    } as Record<number, number>,
     legendaryForSale: false,
     /** Скіни з номерами >= specialFrom - «особливі» (статичні, окремий ряд у лобі). */
     specialFrom: 24,
     /** Разова нагорода за повну колекцію преміум-скінів, що зараз у продажу (без HIDDEN_SKINS); поза dailyLimit. */
     premiumCollectionReward: 150,
+  },
+
+  // --- смарагди (друга валюта; лише від сервера, передавати між гравцями не можна) ---
+  emeralds: {
+    /** Стеля накопичення: нарахування, що виходить за неї, обрізається (при повному балансі завдання не забирається). */
+    cap: 200,
+    /** Ціна кожного «Легендарного» скіна (57-68) у смарагдах. */
+    legendaryEmeraldPrice: 80,
+    /** Продаж «Легендарних» за смарагди: поки false, плитка - замочок і «Скоро», сервер відхиляє покупку. Вмикає лише власник вручну. */
+    legendaryEmeraldSale: false,
+  },
+
+  // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
+  quests: {
+    enabled: true,
+    /** Нагороди за слотами: 0 і 1 - легкі (рубіни), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
+    rewards: {
+      simple: { type: 'rubies', amount: 4 },
+      hard: { type: 'emeralds', amount: 3 },
+    } as const,
+    /** Скільки мс сервер тримає прогрес у пам'яті перед записом у БД (плюс запис при смерті, виході й закритті арени). */
+    flushMs: 60_000,
+    /** Захист: прогрес лише того, хто рухався за останні activeWindowMs; крок вибірки руху - sampleMs, мінімальний зсув центра за крок - minMove. */
+    activeWindowMs: 20_000,
+    sampleMs: 1_000,
+    minMove: 6,
+    /**
+     * Пул (target - в одиницях виду: штуки, маса, секунди; weight - вага при виборі, за замовчуванням 1; enabled:false - не видається).
+     * Слоти 0 і 1 беруть різні легкі, слот 2 - складне; учорашнє в тому ж слоті не повторюється.
+     * Завдання «купити скін» рахують лише покупку гравцем (рубіни): видача адміном, нагороди й смарагдова покупка не рахуються.
+     */
+    pool: [
+      { id: 'food', tier: 'simple', kind: 'food', target: 250 },
+      { id: 'sprint', tier: 'simple', kind: 'sprint', target: 60 },
+      { id: 'alive', tier: 'simple', kind: 'alive', target: 1200 },
+      { id: 'buy_skin_regular', tier: 'simple', kind: 'buy_skin_regular', target: 1 },
+      { id: 'mass', tier: 'hard', kind: 'mass', target: 30000, weight: 0.3 },
+      { id: 'boss', tier: 'hard', kind: 'boss', target: 50, weight: 0.3 },
+      { id: 'top1', tier: 'hard', kind: 'top1', target: 40000, weight: 0.3 },
+      { id: 'castles', tier: 'hard', kind: 'castles', target: 20, weight: 0.3 },
+      { id: 'survive_map', tier: 'hard', kind: 'survive_map', target: 720, maps: [3, 6] },
+      /** Засчитана перемога над тигром на карті «Арена». */
+      { id: 'tiger', tier: 'hard', kind: 'tiger', target: 1 },
+      { id: 'buy_skin_special', tier: 'hard', kind: 'buy_skin_special', target: 1 },
+    ] as readonly QuestDef[],
+  },
+
+  // --- карта «Арена» (колізей): кооператив проти хвиль вовків і тигра (правила діють лише на ній) ---
+  coliseum: {
+    /** Радіус арени (коло по центру світу worldSize x worldSize; стіна - по краю). */
+    radius: 1560,
+    /** Ворота (кут у градусах від осі x): звідти виходять вовки й тигр; ширина - для малювання. */
+    gateAngles: [0, 90, 180, 270] as readonly number[],
+    gateWidth: 280,
+    /** Колони й камні в центрі (лише вигляд: клітини через них проходять; клієнт малює з геометрії welcome). */
+    pillarCount: 6,
+    pillarRing: 380,
+    pillarRadius: 46,
+    stoneCount: 9,
+    /** Їжі на арені (менше за повний світ: коло менше за квадрат). */
+    maxFood: 700,
+    /** Скіни вовків (випадковий з цих) і тигра (зарезервований id поза NUM_SKINS). */
+    wolfSkins: [8, 9, 37, 38, 39, 40] as readonly number[],
+    tigerSkin: 70,
+    /** Пауза перед хвилею (мс) і перед повторним циклом. */
+    wavePauseMs: 10_000,
+    /** Таймаут раунду від початку першої хвилі (мс): не переміг тигра - раунд скидається без нагород, цикл з хвилі 1; попередження за roundWarnMs. Без людей час стоїть. */
+    roundTimeoutMs: 12 * 60_000,
+    roundWarnMs: 60_000,
+    /** Скільки хвиль вовків перед «Тигром»; потім цикл знову з легкої хвилі. */
+    wavesBeforeTiger: 5,
+    /** Вовків у хвилі k (1-based): base + perWave * (k - 1); маса вовка: massBase + massPerWave * (k - 1) (на початку, х випадково 0.85-1.15). */
+    wolves: { base: 4, perWave: 2, massBase: 40, massPerWave: 22, minCount: 2 },
+    /** Множник числа/маси за кількістю людей (проміжні значення інтерполюються): 1, 3, 6 гравців. */
+    playerScale: { 1: { count: 1, mass: 1 }, 3: { count: 2, mass: 1.35 }, 6: { count: 3.2, mass: 1.8 } } as Record<number, { count: number; mass: number }>,
+    /** Вовк, що довго не бачить овець, усе одно іде до найближчої. Швидкість вовків - частка від швидкості гравця. */
+    wolfSpeed: 0.92,
+    /** Тигр: розмір (маса) за людьми як playerScale.mass; урон лише стрілами (arrows), маса від дотиків не міняється. */
+    tiger: {
+      massBase: 1600,
+      speed: 0.85,
+    },
+    /** Стріли (єдина зброя проти тигра; лише на цій карті). Усе рахує сервер за аналітичною траєкторією. */
+    arrows: {
+      /** Поява стріл на землі: раз на spawnEveryMs у випадковій точці кола (не в колонах), на полі не більше fieldCapBase + fieldCapPerPlayer * людей. */
+      spawnEveryMs: 2_000,
+      fieldCapBase: 4,
+      fieldCapPerPlayer: 3,
+      /** З убитого вовка стріла випадає з цим шансом на місці загибелі. */
+      wolfDropChance: 0.5,
+      /** Скільки стріла лежить на землі (мс), радіус підбору (додається до радіуса клітини), запас на гравця. */
+      lifetimeMs: 40_000,
+      pickupReach: 24,
+      maxCarry: 6,
+      /** Постріл: автоприцілювання в тигра в межах aimRange (з упередженням), інакше за напрямком руху; швидкість, дальність, радіус влучання (частка радіуса тигра + запас). */
+      aimRange: 1100,
+      speed: 950,
+      range: 1500,
+      hitRadiusK: 0.9,
+      hitRadiusPad: 12,
+      /** Не більше стріл одного гравця в польоті й перезарядка між пострілами. */
+      maxInFlight: 3,
+      cooldownMs: 500,
+      /** Здоров'я тигра у влученнях: base для 1 гравця + perExtraPlayer за кожного наступного; регенерація (влучань/с), за замовчуванням вимкнена. */
+      hitsBase: 8,
+      hitsPerExtraPlayer: 5,
+      regenHitsPerSec: 0,
+    },
+    /** Регулятор навантаження: за високого навантаження хвиля стартує з цією часткою вовків (не менше wolves.minCount). */
+    shedFraction: 0.5,
+    /** Нагорода за поразку тигра: лише сервер, одна транзакція з унікальним ключем перемоги. */
+    reward: {
+      /** Гравець має бути на арені не менше minPresenceMs, не AFK (ввід за останні activeWindowMs) і влучити в тигра не менше arrowHitsRequired разів. */
+      minPresenceMs: 120_000,
+      activeWindowMs: 20_000,
+      arrowHitsRequired: 3,
+      /** Засчитаних перемог на добу (за Києвом). */
+      dailyWinLimit: 3,
+      /** Рубіни: за перемогу + бонус від тигра (ARENA_COLISEUM, входять у rubies.dailyEarnCap). */
+      rubies: 10,
+      tigerBonusRubies: 5,
+      /** Смарагд за кожну засчитану перемогу (ARENA_TIGER_DROP, у межах стелі накопичення), не більше emeraldDailyLimit на добу. */
+      emeraldDropEnabled: true,
+      emeraldPerWin: 1,
+      emeraldDailyLimit: 1,
+    },
+    /** Скіни за перемоги: кожні winsPerSkin засчитаних перемог - випадковий скін другого ряду «Легендарних», якого ще нема. */
+    skins: {
+      winsPerSkin: 20,
+      ids: [63, 64, 65, 66, 67, 68] as readonly number[],
+      /** Якщо вже є всі: смарагди (у межах стелі), інакше рубіни (ARENA_COLISEUM, у межах dailyEarnCap). */
+      fallbackEmeralds: 20,
+      fallbackRubies: 50,
+    },
   },
 
   // --- Швидкі фрази (хмаринка над овечкою; тексти й емодзі - на клієнті, по мережі лише id) ---
@@ -846,8 +977,22 @@ export const FLOCK_CONFIG = {
     reviveShieldMs: 3000,
     /** 7 «Кадило»: боти й «Вожак» тримаються подалі від носія в цьому радіусі (на людей не діє). */
     censerRadius: 500,
+    /** 8 «Щит»: колючі кущі й ялинки не рвуть клітину (ховатися під кущем може лише менша за нього). Купується лише за смарагди. */
+    shieldEmeraldPrice: 100,
   },
 } as const;
+
+/** Завдання пулу щоденних завдань. */
+export interface QuestDef {
+  id: string;
+  tier: 'simple' | 'hard';
+  kind: 'food' | 'mass' | 'alive' | 'sprint' | 'boss' | 'top1' | 'castles' | 'survive_map' | 'tiger' | 'buy_skin_regular' | 'buy_skin_special';
+  target: number;
+  /** Вага при випадковому виборі (за замовчуванням 1). */
+  weight?: number;
+  enabled?: boolean;
+  maps?: readonly number[];
+}
 
 /** Розкладка кущів: розсип по всьому світу, купки (гаї) або кільце навколо центру. */
 /** Параметри кущів (числа без літеральних типів: карти їх перекривають). */
@@ -867,6 +1012,8 @@ export interface FlockMapDef {
   thornStyle: ThornStyle;
   /** Перекриття C.thorns для цієї карти. */
   thorns: Partial<ThornCfg>;
+  /** «Арена»: коло зі стіною, овечки заодно, хвилі вовків і тигр (правила - у FLOCK_CONFIG.coliseum). */
+  coliseum?: boolean;
   /** Вага при випадковому виборі карти арени (рівні ваги - рівна ймовірність). */
   weight: number;
   /** На карті є річка лави (C.lava): геометрія й мости створюються разом з ареною. */
@@ -894,6 +1041,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 5, name: 'night', layout: 'clusters', thornStyle: 'night', thorns: {}, weight: 1, night: true },
   /** «Небо»: хмари над порожнечею, у випадковому виборі наравні з іншими (вага weight). */
   { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1, sky: true },
+  /** «Арена» (колізей): овечки заодно проти хвиль вовків і тигра; кущів мало; у випадковому виборі наравні з іншими. */
+  { id: 7, name: 'coliseum', layout: 'scatter', thornStyle: 'bush', thorns: { min: 2, max: 3, minGap: 600 }, weight: 1, coliseum: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -1044,9 +1193,39 @@ export function clientGameConfig() {
       skinPrice: c.rubies.skinPrice,
       premiumSkinPrice: c.rubies.premiumSkinPrice,
       specialSkinPrice: c.rubies.specialSkinPrice,
-      legendaryPrices: { ...c.rubies.legendaryPrices },
       legendaryForSale: c.rubies.legendaryForSale,
       premiumCollectionReward: c.rubies.premiumCollectionReward,
+    },
+    coliseum: {
+      wavesBeforeTiger: c.coliseum.wavesBeforeTiger,
+      wavePauseSec: Math.round(c.coliseum.wavePauseMs / 1000),
+      rubies: c.coliseum.reward.rubies + c.coliseum.reward.tigerBonusRubies,
+      dailyWinLimit: c.coliseum.reward.dailyWinLimit,
+      emeraldPerWin: c.coliseum.reward.emeraldPerWin,
+      arrowHitsRequired: c.coliseum.reward.arrowHitsRequired,
+      arrowMaxCarry: c.coliseum.arrows.maxCarry,
+      tigerHitsBase: c.coliseum.arrows.hitsBase,
+      tigerHitsPerExtraPlayer: c.coliseum.arrows.hitsPerExtraPlayer,
+      arrowCooldownMs: c.coliseum.arrows.cooldownMs,
+      arrowLifetimeSec: Math.round(c.coliseum.arrows.lifetimeMs / 1000),
+      arrowAimRange: c.coliseum.arrows.aimRange,
+      roundTimeoutMin: Math.round(c.coliseum.roundTimeoutMs / 60_000),
+      emeraldDropEnabled: c.coliseum.reward.emeraldDropEnabled,
+      minPresenceSec: Math.round(c.coliseum.reward.minPresenceMs / 1000),
+      winsPerSkin: c.coliseum.skins.winsPerSkin,
+      fallbackEmeralds: c.coliseum.skins.fallbackEmeralds,
+      fallbackRubies: c.coliseum.skins.fallbackRubies,
+      skinIds: [...c.coliseum.skins.ids],
+    },
+    quests: {
+      simpleRubies: c.quests.rewards.simple.amount,
+      hardEmeralds: c.quests.rewards.hard.amount,
+    },
+    emeralds: {
+      cap: c.emeralds.cap,
+      legendaryEmeraldPrice: c.emeralds.legendaryEmeraldPrice,
+      legendaryEmeraldSale: c.emeralds.legendaryEmeraldSale,
+      shieldPrice: c.artifacts.shieldEmeraldPrice,
     },
     skinPerks: Object.fromEntries(Object.entries(c.skinPerks).map(([k, v]) => [k, { ...v }])),
     dailyRecords: {
@@ -1158,10 +1337,10 @@ export const SPECIAL_FROM = FLOCK_CONFIG.rubies.specialFrom;
 export const isPremiumSkin = (id: number) => PREMIUM_SKIN_IDS.includes(id);
 export const isSpecialSkin = (id: number) =>
   (id >= SPECIAL_FROM && id < EXTRA_PAID_FROM) || NEW_SPECIAL_SKIN_IDS.includes(id);
-/** Ціна платного скіна в рубінах (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
+/** Ціна платного скіна в рубінах (для легендарних - ціна в СМАРАГДАХ, legendaryEmeraldPrice: за рубіни вони не продаються) (звичайний - skinPrice, преміум - premiumSkinPrice, особливий - specialSkinPrice). */
 export const skinPriceOf = (id: number) =>
   isLegendarySkin(id)
-    ? (FLOCK_CONFIG.rubies.legendaryPrices[id] ?? 250)
+    ? FLOCK_CONFIG.emeralds.legendaryEmeraldPrice
     : isSpecialSkin(id)
     ? FLOCK_CONFIG.rubies.specialSkinPrice
     : isPremiumSkin(id)
@@ -1189,8 +1368,9 @@ export const ARTIFACT = {
   hourglass: 5,
   cross: 6,
   censer: 7,
+  shield: 8,
 } as const;
-export const NUM_ARTIFACTS = 7;
+export const NUM_ARTIFACTS = 8;
 /** Стеля тривалості хмаринки: значення в конфігу не може її перевищити. */
 export const PHRASE_MAX_MS = 30_000;
 export const phraseDurationMs = () =>

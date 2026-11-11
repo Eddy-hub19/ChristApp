@@ -9,6 +9,7 @@ import {
 } from "./flockProtocol";
 import { PHRASE_MAX_MS } from "./flockPhrases";
 import type { LavaBurn, LavaGeom } from "./flockLava";
+import { clampToColiseum, parseColiseum, type ColiseumGeo, type ColiseumHud } from "./flockColiseum";
 import { createSky, onCloud as skyOnCloud, skyTime, type SkyState, type SkyWelcome } from "./flockSky";
 import type { SkyFall } from "./flockSkyRender";
 import { deathDone as animDone, skipDeath as animSkip, deathSkippable, startDeath, stepDeath, type DeathAnim, type DeathInfoIn } from "./flockDeathAnim";
@@ -44,6 +45,8 @@ export interface FlockCfg {
   eagleZoom?: number;
   /** Карта «Небо»: параметри хмар, годинник світу, час до падіння (welcome.sky); без поля - не «Небо». */
   sky?: SkyWelcome;
+  /** «Арена»: коло, ворота, колони й камені (welcome.coliseum); без поля - інша карта. */
+  coliseum?: unknown;
   /** Річка лави карти «Вулкан» (серверна геометрія); без поля - лави нема. */
   lava?: LavaGeom;
   /** Кущі арени: сервер шле їх один раз у welcome (для клієнтів v2); без поля - старий сервер, кущі беремо з пакетів стану. */
@@ -263,6 +266,17 @@ export class FlockModel {
   /** Клітини, що згоріли в лаві (анімація «згоріла»). */
   readonly lavaBurns: LavaBurn[] = [];
   /** «Небо»: стан хмар (null - інша карта), клітини, що впали (анімація) і скільки мс своя клітина вже над порожнечею. */
+  /** «Арена»: геометрія з welcome (null - інша карта), останній HUD хвиль `cw` і результат поразки тигра `tw` не тут, а в клієнті. */
+  coliseum: ColiseumGeo | null = null;
+  coliseumHud: ColiseumHud | null = null;
+  /** Коли (performance.now) прийшов останній `cw`: від нього рахуємо таймер паузи між хвилями. */
+  coliseumHudAt = 0;
+  /** «Арена»: стріли на землі (expiresAt - performance.now), стріли в польоті, ефекти влучань і свій запас (carry/carryMax). */
+  readonly arrowItems = new Map<number, { id: number; x: number; y: number; expiresAt: number }>();
+  readonly shots = new Map<number, { id: number; pid: number; x0: number; y0: number; vx: number; vy: number; at: number; life: number }>();
+  readonly hitFx: { x: number; y: number; at: number }[] = [];
+  carry = 0;
+  carryMax = 6;
   sky: SkyState | null = null;
   readonly falls: SkyFall[] = [];
   selfVoidMs = 0;
@@ -745,6 +759,49 @@ export class FlockModel {
     }
   }
 
+  /** «Арена»: геометрія кола з welcome. */
+  initColiseum(raw: unknown) {
+    this.coliseum = parseColiseum(raw);
+    this.coliseumHud = null;
+    this.arrowItems.clear();
+    this.shots.clear();
+    this.carry = 0;
+    const r = raw as { arrows?: [number, number, number, number][]; carry?: number } | null | undefined;
+    if (typeof r?.carry === "number") this.carryMax = r.carry;
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
+    for (const a of r?.arrows ?? []) this.arrowItems.set(a[0], { id: a[0], x: a[1], y: a[2], expiresAt: now + a[3] });
+  }
+
+  /** Подія `cw`: HUD хвиль; повертає короткі події ('wave' | 'tiger' | 'tigerDown') для звуків і підказок. */
+  applyColiseumHud(msg: ColiseumHud): ColiseumHud["e"] {
+    if (!this.coliseum || typeof msg?.ph !== "number") return undefined;
+    this.coliseumHud = msg;
+    this.coliseumHudAt = typeof performance !== "undefined" ? performance.now() : 0;
+    return msg.e;
+  }
+
+  /** Подія `ra`: стріли на землі з'явились (a: [id, x, y, ttlMs]) або зникли (d: id). */
+  applyArrowItems(msg: { a?: [number, number, number, number][]; d?: number[] }, nowMs: number = typeof performance !== "undefined" ? performance.now() : 0) {
+    for (const id of msg?.d ?? []) this.arrowItems.delete(id);
+    for (const a of msg?.a ?? []) this.arrowItems.set(a[0], { id: a[0], x: a[1], y: a[2], expiresAt: nowMs + a[3] });
+  }
+
+  /** Подія `as`: постріли. Позиція - пряма від (x, y) зі швидкістю (vx, vy) за `life` мс від приходу повідомлення. */
+  applyShots(list: { id: number; pid: number; x: number; y: number; vx: number; vy: number; life: number }[], nowMs: number = typeof performance !== "undefined" ? performance.now() : 0) {
+    for (const s of list ?? []) this.shots.set(s.id, { id: s.id, pid: s.pid, x0: s.x, y0: s.y, vx: s.vx, vy: s.vy, at: nowMs, life: s.life });
+  }
+
+  /** Подія `ah`: влучання - стріла зникає, у точці спалах. Повертає true, якщо влучила наша стріла. */
+  applyHits(list: { id: number; x: number; y: number; pid: number }[], nowMs: number = typeof performance !== "undefined" ? performance.now() : 0): boolean {
+    let own = false;
+    for (const h of list ?? []) {
+      this.shots.delete(h.id);
+      this.hitFx.push({ x: h.x, y: h.y, at: nowMs });
+      if (h.pid === this.cfg.pid) own = true;
+    }
+    return own;
+  }
+
   /** «Небо»: ініціалізація хмар з welcome. */
   initSky(w: SkyWelcome | undefined, recvMs: number = this.localNow) {
     if (w) this.sky = createSky(w, this.cfg.world, recvMs);
@@ -892,6 +949,8 @@ export class FlockModel {
           const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
+          // стіна «Арени»: те саме коло, що на сервері
+          if (this.coliseum) [c.x, c.y] = clampToColiseum(this.coliseum, c.x, c.y, this.radiusOf(c.mass));
         }
         // снос вітром (ту саму формулу рахує сервер); на паузі й у кущі не діє
         if (!castle && windOn && !this.insideBush(c.x, c.y, c.mass)) {

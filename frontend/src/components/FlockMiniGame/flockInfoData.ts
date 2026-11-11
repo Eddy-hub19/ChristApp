@@ -118,9 +118,9 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "ruby",
         title: { ua: "Як отримати", ru: "Как получить", en: "How to earn" },
         text: {
-          ua: "Займи 1-ше місце в «Топ-10» з масою від {mass}: {reward} рубінів, один раз за життя. Не більше {limit} рубінів на арені за добу (за часом Києва). Вожак і боти не рахуються. Ще: {entry} рубінів за перший вхід у гру й {boss} за перемогу над Вожаком (не більше {bossLimit} за добу). Усі ігрові джерела разом (арена, Вожак, «Замки») дають не більше {cap} рубінів за добу.",
-          ru: "Займи 1-е место в «Топ-10» с массой от {mass}: {reward} рубинов, один раз за жизнь. Не больше {limit} рубинов на арене в сутки (по времени Киева). Вожак и боты не считаются. Ещё: {entry} рубинов за первый вход в игру и {boss} за победу над Вожаком (не больше {bossLimit} в сутки). Все игровые источники вместе (арена, Вожак, «Замки») дают не больше {cap} рубинов в сутки.",
-          en: "Finish 1st in the Top 10 with a mass of {mass}+: {reward} rubies, once per life. Up to {limit} rubies a day on the arena (Kyiv time). The Alpha and bots don't count. Also: {entry} rubies for your first visit and {boss} for defeating the Alpha (up to {bossLimit} a day). All in-game sources together (arena, the Alpha, Castles) pay at most {cap} rubies a day.",
+          ua: "Займи 1-ше місце в «Топ-10» з масою від {mass}: {reward} рубінів, один раз за життя. Не більше {limit} рубінів на арені за добу (за часом Києва). Вожак і боти не рахуються. Ще: {entry} рубінів за перший вхід у гру й {boss} за перемогу над Вожаком (не більше {bossLimit} за добу). Усі ігрові джерела разом (арена, Вожак, «Замки») дають не більше {cap} рубінів за добу; щоденні завдання сюди не входять.",
+          ru: "Займи 1-е место в «Топ-10» с массой от {mass}: {reward} рубинов, один раз за жизнь. Не больше {limit} рубинов на арене в сутки (по времени Киева). Вожак и боты не считаются. Ещё: {entry} рубинов за первый вход в игру и {boss} за победу над Вожаком (не больше {bossLimit} в сутки). Все игровые источники вместе (арена, Вожак, «Замки») дают не больше {cap} рубинов в сутки; ежедневные задания сюда не входят.",
+          en: "Finish 1st in the Top 10 with a mass of {mass}+: {reward} rubies, once per life. Up to {limit} rubies a day on the arena (Kyiv time). The Alpha and bots don't count. Also: {entry} rubies for your first visit and {boss} for defeating the Alpha (up to {bossLimit} a day). All in-game sources together (arena, the Alpha, Castles) pay at most {cap} rubies a day; daily quests are not counted in it.",
         },
         params: {
           mass: num("rubies.top1MassThreshold"),
@@ -164,10 +164,11 @@ export const INFO_SECTIONS: InfoSection[] = [
         icon: "skins",
         title: { ua: "«Легендарні» скіни", ru: "«Легендарные» скины", en: "“Legendary” skins" },
         text: {
-          ua: "Скоро з'явиться нова категорія скінів «Легендарні»: 12 статичних скінів без бонусів, лише вигляд (перлинна мушля, вітраж, ангельська, райські врата, сяйво, призма, орігамі, порцелянова, кленова, аметист, небесна синь, лілії). Вони вже видно в лобі після «Преміум»; у продаж вони ще не надійшли.",
-          ru: "Скоро появится новая категория скинов «Легендарные»: 12 статичных скинов без бонусов, только внешний вид (жемчужная раковина, витраж, ангельская, райские врата, сияние, призма, оригами, фарфоровая, кленовая, аметист, небесная синь, лилии). Они уже видны в лобби после «Премиум»; в продажу они ещё не поступили.",
-          en: "A new “Legendary” skin category is coming soon: 12 static skins with no bonuses, looks only (pearl shell, stained glass, angelic, heavenly gate, radiance, prism, origami, porcelain, maple, amethyst, sky blue, lilies). They are already visible in the lobby after Premium; they are not on sale yet.",
+          ua: "Скоро з'явиться нова категорія скінів «Легендарні»: 12 статичних скінів без бонусів, лише вигляд (перлинна мушля, вітраж, ангельська, райські врата, сяйво, призма, орігамі, порцелянова, кленова, аметист, небесна синь, лілії). Вони вже видно в лобі після «Преміум». Купуватимуться лише за смарагди ({price} кожен), за рубіни — ні; поки що продаж закрито.",
+          ru: "Скоро появится новая категория скинов «Легендарные»: 12 статичных скинов без бонусов, только внешний вид (жемчужная раковина, витраж, ангельская, райские врата, сияние, призма, оригами, фарфоровая, кленовая, аметист, небесная синь, лилии). Они уже видны в лобби после «Премиум». Покупаться будут только за изумруды ({price} каждый), за рубины — нет; пока что продажа закрыта.",
+          en: "A new “Legendary” skin category is coming soon: 12 static skins with no bonuses, looks only (pearl shell, stained glass, angelic, heavenly gate, radiance, prism, origami, porcelain, maple, amethyst, sky blue, lilies). They are already visible in the lobby after Premium. They will be bought with emeralds only ({price} each), not rubies; sales are closed for now.",
         },
+        params: { price: num("emeralds.legendaryEmeraldPrice") },
       },
       {
         id: "skins",
@@ -580,18 +581,46 @@ export const INFO_SECTIONS: InfoSection[] = [
     ],
   },
   {
+    id: "emeralds",
+    title: { ua: "Смарагди й завдання", ru: "Изумруды и задания", en: "Emeralds & quests" },
+    entries: [
+      {
+        id: "emerald",
+        icon: "emerald",
+        title: { ua: "Смарагди", ru: "Изумруды", en: "Emeralds" },
+        text: {
+          ua: "Друга, дуже рідкісна валюта. Здобути її важко: вона видається лише сервером, передавати її іншим гравцям не можна. Накопичити можна не більше {cap}. Баланс — поруч із рубінами в лобі. На смарагди купуються артефакт «Щит» ({shield}) і «Легендарні» скіни ({legendary} кожен, коли їх відкриють у продажу).",
+          ru: "Вторая, очень редкая валюта. Добыть её трудно: она выдаётся только сервером, передавать её другим игрокам нельзя. Накопить можно не больше {cap}. Баланс — рядом с рубинами в лобби. За изумруды покупаются артефакт «Щит» ({shield}) и «Легендарные» скины ({legendary} каждый, когда их откроют в продажу).",
+          en: "A second, very rare currency. It is hard to get: only the server hands it out and it can't be given to other players. You can hold at most {cap}. Your balance sits next to rubies in the lobby. Emeralds buy the Shield artifact ({shield}) and Legendary skins ({legendary} each, once they go on sale).",
+        },
+        params: { cap: num("emeralds.cap"), shield: num("emeralds.shieldPrice"), legendary: num("emeralds.legendaryEmeraldPrice") },
+      },
+      {
+        id: "quests",
+        icon: "quest",
+        title: { ua: "Щоденні завдання", ru: "Ежедневные задания", en: "Daily quests" },
+        text: {
+          ua: "Щодня — три завдання: два легкі (нагорода рубінами) і одне складне (смарагди). Кнопка зі сувоєм поруч із «i»: там видно прогрес і таймер до нових завдань (опівночі за Києвом). Невзяте не копичиться. Прогрес рахується лише в живої овечки, що рухається, не на паузі й не в режимі «Замки» (крім завдання про перемоги в «Замках» проти живих). Нагороду забираєш кнопкою «Забрати». Рубіни за завдання не входять у добовий ліміт ігрових джерел.",
+          ru: "Каждый день — три задания: два лёгких (награда рубинами) и одно сложное (изумруды). Кнопка со свитком рядом с «i»: там виден прогресс и таймер до новых заданий (в полночь по Киеву). Невзятое не копится. Прогресс считается только у живой овечки, которая движется, не на паузе и не в режиме «Замки» (кроме задания про победы в «Замках» против живых). Награду забираешь кнопкой «Забрати». Рубины за задания не входят в суточный лимит игровых источников.",
+          en: "Every day there are three quests: two easy ones (rewarded with rubies) and one hard one (emeralds). The scroll button next to “i” shows progress and the timer to new quests (Kyiv midnight). Unclaimed rewards don't pile up. Progress counts only for a living, moving sheep that isn't paused, and not in Castles (except the Castles-against-real-players quest). Press Claim to collect. Quest rubies are outside the daily limit on in-game sources.",
+        },
+        params: {},
+      },
+    ],
+  },
+  {
     id: "artifacts",
     title: { ua: "Артефакти", ru: "Артефакты", en: "Artifacts" },
     artifacts: true,
     intro: {
       text: {
-        ua: "Надягаються поверх скіна, діє один. Купуються за {price} рубінів. Знайти їх можна в лобі: кнопка з іконкою артефакта поруч із «i».",
-        ru: "Надеваются поверх скина, действует один. Покупаются за {price} рубинов. Найти их можно в лобби: кнопка с иконкой артефакта рядом с «i».",
-        en: "Worn over a skin, one at a time. Cost {price} rubies each. Find them in the lobby: the artifact button next to “i”.",
+        ua: "Надягаються поверх скіна, діє один. Купуються за {price} рубінів, а «Щит» — за {shield} смарагдів. Знайти їх можна в лобі: кнопка з іконкою артефакта поруч із «i».",
+        ru: "Надеваются поверх скина, действует один. Покупаются за {price} рубинов, а «Щит» — за {shield} изумрудов. Найти их можно в лобби: кнопка с иконкой артефакта рядом с «i».",
+        en: "Worn over a skin, one at a time. Cost {price} rubies each, except the Shield, which costs {shield} emeralds. Find them in the lobby: the artifact button next to “i”.",
       },
-      params: { price: num("artifactPrice") },
+      params: { price: num("artifactPrice"), shield: num("emeralds.shieldPrice") },
     },
-    entries: [1, 2, 3, 4, 5, 6, 7].map((n) => ({
+    entries: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
       id: `a${n}`,
       icon: `artifact:${n}` as const,
       title: { ua: "", ru: "", en: "" },
@@ -634,6 +663,30 @@ export const INFO_SECTIONS: InfoSection[] = [
           en: "A sky with {clouds} fluffy cloud platforms drifting over the void (clouds never overlap or leave the field). You can walk only on clouds: if a cell's center stays over a gap too long, it falls and dies, and its mass goes to nobody. A newcomer on the start shield and a paused player don't fall; they are gently returned to a cloud. Bots and the Alpha walk only on clouds. Food, bushes and bonuses grow only on clouds; Starfall works, no wind or rain. The Rainbow grows here: valuable food worth the mass of several regular ones plus a {boost} s speed charge (at most {max} at a time).",
         },
         params: { clouds: num("sky.clouds"), boost: num("sky.rainbowBoostSec"), max: num("sky.rainbowMax") },
+      },
+      {
+        id: "coliseum",
+        icon: "trophy",
+        title: { ua: "Карта «Арена»", ru: "Карта «Арена»", en: "“Colosseum” map" },
+        text: {
+          ua: "Круглий колізей зі стіною, трибунами й чотирма воротами. Усі гравці — овечки однієї команди: вони не їдять одна одну (маса при дотику не передається), ділити й кидати масу можна. Із воріт виходять хвилі вовків (вони сильнішають і множаться від хвилі до хвилі й залежно від числа гравців), між хвилями пауза {pause} с. Після {waves} хвиль з'являється тигр-бос. Тигра не з'їсти: збирай стріли з землі (до {carry}; їх також лишають вовки) і стріляй клавішею F або кнопкою «Стріла». Тигра повалено, коли він отримав усі влучання. Нагорода: {rubies} рубінів і {emerald} смарагд (до {limit} засчитаних перемог на добу) — лише тим, хто влучив у тигра щонайменше {hits} рази, не AFK і був на арені потрібний час (до {minPresence} с). Раунд без перемоги скидається без нагород через {timeout} хв. Кожні {per} засчитаних перемог — один випадковий скін із другого ряду «Легендарних» (якщо всі вже є — {fbEmeralds} смарагдів або {fbRubies} рубінів). Вожака, «Зорепаду», вітру, дощу й першого місця тут нема.",
+          ru: "Круглый колизей со стеной, трибунами и четырьмя воротами. Все игроки — овечки одной команды: они не едят друг друга (масса при касании не передаётся), делить и бросать массу можно. Из ворот выходят волны волков (они сильнее и многочисленнее от волны к волне и зависят от числа игроков), между волнами пауза {pause} с. После {waves} волн появляется тигр-босс. Тигра не съесть: собирай стрелы с земли (до {carry}; их также роняют волки) и стреляй клавишей F или кнопкой «Стріла». Тигр повержен, когда получил все попадания. Награда: {rubies} рубинов и {emerald} изумруд (до {limit} засчитанных побед в сутки) — только тем, кто попал в тигра минимум {hits} раза, не AFK и был на арене нужное время (до {minPresence} с). Раунд без победы сбрасывается без наград через {timeout} мин. Каждые {per} засчитанных побед — один случайный скин из второго ряда «Легендарных» (если все уже есть — {fbEmeralds} изумрудов или {fbRubies} рубинов). Вожака, «Звездопада», ветра, дождя и первого места здесь нет.",
+          en: "A round colosseum with a wall, tribunes and four gates. All players are sheep on one team: they don't eat each other (no mass is transferred on touch); you can split and throw mass. Waves of wolves come out of the gates (stronger and more numerous each wave, and scaled by the number of players), with a {pause} s pause between waves. After {waves} waves the Tiger boss appears. The Tiger can't be eaten: pick up arrows from the ground (up to {carry}; wolves also drop them) and shoot with F or the Arrow button. The Tiger falls once it has taken all its hits. Reward: {rubies} rubies and {emerald} emerald (up to {limit} counted wins a day), only for players who hit the Tiger at least {hits} times, are not AFK and spent the required time on the arena (up to {minPresence} s). A round without a win resets with no rewards after {timeout} min. Every {per} counted wins give one random skin from the second Legendary row (if you own them all: {fbEmeralds} emeralds or {fbRubies} rubies). No Alpha, Starfall, wind, rain or 1st-place reward here.",
+        },
+        params: {
+          pause: num("coliseum.wavePauseSec"),
+          waves: num("coliseum.wavesBeforeTiger"),
+          carry: num("coliseum.arrowMaxCarry"),
+          rubies: num("coliseum.rubies"),
+          emerald: num("coliseum.emeraldPerWin"),
+          limit: num("coliseum.dailyWinLimit"),
+          hits: num("coliseum.arrowHitsRequired"),
+          minPresence: num("coliseum.minPresenceSec"),
+          timeout: num("coliseum.roundTimeoutMin"),
+          per: num("coliseum.winsPerSkin"),
+          fbEmeralds: num("coliseum.fallbackEmeralds"),
+          fbRubies: num("coliseum.fallbackRubies"),
+        },
       },
       {
         id: "lava",

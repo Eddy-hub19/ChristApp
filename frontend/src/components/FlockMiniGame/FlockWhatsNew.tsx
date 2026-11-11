@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
-import { BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, PipeIcon, WindIcon, SnowflakeIcon, TrophyIcon, LanternIcon, FirefliesJarIcon, WingsIcon } from "@/components/icons/game";
+import { ArtifactShieldIcon, EmeraldIcon, QuestScrollIcon, BoltIcon, FlockIcon, LeafIcon, NameTagIcon, ScissorsIcon, ShieldIcon, StarfallIcon, EagleEyeIcon, LavaIcon, FenceIcon, AlphaIcon, PipeIcon, WindIcon, SnowflakeIcon, TrophyIcon, LanternIcon, FirefliesJarIcon, WingsIcon } from "@/components/icons/game";
 import { WELCOME_ITEMS, type WhatsNewIcon, type WhatsNewItem, type WhatsNewLang } from "./flockWhatsNewData";
 import type { Announcement } from "./flockWhatsNewLogic";
 import styles from "./FlockWhatsNew.module.scss";
@@ -33,6 +33,9 @@ export const ICONS: Record<WhatsNewIcon, (p: { size: number }) => ReactNode> = {
   jar: (p) => <FirefliesJarIcon {...p} />,
   wings: (p) => <WingsIcon {...p} />,
   wind: (p) => <WindIcon {...p} />,
+  emerald: (p) => <EmeraldIcon {...p} />,
+  quest: (p) => <QuestScrollIcon {...p} />,
+  artifactShield: (p) => <ArtifactShieldIcon {...p} />,
   sound: (p) => (
     <svg width={p.size} height={p.size} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" fillOpacity="0.2" />

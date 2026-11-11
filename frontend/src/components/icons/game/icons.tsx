@@ -579,3 +579,58 @@ export function FirefliesJarIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Смарагд: друга валюта «Отари». Ступінчаста огранка (зелений восьмикутник), білий блік, темна обводка; читається вже від 16 px. */
+export function EmeraldIcon(props: ColorIconProps) {
+  return (
+    <ColorIconSvg {...props}>
+      <path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z" fill="#1fb572" />
+      <path d="M8 3h8l-1 5H9z" fill="#7df0b8" />
+      <path d="M16 3l5 5-4 2-2-2z" fill="#3fd18b" />
+      <path d="M21 8v8l-4-2v-4z" fill="#14935b" />
+      <path d="M21 16l-5 5-1-5 2-2z" fill="#0b7a49" />
+      <path d="M16 21H8l1-5h6z" fill="#0f8a53" />
+      <path d="M8 21l-5-5 4-2 2 2z" fill="#14935b" />
+      <path d="M3 16V8l4 2v4z" fill="#2fc07f" />
+      <path d="M3 8l5-5 1 5-2 2z" fill="#5be3a2" />
+      <path d="M9 8h6l2 2v4l-2 2H9l-2-2v-4z" fill="#34d08a" />
+      <path d="M9 8h6l2 2H7z" fill="#8ff5c4" fillOpacity=".55" />
+      <path d="M8 3h8l5 5v8l-5 5H8l-5-5V8zM9 8h6l2 2v4l-2 2H9l-2-2v-4zM8 3l1 5M16 3l-1 5M21 8l-4 2M21 16l-4-2M16 21l-1-5M8 21l1-5M3 16l4-2M3 8l4 2" {...stroke} strokeWidth="1.1" />
+      <path d="M6.2 6.6l1.5-1.5M10.6 5.4l1.6-.2" stroke="#fff" strokeOpacity=".9" strokeWidth="1.3" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+/** Артефакт «Щит»: круглий щит із золотою кромкою, синім полем і білою зіркою (не плутати з бонусом «Щит» - червоним). */
+export function ArtifactShieldIcon(props: ColorIconProps) {
+  const rim = useGradient("#ffe27a", "#e8921a");
+  const face = useGradient("#5aa8f0", "#2a5fb8");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>
+        {rim.def}
+        {face.def}
+      </defs>
+      <circle cx="12" cy="12" r="10" fill={rim.fill} />
+      <circle cx="12" cy="12" r="7.2" fill={face.fill} />
+      <path d="M12 6.4l1.6 3.4 3.7.4-2.8 2.5.8 3.7L12 14.5l-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z" fill="#fff" fillOpacity=".92" />
+      <circle cx="12" cy="12" r="10" fill="none" stroke={INK} strokeWidth="1.2" />
+      <circle cx="12" cy="12" r="7.2" fill="none" stroke={INK} strokeWidth="1" strokeOpacity=".75" />
+      <path d="M6.2 7.4A7.4 7.4 0 0 1 10 4.6" stroke="#fff" strokeOpacity=".85" strokeWidth="1.3" strokeLinecap="round" />
+    </ColorIconSvg>
+  );
+}
+
+/** Щоденні завдання: сувій із галочкою. */
+export function QuestScrollIcon(props: ColorIconProps) {
+  const g = useGradient("#fff3c4", "#f0d28a");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>{g.def}</defs>
+      <path d="M6 4.5h11a2 2 0 012 2V18a2.5 2.5 0 01-2.5 2.5H8A2.5 2.5 0 015.5 18V5z" fill={g.fill} {...stroke} />
+      <path d="M6 4.5a2 2 0 100 4h2V6.5" fill={GOLD_DEEP} {...stroke} />
+      <path d="M9.5 12.4l2 2 3.6-4" stroke="#2fa866" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M9.5 17.2h5.5" {...stroke} strokeOpacity=".55" />
+    </ColorIconSvg>
+  );
+}

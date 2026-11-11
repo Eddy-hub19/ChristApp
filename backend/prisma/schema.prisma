@@ -53,6 +53,10 @@ model User {
   watchMessageReactions WatchMessageReaction[]
   flockProfile        FlockProfile?
   rubyTransactions    RubyTransaction[]  @relation("RubyTxUser")
+  emeraldTransactions EmeraldTransaction[] @relation("EmeraldTxUser")
+  flockDailyQuests    FlockDailyQuest[]  @relation("FlockQuestUser")
+  flockColiseumWins   FlockColiseumWin[] @relation("FlockColiseumUser")
+  flockColiseumLogs   FlockColiseumLog[] @relation("FlockColiseumLogUser")
   puzzleImages        UserPuzzleImage[]
   puzzleUploadBlock   PuzzleUploadBlock?
   flockSkinPurchases  FlockSkinPurchase[]
@@ -355,6 +359,10 @@ model FlockProfile {
   entryBonusAt    DateTime?
   /// Коли гравець отримав разову нагороду за колекцію преміум-скінів (null - ще ні).
   premiumCollectionAt DateTime?
+  /// Смарагди (друга валюта): змінюються лише разом із записом у EmeraldTransaction (одна транзакція), стеля накопичення - у конфігу.
+  emeralds        Int       @default(0)
+  /// Засчитані перемоги над тигром на «Арені» за весь час (кожні coliseumWinsPerSkin - скін; не обнуляється).
+  coliseumWins    Int       @default(0)
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -368,6 +376,54 @@ enum RubyReason {
   ARENA_STREAK
   PREMIUM_COLLECTION
   TEAM_WIN
+  DAILY_QUEST
+  ARENA_COLISEUM
+  ARENA_COLISEUM_SKIN
+}
+
+enum EmeraldReason {
+  DAILY_QUEST_EMERALD
+  ARTIFACT_PURCHASE_EMERALD
+  SKIN_PURCHASE_EMERALD
+  ARENA_TIGER_DROP
+  ARENA_COLISEUM_SKIN_FALLBACK
+  ADMIN_ADJUST
+}
+
+/// Журнал смарагдів: тільки додавання рядків.
+model EmeraldTransaction {
+  id           String        @id @default(uuid())
+  userId       String
+  delta        Int
+  balanceAfter Int
+  reason       EmeraldReason
+  /// Причина від адміна.
+  note         String?
+  skinId       Int?
+  artifactId   Int?
+  /// Хто ініціював (адмін), якщо не сама гра.
+  actorId      String?
+  createdAt    DateTime      @default(now())
+  user         User          @relation("EmeraldTxUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, reason, createdAt])
+}
+
+/// Щоденні завдання «Отари»: по одному рядку на (гравець, доба за Києвом, слот 0..2).
+model FlockDailyQuest {
+  userId    String
+  /// Доба за Києвом, 'YYYY-MM-DD'.
+  day       String
+  slot      Int
+  questId   String
+  progress  Int      @default(0)
+  claimedAt DateTime?
+  updatedAt DateTime @updatedAt
+  user      User     @relation("FlockQuestUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day, slot])
+  @@index([day])
 }
 
 /// Журнал рубінів: тільки додавання рядків.
@@ -478,4 +534,35 @@ model PuzzleUploadBlock {
   userId    String   @id
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+/// Перемоги над тигром на «Арені»: один рядок на (перемога, гравець) - захист від повторного нарахування й лічильник добових лімітів.
+model FlockColiseumWin {
+  winId     String
+  userId    String
+  /// Чи засчитана (не перевищено ліміт на добу): незасчитані пишуться з counted=false, щоб повторний розрахунок їх не змінив.
+  counted   Boolean  @default(false)
+  rubies    Int      @default(0)
+  emeralds  Int      @default(0)
+  /// Скін, виданий цією перемогою (кожна 20-та), якщо був.
+  skinId    Int?
+  createdAt DateTime @default(now())
+  user      User     @relation("FlockColiseumUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([winId, userId])
+  @@index([userId, createdAt])
+}
+
+/// Журнал ручних правок лічильника перемог «Арени» (адмін, з причиною).
+model FlockColiseumLog {
+  id        String   @id @default(uuid())
+  userId    String
+  delta     Int
+  winsAfter Int
+  note      String
+  actorId   String
+  createdAt DateTime @default(now())
+  user      User     @relation("FlockColiseumLogUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
