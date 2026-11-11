@@ -851,6 +851,11 @@ export class FlockWorld {
     return C.spawnShieldMs + (this.perk(p).shieldBonusMs ?? 0);
   }
 
+  /** Обраний скін при повторному вході (перерождення з того ж сокета): без цього овечка ожила б у скіні минулого життя. */
+  setSkin(p: Player, skin: number) {
+    if (!p.bot && !p.boss && !p.monster && !p.tiger) p.skin = this.humanSkin(skin);
+  }
+
   /** Новий артефакт при повторному вході (перерождення з того ж сокета). */
   setArtifact(p: Player, artifact: number) {
     p.artifact = !p.bot && isArtifactId(artifact) ? artifact : 0;

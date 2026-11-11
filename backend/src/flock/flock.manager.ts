@@ -1484,7 +1484,16 @@ export class FlockManager {
     skin: number,
     opts: JoinOptions = {},
   ): JoinResult {
-    const sameConn = this.byConn.get(connKey);
+    let sameConn = this.byConn.get(connKey);
+    // перерождення в арені, чия карта вже просрочена/закрита адміном (або вибрана інша карта): нове життя починається на новій карті,
+    // а не в старій арені (інакше «Арена», вибрана адміном, ніколи не з'являлась би для того, хто грає раз за разом)
+    if (sameConn && sameConn.arena.mode === 'normal' && (opts.mode ?? 'normal') === 'normal' && this.mapExpired(sameConn.arena)) {
+      const dead = sameConn.arena.world.players.get(sameConn.pid);
+      if (dead && !dead.alive) {
+        this.removeSession(sameConn);
+        sameConn = undefined;
+      }
+    }
     if (sameConn) {
       // повторний вхід з того ж сокета = переродження
       const p = sameConn.arena.world.players.get(sameConn.pid);
@@ -1494,6 +1503,8 @@ export class FlockManager {
       }
       if (p && !p.alive) {
         sameConn.arena.world.setArtifact(p, opts.artifact ?? 0);
+        // скін, обраний у лобі після смерті, діє на новому житті (раніше лишався скін минулого життя)
+        sameConn.arena.world.setSkin(p, skin);
         sameConn.arena.world.respawn(p);
         sameConn.deadSent = false;
         sameConn.rewardedThisLife = false;
@@ -1653,6 +1664,8 @@ export class FlockManager {
   setNextMap(id: number | null): boolean {
     if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team && (!m.night || C.night.enabled))) return false;
     this.forcedNextMap = id;
+    // карта вибрана - нові гравці мають потрапити саме на неї: звичайні арени з іншою картою закриваємо для нових (хто грає, лишається)
+    if (id !== null) for (const a of this.arenas.values()) if (a.mode === 'normal' && a.mapId !== id) a.retired = true;
     return true;
   }
 
