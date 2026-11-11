@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
+import { useAnnouncementGate } from "@/components/OtaraAnnouncement/announcementGate";
 import { APP_WHATS_NEW, APP_WHATS_NEW_TEXT, latestAppVersion, type AppWhatsNewLang } from "./appWhatsNewData";
 import styles from "./AppWhatsNew.module.scss";
 
@@ -24,6 +25,7 @@ export default function AppWhatsNew() {
   const lang: AppWhatsNewLang = locale === "ru" || locale === "en" ? locale : "ua";
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const gate = useAnnouncementGate();
 
   useEffect(() => {
     const check = () => setOpen(Boolean(getAuthToken()) && loadSeen() < latestAppVersion());
@@ -33,7 +35,8 @@ export default function AppWhatsNew() {
   }, []);
 
   // не перекрываем экран выбора ника: плашка появится на первой странице приложения
-  if (!open || pathname === "/choose-nickname") return null;
+  // объявление «Отари» приоритетнее: пока оно решает/показано, общая плашка ждёт следующего запуска (не больше одного окна за запуск)
+  if (!open || pathname === "/choose-nickname" || gate !== "none") return null;
 
   const seen = loadSeen();
   const entries = APP_WHATS_NEW.filter((e) => e.version > seen).sort((a, b) => b.version - a.version);

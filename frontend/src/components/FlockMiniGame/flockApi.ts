@@ -83,6 +83,10 @@ export const importFlockStats = (stats: FlockStats) =>
 export const markWhatsNewSeen = (version: number) =>
   call<{ whatsNewSeen: number }>("/whats-new", { method: "PUT", body: JSON.stringify({ version }) });
 
+/** Вікно-оголошення при вході в застосунок: що переглянуто (GET) і позначка «переглянуто» (PUT). */
+export const fetchAnnouncement = () => call<{ seen: number; gameSeen: number; hasChats: boolean }>("/announcement");
+export const markAnnouncementSeen = (version: number) => call<{ seen: number }>("/announcement", { method: "PUT", body: JSON.stringify({ version }) });
+
 /** Лобі режиму «Замки»: скільки людей на кожній стороні (без входу в арену). */
 export const fetchCastlesLobby = () => call<import("./flockCastles").CastlesLobby>("/castles/lobby");
 

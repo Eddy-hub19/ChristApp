@@ -118,6 +118,17 @@ export class FlockController {
     return { ok: true };
   }
 
+  /** Вікно-оголошення при вході в застосунок: що вже переглянуто. */
+  @Get('announcement')
+  announcement(@Req() req: Request) {
+    return this.rubies.getAnnouncement(this.uid(req));
+  }
+
+  @Put('announcement')
+  announcementSeen(@Req() req: Request, @Body() body: { version?: unknown }) {
+    return this.rubies.markAnnouncementSeen(this.uid(req), body?.version);
+  }
+
   @Put('whats-new')
   whatsNew(@Req() req: Request, @Body() body: { version?: unknown }) {
     return this.rubies.markWhatsNewSeen(this.uid(req), body?.version);
