@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, Crown, Lock, Play, X } from "lucide-react";
+import { ChevronDown, Crown, Info, Lock, MoreVertical, Play, Swords, Volume2, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon, QuestScrollIcon } from "@/components/icons/game";
 import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
@@ -35,7 +35,7 @@ import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastle
 import type { CastleEndInfo, CastleEvent, CastleRewardInfo, CastlesGameConfig, Team } from "./flockCastles";
 import castleStyles from "./FlockCastles.module.scss";
 import FlockSheet from "./FlockSheet";
-import FlockLobbySkins from "./FlockLobbySkins";
+import FlockLobbySkins, { type GridTile } from "./FlockLobbySkins";
 import FlockLobbyQuests from "./FlockLobbyQuests";
 import lobby from "./FlockLobby.module.scss";
 import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
@@ -236,6 +236,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   phraseLangRef.current = toPhraseLang(locale);
   const [infoOpen, setInfoOpen] = useState(false);
   const [questsOpen, setQuestsOpen] = useState(false);
+  const [skinsSheetOpen, setSkinsSheetOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
   /** Плашка «Завдання виконано» у грі (значення - метка часу появи). */
   const [questToast, setQuestToast] = useState<number | null>(null);
   /** «Арена»: підсумок поразки тигра (картка по центру, зникає сама або за кнопкою). */
@@ -672,6 +675,22 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     return () => clearTimeout(id);
   }, [reward]);
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [moreOpen]);
+
+  /** Просмотр скина в шторке «Усі обліки»: закрытый - на покупку, открытый - без надевания (только сброс просмотра). */
+  const peekSkin = (i: number) => {
+    setBuyError(null);
+    setConfirming(false);
+    setPreviewSkin(isPaidSkin(i) && !me?.ownedSkins.includes(i) ? i : null);
+  };
+
   const openSkin = (i: number) => {
     setBuyError(null);
     setConfirming(false);
@@ -840,26 +859,39 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     { key: "legendary" as const, ids: LEGENDARY_SKIN_ROWS.flat() },
   ].filter((x) => x.ids.length > 0);
 
-  const skinButton = (i: number) => {
+  const skinButton = (i: number, grid?: GridTile) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
+    const hasPerk = isSpecialSkin(i) && perkList(me?.config.game, i).length > 0;
     return (
       <button
         key={i}
         type="button"
         role="radio"
-        aria-checked={skin === i}
+        aria-checked={grid ? grid.focused : skin === i}
         aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${notForSale(i) ? t("rubies.soon") : t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
         title={t(`skins.${i}`)}
-        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${(previewSkin ?? skin) === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
-        onClick={() => openSkin(i)}
+        className={`${styles.skin} ${grid ? lobby.tileGrid : ""} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${(grid ? grid.focused : (previewSkin ?? skin) === i) ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+        onClick={grid ? grid.onPick : () => openSkin(i)}
       >
         <SkinPreview skinId={i} />
-        {isSpecialSkin(i) && perkList(me?.config.game, i).length > 0 ? (
-          <span className={styles.perkBadge} title={t("premiumCollection.perkBadge")} aria-hidden>
-            +
+        {hasPerk ? <span className={styles.perkBadge} title={t("premiumCollection.perkBadge")} aria-hidden /> : null}
+        {grid ? (
+          <span className={lobby.tileMeta}>
+            {locked ? (
+              <>
+                <Lock size={11} aria-hidden />
+                {notForSale(i) ? (
+                  t("rubies.soon")
+                ) : (
+                  <>
+                    {priceIcon(i, 11)}
+                    {priceOf(i)}
+                  </>
+                )}
+              </>
+            ) : null}
           </span>
-        ) : null}
-        {locked ? (
+        ) : locked ? (
           <>
             <span className={styles.lockBadge}>
               <Lock size={12} aria-hidden />
@@ -878,7 +910,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         ) : null}
       </button>
     );
-};
+  };
 
   // --- цикл відмальовки: жодних React-рендерів на кадр ---
   // reconnecting: звʼязок обірвався, але екран гри лишається (овечка чекає на сервері)
@@ -1269,9 +1301,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         <div ref={stickKnobRef} className={styles.stickKnob} />
       </div>
 
-      <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t("close")} title={t("close")}>
-        <X size={20} aria-hidden />
-      </button>
+      {skinsSheetOpen && showLobby ? null : (
+        <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t("close")} title={t("close")}>
+          <X size={20} aria-hidden />
+        </button>
+      )}
 
       {playing ? (
         <>
@@ -1832,13 +1866,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         <div className={lobby.lobbyWrap} onClickCapture={lobbyClickSound}>
           <div className={lobby.lobbyCard}>
             <div className={lobby.scroll}>
-              <div className={styles.cardHead}>
-                <div className={styles.titleRow}>
-                  <h2>{t("title")}</h2>
-                  <button type="button" className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} aria-haspopup="dialog">
+              <div className={lobby.head}>
+                <h2 className={lobby.headTitle}>{t("title")}</h2>
+                <div className={lobby.headTools}>
+                  <button type="button" className={`${styles.infoBtn} ${lobby.toolInline}`} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} title={t("info.open")} aria-haspopup="dialog">
                     i
                   </button>
-                  <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
+                  <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn} ${lobby.toolInline}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
                     {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
@@ -1847,15 +1881,37 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                     <QuestScrollIcon size={18} />
                     {(me?.questsClaimable ?? 0) > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
                   </button>
-                  <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
+                  <span className={lobby.toolInline}>
+                    <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
+                  </span>
+                  <div className={lobby.more} ref={moreRef}>
+                    <button type="button" className={`${styles.infoBtn} ${lobby.moreBtn}`} onClick={() => setMoreOpen((v) => !v)} aria-label={t("lobby.more")} title={t("lobby.more")} aria-haspopup="menu" aria-expanded={moreOpen}>
+                      <MoreVertical size={16} aria-hidden />
+                      {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
+                    </button>
+                    {moreOpen ? (
+                      <div className={lobby.moreMenu} role="menu">
+                        <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); setInfoOpen(true); }}>
+                          <Info size={16} aria-hidden /> {t("info.open")}
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); setArtifactsOpen(true); }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={16} height={16} decoding="async" /> {t("artifacts.title")}
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); setSoundOpen(true); }}>
+                          <Volume2 size={16} aria-hidden /> {t("sound.open")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-                <div className={styles.balances}>
-                  <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
-                    <RubyIcon size={18} />
+                <div className={lobby.balances}>
+                  <div className={`${styles.balance} ${lobby.chip}`} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+                    <RubyIcon size={16} />
                     <span>{me?.rubies ?? 0}</span>
                   </div>
-                  <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
-                    <EmeraldIcon size={18} />
+                  <div className={`${styles.balance} ${styles.balanceEmerald} ${lobby.chip}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
+                    <EmeraldIcon size={16} />
                     <span>{me?.emeralds ?? 0}</span>
                   </div>
                 </div>
@@ -1868,9 +1924,22 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 artifact={artifact}
                 tabs={lobbyTabs}
                 isOwned={(id) => !isPaidSkin(id) || Boolean(me?.ownedSkins.includes(id))}
+                currentSkin={skin}
+                previewSkin={previewSkin}
+                isLocked={(id) => isPaidSkin(id) && !me?.ownedSkins.includes(id)}
+                isSoon={notForSale}
+                priceNode={(id) => (
+                  <span className={lobby.priceInline}>
+                    {priceIcon(id, 14)}
+                    {priceOf(id)}
+                  </span>
+                )}
                 renderTile={skinButton}
                 perks={perkLines}
-                buyBlock={previewSkin !== null ? buyBlock(previewSkin) : null}
+                buyBlock={buyBlock}
+                onPeek={peekSkin}
+                onSelect={openSkin}
+                onSheetChange={setSkinsSheetOpen}
                 skinName={(id) => t(`skins.${id}`)}
                 tabHint={(key) =>
                   key === "premium" && me && !me.premiumCollectionClaimed ? (
@@ -1955,12 +2024,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   {status === "ready" ? t("play") : status === "resuming" ? t("resuming") : t("connecting")}
                 </button>
               )}
-              <div className={lobby.dockRow}>
-                <button type="button" className={lobby.dockBtn} onClick={() => setModesOpen(true)} aria-haspopup="dialog">
-                  {t("modes.open")}
-                </button>
-                <FlockInvite arenaId={arenaId} className={lobby.dockInvite} direction="up" />
-              </div>
+              <button type="button" className={lobby.dockIcon} onClick={() => setModesOpen(true)} aria-haspopup="dialog" aria-label={t("modes.open")} title={t("modes.open")}>
+                <Swords size={22} aria-hidden />
+              </button>
+              <FlockInvite arenaId={arenaId} className={lobby.dockInvite} direction="up" align="right" iconOnly />
             </div>
           </div>
         </div>

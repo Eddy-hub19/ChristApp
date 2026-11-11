@@ -1448,19 +1448,14 @@
 }
 
 /* --- бонусы особенных скинов и коллекция премиум --- */
+/* бонус скина: маленькая точка вместо «+» */
 .perkBadge {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
+  top: 4px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1;
-  color: #fff;
   background: color-mix(in srgb, #7a5cd6 90%, #000);
   pointer-events: none;
 }

@@ -1856,7 +1856,6 @@
       "all": "All",
       "allTitle": "All looks",
       "closeAll": "Close the list",
-      "position": "{n} of {m}",
       "ownedAria": "{have} of {total} owned",
       "questsTitle": "Daily quests",
       "resetInHours": "Resets in {n} h",
@@ -1867,7 +1866,14 @@
       "questsFold": "Collapse quests",
       "statBest": "Best",
       "statTop1": "Top 1",
-      "statsToggle": "Show or hide stats"
+      "statsToggle": "Show or hide stats",
+      "legendaryShort": "Legend.",
+      "priceLabel": "Price:",
+      "owned": "Owned",
+      "buy": "Buy",
+      "choose": "Select",
+      "done": "Done",
+      "more": "More"
     },
     "quests": {
       "title": "Daily quests",
