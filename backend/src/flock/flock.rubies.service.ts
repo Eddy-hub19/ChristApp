@@ -296,6 +296,30 @@ export class FlockRubiesService {
   }
 
   /**
+   * Вікно-оголошення «Отари» при вході: остання переглянута версія оголошення, остання переглянута версія «Що нового» гри
+   * (гравець уже бачив оновлення в лобі) і чи є в користувача чати (новим без чатів оголошення не показуємо). Один легкий запит.
+   */
+  async getAnnouncement(userId: string) {
+    const [profile, chats] = await Promise.all([
+      this.prisma.flockProfile.findUnique({ where: { userId }, select: { announcementSeen: true, whatsNewSeen: true } }),
+      this.prisma.roomMember.count({ where: { userId } }),
+    ]);
+    return { seen: profile?.announcementSeen ?? 0, gameSeen: profile?.whatsNewSeen ?? 0, hasChats: chats > 0 };
+  }
+
+  /** Позначає оголошення переглянутим: лише вперед (максимум), значення обмежене. */
+  async markAnnouncementSeen(userId: string, version: unknown) {
+    const v =
+      typeof version === 'number' && Number.isFinite(version) && version > 0 ? Math.min(1000, Math.floor(version)) : 0;
+    if (v === 0) throw fail(BadRequestException, 'invalid_version');
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockProfile(tx, userId);
+      await tx.flockProfile.updateMany({ where: { userId, announcementSeen: { lt: v } }, data: { announcementSeen: v } });
+    });
+    return { seen: v };
+  }
+
+  /**
    * Нагорода за 1-ше місце. Повертає null, якщо добовий ліміт вичерпано (сума обрізається до залишку).
    * Добу рахуємо за часом Києва.
    */

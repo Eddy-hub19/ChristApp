@@ -1,0 +1,188 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--background) 68%, transparent);
+  overflow-y: auto;
+  animation: fade 200ms ease-out both;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 100%;
+  overflow-y: auto;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
+  animation: pop 300ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.hero {
+  padding: 26px 20px 16px;
+  text-align: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, #ffc83d 38%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, #e5304f 22%, transparent), transparent);
+}
+
+.gameIcon {
+  display: inline-flex;
+  margin-bottom: 8px;
+  animation: wobble 2.4s ease-in-out 400ms infinite;
+  transform-origin: 50% 80%;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+.sub {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.82;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 18px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  line-height: 1.35;
+  font-size: 14.5px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+.itemIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px 18px;
+}
+
+.cta {
+  min-height: 52px;
+  border: 0;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(180deg, #ff5a78, #e5304f);
+}
+
+.later {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  color: inherit;
+}
+
+.cta:focus-visible,
+.later:focus-visible,
+.close:focus-visible {
+  outline: 3px solid #ffc83d;
+  outline-offset: 2px;
+}
+
+/* телефон: шторка снизу на всю ширину */
+@media (max-width: 640px) {
+  .wrap {
+    align-items: flex-end;
+  }
+
+  .card {
+    max-width: none;
+    animation-name: sheet;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+
+@keyframes sheet {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes wobble {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0);
+  }
+  70% {
+    transform: rotate(-8deg);
+  }
+  80% {
+    transform: rotate(7deg);
+  }
+  90% {
+    transform: rotate(-4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .card,
+  .gameIcon {
+    animation: none;
+  }
+}

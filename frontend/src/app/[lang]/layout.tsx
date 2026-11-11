@@ -7,6 +7,7 @@ import AppBackground from "@/components/ChatBackground/ChatBackground";
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain";
 import CinemaProvider from "@/components/Cinema/CinemaProvider";
 import AppWhatsNew from "@/components/AppWhatsNew/AppWhatsNew";
+import OtaraAnnouncement from "@/components/OtaraAnnouncement/OtaraAnnouncement";
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync";
 import HtmlLang from "@/components/HtmlLang/HtmlLang";
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket";
@@ -69,6 +70,7 @@ export default async function LangLayout({
         <AppWhatsNew />
         <PresenceSocket>
           <CinemaProvider>
+            <OtaraAnnouncement />
             <AppBackground />
             <ThemeToggle />
             <AdaptiveMain>{children}</AdaptiveMain>
