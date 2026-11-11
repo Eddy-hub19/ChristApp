@@ -69,7 +69,7 @@ function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: A
   const tf = useTranslations("flock.mapNames");
   const queryClient = useQueryClient();
   const set = useMutation({
-    mutationFn: (body: { mapId?: number | null; retire?: boolean }) => setAdminFlockNextMap(body),
+    mutationFn: (body: { mapId?: number | null; retire?: boolean; recreateEmpty?: boolean }) => setAdminFlockNextMap(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.admin.server() }),
   });
   const name = (id: number | undefined) => tf(MAP_KEYS[id ?? 0] ?? MAP_KEYS[0]);
@@ -108,6 +108,9 @@ function FlockMapControl({ arenas, maps }: { arenas: AdminFlockArena[]; maps?: A
         </button>
         <button type="button" className={styles.btnGhost} disabled={set.isPending || normal.length === 0} onClick={() => set.mutate({ retire: true })}>
           {t("switchNow")}
+        </button>
+        <button type="button" className={styles.btnGhost} disabled={set.isPending || normal.length === 0} onClick={() => set.mutate({ recreateEmpty: true })}>
+          {t("recreateEmpty")}
         </button>
       </div>
       <p className={styles.metaSmall}>{t("hint")}</p>

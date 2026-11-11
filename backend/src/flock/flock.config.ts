@@ -656,9 +656,12 @@ export const FLOCK_CONFIG = {
   // --- щоденні завдання (доба за rubies.dailyTimeZone): 3 на день, невзяте не копичиться ---
   quests: {
     enabled: true,
-    /** Нагороди за слотами: 0 і 1 - легкі (рубіни), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
+    /** Нагороди за слотами: 0 і 1 - легкі (рубіни: 4 і 6, за порядком слота), 2 - складне (смарагди). Рубіни за завдання - поза rubies.dailyEarnCap. */
     rewards: {
-      simple: { type: 'rubies', amount: 4 },
+      simple: [
+        { type: 'rubies', amount: 4 },
+        { type: 'rubies', amount: 6 },
+      ],
       hard: { type: 'emeralds', amount: 3 },
     } as const,
     /** Скільки мс сервер тримає прогрес у пам'яті перед записом у БД (плюс запис при смерті, виході й закритті арени). */
@@ -1218,7 +1221,7 @@ export function clientGameConfig() {
       skinIds: [...c.coliseum.skins.ids],
     },
     quests: {
-      simpleRubies: c.quests.rewards.simple.amount,
+      simpleRubies: c.quests.rewards.simple.map((r) => r.amount),
       hardEmeralds: c.quests.rewards.hard.amount,
     },
     emeralds: {

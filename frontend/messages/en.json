@@ -196,6 +196,7 @@
       "nextSet": "Next map: {map}",
       "clear": "Random",
       "switchNow": "Switch map now",
+      "recreateEmpty": "Recreate empty arena",
       "hint": "A new arena picks a map by weight, but never the same as the previous one. A forced map applies to one next arena only.",
       "nightOpen": "available now",
       "nightClosed": "outside the 20:00–06:00 Kyiv window"

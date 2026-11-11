@@ -505,6 +505,9 @@ export class FlockGateway
   setNextMap(id: number | null) {
     return this.manager.setNextMap(id);
   }
+  recreateEmptyArenas() {
+    return this.manager.recreateEmptyArenas();
+  }
   retireArenas() {
     this.manager.retireArenas();
   }
