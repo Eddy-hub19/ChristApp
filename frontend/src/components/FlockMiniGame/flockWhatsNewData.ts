@@ -699,17 +699,17 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "emerald",
         text: {
-          ua: "Нова валюта — смарагди. Їх дуже важко здобути: видаються за складні щоденні завдання, накопичити можна не більше 200. Передавати іншим гравцям не можна. Баланс — поруч із рубінами в лобі",
-          ru: "Новая валюта — изумруды. Их очень трудно добыть: выдаются за сложные ежедневные задания, накопить можно не больше 200. Передавать другим игрокам нельзя. Баланс — рядом с рубинами в лобби",
-          en: "A new currency: emeralds. They are very hard to get: handed out for the hard daily quests, and you can hold at most 200. They can't be given to other players. Your balance sits next to rubies in the lobby",
+          ua: "Нова валюта — смарагди. Їх дуже важко здобути: видаються лише за складні досягнення, накопичити можна не більше 200. Передавати іншим гравцям не можна. Баланс — поруч із рубінами в лобі",
+          ru: "Новая валюта — изумруды. Их очень трудно добыть: выдаются только за сложные достижения, накопить можно не больше 200. Передавать другим игрокам нельзя. Баланс — рядом с рубинами в лобби",
+          en: "A new currency: emeralds. They are very hard to get: handed out only for hard achievements, and you can hold at most 200. They can't be given to other players. Your balance sits next to rubies in the lobby",
         },
       },
       {
         icon: "quest",
         text: {
-          ua: "Щоденні завдання: три на день (два прості за рубіни й одне складне за смарагди). Кнопка зі сувоєм поруч із «i». Скидаються опівночі за Києвом, невзяте не копичиться. Нагороду забираєш сам кнопкою «Забрати»",
-          ru: "Ежедневные задания: три в день (два простых за рубины и одно сложное за изумруды). Кнопка со свитком рядом с «i». Сбрасываются в полночь по Киеву, невзятое не копится. Награду забираешь сам кнопкой «Забрати»",
-          en: "Daily quests: three a day (two easy ones for rubies and one hard one for emeralds). The scroll button next to “i”. They reset at Kyiv midnight and unclaimed rewards don't pile up. Press Claim to collect",
+          ua: "Щоденні завдання: два легкі на день за рубіни (4 і 6). Кнопка зі сувоєм поруч із «i». Скидаються опівночі за Києвом, невзяте не копичиться. Нагороду забираєш сам кнопкою «Забрати»",
+          ru: "Ежедневные задания: два лёгких в день за рубины (4 и 6). Кнопка со свитком рядом с «i». Сбрасываются в полночь по Киеву, невзятое не копится. Награду забираешь сам кнопкой «Забрати»",
+          en: "Daily quests: two easy ones a day for rubies (4 and 6). The scroll button next to “i”. They reset at Kyiv midnight and unclaimed rewards don't pile up. Press Claim to collect",
         },
       },
       {
@@ -761,9 +761,9 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "ruby",
         text: {
-          ua: "За перемогу над тигром — рубіни й шанс на смарагд (є ліміт на добу). Раунд без перемоги за ліміт часу скидається без нагород",
-          ru: "За победу над тигром — рубины и изумруд (есть лимит в сутки). Раунд без победы по лимиту времени сбрасывается без наград",
-          en: "Defeating the Tiger pays rubies and an emerald (with a daily limit). A round without a win resets on a time limit with no rewards",
+          ua: "За перемогу над тигром — рубіни (є ліміт на добу). Раунд без перемоги за ліміт часу скидається без нагород",
+          ru: "За победу над тигром — рубины (есть лимит в сутки). Раунд без победы по лимиту времени сбрасывается без наград",
+          en: "Defeating the Tiger pays rubies (with a daily limit). A round without a win resets on a time limit with no rewards",
         },
       },
       {
@@ -772,6 +772,28 @@ export const WHATS_NEW: WhatsNewEntry[] = [
           ua: "Перемоги над тигром ведуть вічний рахунок: за певну кількість перемог видається один із «Легендарних» скінів другого ряду. Прогрес видно в лобі й у вікні «i»",
           ru: "Победы над тигром ведут вечный счёт: за определённое число побед выдаётся один из «Легендарных» скинов второго ряда. Прогресс виден в лобби и в окне «i»",
           en: "Tiger wins are counted forever: a set number of wins grants one of the second-row Legendary skins. Your progress is shown in the lobby and in the “i” window",
+        },
+      },
+    ],
+  },
+  {
+    version: 30,
+    date: "2026-11-11",
+    items: [
+      {
+        icon: "emerald",
+        text: {
+          ua: "Смарагди тепер дають лише три складні досягнення: грай 10 хв на добу 14 днів поспіль (2), набери масу 50000 за одне життя (2), купи всі особливі скіни (2). Забирай нагороду у вікні завдань, у блоці «Складні досягнення»",
+          ru: "Изумруды теперь дают только три сложных достижения: играй 10 мин в сутки 14 дней подряд (2), набери массу 50000 за одну жизнь (2), купи все особенные скины (2). Забирай награду в окне заданий, в блоке «Сложные достижения»",
+          en: "Emeralds now come only from three hard achievements: play 10 min a day 14 days in a row (2), reach a mass of 50000 in one life (2), buy all Special skins (2). Claim the reward in the quests window, in the “Hard achievements” block",
+        },
+      },
+      {
+        icon: "quest",
+        text: {
+          ua: "Щоденні завдання тепер лише легкі, за рубіни (4 і 6). Складних щоденних завдань і смарагда за тигра більше нема. Смарагдів не більше 3 на добу з повторюваних джерел",
+          ru: "Ежедневные задания теперь только лёгкие, за рубины (4 и 6). Сложных ежедневных заданий и изумруда за тигра больше нет. Изумрудов не больше 3 в сутки из повторяющихся источников",
+          en: "Daily quests are now easy ones only, paid in rubies (4 and 6). There are no hard daily quests and no emerald for the Tiger any more. At most 3 emeralds a day from repeatable sources",
         },
       },
     ],

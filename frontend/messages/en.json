@@ -1840,6 +1840,7 @@
     },
     "emeralds": {
       "name": "Emeralds",
+      "hint": "Emeralds come only from hard achievements (scroll button)",
       "count": "{count, plural, one {# emerald} other {# emeralds}}",
       "balance": "Emeralds: {count}",
       "progress": "{have} of {need} emeralds",
@@ -1856,13 +1857,33 @@
       "claim": "Claim",
       "claimed": "Claimed",
       "done": "Quest complete! Claim the reward in the lobby",
-      "hint": "New quests appear at Kyiv midnight. Unclaimed rewards don’t pile up.",
+      "hint": "New daily quests appear at Kyiv midnight; unclaimed rewards don’t pile up. Only hard achievements give emeralds.",
       "sec": "{n} / {of} s",
+      "hardTitle": "Hard achievements",
+      "hardCap": "Emeralds per day from repeatable sources: up to {n}",
+      "ach": {
+        "received": "Received",
+        "streak": {
+          "title": "Play at least {min} min a day, {n} days in a row",
+          "numbers": "{n} of {of} days",
+          "today": "Today: {m} of {of} min"
+        },
+        "mass": {
+          "title": "Reach mass {n} in one life"
+        },
+        "specials": {
+          "title": "Buy all Special skins",
+          "numbers": "{n} of {of}"
+        }
+      },
       "errors": {
         "generic": "Something went wrong, try again",
         "emerald_cap": "Emeralds are at the cap — spend some, then claim",
         "quest_claimed": "Already claimed",
-        "quest_not_done": "Quest not complete yet"
+        "quest_not_done": "Quest not complete yet",
+        "emerald_daily_cap": "Today’s emerald limit is reached — claim tomorrow",
+        "achievement_claimed": "Reward already received",
+        "achievement_not_done": "Achievement not complete yet"
       },
       "items": {
         "food": {

@@ -110,3 +110,24 @@ export interface FlockQuestsView {
 export const fetchFlockQuests = () => call<FlockQuestsView>("/quests");
 export const claimFlockQuest = (slot: number) =>
   call<FlockQuestsView & { type: "rubies" | "emeralds"; amount: number; balance: number }>(`/quests/${slot}/claim`, { method: "POST" });
+
+/** «Складні досягнення» (GET /flock/achievements): серія днів гри, маса за життя, збір особливих скінів; нагорода - смарагди. */
+export interface FlockAchievement {
+  key: "streak" | "mass" | "specials";
+  progress: number;
+  target: number;
+  done: boolean;
+  claimed: boolean;
+  reward: { type: "emeralds"; amount: number };
+  /** Серия: секунды живой игры за сегодня и порог дня. */
+  todaySec?: number;
+  needSec?: number;
+}
+export interface FlockAchievementsView {
+  items: FlockAchievement[];
+  claimable: number;
+  emeraldDailyCap: number;
+}
+export const fetchFlockAchievements = () => call<FlockAchievementsView>("/achievements");
+export const claimFlockAchievement = (key: FlockAchievement["key"]) =>
+  call<FlockAchievementsView & { type: "emeralds"; amount: number; balance: number }>(`/achievements/${key}/claim`, { method: "POST" });

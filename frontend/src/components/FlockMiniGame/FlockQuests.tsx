@@ -15,7 +15,8 @@ import {
   TrophyIcon,
   type ColorIconProps,
 } from "@/components/icons/game";
-import { claimFlockQuest, fetchFlockQuests, FlockApiError, type FlockQuest, type FlockQuestsView } from "./flockApi";
+import { CalendarCheck, Crown } from "lucide-react";
+import { claimFlockAchievement, claimFlockQuest, fetchFlockAchievements, fetchFlockQuests, FlockApiError, type FlockAchievement, type FlockAchievementsView, type FlockQuest, type FlockQuestsView } from "./flockApi";
 import FlockSheet from "./FlockSheet";
 import styles from "./FlockQuests.module.scss";
 
@@ -50,16 +51,19 @@ const fmtLeft = (ms: number) => {
 export default function FlockQuests({ onClose, onChanged }: Props) {
   const t = useTranslations("flock");
   const [view, setView] = useState<(FlockQuestsView & { at: number }) | null>(null);
+  const [ach, setAch] = useState<FlockAchievementsView | null>(null);
+  const [achBusy, setAchBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   const load = useCallback(async () => {
     try {
-      const v = await fetchFlockQuests();
+      const [v, a] = await Promise.all([fetchFlockQuests(), fetchFlockAchievements().catch(() => null)]);
       setView({ ...v, at: Date.now() });
+      setAch(a);
       setError(null);
-      onChanged({ claimable: v.claimable });
+      onChanged({ claimable: v.claimable + (a?.claimable ?? 0) });
     } catch {
       setError("generic");
     }
@@ -86,13 +90,29 @@ export default function FlockQuests({ onClose, onChanged }: Props) {
     try {
       const r = await claimFlockQuest(q.slot);
       setView({ day: r.day, resetInMs: r.resetInMs, quests: r.quests, claimable: r.claimable, at: Date.now() });
-      onChanged({ ...(r.type === "emeralds" ? { emeralds: r.balance } : { rubies: r.balance }), claimable: r.claimable });
+      onChanged({ ...(r.type === "emeralds" ? { emeralds: r.balance } : { rubies: r.balance }), claimable: r.claimable + (ach?.claimable ?? 0) });
     } catch (e) {
       const code = e instanceof FlockApiError ? e.code : null;
       setError(code === "emerald_cap" || code === "quest_claimed" || code === "quest_not_done" ? code : "generic");
       void load();
     } finally {
       setBusy(null);
+    }
+  };
+
+  const claimAch = async (a: FlockAchievement) => {
+    setAchBusy(a.key);
+    setError(null);
+    try {
+      const r = await claimFlockAchievement(a.key);
+      setAch({ items: r.items, claimable: r.claimable, emeraldDailyCap: r.emeraldDailyCap });
+      onChanged({ emeralds: r.balance, claimable: (view?.claimable ?? 0) + r.claimable });
+    } catch (e) {
+      const code = e instanceof FlockApiError ? e.code : null;
+      setError(code === "emerald_cap" || code === "emerald_daily_cap" || code === "achievement_claimed" || code === "achievement_not_done" ? code : "generic");
+      void load();
+    } finally {
+      setAchBusy(null);
     }
   };
 
@@ -144,6 +164,48 @@ export default function FlockQuests({ onClose, onChanged }: Props) {
                 );
               })
             : null}
+          {ach && ach.items.length > 0 ? (
+            <>
+              <div className={styles.head}>
+                <strong>{t("quests.hardTitle")}</strong>
+                <span className={styles.timer}>{t("quests.hardCap", { n: ach.emeraldDailyCap })}</span>
+              </div>
+              {ach.items.map((a) => {
+                const Icon = a.key === "streak" ? CalendarCheck : a.key === "mass" ? TrophyIcon : Crown;
+                const pct = a.target > 0 ? Math.min(100, Math.round((a.progress / a.target) * 100)) : 0;
+                const title = t(`quests.ach.${a.key}.title`, { n: a.target, min: Math.round((a.needSec ?? 0) / 60) });
+                const numbers = a.key === "streak" ? t("quests.ach.streak.numbers", { n: a.progress, of: a.target }) : a.key === "specials" ? t("quests.ach.specials.numbers", { n: a.progress, of: a.target }) : `${a.progress} / ${a.target}`;
+                return (
+                  <section key={a.key} className={`${styles.card} ${styles.cardHard} ${a.claimed ? styles.cardDone : ""}`}>
+                    <span className={styles.icon}>
+                      <Icon size={28} />
+                    </span>
+                    <div className={styles.main}>
+                      <strong className={styles.name}>{title}</strong>
+                      <div className={styles.bar} role="progressbar" aria-valuemin={0} aria-valuemax={a.target} aria-valuenow={a.progress}>
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className={styles.numbers}>{numbers}</span>
+                      {a.key === "streak" ? <span className={styles.numbers}>{t("quests.ach.streak.today", { m: Math.min(Math.floor((a.todaySec ?? 0) / 60), Math.round((a.needSec ?? 0) / 60)), of: Math.round((a.needSec ?? 0) / 60) })}</span> : null}
+                    </div>
+                    <div className={styles.side}>
+                      <span className={styles.reward}>
+                        +{a.reward.amount}
+                        <EmeraldIcon size={16} />
+                      </span>
+                      {a.claimed ? (
+                        <span className={styles.claimed}>{t("quests.ach.received")}</span>
+                      ) : (
+                        <button type="button" className={styles.claimBtn} disabled={!a.done || achBusy !== null} onClick={() => void claimAch(a)}>
+                          {t("quests.claim")}
+                        </button>
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
+            </>
+          ) : null}
           {error ? <p className={styles.error}>{t(`quests.errors.${error}`)}</p> : null}
           <p className={styles.note}>{t("quests.hint")}</p>
         </div>
