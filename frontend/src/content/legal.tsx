@@ -17,15 +17,15 @@ export type LegalDocument = {
   sections: LegalSection[];
 };
 
-const CONTACT = "[public contact email]";
+const CONTACT = "sekaneduard@gmail.com";
 
 export const privacyPolicy: LegalDocument = {
   title: "Privacy Policy",
-  effectiveDate: "[publication date]",
+  effectiveDate: "November 11, 2026",
   intro: (
     <>
       This Privacy Policy explains how Christ App handles your information when
-      you sign in and use the app. [Owner’s name or organization name] is
+      you sign in and use the app. Eduard Sekan is
       responsible for processing your information. You can contact us at{" "}
       {CONTACT}.
     </>
@@ -71,7 +71,7 @@ export const privacyPolicy: LegalDocument = {
         {
           type: "p",
           content:
-            "We use [names of hosting and database providers and a description of their roles] to process app data, including profile information received from Google. We may also disclose information when required by law.",
+            "We use Vercel to host the web app, Render to run the server, Neon to host the database, and Cloudinary to store uploaded images to process app data, including profile information received from Google. We may also disclose information when required by law.",
         },
       ],
     },
@@ -81,7 +81,7 @@ export const privacyPolicy: LegalDocument = {
         {
           type: "p",
           content:
-            "[Describe how long you retain account data, technical logs, and backups. Explain what happens to messages, notes, and game progress after an account is deleted.]",
+            "We keep your account data for as long as your account exists. When your account is deleted, we delete your profile, messages, notes, and game progress from our database. Files you uploaded, such as images, voice messages, and your profile picture, may remain in our file storage provider for some time after deletion.",
         },
         {
           type: "p",
@@ -103,12 +103,12 @@ export const privacyPolicy: LegalDocument = {
 
 export const termsOfService: LegalDocument = {
   title: "Terms of Service",
-  effectiveDate: "[publication date]",
+  effectiveDate: "November 11, 2026",
   intro: (
     <>
       Christ App is an app for chatting, reading the Bible, taking notes, and
       playing games together. By using Christ App, you agree to these Terms of
-      Service. Christ App is provided by [owner’s name or organization name].
+      Service. Christ App is provided by Eduard Sekan.
       You can contact us at {CONTACT}.
     </>
   ),
