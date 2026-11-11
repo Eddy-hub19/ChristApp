@@ -81,7 +81,7 @@ export const privacyPolicy: LegalDocument = {
         {
           type: "p",
           content:
-            "We keep your account data for as long as your account exists. When your account is deleted, we delete your profile, messages, notes, and game progress.",
+            "We keep your account data for as long as your account exists. When your account is deleted, we delete your profile, messages, notes, and game progress from our database. Files you uploaded, such as images, voice messages, and your profile picture, may remain in our file storage provider for some time after deletion.",
         },
         {
           type: "p",
