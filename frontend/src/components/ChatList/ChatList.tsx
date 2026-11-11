@@ -59,7 +59,6 @@ type ChatListProps = {
   chatCandidates?: ChatCreateCandidate[];
   onDeleteChat?: (listItemId: string) => void;
   onPrefetchChat?: (listItemId: string) => void;
-  verseNotesVisible?: boolean;
   adminDashboardVisible?: boolean;
   isLoading?: boolean;
 };
@@ -80,7 +79,6 @@ const ChatList = ({
   chatCandidates = [],
   onDeleteChat,
   onPrefetchChat,
-  verseNotesVisible = false,
   adminDashboardVisible = false,
   isLoading = false,
 }: ChatListProps) => {
@@ -487,22 +485,6 @@ const ChatList = ({
               title={t("gamesTitle")}
             >
               <Gamepad2 size={20} strokeWidth={2.1} aria-hidden />
-            </Link>
-            <Link
-              href="/verse-notes"
-              className={`${styles.verseNotesButton} ${!verseNotesVisible ? styles.headerActionHidden : ""}`}
-              aria-label={t("verseNotesAria")}
-              title={t("verseNotesTitle")}
-              aria-hidden={!verseNotesVisible}
-              tabIndex={verseNotesVisible ? 0 : -1}
-            >
-              <Image
-                src="/icon-verse-notes.svg"
-                alt=""
-                width={22}
-                height={22}
-                className={styles.newChatIcon}
-              />
             </Link>
             {adminDashboardVisible ? (
               <Link

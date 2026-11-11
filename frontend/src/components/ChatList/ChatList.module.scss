@@ -319,13 +319,7 @@
       padding-right: max(0px, calc(var(--theme-toggle-inset) - 10px));
     }
 
-    .headerActionHidden {
-      visibility: hidden;
-      pointer-events: none;
-    }
-
     .gamesButton,
-    .verseNotesButton,
     .adminButton,
     .newChatButton {
       width: 38px;

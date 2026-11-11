@@ -162,12 +162,9 @@
     "lastRead": "Последнее прочитанное",
     "lastReadHint": "Чтение сохранится в Библии",
     "randomVerse": "Случайный стих",
-    "recentNotesTitle": "Последние заметки к стихам",
-    "recentNotesEmpty": "Пока нет заметок — откройте заметки к стихам.",
     "recentChatsTitle": "Последние чаты",
     "recentChatsEmpty": "Пока нет недавних сообщений.",
     "recentYouLast": "Последнее сообщение от вас",
-    "openVerseNotes": "Заметки к стихам",
     "openChat": "Чат"
   },
   "admin": {
@@ -626,8 +623,6 @@
     "badgeNew": "Новый",
     "userPickerNoUsers": "Пока нет доступных пользователей",
     "userPickerNoMatch": "Никого не нашли по запросу",
-    "verseNotesAria": "Заметки по стихам",
-    "verseNotesTitle": "Заметки по стихам",
     "newChatAria": "Создать новый чат",
     "newChatTitle": "Новый чат",
     "newChatImageAlt": "Новый чат",

@@ -12,7 +12,6 @@ import {
   readBibleLastReadFromStorage,
   type BibleLastRead,
 } from "@/lib/bibleReadingProgress";
-import { loadRecentVerseNotesAcrossCollections } from "@/lib/verseNotesStorage";
 import styles from "./dashboard.module.scss";
 
 function greetingDisplayName(user: {
@@ -71,11 +70,6 @@ export default function DashboardPage() {
     return `${bookLabel} · ${t("chapterAbbr")} ${lastRead.chapter}`;
   }, [lastRead, t]);
 
-  const recentNotes = useMemo(
-    () => (user?.id ? loadRecentVerseNotesAcrossCollections(user.id, 5) : []),
-    [user?.id],
-  );
-
   if (loading || !user) {
     return (
       <div className={styles.page} aria-busy="true">
@@ -129,37 +123,6 @@ export default function DashboardPage() {
           ) : null}
         </div>
       </header>
-
-      <section
-        className={styles.feedSection}
-        aria-label={t("recentNotesTitle")}
-      >
-        <h2 className={styles.feedTitle}>{t("recentNotesTitle")}</h2>
-        {recentNotes.length === 0 ? (
-          <p className={styles.feedEmpty}>{t("recentNotesEmpty")}</p>
-        ) : (
-          <ul className={styles.feedList}>
-            {recentNotes.map((note) => (
-              <li key={note.id}>
-                <Link href="/verse-notes" className={styles.feedLink} prefetch>
-                  <div className={styles.feedLinkTitle}>
-                    {t("openVerseNotes")}
-                  </div>
-                  <div className={styles.feedNoteSnippet}>
-                    {note.sourceText}
-                  </div>
-                  <div className={styles.feedLinkMeta}>
-                    {new Date(note.createdAt).toLocaleString(undefined, {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }

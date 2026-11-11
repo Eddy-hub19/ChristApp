@@ -35,7 +35,6 @@ import {
   showChatNotification,
 } from "@/lib/notifications";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
-import { canSeeVerseNotesNav } from "@/lib/verseNotesNav";
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
 import {
   GLOBAL_CHAT_AVATAR_SRC,
@@ -1658,10 +1657,6 @@ export default function ChatPage() {
     };
   }, [chatItems, user?.id, queryClient, resolveRoomIdForListItem]);
 
-  const verseNotesVisible = useMemo(
-    () => canSeeVerseNotesNav(user?.username),
-    [user?.username],
-  );
   const adminDashboardVisible = useMemo(
     () => canSeeAdminPanelNav(user?.username),
     [user?.username],
@@ -1675,7 +1670,6 @@ export default function ChatPage() {
       chatCandidates={chatCreateCandidates}
       onDeleteChat={handleDeleteChat}
       onPrefetchChat={handlePrefetchChat}
-      verseNotesVisible={verseNotesVisible}
       adminDashboardVisible={adminDashboardVisible}
       isLoading={isChatListLoading}
     />
