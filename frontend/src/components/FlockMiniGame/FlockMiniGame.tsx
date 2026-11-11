@@ -104,6 +104,15 @@ function currentTheme(): Theme {
   return document.documentElement.dataset.theme === "light" ? THEMES.light : THEMES.dark;
 }
 
+/** Запомнить выбранный облик сразу при выборе (а не только при входе в игру): после перезагрузки или смерти он не слетает на белый. */
+function saveSkin(id: number) {
+  try {
+    localStorage.setItem(SKIN_KEY, String(id));
+  } catch {
+    /* сховище недоступне */
+  }
+}
+
 function loadSkin() {
   try {
     const v = Number(localStorage.getItem(SKIN_KEY));
@@ -700,6 +709,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     }
     setPreviewSkin(null);
     setSkin(i);
+    saveSkin(i);
   };
 
   const buy = async (i: number) => {
@@ -710,6 +720,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setMe((m) => (m ? { ...m, rubies: res.rubies ?? m.rubies, emeralds: res.emeralds ?? m.emeralds, ownedSkins: [...m.ownedSkins, i].sort((a, b) => a - b), premiumCollectionClaimed: m.premiumCollectionClaimed || Boolean(res.premiumCollection) } : m));
       if (res.premiumCollection) setCollectionAward({ amount: res.premiumCollection, fromBuy: true });
       setSkin(i);
+      saveSkin(i);
       playFlockSound("coins", { self: true });
       setPreviewSkin(null);
       setConfirming(false);

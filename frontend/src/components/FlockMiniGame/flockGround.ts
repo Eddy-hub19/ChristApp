@@ -458,56 +458,44 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
       c.arc(0, 0, 1.8, 0, TAU);
       c.fill();
     } else if (kind === 1) {
-      // ягоди горобини на гілочці
-      c.strokeStyle = "#6a4a2c";
-      c.lineWidth = 2.6;
-      c.beginPath();
-      c.moveTo(-12, 12);
-      c.quadraticCurveTo(0, 2, 12, -10);
-      c.stroke();
-      c.fillStyle = "#d8232f";
-      c.strokeStyle = "#8a1018";
-      c.lineWidth = 1.2;
-      for (const [x, y] of [[-3, 5], [4, 2], [-1, -3], [7, -6], [-7, 1]]) {
+      // сніжки: три снігові кульки з блакитною тінню знизу (на карті «Мороз» лише сніг, без листя й ягід)
+      for (const [x, y, r] of [[-6, 5, 7], [6, 6, 6], [0, -5, 7.5]]) {
+        c.fillStyle = "#9db9de";
         c.beginPath();
-        c.arc(x, y, 4.6, 0, TAU);
+        c.arc(x + 0.8, y + 1.4, r, 0, TAU);
         c.fill();
-        c.stroke();
-        c.fillStyle = "rgba(255,255,255,0.8)";
-        c.beginPath();
-        c.arc(x - 1.4, y - 1.4, 1.3, 0, TAU);
-        c.fill();
-        c.fillStyle = "#d8232f";
-      }
-      c.fillStyle = "#ffffff";
-      c.beginPath();
-      c.ellipse(6, -11, 6, 2.8, -0.5, 0, TAU);
-      c.fill();
-    } else {
-      // морозные ягоды можжевельника: синие шарики на веточке со снежной шапкой
-      c.strokeStyle = "#4e6a54";
-      c.lineWidth = 2.4;
-      c.beginPath();
-      c.moveTo(-12, 10);
-      c.quadraticCurveTo(0, 6, 12, -4);
-      c.stroke();
-      for (const [x, y] of [[-6, 6], [1, 3], [8, -1], [-1, -3]]) {
-        c.fillStyle = "#4a6fd0";
-        c.strokeStyle = "#1f3578";
+        c.fillStyle = "#ffffff";
+        c.strokeStyle = "#7fa2d4";
         c.lineWidth = 1.2;
         c.beginPath();
-        c.arc(x, y, 4.4, 0, TAU);
+        c.arc(x, y, r, 0, TAU);
         c.fill();
         c.stroke();
-        c.fillStyle = "rgba(255,255,255,0.85)";
+        c.fillStyle = "rgba(190,215,245,0.9)";
         c.beginPath();
-        c.arc(x - 1.3, y - 1.4, 1.2, 0, TAU);
+        c.arc(x + r * 0.3, y + r * 0.35, r * 0.45, 0, TAU);
         c.fill();
       }
+    } else {
+      // крижана сніжинка-зірка: восьмипроменева, блакитна з білою жилкою
+      for (const [col, lw] of [["#5b8fd6", 4], ["#ffffff", 1.4]] as [string, number][]) {
+        c.strokeStyle = col;
+        c.lineWidth = lw;
+        c.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI;
+          c.moveTo(-Math.cos(a) * 14, -Math.sin(a) * 14);
+          c.lineTo(Math.cos(a) * 14, Math.sin(a) * 14);
+        }
+        c.stroke();
+      }
       c.fillStyle = "#ffffff";
+      c.strokeStyle = "#5b8fd6";
+      c.lineWidth = 1.4;
       c.beginPath();
-      c.ellipse(-2, -8, 7, 3, 0.2, 0, TAU);
+      c.arc(0, 0, 4, 0, TAU);
       c.fill();
+      c.stroke();
     }
     return;
   }
