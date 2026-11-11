@@ -21,7 +21,7 @@ import FlockSheet from "./FlockSheet";
 import styles from "./FlockQuests.module.scss";
 
 /** Иконка по виду задания (все из общей библиотеки иконок игр). */
-const KIND_ICON: Record<string, ComponentType<ColorIconProps>> = {
+export const KIND_ICON: Record<string, ComponentType<ColorIconProps>> = {
   food: LeafIcon,
   mass: TrophyIcon,
   alive: ShieldIcon,

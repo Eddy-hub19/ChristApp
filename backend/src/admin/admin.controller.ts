@@ -220,7 +220,7 @@ export class AdminController {
 
   /** Карта «Отари»: призначити наступній створеній арені (mapId = null - зняти) і/або закрити чинні арени для нових гравців. */
   @Post('flock/next-map')
-  setFlockNextMap(@Body() body: { mapId?: unknown; retire?: unknown }) {
+  setFlockNextMap(@Body() body: { mapId?: unknown; retire?: unknown; recreateEmpty?: unknown }) {
     if (body?.mapId !== undefined) {
       const id = body.mapId === null ? null : typeof body.mapId === 'number' ? body.mapId : NaN;
       if (!this.flockGateway.setNextMap(Number.isInteger(id as number) || id === null ? (id as number | null) : null)) {
@@ -228,6 +228,7 @@ export class AdminController {
       }
     }
     if (body?.retire === true) this.flockGateway.retireArenas();
+    if (body?.recreateEmpty === true) this.flockGateway.recreateEmptyArenas();
     return this.flockGateway.mapAdmin();
   }
 

@@ -98,6 +98,15 @@ export class FlockQuestsService implements OnModuleInit, OnModuleDestroy {
   /** Завдання доби гравця: читає з БД або створює (унікальність userId+day+slot захищає від гонки). */
   private async loadFromDb(userId: string, day: string): Promise<UserQuests> {
     let rows = await this.prisma.flockDailyQuest.findMany({ where: { userId, day }, orderBy: { slot: 'asc' } });
+    // слот із завданням, якого вже нема в пулі (або воно вимкнене), без прогресу й не взятий: прибираємо, щоб видати нове
+    const stale = rows.filter((r) => {
+      const d = defOf(r.questId);
+      return (!d || d.enabled === false) && r.progress === 0 && !r.claimedAt;
+    });
+    if (stale.length) {
+      await this.prisma.flockDailyQuest.deleteMany({ where: { userId, day, slot: { in: stale.map((r) => r.slot) }, progress: 0, claimedAt: null } });
+      rows = await this.prisma.flockDailyQuest.findMany({ where: { userId, day }, orderBy: { slot: 'asc' } });
+    }
     if (rows.length < QUEST_TIERS.length) {
       const yesterday = await this.prisma.flockDailyQuest.findMany({ where: { userId, day: shiftDayKey(day, -1) } });
       const have = new Set(rows.map((r) => r.slot));

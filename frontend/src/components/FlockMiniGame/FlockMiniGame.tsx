@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, Crown, Lock, X } from "lucide-react";
+import { ChevronDown, Crown, Lock, Play, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon, QuestScrollIcon } from "@/components/icons/game";
 import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
@@ -15,7 +15,7 @@ import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { FlockClient, type CircleEndInfo, type DeathInfo, type FlockMode, type FlockNotice, type FlockStatus, type RewardInfo } from "./flockClient";
 import { buyFlockArtifact, buyFlockSkin, fetchFlockMe, FlockApiError, importFlockStats, markWhatsNewSeen, selectFlockArtifact, selectFlockSkin, type FlockMe } from "./flockApi";
-import { LOBBY_ARTIFACT_IDS, LOBBY_HIDDEN_ARTIFACT_IDS, artifactIconSrc, drawArtifact, isEmeraldArtifact } from "./flockArtifacts";
+import { LOBBY_ARTIFACT_IDS, LOBBY_HIDDEN_ARTIFACT_IDS, artifactIconSrc, isEmeraldArtifact } from "./flockArtifacts";
 import { artifactDescParams } from "./flockInfoData";
 import { PERK_ICON, perkList, perksOf } from "./flockSkinPerks";
 import FlockInvite from "./FlockInvite";
@@ -35,17 +35,17 @@ import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastle
 import type { CastleEndInfo, CastleEvent, CastleRewardInfo, CastlesGameConfig, Team } from "./flockCastles";
 import castleStyles from "./FlockCastles.module.scss";
 import FlockSheet from "./FlockSheet";
+import FlockLobbySkins from "./FlockLobbySkins";
+import FlockLobbyQuests from "./FlockLobbyQuests";
+import lobby from "./FlockLobby.module.scss";
 import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
 import { installFlockSoundUnlock, playFlockSound, setFlockMusic, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
 import { resetFlockSoundLoops, tickFlockSound } from "./flockSoundDirector";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
-import { drawMinimap, drawScene, THEMES, drawCreature, BONUS_ICON, type Theme } from "./flockRender";
-import { animFrame, skinOf } from "./flockSkins";
-import { isSpecialDeco } from "./flockSpecialDeco";
-import { prefersReducedMotion } from "./flockSprites";
-import { subscribePreviewTick } from "./flockPreviewTicker";
+import { drawMinimap, drawScene, THEMES, BONUS_ICON, type Theme } from "./flockRender";
+import SkinPreview from "./FlockSkinPreview";
 import {
   clearLegacyFlockStats,
   EMPTY_FLOCK_STATS,
@@ -128,39 +128,6 @@ function debugFromEnv() {
 function formatDuration(ms: number) {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}
-
-/** Прев'ю скіна; преміум анімується (кадри 8/с від одного спільного таймера), при «зменшити рух» - статичний кадр. */
-function SkinPreview({ skinId, artifactId = 0, size = 56 }: { skinId: number; artifactId?: number; size?: number }) {
-  const ref = useRef<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    const cv = ref.current;
-    const ctx = cv?.getContext("2d");
-    if (!cv || !ctx) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.width = cv.height = size * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const skin = skinOf(skinId);
-    // Шари анімації виходять за радіус тіла - преміум малюємо трохи меншим, щоб не обрізались краєм полотна.
-    // Особливі виступають за тіло (кристали, капелюшок, антена) - теж трохи менші.
-    const radius = skin.anim ? size * 0.27 : isSpecialDeco(skin.deco) ? size * 0.3 : size * 0.36;
-    const draw = (frame: number) => {
-      ctx.clearRect(0, 0, size, size);
-      drawCreature(ctx, skin, size / 2, size / 2 + 1, radius, 0.5, 0, 0, frame);
-      if (artifactId > 0) drawArtifact(ctx, artifactId, skin, size / 2, size / 2 + 1, radius, 0.5);
-    };
-    draw(0);
-    if (!skin.anim || prefersReducedMotion()) return;
-    let last = 0;
-    return subscribePreviewTick(() => {
-      const f = animFrame(skin, performance.now() / 1000);
-      if (f !== last) {
-        last = f;
-        draw(f);
-      }
-    });
-  }, [skinId, artifactId, size]);
-  return <canvas ref={ref} style={{ width: size, height: size }} aria-hidden />;
 }
 
 export default function FlockMiniGame({ open, userId, arenaId = null, onClose }: Props) {
@@ -274,8 +241,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** «Арена»: підсумок поразки тигра (картка по центру, зникає сама або за кнопкою). */
   const [colNotice, setColNotice] = useState<{ id: number; kind: "warn" | "reset" } | null>(null);
   const [tigerResult, setTigerResult] = useState<(TigerResult & { id: number }) | null>(null);
-  /** Секція «Обери вигляд» (звичайні скіни) згортається кліком по заголовку. */
-  const [regularOpen, setRegularOpen] = useState(true);
+  /** Статистика лобби: одна строка, по нажатию разворачивается в три карточки. */
+  const [statsOpen, setStatsOpen] = useState(false);
   const [artifactsOpen, setArtifactsOpen] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   /** Версия «Що нового», просмотренная ДО этого открытия игры (для точки «Нове» во вкладке «Оновлення»). */
@@ -789,18 +756,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const specialIds = visibleSkinIds(SPECIAL_SKIN_IDS, hiddenSkins, ownedSkins);
   /** Премиум-скины, которые сейчас в продаже (без снятых): их надо собрать для награды. */
   const collectionIds = PREMIUM_SKIN_IDS.filter((id) => !hiddenSkins.includes(id));
-  /** Ряд без пустых ячеек: колонок ровно столько, сколько скинов (но не больше 6). */
-  const rowCols = (ids: readonly number[]) => ({ gridTemplateColumns: `repeat(${Math.min(6, Math.max(1, ids.length))}, 1fr)` });
-
-  /** Ряды по шесть; в неполном последнем ряду колонок ровно столько, сколько скинов (без пустых ячеек). */
-  const splitRows = (ids: readonly number[]): number[][] => {
-    const rows: number[][] = [];
-    for (let k = 0; k < ids.length; k += 6) rows.push(ids.slice(k, k + 6));
-    return rows;
-  };
-  /** Премиум-скины (видимые) рядами по шесть без пустых ячеек: 11 -> 6 + 5. */
-  const premiumRows = splitRows(visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins));
-
   /** Ціна скіна: «Легендарні» - у смарагдах (config.legendaryEmeraldPrice), решта - у рубінах. */
   const priceOf = (i: number) =>
     isLegendarySkin(i)
@@ -827,6 +782,64 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** Іконка валюти ціни скіна. */
   const priceIcon = (i: number, size: number) => (isLegendarySkin(i) ? <EmeraldIcon size={size} /> : <RubyIcon size={size} />);
 
+  /** Блок покупки скина id в карточке облика: цена, подтверждение, «Скоро» для закрытых легендарных, ошибки. */
+  const buyBlock = (id: number) => {
+    if (notForSale(id)) {
+      return (
+        <>
+          <span>{t("rubies.soonForSale")}</span>
+          <div className={styles.buyButtons}>
+            <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
+              {t("rubies.cancel")}
+            </button>
+          </div>
+        </>
+      );
+    }
+    const price = priceOf(id);
+    const wallet = isLegendarySkin(id) ? (me?.emeralds ?? 0) : (me?.rubies ?? 0);
+    const missing = Math.max(0, price - wallet);
+    return (
+      <>
+        {confirming ? (
+          <>
+            <span>{t(isLegendarySkin(id) ? "emeralds.confirmText" : "rubies.confirmText", { name: t(`skins.${id}`), price })}</span>
+            <div className={styles.buyButtons}>
+              <button type="button" className={styles.primary} disabled={buying} onClick={() => void buy(id)}>
+                {buying ? t("rubies.buying") : t("rubies.confirm")}
+              </button>
+              <button type="button" className={styles.secondary} disabled={buying} onClick={() => setConfirming(false)}>
+                {t("rubies.cancel")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.buyButtons}>
+              <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => setConfirming(true)}>
+                {t("rubies.buy", { price })} {priceIcon(id, 14)}
+              </button>
+              <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
+                {t("rubies.cancel")}
+              </button>
+            </div>
+            {missing > 0 && me ? (
+              <span className={styles.missing}>{isLegendarySkin(id) ? t("emeralds.progress", { have: Math.min(wallet, price), need: price }) : t("rubies.missing", { count: missing })}</span>
+            ) : null}
+          </>
+        )}
+        {buyError ? <span className={styles.error}>{buyError === "not_enough" && isLegendarySkin(id) ? t("emeralds.notEnough") : t(`rubies.errors.${buyError}`)}</span> : null}
+      </>
+    );
+  };
+
+  const lobbyTabs = [
+    { key: "regular" as const, ids: [...LOBBY_FREE_SKIN_ROWS.flat(), ...paidIds] },
+    { key: "special" as const, ids: specialIds },
+    { key: "premium" as const, ids: visibleSkinIds(PREMIUM_SKIN_IDS, hiddenSkins, ownedSkins) },
+    { key: "legendary" as const, ids: LEGENDARY_SKIN_ROWS.flat() },
+  ].filter((x) => x.ids.length > 0);
+
   const skinButton = (i: number) => {
     const locked = isPaidSkin(i) && !me?.ownedSkins.includes(i);
     return (
@@ -837,7 +850,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         aria-checked={skin === i}
         aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${notForSale(i) ? t("rubies.soon") : t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
         title={t(`skins.${i}`)}
-        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${skin === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${(previewSkin ?? skin) === i ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={() => openSkin(i)}
       >
         <SkinPreview skinId={i} />
@@ -1816,216 +1829,139 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {infoOpen && showLobby ? <FlockInfo game={me?.config.game} coliseum={me?.coliseum} seenBefore={seenBeforeRef.current ?? 0} onUpdatesViewed={onUpdatesViewed} onClose={closeInfo} /> : null}
 
       {showLobby ? (
-        <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
-          <div className={styles.card}>
-            <div className={styles.cardHead}>
-              <div className={styles.titleRow}>
-                <h2>{t("title")}</h2>
-                <button type="button" className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} aria-haspopup="dialog">
-                  i
-                </button>
-                <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
-                  {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
-                </button>
-                <button type="button" className={`${styles.infoBtn} ${styles.questsBtn}`} onClick={() => setQuestsOpen(true)} aria-label={t("quests.open")} title={t("quests.title")} aria-haspopup="dialog">
-                  <QuestScrollIcon size={18} />
-                  {(me?.questsClaimable ?? 0) > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
-                </button>
-                <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
-              </div>
-              <div className={styles.balances}>
-                <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
-                  <RubyIcon size={18} />
-                  <span>{me?.rubies ?? 0}</span>
+        <div className={lobby.lobbyWrap} onClickCapture={lobbyClickSound}>
+          <div className={lobby.lobbyCard}>
+            <div className={lobby.scroll}>
+              <div className={styles.cardHead}>
+                <div className={styles.titleRow}>
+                  <h2>{t("title")}</h2>
+                  <button type="button" className={styles.infoBtn} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} aria-haspopup="dialog">
+                    i
+                  </button>
+                  <button type="button" className={`${styles.infoBtn} ${styles.artifactsBtn}`} onClick={() => setArtifactsOpen(true)} aria-label={t("artifacts.open")} title={t("artifacts.title")} aria-haspopup="dialog">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={18} height={18} decoding="async" />
+                    {artifact > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
+                  </button>
+                  <button type="button" className={`${styles.infoBtn} ${styles.questsBtn}`} onClick={() => setQuestsOpen(true)} aria-label={t("quests.open")} title={t("quests.title")} aria-haspopup="dialog">
+                    <QuestScrollIcon size={18} />
+                    {(me?.questsClaimable ?? 0) > 0 ? <span className={styles.wornDot} aria-hidden /> : null}
+                  </button>
+                  <FlockSoundButton variant="lobby" onOpen={() => setSoundOpen(true)} />
                 </div>
-                <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
-                  <EmeraldIcon size={18} />
-                  <span>{me?.emeralds ?? 0}</span>
+                <div className={styles.balances}>
+                  <div className={styles.balance} aria-label={t("rubies.balance", { count: me?.rubies ?? 0 })} title={t("rubies.name")}>
+                    <RubyIcon size={18} />
+                    <span>{me?.rubies ?? 0}</span>
+                  </div>
+                  <div className={`${styles.balance} ${styles.balanceEmerald}`} aria-label={t("emeralds.balance", { count: me?.emeralds ?? 0 })} title={t("emeralds.name")}>
+                    <EmeraldIcon size={18} />
+                    <span>{me?.emeralds ?? 0}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <p className={styles.sub}>{t("tagline")}</p>
+              <p className={lobby.tagline}>{t("tagline")}</p>
 
-            <h3 className={styles.h3}>
-              <button type="button" className={styles.h3Toggle} aria-expanded={regularOpen} onClick={() => setRegularOpen((v) => !v)}>
-                {t("chooseSkin")}
-                <ChevronDown size={14} aria-hidden className={regularOpen ? undefined : styles.h3Closed} />
+              <FlockLobbySkins
+                shownSkin={previewSkin ?? skin}
+                previewing={previewSkin !== null}
+                artifact={artifact}
+                tabs={lobbyTabs}
+                isOwned={(id) => !isPaidSkin(id) || Boolean(me?.ownedSkins.includes(id))}
+                renderTile={skinButton}
+                perks={perkLines}
+                buyBlock={previewSkin !== null ? buyBlock(previewSkin) : null}
+                skinName={(id) => t(`skins.${id}`)}
+                tabHint={(key) =>
+                  key === "premium" && me && !me.premiumCollectionClaimed ? (
+                    <p className={styles.collectHint}>
+                      <span>{t("premiumCollection.collectHint", { count: me.config.premiumCollectionReward ?? 300 })}</span>
+                      <strong>{t("premiumCollection.collectProgress", { n: collectionIds.filter((id) => me.ownedSkins.includes(id)).length, m: collectionIds.length })}</strong>
+                    </p>
+                  ) : null
+                }
+              />
+              {collectionAward?.fromBuy ? (
+                <p className={styles.notice} role="status">
+                  {t("premiumCollection.collectDone", { count: collectionAward.amount })}
+                </p>
+              ) : null}
+
+              <FlockLobbyQuests active={!questsOpen} onChanged={onQuestsChanged} />
+
+              <button type="button" className={lobby.statsToggle} onClick={() => setStatsOpen((v) => !v)} aria-expanded={statsOpen} aria-label={t("lobby.statsToggle")}>
+                <span className={lobby.statCell}>
+                  <span className={lobby.statLabel}>{t("lobby.statBest")}</span>
+                  <strong className={lobby.statValue}>{stats.bestMass}</strong>
+                </span>
+                <span className={lobby.statCell}>
+                  <span className={lobby.statLabel}>{t("stats.eaten")}</span>
+                  <strong className={lobby.statValue}>{stats.eaten}</strong>
+                </span>
+                <span className={lobby.statCell}>
+                  <span className={lobby.statLabel}>{t("lobby.statTop1")}</span>
+                  <strong className={lobby.statValue}>{formatDuration(stats.topMs)}</strong>
+                </span>
+                <ChevronDown size={16} aria-hidden className={statsOpen ? lobby.flip : undefined} />
               </button>
-            </h3>
-            {regularOpen ? (
-              <>
-                {LOBBY_FREE_SKIN_ROWS.map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("chooseSkin")}>
-                    {row.map((i) => skinButton(i))}
+              {statsOpen ? (
+                <dl className={lobby.statsFull}>
+                  <div>
+                    <dt>{t("stats.best")}</dt>
+                    <dd>{stats.bestMass}</dd>
                   </div>
-                ))}
-                {paidIds.length > 0 ? (
-                  <div className={styles.skins} style={{ ...rowCols(paidIds), marginTop: 6 }} role="radiogroup" aria-label={t("chooseSkin")}>
-                    {paidIds.map((i) => skinButton(i))}
+                  <div>
+                    <dt>{t("stats.eaten")}</dt>
+                    <dd>{stats.eaten}</dd>
                   </div>
-                ) : null}
-              </>
-            ) : null}
-            {specialIds.length > 0 ? (
-              <>
-                <h3 className={`${styles.h3} ${styles.specialTitle}`}>{t("special")}</h3>
-                {splitRows(specialIds).map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("special")}>
-                    {row.map((i) => skinButton(i))}
+                  <div>
+                    <dt>{t("stats.top1")}</dt>
+                    <dd>{formatDuration(stats.topMs)}</dd>
                   </div>
-                ))}
-              </>
-            ) : null}
-            {premiumRows.length > 0 ? (
-              <>
-                <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("premium")}</h3>
-                {me && !me.premiumCollectionClaimed ? (
-                  <p className={styles.collectHint}>
-                    <span>{t("premiumCollection.collectHint", { count: me.config.premiumCollectionReward ?? 300 })}</span>
-                    <strong>{t("premiumCollection.collectProgress", { n: collectionIds.filter((id) => me.ownedSkins.includes(id)).length, m: collectionIds.length })}</strong>
-                  </p>
-                ) : null}
-                {premiumRows.map((row, n) => (
-                  <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("premium")}>
-                    {row.map((i) => skinButton(i))}
-                  </div>
-                ))}
-                {collectionAward?.fromBuy ? (
-                  <p className={styles.notice} role="status">
-                    {t("premiumCollection.collectDone", { count: collectionAward.amount })}
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-            <h3 className={`${styles.h3} ${styles.premiumTitle}`}>{t("legendary")}</h3>
-            {LEGENDARY_SKIN_ROWS.map((row, n) => (
-              <div key={row[0]} className={styles.skins} style={{ ...rowCols(row), ...(n > 0 ? { marginTop: 6 } : null) }} role="radiogroup" aria-label={t("legendary")}>
-                {row.map((i) => skinButton(i))}
-              </div>
-            ))}
-            {previewSkin === null && isSpecialSkin(skin) && perkList(me?.config.game, skin).length > 0 ? (
-              <div className={styles.perkPanel}>
-                <strong>{t(`skins.${skin}`)}</strong>
-                {perkLines(skin)}
-              </div>
-            ) : null}
-            {previewSkin !== null ? (
-              <div className={styles.buyPanel} role="group" aria-label={t("rubies.preview")}>
-                <SkinPreview skinId={previewSkin} artifactId={artifact} size={84} />
-                <div className={styles.buyInfo}>
-                  <strong>{t(`skins.${previewSkin}`)}</strong>
-                  {perkLines(previewSkin)}
-                  {(() => {
-                    if (notForSale(previewSkin)) {
-                      return (
-                        <>
-                          <span>{t("rubies.soonForSale")}</span>
-                          <div className={styles.buyButtons}>
-                            <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
-                              {t("rubies.cancel")}
-                            </button>
-                          </div>
-                        </>
-                      );
-                    }
-                    const price = priceOf(previewSkin);
-                    const wallet = isLegendarySkin(previewSkin) ? (me?.emeralds ?? 0) : (me?.rubies ?? 0);
-                    const missing = Math.max(0, price - wallet);
-                    if (confirming) {
-                      return (
-                        <>
-                          <span>{t(isLegendarySkin(previewSkin) ? "emeralds.confirmText" : "rubies.confirmText", { name: t(`skins.${previewSkin}`), price })}</span>
-                          <div className={styles.buyButtons}>
-                            <button type="button" className={styles.primary} disabled={buying} onClick={() => void buy(previewSkin)}>
-                              {buying ? t("rubies.buying") : t("rubies.confirm")}
-                            </button>
-                            <button type="button" className={styles.secondary} disabled={buying} onClick={() => setConfirming(false)}>
-                              {t("rubies.cancel")}
-                            </button>
-                          </div>
-                        </>
-                      );
-                    }
-                    return (
-                      <>
-                        <div className={styles.buyButtons}>
-                          <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => setConfirming(true)}>
-                            {t("rubies.buy", { price })} {priceIcon(previewSkin, 14)}
-                          </button>
-                          <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
-                            {t("rubies.cancel")}
-                          </button>
-                        </div>
-                        {missing > 0 && me ? (
-                          <span className={styles.missing}>
-                            {isLegendarySkin(previewSkin) ? t("emeralds.progress", { have: Math.min(wallet, price), need: price }) : t("rubies.missing", { count: missing })}
-                          </span>
-                        ) : null}
-                      </>
-                    );
-                  })()}
-                  {buyError ? <span className={styles.error}>{buyError === "not_enough" && isLegendarySkin(previewSkin) ? t("emeralds.notEnough") : t(`rubies.errors.${buyError}`)}</span> : null}
-                </div>
-              </div>
-            ) : null}
+                </dl>
+              ) : null}
 
-            <dl className={styles.stats}>
-              <div>
-                <dt>{t("stats.best")}</dt>
-                <dd>{stats.bestMass}</dd>
-              </div>
-              <div>
-                <dt>{t("stats.eaten")}</dt>
-                <dd>{stats.eaten}</dd>
-              </div>
-              <div>
-                <dt>{t("stats.top1")}</dt>
-                <dd>{formatDuration(stats.topMs)}</dd>
-              </div>
-            </dl>
+              {me?.coliseum ? <p className={styles.sub}>{t("coliseum.progress", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
 
-            {me?.coliseum ? <p className={styles.sub}>{t("coliseum.progress", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
+              <FlockDailyBoard initial={me?.daily} />
 
-            <FlockDailyBoard initial={me?.daily} />
+              {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
+              {collectionAward && !collectionAward.fromBuy ? <p className={styles.notice}>{t("premiumCollection.collectDone", { count: collectionAward.amount })}</p> : null}
+              {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
+              {notice === "teamUnbalanced" || notice === "teamFull" || notice === "skinSide" || notice === "castlesOff" ? <p className={styles.error}>{t(`castles.${notice === "teamUnbalanced" ? "errUnbalanced" : notice === "teamFull" ? "errFull" : notice === "skinSide" ? "errSkin" : "off"}`)}</p> : null}
+              {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
+              {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
+              {notice === "roundRunning" ? (
+                <p className={styles.notice}>
+                  {t("status.roundRunning", { s: roundWait ? Math.max(1, Math.ceil((roundWait.ms - ((nowMs || roundWait.at) - roundWait.at)) / 1000)) : 1 })}
+                </p>
+              ) : null}
+              {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
+              {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
+              {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}
+              {status === "afk" ? <p className={styles.error}>{t("status.afk")}</p> : null}
+              {status === "taken" ? <p className={styles.error}>{t("status.taken")}</p> : null}
+              {status === "error" ? <p className={styles.error}>{t("status.error")}</p> : null}
+            </div>
 
-            {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
-            {collectionAward && !collectionAward.fromBuy ? <p className={styles.notice}>{t("premiumCollection.collectDone", { count: collectionAward.amount })}</p> : null}
-            {entryBonus > 0 ? <p className={styles.notice}>{t("status.entryBonus", { count: entryBonus })}</p> : null}
-            {notice === "teamUnbalanced" || notice === "teamFull" || notice === "skinSide" || notice === "castlesOff" ? <p className={styles.error}>{t(`castles.${notice === "teamUnbalanced" ? "errUnbalanced" : notice === "teamFull" ? "errFull" : notice === "skinSide" ? "errSkin" : "off"}`)}</p> : null}
-            {notice === "skinLocked" ? <p className={styles.error}>{t("status.skinLocked")}</p> : null}
-            {notice === "artifactLocked" ? <p className={styles.error}>{t("status.artifactLocked")}</p> : null}
-            {notice === "roundRunning" ? (
-              <p className={styles.notice}>
-                {t("status.roundRunning", { s: roundWait ? Math.max(1, Math.ceil((roundWait.ms - ((nowMs || roundWait.at) - roundWait.at)) / 1000)) : 1 })}
-              </p>
-            ) : null}
-            {notice === "expired" ? <p className={styles.notice}>{t("status.expired")}</p> : null}
-            {status === "resuming" ? <p className={styles.notice}>{t("status.resuming")}</p> : null}
-            {status === "full" ? <p className={styles.error}>{t("status.full")}</p> : null}
-            {status === "afk" ? <p className={styles.error}>{t("status.afk")}</p> : null}
-            {status === "taken" ? <p className={styles.error}>{t("status.taken")}</p> : null}
-            {status === "error" ? <p className={styles.error}>{t("status.error")}</p> : null}
-
-            <div className={styles.cardButtons}>
+            <div className={lobby.dock}>
               {status === "error" || status === "afk" || status === "full" || status === "taken" ? (
-                <button type="button" className={styles.primary} onClick={() => setAttempt((n) => n + 1)}>
+                <button type="button" className={lobby.play} onClick={() => setAttempt((n) => n + 1)}>
                   {t("retry")}
                 </button>
               ) : (
-                <button type="button" className={styles.primary} onClick={() => play("normal")} disabled={status !== "ready"}>
+                <button type="button" className={lobby.play} onClick={() => play("normal")} disabled={status !== "ready"}>
+                  {status === "ready" ? <Play size={20} fill="currentColor" aria-hidden /> : null}
                   {status === "ready" ? t("play") : status === "resuming" ? t("resuming") : t("connecting")}
                 </button>
               )}
-              <button type="button" className={styles.secondary} onClick={() => setModesOpen(true)} aria-haspopup="dialog">
-                {t("modes.open")}
-              </button>
-              <button type="button" className={styles.secondary} onClick={handleClose}>
-                {t("close")}
-              </button>
+              <div className={lobby.dockRow}>
+                <button type="button" className={lobby.dockBtn} onClick={() => setModesOpen(true)} aria-haspopup="dialog">
+                  {t("modes.open")}
+                </button>
+                <FlockInvite arenaId={arenaId} className={lobby.dockInvite} direction="up" />
+              </div>
             </div>
-            <FlockInvite arenaId={arenaId} className={styles.lobbyInvite} direction="up" />
           </div>
         </div>
       ) : null}
