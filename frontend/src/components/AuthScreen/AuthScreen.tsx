@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel";
@@ -520,6 +520,12 @@ export default function AuthScreen({ initialMode }: { initialMode: Mode }) {
           >
             {isRegister ? t("signInLink") : t("registerLink")}
           </button>
+        </p>
+
+        <p className={styles.legal}>
+          {t("legalPrefix")}{" "}
+          <Link href="/terms">{t("legalTerms")}</Link> {t("legalAnd")}{" "}
+          <Link href="/privacy">{t("legalPrivacy")}</Link>
         </p>
       </div>
     </div>
