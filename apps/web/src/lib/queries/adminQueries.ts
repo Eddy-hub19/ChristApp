@@ -371,3 +371,11 @@ export const fetchAdminPuzzleBlocks = () => adminJson<AdminPuzzleBlock[]>("/puzz
 export const deleteAdminPuzzleImage = (id: string) => adminJson<{ deleted: boolean }>(`/puzzle-images/${id}`, { method: "DELETE" });
 export const setAdminPuzzleBlock = (userId: string, blocked: boolean) =>
   adminJson<{ userId: string; blocked: boolean }>(`/puzzle-image-blocks/${userId}`, { method: "POST", body: JSON.stringify({ blocked }) });
+
+/** Push-рассылка всем подписанным устройствам (вкладка «Push»). */
+export type AdminBroadcastRecipients = { enabled: boolean; devices: number; users: number };
+export type AdminBroadcastResult = { devices: number; users: number; sent: number; removed: number; failed: number };
+export const adminBroadcastQueryKey = () => ["admin", "push-broadcast"] as const;
+export const fetchAdminBroadcastRecipients = () => adminJson<AdminBroadcastRecipients>("/push/broadcast");
+export const sendAdminBroadcast = (body: { title: string; body: string; url?: string }) =>
+  adminJson<AdminBroadcastResult>("/push/broadcast", { method: "POST", body: JSON.stringify(body) });

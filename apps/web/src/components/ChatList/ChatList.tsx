@@ -1,5 +1,6 @@
 "use client";
 
+import MigrationCountdownBadge from "@/components/MigrationNotice/MigrationCountdownBadge";
 import {
   Fragment,
   useCallback,
@@ -476,7 +477,10 @@ const ChatList = ({
 
       <div className={styles.chatListWrapper}>
         <div className={styles.header}>
-          <h2>ChristApp</h2>
+          <div className={styles.titleGroup}>
+            <h2>ChristApp</h2>
+            <MigrationCountdownBadge />
+          </div>
           <div className={styles.headerActions}>
             <Link
               href="/games"

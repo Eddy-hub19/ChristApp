@@ -1,7 +1,7 @@
 "use client";
 
 import IconCredits from "@/components/IconCredits/IconCredits";
-import styles from "@/app/[lang]/profile/profile.module.scss";
+import styles from "@/app/[lang]/(app)/profile/profile.module.scss";
 import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
@@ -19,8 +19,6 @@ import { apiFetch } from "@/lib/apiFetch";
 import {
   SUGGESTED_THEME_BACKGROUND,
   SUGGESTED_THEME_FOREGROUND,
-  normalizeThemeFontKey,
-  type ThemeFontKey,
 } from "@/lib/userAppearance";
 import { isPushSupportedInBrowser } from "@/lib/push";
 import {
@@ -119,7 +117,6 @@ export default function ProfilePage() {
   const [avatarCacheBust, setAvatarCacheBust] = useState(0);
   const [dayStreak, setDayStreak] = useState(0);
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND);
-  const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter");
   const [bioEdit, setBioEdit] = useState("");
   /** Сьогоднішній день уже зараховано до серії (вогник яскравий) чи ще ні (сірий). */
   const [streakCountedToday, setStreakCountedToday] = useState(false);
@@ -191,7 +188,6 @@ export default function ProfilePage() {
     setNickEdit(user.nickname ?? user.username);
     setHandleEdit(user.username);
     setThemeBgInput(user.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND);
-    setThemeFontInput(normalizeThemeFontKey(user.themeFontKey));
     setBioEdit(user.bio?.trim() ? user.bio : "");
   }, [user]);
 
@@ -469,7 +465,6 @@ export default function ProfilePage() {
         themeFontKey: null,
       });
       setThemeBgInput(SUGGESTED_THEME_BACKGROUND);
-      setThemeFontInput("inter");
       return { previousUser };
     },
     onError: (err, _vars, ctx) => {
@@ -478,7 +473,6 @@ export default function ProfilePage() {
         setThemeBgInput(
           ctx.previousUser.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND,
         );
-        setThemeFontInput(normalizeThemeFontKey(ctx.previousUser.themeFontKey));
       }
       window.alert(
         err instanceof Error ? err.message : t("resetAppearanceFailed"),
@@ -487,7 +481,6 @@ export default function ProfilePage() {
     onSuccess: (serverUser) => {
       replaceUser(serverUser);
       setThemeBgInput(SUGGESTED_THEME_BACKGROUND);
-      setThemeFontInput("inter");
     },
   });
 
@@ -605,12 +598,10 @@ export default function ProfilePage() {
       username?: string;
       themeForegroundHex: string;
       themeBackgroundHex: string;
-      themeFontKey: string;
       bio?: string;
     } = {
       themeForegroundHex: hexFg,
       themeBackgroundHex: hexBg,
-      themeFontKey: themeFontInput,
     };
     if (nextNick !== (user.nickname ?? user.username)) {
       body.nickname = nextNick;
@@ -621,9 +612,7 @@ export default function ProfilePage() {
 
     const userBg = (user.themeBackgroundHex ?? "").toLowerCase();
     const effBg = userBg || SUGGESTED_THEME_BACKGROUND.toLowerCase();
-    const sameTheme =
-      hexBg === effBg &&
-      themeFontInput === normalizeThemeFontKey(user.themeFontKey);
+    const sameTheme = hexBg === effBg;
     const sameNick = nextNick === (user.nickname ?? user.username);
     const sameHandle = nextHandle === user.username;
     const existingBio = (user.bio ?? "").trim();
@@ -639,7 +628,6 @@ export default function ProfilePage() {
     const optimisticPatch: Partial<AuthUser> = {
       themeForegroundHex: hexFg,
       themeBackgroundHex: hexBg,
-      themeFontKey: themeFontInput,
     };
     if (!sameNick) {
       optimisticPatch.nickname = nextNick;
@@ -860,20 +848,6 @@ export default function ProfilePage() {
                 placeholder={SUGGESTED_THEME_BACKGROUND}
               />
             </span>
-          </label>
-          <label className={styles.profileLabel}>
-            {t("font")}
-            <select
-              className={styles.appearanceSelect}
-              value={themeFontInput}
-              onChange={(event) =>
-                setThemeFontInput(event.target.value as ThemeFontKey)
-              }
-            >
-              <option value="inter">{t("fontInterDefault")}</option>
-              <option value="achiko">{t("fontAchiko")}</option>
-              <option value="bodoni-moda">{t("fontBodoniModa")}</option>
-            </select>
           </label>
 
           <div className={styles.profileEditActions}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AuthBackdrop from "@/components/AuthBackdrop/AuthBackdrop";
 import styles from "./SplashScreen.module.scss";
 
 const BRAND_TEXT = "Christ App";
@@ -57,6 +58,7 @@ export default function SplashScreen() {
       className={`${styles.splashWrapper} ${phase === "exit" ? styles.splashWrapperExiting : ""}`}
       aria-hidden={phase === "exit"}
     >
+      <AuthBackdrop lightOnly />
       <svg
         width="100"
         height="100"

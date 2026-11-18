@@ -44,8 +44,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(32)
-  @Matches(/^(|inter|achiko|bodoni-moda)$/, {
-    message: 'Шрифт: inter, achiko, bodoni-moda или пусто',
+  @Matches(/^(|inter)$/, {
+    message: 'Шрифт: inter или пусто',
   })
   themeFontKey?: string;
 

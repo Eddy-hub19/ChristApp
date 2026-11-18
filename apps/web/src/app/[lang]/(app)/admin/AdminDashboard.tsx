@@ -16,15 +16,16 @@ import {
   fetchAdminFlockMutes,
   type AdminMember,
 } from "@/lib/queries/adminQueries";
+import AdminBroadcast from "./AdminBroadcast";
 import AdminProcesses from "./AdminProcesses";
 import AdminPuzzleImages from "./AdminPuzzleImages";
 import AdminUserCard from "./AdminUserCard";
 import styles from "./admin.module.scss";
 
-type AdminTab = "users" | "processes" | "puzzles";
+type AdminTab = "users" | "processes" | "puzzles" | "push";
 type Filter = "all" | "new" | "active" | "muted";
 
-const TABS: AdminTab[] = ["users", "processes", "puzzles"];
+const TABS: AdminTab[] = ["users", "processes", "puzzles", "push"];
 const FILTERS: Filter[] = ["all", "new", "active", "muted"];
 const EMPTY_MEMBERS: AdminMember[] = [];
 const EMPTY_MUTES: Record<string, number> = {};
@@ -166,12 +167,22 @@ export default function AdminDashboard() {
             onClick={() => setTab(id)}
             onKeyDown={onTabKey}
           >
-            {id === "users" ? t("tabUsers") : id === "processes" ? t("tabProcesses") : t("tabPuzzles")}
+            {id === "users"
+              ? t("tabUsers")
+              : id === "processes"
+                ? t("tabProcesses")
+                : id === "puzzles"
+                  ? t("tabPuzzles")
+                  : t("tabPush")}
           </button>
         ))}
       </div>
 
-      {tab === "puzzles" ? (
+      {tab === "push" ? (
+        <div id="admin-panel-push" role="tabpanel" aria-labelledby="admin-tab-push">
+          <AdminBroadcast />
+        </div>
+      ) : tab === "puzzles" ? (
         <div id="admin-panel-puzzles" role="tabpanel" aria-labelledby="admin-tab-puzzles">
           <AdminPuzzleImages />
         </div>

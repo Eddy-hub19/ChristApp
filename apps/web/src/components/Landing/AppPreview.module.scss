@@ -1,0 +1,225 @@
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 520px;
+  padding: 24px 0;
+}
+
+.glow {
+  position: absolute;
+  inset: 8% 6%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(143, 177, 143, 0.45), transparent 72%);
+  filter: blur(8px);
+}
+
+.phone {
+  position: relative;
+  width: min(272px, 72vw);
+  aspect-ratio: 9 / 18.5;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 12px;
+  border-radius: 40px;
+  background: #fbfcf9;
+  border: 8px solid #e2e8de;
+  box-shadow: 0 2px 4px rgba(31, 42, 34, 0.05),
+    0 40px 80px -24px rgba(47, 74, 52, 0.35);
+  animation: float 9s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.notch {
+  align-self: center;
+  width: 64px;
+  height: 6px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #e2e8de;
+}
+
+.chatHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 12px;
+  border-bottom: 1px solid var(--site-line);
+}
+
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chatTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chatSub {
+  font-size: 11px;
+  color: var(--site-green);
+}
+
+.messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 4px;
+}
+
+.bubble {
+  max-width: 86%;
+  padding: 9px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.them {
+  align-self: flex-start;
+  background: var(--site-green-soft);
+  border-bottom-left-radius: 5px;
+}
+
+.me {
+  align-self: flex-end;
+  background: var(--site-green-deep);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 14px;
+  border-radius: 999px;
+  background: #eef2ea;
+  color: var(--site-muted);
+  font-size: 12px;
+}
+
+.send {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--site-green);
+}
+
+.floating {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--site-line);
+  border-radius: 20px;
+  box-shadow: var(--site-shadow);
+}
+
+.floatLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--site-green);
+}
+
+.verse {
+  top: 40px;
+  right: 0;
+  width: 210px;
+  padding: 14px 16px;
+  animation: float 8s ease-in-out -2s infinite;
+}
+
+.verseText {
+  margin-top: 6px;
+  font-family: var(--site-heading-font);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.verseRef {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--site-muted);
+}
+
+.game {
+  bottom: -6px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 224px;
+  padding: 10px 14px 10px 10px;
+  animation: float 10s ease-in-out -4s infinite;
+}
+
+.gameArt {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #b9d4b0, #8fb18f);
+}
+
+.gameImg {
+  width: 52px;
+  height: auto;
+}
+
+.gameTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.gameText {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--site-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verse,
+  .game {
+    animation: none;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@media (max-width: 520px) {
+  .stage {
+    min-height: 460px;
+  }
+
+  .verse {
+    right: -4px;
+    width: 176px;
+    top: 24px;
+  }
+
+  .game {
+    left: -4px;
+    bottom: 0;
+    width: 196px;
+  }
+}

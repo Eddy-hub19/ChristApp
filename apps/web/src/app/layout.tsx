@@ -1,13 +1,13 @@
-import { inter, geistMono, bodoniModa, chatFontVariables } from "@/styles/fonts";
+import { inter, geistMono, bodoniModa } from "@/styles/fonts";
 import "@/styles/globals.scss";
 import type { ReactNode } from "react";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 
 /**
- * Блокуючий скрипт у <head>: тема застосовується до першого paint, інакше сторінка
+ * Блокуючий скрипт у <head>: тема (і окрема тема екранів входу `authTheme`, за замовчуванням світла) застосовується до першого paint, інакше сторінка
  * встигає намалюватися темною і лише потім перемкнутися на світлу (спалах при завантаженні).
  */
-const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}try{var p=JSON.parse(localStorage.getItem("christapp:fontPrefs")||"null"),h=document.documentElement;if(p){var ok=["system","nunito","rubik","comfortaa","caveat"];if(ok.indexOf(p.ui)>-1)h.setAttribute("data-ui-font",p.ui);if(ok.indexOf(p.msg)>-1)h.setAttribute("data-msg-font",p.msg);if(p.size&&p.size!=="md")h.setAttribute("data-text-size",String(p.size));}}catch(e){}})();`;
+const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}try{if(localStorage.getItem("authTheme")==="dark")document.documentElement.setAttribute("data-auth-theme","dark");}catch(e){}try{var p=JSON.parse(localStorage.getItem("christapp:fontPrefs")||"null"),h=document.documentElement;if(p&&p.size&&p.size!=="md")h.setAttribute("data-text-size",String(p.size));}catch(e){}})();`;
 
 /**
  * Критичний CSS, який фарбує html/body у колір теми ще до того, як завантажиться і
@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body
-        className={`${inter.variable} ${geistMono.variable} ${bodoniModa.variable} ${chatFontVariables}`}
+        className={`${inter.variable} ${geistMono.variable} ${bodoniModa.variable}`}
       >
         {children}
       </body>

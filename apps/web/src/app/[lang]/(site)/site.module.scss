@@ -1,0 +1,62 @@
+/*
+ * Публічна оболонка (лендинг, Privacy Policy, Terms). Глобальні html/body мають overflow:hidden
+ * і темну тему, тому тут окремий повноекранний скрол-контейнер зі своєю світлою палітрою,
+ * яка не залежить від теми застосунку і localStorage.
+ */
+.root {
+  --site-bg: #f6f7f2;
+  --site-surface: #ffffff;
+  --site-surface-soft: #eef2ea;
+  --site-ink: #1f2a22;
+  --site-muted: #5b675e;
+  --site-line: rgba(31, 42, 34, 0.1);
+  --site-green: #5f7d63;
+  --site-green-deep: #3f5a44;
+  --site-green-soft: #dfe9dc;
+  --site-shadow: 0 1px 2px rgba(31, 42, 34, 0.04),
+    0 12px 32px -12px rgba(31, 42, 34, 0.14);
+  --site-radius: 24px;
+  --site-heading-font: var(--font-note-scene-eb-garamond), Georgia, "Times New Roman", serif;
+
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+  background:
+    radial-gradient(900px 480px at 85% -10%, rgba(143, 177, 143, 0.28), transparent 60%),
+    radial-gradient(700px 420px at -10% 10%, rgba(223, 233, 220, 0.9), transparent 60%),
+    var(--site-bg);
+  color: var(--site-ink);
+  font-family: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+
+  @media (prefers-reduced-motion: reduce) {
+    scroll-behavior: auto;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -64px;
+  z-index: 10;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--site-ink);
+  color: #fff;
+  font-size: 14px;
+
+  &:focus-visible {
+    top: 12px;
+  }
+}
+
+.main {
+  display: block;
+}

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ChatBackgroundLayer, useChatBackgroundPrefs } from "@/components/ChatBackground/ChatBackground";
 import { RowChevron } from "./PrefsScreen";
-import { CHAT_FONTS, normalizeFontPrefs, type ChatFontId } from "@/lib/chatFonts";
+import { normalizeFontPrefs } from "@/lib/chatFonts";
 import { useAuth } from "@/hooks/useAuth";
 import base from "@/components/BubbleStyleSettings/BubbleStyleSettings.module.scss";
 import styles from "./ChatPrefs.module.scss";
@@ -27,17 +27,12 @@ export function ChatBackgroundRow({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-const fontLabel = (id: ChatFontId, t: (k: string) => string) => {
-  const f = CHAT_FONTS.find((x) => x.id === id);
-  return f?.label ?? (id === "system" ? t("system") : t("asIs"));
-};
-
-/** Строка «Шрифт»: справа текущие шрифты и мини-«Aa» выбранным шрифтом. */
+/** Строка «Розмір тексту»: справа текущий размер и мини-«Aa». */
 export function FontRow({ onOpen }: { onOpen: () => void }) {
   const t = useTranslations("fontSettings");
   const { user } = useAuth();
   const p = normalizeFontPrefs(user?.fontPrefs);
-  const summary = p.ui === p.msg ? fontLabel(p.ui, t) : `${fontLabel(p.ui, t)} · ${fontLabel(p.msg, t)}`;
+  const summary = t(`sizes.${p.size}`);
   return (
     <button type="button" className={base.row} onClick={onOpen} aria-haspopup="dialog">
       <span className={base.rowTitle}>{t("title")}</span>
