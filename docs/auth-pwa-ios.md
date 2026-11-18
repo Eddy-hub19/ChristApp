@@ -38,13 +38,12 @@
 
 - Для браузера запрос становится same-origin к фронту, а не прямым cross-origin к backend.
 
-### 2) Rewrites в Next.js и на Vercel
+### 2) Rewrites в Next.js
 
 Файл: `frontend/next.config.ts`
 
 - Локально / `next dev`: rewrite
   - `/api/nest/:path* -> ${BACKEND_PROXY_TARGET || NEXT_PUBLIC_API_URL || http://127.0.0.1:3001}/:path*`
-- На деплое Vercel (`VERCEL=1`) rewrites из `next.config.ts` отключены; edge-правила задаются в `frontend/vercel.json` (тот же `/api/nest/:path*` → прод-бэкенд, например Render).
 
 Зачем:
 
@@ -148,9 +147,9 @@
 
 ## Важные env-переменные
 
-### Frontend (Vercel)
+### Frontend
 
-- `BACKEND_PROXY_TARGET` = URL backend (Render).
+- `BACKEND_PROXY_TARGET` = URL backend.
 - `NEXT_PUBLIC_API_URL` = URL backend (fallback для proxy target).
 - `NEXT_PUBLIC_USE_DIRECT_API` не ставить в `1` для PWA-сценария (иначе вернется прямой cross-site).
 
@@ -199,8 +198,8 @@ Safari PWA блокирует third-party cookie-сценарии. После в
 
 | Где | Переменная | Для чего |
 | --- | --- | --- |
-| Vercel | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | старт redirect и кнопка (`/api/auth/google/config`) |
-| Render | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | обмен кода и проверка ID-токена |
+| Frontend | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | старт redirect и кнопка (`/api/auth/google/config`) |
+| Backend | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | обмен кода и проверка ID-токена |
 
 Если переменные не заданы, кнопка Google скрыта, а `POST /auth/google` отвечает `503 GOOGLE_NOT_CONFIGURED`.
 

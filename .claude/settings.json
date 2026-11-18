@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v -E '\\\\.\\(png|jpg|jpeg|webp|svg|mp3|ogg|wav|ttf|otf|woff2?|gif|ico\\)$')",
+      "Bash(docker version *)",
+      "Bash(git rm *)",
+      "Bash(which postgres *)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(sed -i '' 's#\"start:dev\": \"nest start --watch\",#\"dev\": \"nest start --watch\",\\\\n    \"start:dev\": \"nest start --watch\",#; s#\"start:prod\": \"node dist/main\"#\"start:prod\": \"node dist/src/main\"#' apps/api/package.json)",
+      "Bash(sed -i '' -E 's#backend/#apps/api/#g; s#--workspace backend#--workspace @christapp/api#g; s#/repo/backend#/repo/apps/api#g; s#frontend/package.json#apps/web/package.json#g' apps/api/Dockerfile)",
+      "Bash(sed -i '' -E 's#backend/#apps/api/#g; s#frontend/#apps/web/#g; s#--workspace frontend#--workspace @christapp/web#g; s#/repo/frontend#/repo/apps/web#g; s#\\\\./frontend#./apps/web#g' apps/web/Dockerfile)",
+      "Bash(sed -i '' 's#WORKDIR /repo/backend#WORKDIR /repo/apps/api#' apps/api/Dockerfile)",
+      "Bash(sed -i '' 's#^COPY backend backend#COPY apps/api apps/api#' apps/api/Dockerfile)",
+      "Bash(sed -i '' 's#^COPY frontend frontend#COPY apps/web apps/web#' apps/web/Dockerfile)",
+      "Bash(npm install *)",
+      "Bash(npm ls *)",
+      "Bash(git mv *)",
+      "Bash(sed -i '' '/with-secrets/d' apps/backend/Dockerfile apps/web/Dockerfile)",
+      "Bash(sed -i '' '/^!deploy\\\\/secrets.example.env$/d' .gitignore)",
+      "Bash(xargs sed -i '' -E 's#\\([^-]\\)compose\\\\.\\(dev|prod\\)\\\\.yml#\\\\1docker-compose.\\\\2.yml#g')",
+      "Bash(npm run *)",
+      "Bash(grep -E \"\\\\.json$\")",
+      "Bash(git check-ignore *)",
+      "Bash(file backups/*)",
+      "Bash(awk '{print $4,$5}')",
+      "Bash(docker compose *)",
+      "Bash(echo \"rc=$?\")"
+    ]
+  }
+}

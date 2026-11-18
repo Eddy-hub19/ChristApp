@@ -14,4 +14,4 @@
 * Посилання: `/{lang}/games/flock?arena=<id>`. Арена є й має місце -> заходимо в неї; арени вже нема (вони живуть, поки там є люди) -> входимо в доступну без повідомлень; арена заповнена -> "Арена заповнена, спробуй трохи пізніше".
 * Не залогінений: шлях запамʼятовується (`postLoginRedirect`, sessionStorage + localStorage), після входу чи реєстрації - назад у гру на ту саму арену.
 * "Надіслати в чат": TEXT-повідомлення `[[flock-invite:<арена>]]` (без міграцій). У чаті - картка "🐑 Ед кличе в Отару" з кнопкою "Грати"; у списку чатів, пушах, цитатах і сповіщеннях - "🐑 Запрошення в Отару", сирий префікс не показується.
-* Open Graph / Twitter: `generateMetadata` сторінки `/games/flock`, картинка `public/og/flock.png` (генератор `frontend/scripts/generate-flock-og.mjs`). Абсолютний URL картинки береться з `NEXT_PUBLIC_SITE_URL`, інакше з `VERCEL_PROJECT_PRODUCTION_URL`/`VERCEL_URL`.
+* Open Graph / Twitter: `generateMetadata` сторінки `/games/flock`, картинка `public/og/flock.png` (генератор `frontend/scripts/generate-flock-og.mjs`). Абсолютний URL картинки береться з `NEXT_PUBLIC_SITE_URL`, інакше з `NEXT_PUBLIC_APP_URL`.

@@ -2,11 +2,11 @@
 
 Дата анализа: 2026-09-16
 
-ChristApp — это full-stack PWA-приложение для христианского сообщества, объединяющее чтение Библии, живой чат в реальном времени, голосовые звонки, личный дневник по стихам и лёгкую геймификацию. Состоит из двух частей в одном репозитории: `frontend` (Next.js) и `backend` (NestJS + Prisma), которые деплоятся вместе на Vercel и используют одну общую PostgreSQL-базу.
+ChristApp — это full-stack PWA-приложение для христианского сообщества, объединяющее чтение Библии, живой чат в реальном времени, голосовые звонки, личный дневник по стихам и лёгкую геймификацию. Состоит из двух частей в одном репозитории: `frontend` (Next.js) и `backend` (NestJS + Prisma), которые деплоятся в Docker и используют одну общую PostgreSQL-базу.
 
 ## 1. Технологический стек
 
-### Backend (`backend/`)
+### Backend (`apps/backend/`)
 - **NestJS 11** (Express-платформа), TypeScript
 - **Prisma 7** + `@prisma/adapter-pg` (driver adapter поверх `pg.Pool`) — работа с PostgreSQL
 - **Socket.IO** (`@nestjs/websockets`, `@nestjs/platform-socket.io`) — realtime-чат и presence
@@ -17,7 +17,7 @@ ChristApp — это full-stack PWA-приложение для христиан
 - **Валидация**: `class-validator` / `class-transformer` через глобальный `ValidationPipe`
 - ИИ/LLM-зависимостей нет — «чат» это обычный межпользовательский realtime-чат, а не AI-ассистент
 
-### Frontend (`frontend/`)
+### Frontend (`apps/web/`)
 - **Next.js 16** (App Router) + **React 19**
 - Стилизация: чистый **CSS Modules + Sass**, без Tailwind
 - **@tanstack/react-query v5** — основной менеджер серверного состояния, с персистентностью в localStorage (`PersistQueryClientProvider`)
@@ -31,36 +31,36 @@ ChristApp — это full-stack PWA-приложение для христиан
 
 ## 2. Архитектура и деплой
 
-- Репозиторий — **npm workspaces монорепо** (`package.json` в корне: `workspaces: ["backend", "frontend"]`, общий `npm run dev` поднимает обе части через `concurrently`).
-- **Backend и frontend деплоятся раздельно**: backend — отдельным сервисом на **Render** (`frontend/vercel.json` делает rewrite `/api/nest/:path*` → `https://christapp-3dhb.onrender.com/:path*`); frontend — на **Vercel**. Общий у них только Postgres (Vercel-сборка фронта запускает `prisma migrate deploy` против той же БД перед `next build`, см. `build:vercel` в `frontend/package.json` — поэтому миграции применяются из сборки фронта, хотя сам backend там не выполняется).
+- Репозиторий — **npm workspaces монорепо** (`package.json` в корне: `workspaces: ["apps/*", "packages/*"]`, общий `npm run dev` поднимает обе части через `concurrently`).
+- **Деплой**: оба приложения собираются в Docker-образы (`docker-compose.dev.yml` локально, `docker-compose.prod.yml` на сервере за Traefik); общая PostgreSQL, миграции Prisma применяются сервисом `migrate` до старта backend.
 - Frontend обращается к backend не напрямую, а через собственные same-origin прокси-роуты, чтобы обойти CORS и ограничения Safari на cross-site cookies:
   - `/api/auth/[...path]` — прокси авторизационных эндпоинтов (нужно для HttpOnly refresh-cookie в PWA на iOS)
   - `/api/bibleProxy/[...path]` — прокси к внешнему API текста Библии (`https://api.prayerpulse.io`)
-  - `/api/nest/:path*` — общий rewrite к NestJS backend (в dev — через `next.config.ts`, в проде — через `vercel.json`)
+  - `/api/nest/:path*` — общий rewrite к NestJS backend (через `rewrites` в `next.config.ts`)
 - WebSocket-соединение (Socket.IO) идёт напрямую на backend origin (не через прокси).
 - В `docker-compose.yml`/`docker-compose-dev.yml` объявлен ещё сервис `bibleapi` (`build: ./BibleAPI`, порт 3002) — предположительно ранее свой сервис с текстами Библии. Папки `BibleAPI` в этом репозитории нет, и `NEXT_PUBLIC_BIBLE_API_URL` в `.env.local` указывает на внешний `api.prayerpulse.io`, а не на `localhost:3002` — то есть эта часть docker-compose сейчас нерабочая/неиспользуемая (осталась от более раннего варианта архитектуры с собственным Bible-сервисом).
 
 ## 3. Backend: модули и функциональность
 
-### Auth (`backend/src/auth`)
+### Auth (`apps/backend/src/auth`)
 JWT + HttpOnly refresh-cookie с ротацией:
 - `POST /register`, `POST /login` (по email или `@username`), `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`
 - Refresh-токен хранится в БД только как SHA-256 хэш; при каждом обновлении токен ротируется, но есть 30-секундное «grace»-окно (`graceAccessToken`), чтобы гоночные повторные вызовы (двойные вызовы в React strict mode, параллельные вкладки) не приводили к разлогину
 - Много защитной логики и логирования вокруг cookies/CORS специально для iOS PWA (см. `docs/auth-pwa-ios.md`)
 
-### Users (`backend/src/users`)
+### Users (`apps/backend/src/users`)
 - Загрузка аватара (Cloudinary, до 5 МБ)
 - Редактирование профиля: username, nickname, bio (до 500 симв.), кастомизация темы (цвета + один из шрифтов `inter`/`achiko`/`bodoni-moda`)
 - «Лайки» аватаров других пользователей (toggle-like), список пользователей
 
-### Messages (`backend/src/messages`)
+### Messages (`apps/backend/src/messages`)
 REST-часть чата (используется вместе с WebSocket-шлюзом):
 - Типы сообщений: `TEXT`, `VOICE`, `IMAGE`, `FILE`, `VIDEO_NOTE`
 - Отдельные эндпоинты загрузки для голосовых (до 8 МБ), изображений (до 8 МБ), видео-заметок (до 30 МБ, обрезка в квадрат 400×400 как в Telegram/WhatsApp) и файлов (до 50 МБ, allow-list: pdf/epub/mp3/m4a)
 - Пометка сообщений прочитанными и подсчёт непрочитанных (`RoomReadState`, одним raw SQL запросом с превью последнего сообщения)
 - Закрепление сообщений (до 5 на комнату), редактирование и удаление своих сообщений; админ может удалять чужие
 
-### Chat — realtime-шлюз (`backend/src/chat`)
+### Chat — realtime-шлюз (`apps/backend/src/chat`)
 Ядро приложения — WebSocket-шлюз на Socket.IO (~2000 строк):
 - Presence (кто онлайн), с 3-секундной задержкой перед пометкой «оффлайн» (чтобы не мигало при перезагрузке страницы)
 - Модель комнат: один глобальный чат для всех, личные переписки (`dm:<id>:<id>`), персональная комната-дневник **«Share with Jesus»** для каждого пользователя (создаётся автоматически), а также произвольные групповые комнаты с приглашениями
@@ -69,22 +69,22 @@ REST-часть чата (используется вместе с WebSocket-ш�
 - Собственная защита от атак прямо в шлюзе: regex-детектор XSS/SQLi/path traversal паттернов в сообщениях с эскалацией наказаний (предупреждение → кик из комнаты → временный бан на 15 минут)
 - Встроенные мини-игры внутри личных чатов — Doodle и Snake, доступны только VIP-пользователям, синхронизируются через WebSocket-события
 
-### Calls (`backend/src/calls`)
+### Calls (`apps/backend/src/calls`)
 - `GET /calls/token` — выдаёт краткоживущий (1 час) Agora RTC-токен для голосового звонка. Сама передача звука идёт через управляемую инфраструктуру Agora.io, backend только авторизует канал
 
-### Verses (`backend/src/verses`)
+### Verses (`apps/backend/src/verses`)
 - Сохранение/удаление избранных стихов Библии пользователем (книга, глава, стих, перевод, текст-снапшот)
 - Сам полный текст Библии backend не хранит и не отдаёт — это делает внешний API на фронтенде
 
-### Push (`backend/src/push`)
+### Push (`apps/backend/src/push`)
 - Web Push (VAPID) подписки, публичный ключ, статус подписки
 - Отправка push при новом сообщении в чате (с учётом получателей комнаты) и при входящем звонке
 - Автоматическая очистка «протухших» подписок при HTTP 404/410 от push-сервиса
 
-### Cloudinary (`backend/src/cloudinary`)
+### Cloudinary (`apps/backend/src/cloudinary`)
 - Обёртка над Cloudinary SDK с готовыми методами загрузки для голосовых, изображений, видео-заметок, файлов и аватаров, с трансформациями под каждый тип медиа
 
-### Admin (`backend/src/admin`)
+### Admin (`apps/backend/src/admin`)
 - **Не ролевая модель** — доступ определяется жёстко заданным списком username в коде (`ADMIN_DASHBOARD_USERNAMES`)
 - Просмотр списка участников, включение/выключение VIP-статуса, удаление аккаунтов (с защитой от удаления себя и других админов)
 

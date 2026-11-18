@@ -1,7 +1,5 @@
 name: CI
 
-# Каждый PR и каждый push в main: сборка фронтенда и бэкенда, типы, линт, тесты.
-# Красный крестик на PR означает, что ветку не соберут Vercel / Render.
 on:
   pull_request:
   push:
@@ -15,7 +13,6 @@ permissions:
   contents: read
 
 env:
-  # postinstall бэкенда (`prisma generate`) требует переменную, но к базе не подключается.
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
 
 jobs:
@@ -25,31 +22,22 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      # Монорепо с workspaces и ОДНИМ корневым package-lock.json: ставим один раз в корне.
-      - name: Install (root, npm ci)
+      - name: Install
         run: npm ci --no-audit --no-fund
-
       - name: Type check
-        run: npm exec --workspace frontend -- tsc --noEmit
-
-      # В проекте уже есть ошибки правил React Compiler (на сборку не влияют):
-      # пока их не починят, линт показывает их предупреждением, но не краснит PR.
+        run: npm exec --workspace @christapp/web -- tsc --noEmit
       - name: ESLint
         continue-on-error: true
-        run: npm run lint --workspace frontend
-
+        run: npm run lint --workspace @christapp/web
       - name: Unit tests
-        run: npm test --workspace frontend
-
+        run: npm test --workspace @christapp/web
       - name: next build
-        run: npm run build --workspace frontend
+        run: npm run build --workspace @christapp/web
 
   backend:
     name: Backend (nest build, eslint, tests)
@@ -57,37 +45,28 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      - name: Install (root, npm ci)
+      - name: Install
         run: npm ci --no-audit --no-fund
-
       - name: nest build
-        run: npm run build --workspace backend
-
-      # В бэкенде есть старые ошибки линта (scripts/verify-vapid.js, upload-policy.ts):
-      # предупреждение, не краснит PR, пока их не починят.
+        run: npm run build --workspace @christapp/backend
       - name: ESLint
         continue-on-error: true
-        run: npm exec --workspace backend -- eslint .
-
+        run: npm exec --workspace @christapp/backend -- eslint .
       - name: Unit tests
-        run: npm test --workspace backend
+        run: npm test --workspace @christapp/backend
 
-  # Регресія: `prisma migrate deploy` на ПОРОЖНІЙ базі має відтворювати рівно schema.prisma
-  # (див. backend/prisma/MIGRATIONS.md).
   migrations:
     name: Prisma migrations (empty database)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
@@ -101,20 +80,31 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: package-lock.json
-
-      - name: Install (root, npm ci)
+      - name: Install
         run: npm ci --no-audit --no-fund
-
       - name: migrate deploy on an empty database
-        working-directory: backend
+        working-directory: apps/backend
         run: npx prisma migrate deploy
-
       - name: Database matches schema.prisma
-        working-directory: backend
+        working-directory: apps/backend
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Build images
+        run: npm run docker:build
+        env:
+          IMAGE_TAG: ci

@@ -1,0 +1,144 @@
+name: christapp-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: '5'
+
+x-backend-image: &backend-image ${IMAGE:-ghcr.io/eddy-hub19/christapp}-backend:${IMAGE_TAG:?IMAGE_TAG required}
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: apps/backend/Dockerfile
+  target: production
+
+x-database-url: &database-url
+  DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@db:5432/${DB_DATABASE}
+
+services:
+  traefik:
+    image: traefik:v3.7
+    restart: always
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=christapp-prod_edge
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:?ACME_EMAIL required}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --accesslog=true
+      - --log.level=INFO
+      - --ping=true
+    ports: ['80:80', '443:443']
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    healthcheck:
+      test: ['CMD', 'traefik', 'healthcheck', '--ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+    networks: [edge]
+
+  db:
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    command: ['postgres', '-c', 'max_connections=200']
+    volumes: [db_data:/var/lib/postgresql]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *logging
+    networks: [internal]
+
+  migrate:
+    image: *backend-image
+    build: *backend-build
+    command: ['npm', 'run', 'db:migrate']
+    restart: 'no'
+    environment:
+      <<: *database-url
+      NODE_ENV: production
+    depends_on:
+      db: { condition: service_healthy }
+    logging: *logging
+    networks: [internal]
+
+  backend:
+    image: *backend-image
+    build: *backend-build
+    restart: always
+    env_file: [.env.production]
+    environment:
+      <<: *database-url
+      NODE_ENV: production
+      PORT: '3001'
+    volumes: [backend_uploads:/repo/apps/backend/uploads]
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    stop_grace_period: 30s
+    logging: *logging
+    networks: [edge, internal]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${API_HOST:?API_HOST required}`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls.certresolver=le
+      - traefik.http.services.backend.loadbalancer.server.port=3001
+
+  web:
+    image: ${IMAGE:-ghcr.io/eddy-hub19/christapp}-web:${IMAGE_TAG:?IMAGE_TAG required}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL required}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL required}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
+        NEXT_PUBLIC_USE_DIRECT_API: ${NEXT_PUBLIC_USE_DIRECT_API:-}
+        NEXT_PUBLIC_BIBLE_API_URL: ${NEXT_PUBLIC_BIBLE_API_URL:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+        NEXT_PUBLIC_AGORA_APP_ID: ${NEXT_PUBLIC_AGORA_APP_ID:-}
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
+        BACKEND_PROXY_TARGET: http://backend:3001
+    restart: always
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      BACKEND_PROXY_TARGET: http://backend:3001
+    depends_on:
+      backend: { condition: service_healthy }
+    stop_grace_period: 20s
+    logging: *logging
+    networks: [edge, internal]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`${APP_HOST:?APP_HOST required}`)
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=le
+      - traefik.http.services.web.loadbalancer.server.port=3000
+
+volumes:
+  db_data:
+  backend_uploads:
+  letsencrypt:
+
+networks:
+  edge:
+  internal:

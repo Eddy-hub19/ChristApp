@@ -24,9 +24,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Vercel
-.vercel/
-
 # TypeScript
 *.tsbuildinfo
 
@@ -35,3 +32,9 @@ pnpm-debug.log*
 .vscode/
 .idea/
 *.pem
+
+.env.development
+.secrets.*.env
+/backups/*
+!/backups/.gitkeep
+/.env.production

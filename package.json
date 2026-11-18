@@ -1,16 +1,54 @@
 {
-  "name": "christapp-monorepo",
+  "name": "christapp",
   "private": true,
   "workspaces": [
-    "backend",
-    "frontend"
+    "apps/*",
+    "packages/*"
   ],
+  "config": {
+    "image": "ghcr.io/eddy-hub19/christapp",
+    "composeFile": "docker-compose.dev.yml",
+    "envFile": ".env.development",
+    "prodComposeFile": "docker-compose.prod.yml",
+    "prodEnvFile": ".env.production"
+  },
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c yellow,cyan \"npm run start:dev --workspace backend\" \"npm run dev --workspace frontend\"",
-    "dev:backend": "npm run start:dev --workspace backend",
-    "dev:frontend": "npm run dev --workspace frontend"
+    "dev": "concurrently -n backend,web -c yellow,cyan \"npm run dev:backend\" \"npm run dev:web\"",
+    "dev:backend": "npm run start:dev -w @christapp/backend",
+    "dev:web": "npm run dev -w @christapp/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run lint && npm run test && npm run build",
+    "docker:compose": "docker compose --env-file $npm_package_config_envFile -f $npm_package_config_composeFile",
+    "docker:init": "cp -n .env.development.example .env.development || true",
+    "docker:up": "npm run -s docker:compose -- up -d --build --wait",
+    "docker:deps": "npm run -s docker:compose -- up -d --wait db",
+    "docker:down": "npm run -s docker:compose -- down",
+    "docker:reset": "npm run -s docker:compose -- down -v --remove-orphans",
+    "docker:logs": "npm run -s docker:compose -- logs -f backend",
+    "docker:migrate": "npm run -s docker:compose -- run --rm --no-deps backend npm run db:migrate",
+    "docker:psql": "npm run -s docker:compose -- exec db sh -c 'psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+    "docker:restore": "sh scripts/docker/db-restore.sh",
+    "docker:dump": "sh scripts/docker/db-dump.sh",
+    "docker:dump:remote": "sh scripts/docker/db-dump-remote.sh",
+    "docker:build": "IMAGE=$npm_package_config_image docker buildx bake --load",
+    "docker:push": "IMAGE=$npm_package_config_image IMAGE_TAG=${IMAGE_TAG:?IMAGE_TAG required} docker buildx bake --push --sbom=true --provenance=mode=max ${BUILDX_FLAGS:-}",
+    "docker:prod:compose": "docker compose --env-file $npm_package_config_prodEnvFile -f $npm_package_config_prodComposeFile",
+    "docker:prod:init": "cp -n .env.production.example .env.production || true",
+    "docker:prod:up": "npm run -s docker:prod:compose -- up -d --build --wait",
+    "docker:prod:deploy": "npm run -s docker:prod:compose -- up -d --wait --no-build --pull always",
+    "docker:prod:down": "npm run -s docker:prod:compose -- down",
+    "docker:prod:logs": "npm run -s docker:prod:compose -- logs -f --tail=200 backend",
+    "docker:prod:migrate": "npm run -s docker:prod:compose -- run --rm migrate",
+    "docker:prod:psql": "npm run -s docker:prod:compose -- exec db sh -c 'psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'",
+    "docker:prod:dump": "COMPOSE_SCRIPT=docker:prod:compose sh scripts/docker/db-dump.sh",
+    "docker:prod:restore": "COMPOSE_SCRIPT=docker:prod:compose sh scripts/docker/db-restore.sh"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
