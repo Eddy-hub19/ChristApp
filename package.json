@@ -10,7 +10,8 @@
     "composeFile": "docker-compose.dev.yml",
     "envFile": ".env.development",
     "prodComposeFile": "docker-compose.prod.yml",
-    "prodEnvFile": ".env.production"
+    "prodEnvFile": ".env.production",
+    "network": "web"
   },
   "scripts": {
     "dev": "concurrently -n backend,web -c yellow,cyan \"npm run dev:backend\" \"npm run dev:web\"",
@@ -20,8 +21,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check": "npm run lint && npm run test && npm run build",
-    "docker:compose": "docker compose --env-file $npm_package_config_envFile -f $npm_package_config_composeFile",
-    "docker:init": "cp -n .env.development.example .env.development || true",
+    "docker:network": "docker network inspect $npm_package_config_network > /dev/null 2>&1 || docker network create $npm_package_config_network",
+    "docker:compose": "npm run -s docker:network && docker compose --env-file $npm_package_config_envFile -f $npm_package_config_composeFile",
     "docker:up": "npm run -s docker:compose -- up -d --build --wait",
     "docker:deps": "npm run -s docker:compose -- up -d --wait db",
     "docker:down": "npm run -s docker:compose -- down",
@@ -34,8 +35,7 @@
     "docker:dump:remote": "sh scripts/docker/db-dump-remote.sh",
     "docker:build": "IMAGE=$npm_package_config_image docker buildx bake --load",
     "docker:push": "IMAGE=$npm_package_config_image IMAGE_TAG=${IMAGE_TAG:?IMAGE_TAG required} docker buildx bake --push --sbom=true --provenance=mode=max ${BUILDX_FLAGS:-}",
-    "docker:prod:compose": "docker compose --env-file $npm_package_config_prodEnvFile -f $npm_package_config_prodComposeFile",
-    "docker:prod:init": "cp -n .env.production.example .env.production || true",
+    "docker:prod:compose": "npm run -s docker:network && docker compose --env-file $npm_package_config_prodEnvFile -f $npm_package_config_prodComposeFile",
     "docker:prod:up": "npm run -s docker:prod:compose -- up -d --build --wait",
     "docker:prod:deploy": "npm run -s docker:prod:compose -- up -d --wait --no-build --pull always",
     "docker:prod:down": "npm run -s docker:prod:compose -- down",

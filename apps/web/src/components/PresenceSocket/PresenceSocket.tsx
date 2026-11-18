@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import createSocket from "socket.io-client";
-import { getDirectApiOrigin } from "@/lib/apiBase";
+import { getDirectApiOrigin, getSocketPath } from "@/lib/apiBase";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { attachPresenceReporter } from "@/lib/presenceReporter";
@@ -112,6 +112,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       }
 
       const nextSocket = createSocket(WS_URL, {
+        path: getSocketPath(),
         auth: { token },
         transports: ["websocket"],
       });

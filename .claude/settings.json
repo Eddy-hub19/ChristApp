@@ -24,7 +24,11 @@
       "Bash(file backups/*)",
       "Bash(awk '{print $4,$5}')",
       "Bash(docker compose *)",
-      "Bash(echo \"rc=$?\")"
+      "Bash(echo \"rc=$?\")",
+      "Bash(docker info *)",
+      "Bash(docker network *)",
+      "Bash(docker buildx *)",
+      "Bash(docker rm *)"
     ]
   }
 }

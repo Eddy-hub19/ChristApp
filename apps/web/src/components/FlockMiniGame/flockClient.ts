@@ -1,6 +1,7 @@
 import type { ColiseumHud } from "./flockColiseum";
 import { prefersReducedMotion } from "./flockSprites";
 import createSocket from "socket.io-client";
+import { getSocketPath } from "@/lib/apiBase";
 import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
 import type { CastleEndInfo, CastleEvent, CastleMsg, CastleRewardInfo, Team } from "./flockCastles";
 import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
@@ -212,6 +213,7 @@ export class FlockClient {
 
   private connect() {
     const socket = createSocket(this.opts.url, {
+      path: getSocketPath(),
       auth: { token: this.opts.token },
       transports: ["websocket"],
       reconnection: true,

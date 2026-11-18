@@ -1,5 +1,5 @@
 import createSocket from "socket.io-client";
-import { getDirectApiOrigin } from "@/lib/apiBase";
+import { getDirectApiOrigin, getSocketPath } from "@/lib/apiBase";
 import type { MyRoomItem } from "@/types/chat/socket.types";
 
 type Sock = ReturnType<typeof createSocket>;
@@ -22,6 +22,7 @@ export interface QuickChat {
  */
 export function openQuickChat(token: string): QuickChat {
   const socket: Sock = createSocket(getDirectApiOrigin(), {
+    path: getSocketPath(),
     auth: { token },
     transports: ["websocket"],
     reconnection: false,

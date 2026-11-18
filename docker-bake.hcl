@@ -18,6 +18,10 @@ variable "NEXT_PUBLIC_WS_URL" {
   default = ""
 }
 
+variable "NEXT_PUBLIC_SOCKET_PATH" {
+  default = ""
+}
+
 variable "NEXT_PUBLIC_USE_DIRECT_API" {
   default = ""
 }
@@ -39,7 +43,7 @@ variable "GIT_COMMIT_SHA" {
 }
 
 variable "BACKEND_PROXY_TARGET" {
-  default = "http://backend:3001"
+  default = "http://christapp-prod-backend:3001"
 }
 
 group "default" {
@@ -62,6 +66,7 @@ target "web" {
     NEXT_PUBLIC_API_URL        = NEXT_PUBLIC_API_URL
     NEXT_PUBLIC_APP_URL        = NEXT_PUBLIC_APP_URL
     NEXT_PUBLIC_WS_URL         = NEXT_PUBLIC_WS_URL
+    NEXT_PUBLIC_SOCKET_PATH    = NEXT_PUBLIC_SOCKET_PATH
     NEXT_PUBLIC_USE_DIRECT_API = NEXT_PUBLIC_USE_DIRECT_API
     NEXT_PUBLIC_BIBLE_API_URL  = NEXT_PUBLIC_BIBLE_API_URL
     NEXT_PUBLIC_SITE_URL       = NEXT_PUBLIC_SITE_URL

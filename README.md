@@ -18,15 +18,71 @@ npm workspaces, one root `package-lock.json`:
 
 | File | Env file | Scripts | What |
 | --- | --- | --- | --- |
-| `docker-compose.dev.yml` | `.env.development` | `docker:*` | local stack: PostgreSQL 18, backend (migrations on start), web; ports open on localhost |
-| `docker-compose.prod.yml` | `.env.production` | `docker:prod:*` | server stack: Traefik with automatic HTTPS, PostgreSQL (not published), one-shot `migrate`, backend, web, log rotation |
+| `docker-compose.dev.yml` | `.env.development` | `docker:*` | PostgreSQL 18, backend (migrations on start), web; ports published on `127.0.0.1` |
+| `docker-compose.prod.yml` | `.env.production` | `docker:prod:*` | PostgreSQL (not published), one-shot `migrate`, backend, web, log rotation |
 
-Env files are ignored by git; templates are `.env.development.example` and `.env.production.example`.
+Env files are not tracked by git; create them yourself with the keys the compose files and apps read.
+
+### Network and nginx
+
+Backend and web of both stacks join the external Docker network `web` (created automatically by the scripts, name in the `config` block of `package.json`). Put nginx on the same network and proxy to the container aliases:
+
+| Stack | Backend (port 3001) | Web (port 3000) |
+| --- | --- | --- |
+| prod | `christapp-prod-backend` | `christapp-prod-web` |
+| dev | `christapp-dev-backend` | `christapp-dev-web` |
+
+The database is only on the stack-private `internal` network.
+
+Production runs on one domain (`christapp.ddns.net`): the site on `/`, the backend on `/v1/api/`. nginx strips the `/v1/api` prefix, so the backend routes stay unchanged. The browser talks to the backend in two ways: HTTP through the web app (`/api/nest`, same origin, no CORS) and Socket.IO directly, which is why the socket path is configurable:
+
+| Variable (baked into the web image) | Value |
+| --- | --- |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL` | `https://christapp.ddns.net` |
+| `NEXT_PUBLIC_API_URL` | `https://christapp.ddns.net/v1/api` |
+| `NEXT_PUBLIC_WS_URL` | `https://christapp.ddns.net` |
+| `NEXT_PUBLIC_SOCKET_PATH` | `/v1/api/socket.io` |
+
+Backend variables: `CORS_ORIGIN` and `FRONTEND_URL` = `https://christapp.ddns.net`. The Google OAuth redirect URI to register is `https://christapp.ddns.net/api/auth/google/callback`.
+
+```
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  '' close;
+}
+
+server {
+  listen 443 ssl;
+  server_name christapp.ddns.net;
+
+  location /v1/api/ {
+    proxy_pass http://christapp-prod-backend:3001/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 3600s;
+  }
+
+  location / {
+    proxy_pass http://christapp-prod-web:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+The trailing slash in `proxy_pass http://christapp-prod-backend:3001/;` is what strips the prefix. Keep it.
 
 ### Dev
 
 ```
-npm run docker:init
 npm run docker:up
 ```
 
@@ -48,14 +104,11 @@ Web: http://localhost:3000, backend: http://localhost:3001 (`/health`), Postgres
 
 ### Prod (on the server)
 
-Requirements: Docker with the compose plugin, DNS `A` records for `API_HOST` and `APP_HOST` pointing at the server, ports 80 and 443 open.
-
 ```
-npm run docker:prod:init
 npm run docker:prod:up
 ```
 
-Fill in `.env.production` first (domains, `ACME_EMAIL`, database password, `JWT_SECRET`, third-party keys). `docker:prod:up` builds the images on the server with `IMAGE_TAG` (for example `local`), runs migrations, then starts everything; Traefik issues the certificates on the first request. `NEXT_PUBLIC_*` values are baked into the web image at build time.
+`docker:prod:up` builds the images on the server with `IMAGE_TAG` (for example `local`), runs migrations, then starts everything. `NEXT_PUBLIC_*` values and the proxy target are baked into the web image at build time, so changing them needs a new `up`.
 
 | Script | Purpose |
 | --- | --- |
@@ -66,7 +119,7 @@ Fill in `.env.production` first (domains, `ACME_EMAIL`, database password, `JWT_
 | `npm run docker:prod:psql` | psql shell |
 | `npm run docker:prod:dump` / `docker:prod:restore` | backup into `backups/` / restore the newest file from `backups/` (or `-- <file>`) |
 
-Release through GitHub: a `v*` tag runs `.github/workflows/deploy.yml`: images are pushed to GHCR, then `docker:prod:deploy` runs against the server over SSH (`DOCKER_HOST`). Required GitHub secrets: `PRODUCTION_ENV` (full content of `.env.production`), `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_USER`, `DEPLOY_HOST`; variables: `NEXT_PUBLIC_*`. Run `docker login ghcr.io` once on the server. Rollback: deploy an older tag with `IMAGE_TAG=<previous> npm run docker:prod:deploy`.
+Release through GitHub: a `v*` tag runs `.github/workflows/deploy.yml`: images are pushed to GHCR, then `docker:prod:deploy` runs against the server over SSH (`DOCKER_HOST`). Required GitHub secrets: `PRODUCTION_ENV` (full content of `.env.production`), `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_USER`, `DEPLOY_HOST`; variables: `NEXT_PUBLIC_*`. The health check reads `API_HOST` from `.env.production`. Run `docker login ghcr.io` once on the server. Rollback: deploy an older tag with `IMAGE_TAG=<previous> npm run docker:prod:deploy`.
 
 The backend keeps presence, games and sockets in process memory, so it runs as a single instance until that state moves to Redis.
 

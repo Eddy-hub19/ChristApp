@@ -86,7 +86,7 @@ import {
   classifyAttachment,
   voiceFileName,
 } from "@/lib/chatMedia";
-import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
+import { getDirectApiOrigin, getHttpApiBase, getSocketPath } from "@/lib/apiBase";
 import { checkBackendHealth } from "@/lib/backendHealth";
 import {
   HISTORY_REQUEST_TIMEOUT_MS,
@@ -1421,6 +1421,7 @@ export default function ChatPageDetails() {
     }
 
     const socket = createSocket(CHAT_SOCKET_URL, {
+      path: getSocketPath(),
       auth: { token },
       transports: ["websocket"],
       reconnection: true,

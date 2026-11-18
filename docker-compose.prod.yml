@@ -17,35 +17,6 @@ x-database-url: &database-url
   DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@db:5432/${DB_DATABASE}
 
 services:
-  traefik:
-    image: traefik:v3.7
-    restart: always
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedByDefault=false
-      - --providers.docker.network=christapp-prod_edge
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entryPoint.to=websecure
-      - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.tlschallenge=true
-      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:?ACME_EMAIL required}
-      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
-      - --accesslog=true
-      - --log.level=INFO
-      - --ping=true
-    ports: ['80:80', '443:443']
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
-    healthcheck:
-      test: ['CMD', 'traefik', 'healthcheck', '--ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    logging: *logging
-    networks: [edge]
-
   db:
     image: postgres:18-alpine
     restart: always
@@ -92,13 +63,10 @@ services:
       migrate: { condition: service_completed_successfully }
     stop_grace_period: 30s
     logging: *logging
-    networks: [edge, internal]
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.backend.rule=Host(`${API_HOST:?API_HOST required}`)
-      - traefik.http.routers.backend.entrypoints=websecure
-      - traefik.http.routers.backend.tls.certresolver=le
-      - traefik.http.services.backend.loadbalancer.server.port=3001
+    networks:
+      internal:
+      web:
+        aliases: [christapp-prod-backend]
 
   web:
     image: ${IMAGE:-ghcr.io/eddy-hub19/christapp}-web:${IMAGE_TAG:?IMAGE_TAG required}
@@ -110,35 +78,34 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL required}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?NEXT_PUBLIC_APP_URL required}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
+        NEXT_PUBLIC_SOCKET_PATH: ${NEXT_PUBLIC_SOCKET_PATH:-}
         NEXT_PUBLIC_USE_DIRECT_API: ${NEXT_PUBLIC_USE_DIRECT_API:-}
         NEXT_PUBLIC_BIBLE_API_URL: ${NEXT_PUBLIC_BIBLE_API_URL:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
         NEXT_PUBLIC_AGORA_APP_ID: ${NEXT_PUBLIC_AGORA_APP_ID:-}
         GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
-        BACKEND_PROXY_TARGET: http://backend:3001
+        BACKEND_PROXY_TARGET: http://christapp-prod-backend:3001
     restart: always
     env_file: [.env.production]
     environment:
       NODE_ENV: production
       PORT: '3000'
-      BACKEND_PROXY_TARGET: http://backend:3001
+      BACKEND_PROXY_TARGET: http://christapp-prod-backend:3001
     depends_on:
       backend: { condition: service_healthy }
     stop_grace_period: 20s
     logging: *logging
-    networks: [edge, internal]
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.web.rule=Host(`${APP_HOST:?APP_HOST required}`)
-      - traefik.http.routers.web.entrypoints=websecure
-      - traefik.http.routers.web.tls.certresolver=le
-      - traefik.http.services.web.loadbalancer.server.port=3000
+    networks:
+      internal:
+      web:
+        aliases: [christapp-prod-web]
 
 volumes:
   db_data:
   backend_uploads:
-  letsencrypt:
 
 networks:
-  edge:
   internal:
+  web:
+    external: true
+    name: web

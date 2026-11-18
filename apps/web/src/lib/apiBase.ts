@@ -41,6 +41,14 @@ export function getDirectApiOrigin(): string {
   return "http://127.0.0.1:3001";
 }
 
+export function getSocketPath(): string {
+  const raw = process.env.NEXT_PUBLIC_SOCKET_PATH?.trim();
+  if (!raw) {
+    return "/socket.io";
+  }
+  return `/${raw.replace(/^\/+|\/+$/g, "")}`;
+}
+
 /**
  * HTTP-оригін Nest для серверних fetch з Node (SSR): збігається з `BACKEND_PROXY_TARGET` у `next.config`.
  * Не використовуйте для браузера. Потрібен, щоб SSR не ходив у `/api/nest` — інакше Next dev пише
