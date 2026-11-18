@@ -28,7 +28,13 @@
       "Bash(docker info *)",
       "Bash(docker network *)",
       "Bash(docker buildx *)",
-      "Bash(docker rm *)"
+      "Bash(docker rm *)",
+      "Bash(sed -i '' \"s#\\\\\"https://\\\\$\\(grep '^API_HOST=' .env.production | cut -d= -f2\\)/health\\\\\"#\\\\\"https://\\\\$\\(grep '^API_HOST=' .env.production | cut -d= -f2\\)/v1/api/health\\\\\"#\" .github/workflows/deploy.yml)",
+      "Bash(python3 -c \"import yaml;yaml.safe_load\\(open\\('.github/workflows/deploy.yml'\\)\\);yaml.safe_load\\(open\\('.github/workflows/ci.yml'\\)\\);print\\('YAML_OK'\\)\")",
+      "Bash(ruby -ryaml -e 'ARGV.each{|f| YAML.load_file\\(f\\)}; puts \"YAML_OK\"' .github/workflows/deploy.yml .github/workflows/ci.yml)",
+      "Bash(curl -s -o /dev/null -w \"backend :3001 -> %{http_code}\\\\n\" --max-time 4 localhost:3001/health)",
+      "Bash(curl -s -o /dev/null -w \"web :3000 -> %{http_code}\\\\n\" --max-time 4 localhost:3000/)",
+      "Bash(curl -s -w \" -> %{http_code}\\\\n\" --max-time 5 localhost:3001/health)"
     ]
   }
 }
