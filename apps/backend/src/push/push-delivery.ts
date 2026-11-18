@@ -5,6 +5,7 @@ export type PushKind =
   | 'watchInvite'
   | 'call'
   | 'readSync'
+  | 'broadcast'
   | 'test';
 
 export type PushSendResult = {

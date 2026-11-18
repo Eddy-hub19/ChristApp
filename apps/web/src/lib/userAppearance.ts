@@ -4,32 +4,18 @@ import { isDefaultFontPrefs, normalizeFontPrefs } from "@/lib/chatFonts";
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF";
 export const SUGGESTED_THEME_BACKGROUND = "#17151A";
 
-export const THEME_FONT_KEYS = ["inter", "achiko", "bodoni-moda"] as const;
-export type ThemeFontKey = (typeof THEME_FONT_KEYS)[number];
-
-export function normalizeThemeFontKey(
-  value: string | null | undefined,
-): ThemeFontKey {
-  const v = value?.trim();
-  if (!v) return "inter";
-  if (THEME_FONT_KEYS.includes(v as ThemeFontKey)) {
-    return v as ThemeFontKey;
-  }
-  return "inter";
-}
-
 export type UserAppearanceFields = {
   themeForegroundHex?: string | null;
   themeBackgroundHex?: string | null;
   themeFontKey?: string | null;
-  /** Личные шрифты (lib/chatFonts.ts): атрибуты на <html>, значения - styles/chatFonts.scss. */
+  /** Личные настройки текста (lib/chatFonts.ts): размер -> атрибут на <html>, значения - styles/chatFonts.scss. */
   fontPrefs?: unknown;
 };
 
 /** Ключ localStorage: блокирующий скрипт в layout читает его и ставит атрибуты на <html> до первого paint. */
 export const FONT_PREFS_STORAGE_KEY = "christapp:fontPrefs";
 
-/** Личные шрифты и размер текста -> атрибуты на <html> (null - всё как в приложении по умолчанию). */
+/** Размер текста -> атрибут на <html> (null - всё как в приложении по умолчанию). Шрифт у всех по умолчанию. */
 export function applyFontPrefsToDocument(raw: unknown): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
@@ -38,12 +24,13 @@ export function applyFontPrefsToDocument(raw: unknown): void {
     if (value) root.setAttribute(name, value);
     else root.removeAttribute(name);
   };
-  set("data-ui-font", p.ui === "as-is" ? null : p.ui);
-  set("data-msg-font", p.msg === "as-is" ? null : p.msg);
+  // Шрифты на выбор убраны: на всякий случай снимаем атрибуты, которые мог поставить старый код.
+  set("data-ui-font", null);
+  set("data-msg-font", null);
   set("data-text-size", p.size === "md" ? null : p.size);
   try {
     if (isDefaultFontPrefs(p)) window.localStorage.removeItem(FONT_PREFS_STORAGE_KEY);
-    else window.localStorage.setItem(FONT_PREFS_STORAGE_KEY, JSON.stringify({ ui: p.ui, msg: p.msg, size: p.size }));
+    else window.localStorage.setItem(FONT_PREFS_STORAGE_KEY, JSON.stringify({ size: p.size }));
   } catch {
     /* приватный режим */
   }
@@ -120,17 +107,6 @@ export function applyUserAppearanceToDocument(
     }
   }
 
-  const fontKey = normalizeThemeFontKey(user.themeFontKey);
-  // выбранный в «Налаштування -> Шрифт» шрифт интерфейса важнее старого ключа шрифта профиля
-  if (root.hasAttribute("data-ui-font")) {
-    document.body.style.removeProperty("font-family");
-  } else if (fontKey === "achiko") {
-    document.body.style.fontFamily =
-      '"Achiko", "Inter", ui-sans-serif, system-ui, sans-serif';
-  } else if (fontKey === "bodoni-moda") {
-    document.body.style.fontFamily =
-      'var(--font-bodoni-moda), "Bodoni Moda", ui-serif, Georgia, serif';
-  } else {
-    document.body.style.removeProperty("font-family");
-  }
+  // Шрифт у всех по умолчанию: прежний ключ шрифта профиля (Achiko, Bodoni Moda) больше не применяется.
+  document.body.style.removeProperty("font-family");
 }

@@ -5,6 +5,8 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
@@ -26,6 +28,10 @@ import { describeDatabaseUrl, describeServerRegion } from 'src/prisma/db-info';
 import { ChatGateway } from 'src/chat/chat.gateway';
 import { FlockGateway } from 'src/flock/flock.gateway';
 import { FlockRubiesService } from 'src/flock/flock.rubies.service';
+import { PushService } from 'src/push/push.service';
+
+/** Пауза между рассылками «всем»: защита от двойного нажатия и случайного повтора. */
+const BROADCAST_COOLDOWN_MS = 60_000;
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -39,7 +45,10 @@ export class AdminController {
     private readonly flockRubies: FlockRubiesService,
     private readonly flockGateway: FlockGateway,
     private readonly puzzleImages: PuzzleUserImagesService,
+    private readonly push: PushService,
   ) {}
+
+  private lastBroadcastAt = 0;
 
   private normalizeUsername(value: string | null | undefined): string {
     return value?.trim().toLowerCase() ?? '';
@@ -230,6 +239,51 @@ export class AdminController {
     if (body?.retire === true) this.flockGateway.retireArenas();
     if (body?.recreateEmpty === true) this.flockGateway.recreateEmptyArenas();
     return this.flockGateway.mapAdmin();
+  }
+
+  /** Push-рассылка: сколько устройств и пользователей получат уведомление. */
+  @Get('push/broadcast')
+  broadcastRecipients() {
+    return this.push.countBroadcastRecipients();
+  }
+
+  /** Push-рассылка всем подписанным устройствам (например, «мы переехали на новый сайт»). */
+  @Post('push/broadcast')
+  async sendBroadcast(
+    @Body() body: { title?: unknown; body?: unknown; url?: unknown },
+    @Req() req: Request,
+  ) {
+    const title = typeof body?.title === 'string' ? body.title.trim() : '';
+    const text = typeof body?.body === 'string' ? body.body.trim() : '';
+    if (!title || title.length > 80) throw new BadRequestException('invalid_title');
+    if (!text || text.length > 300) throw new BadRequestException('invalid_body');
+
+    // Путь внутри приложения: клик по пушу открывает его в уже установленном сайте/PWA.
+    let targetUrl = '/chat';
+    if (body?.url !== undefined && body.url !== null && body.url !== '') {
+      if (
+        typeof body.url !== 'string' ||
+        !body.url.startsWith('/') ||
+        body.url.startsWith('//') ||
+        body.url.length > 200
+      ) {
+        throw new BadRequestException('invalid_url');
+      }
+      targetUrl = body.url;
+    }
+
+    const now = Date.now();
+    if (now - this.lastBroadcastAt < BROADCAST_COOLDOWN_MS) {
+      throw new HttpException('broadcast_cooldown', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    this.lastBroadcastAt = now;
+
+    const actor = (req as Request & { user?: { username?: string } }).user
+      ?.username;
+    const result = await this.push.broadcast({ title, body: text, targetUrl });
+    // eslint-disable-next-line no-console
+    console.log(`admin push broadcast by ${actor ?? 'unknown'}: ${JSON.stringify(result)}`);
+    return result;
   }
 
   /** «Пазли»: все загруженные пользователями картинки (превью, автор, дата). */

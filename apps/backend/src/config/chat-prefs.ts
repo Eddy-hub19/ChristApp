@@ -18,15 +18,8 @@ export const CHAT_BACKGROUND_IDS = [
   'grad-sea',
 ] as const;
 
-/** "as-is" - «Як зараз» (как сейчас в приложении), "system" - системный шрифт. */
-export const CHAT_FONT_IDS = [
-  'as-is',
-  'system',
-  'nunito',
-  'rubik',
-  'comfortaa',
-  'caveat',
-] as const;
+/** Шрифты на выбор убраны: единственное значение "as-is" - шрифт приложения по умолчанию. Остальные id при сохранении заменяются на него. */
+export const CHAT_FONT_IDS = ['as-is'] as const;
 
 export const CHAT_TEXT_SIZES = ['sm', 'md', 'lg'] as const;
 
@@ -89,7 +82,7 @@ export function sanitizeChatBackgrounds(raw: unknown): ChatBackgrounds | null {
   return out.def || out.rooms ? out : null;
 }
 
-/** Чистит настройки шрифтов; неизвестные значения заменяются на «Як зараз» / «Звичайний». null - всё по умолчанию. */
+/** Чистит настройки текста: шрифт всегда по умолчанию, неизвестный размер заменяется на «Звичайний». null - всё по умолчанию. */
 export function sanitizeFontPrefs(raw: unknown): FontPrefs | null {
   if (!isPlain(raw)) return null;
   const pick = (v: unknown, list: readonly string[], fallback: string) =>

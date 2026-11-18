@@ -22,7 +22,7 @@ model User {
   themeForegroundHex String? @db.VarChar(7)
   /// * Кастомный фон (#RRGGBB), опционально.
   themeBackgroundHex String? @db.VarChar(7)
-  /// * Ключ шрифта: `inter` | `achiko` | `bodoni-moda`.
+  /// * Ключ шрифта: только `inter` (выбор шрифтов убран; прежние значения обнулены миграцией 20261118210000_reset_fonts).
   themeFontKey      String? @db.VarChar(32)
   /// Останній раз «був у мережі» (оновлюється при відключенні WebSocket після grace).
   lastSeenAt        DateTime?

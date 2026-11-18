@@ -121,26 +121,20 @@
     }
   },
   "fontSettings": {
-    "title": "Font",
-    "hint": "The font is personal: only you see it. Only the selected font is downloaded.",
+    "title": "Text size",
+    "hint": "Only you see the text size. The app font is the same for everyone.",
     "previewTitle": "How text will look",
-    "uiPreview": "Settings · Chat · Bible",
-    "ui": "Interface font",
-    "msg": "Message font",
     "size": "Text size",
     "sizes": {
       "sm": "Small",
       "md": "Normal",
       "lg": "Large"
     },
-    "asIs": "As it is now",
-    "system": "System",
-    "sample": "The quick brown fox 0123",
     "reset": "Reset to defaults",
     "save": "Save",
     "cancel": "Cancel",
     "saving": "Saving…",
-    "saveFailed": "Couldn't save the font",
+    "saveFailed": "Couldn't save the text size",
     "back": "Back"
   },
   "theme": {
@@ -407,7 +401,27 @@
     "procBenchDetail": "median {ms} ms, M2 reference {ref} ms",
     "procBenchArena": "Flock arena, {count} players",
     "procBenchArenaSub": "≈ {ms} ms CPU/s",
-    "procBenchHint": "Share of the budget (~{vcpu} vCPU ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from RENDER_CPU_BUDGET_MS on the server. The result is kept until the server restarts."
+    "procBenchHint": "Share of the budget (~{vcpu} vCPU ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from RENDER_CPU_BUDGET_MS on the server. The result is kept until the server restarts.",
+    "tabPush": "Push",
+    "broadcast": {
+      "title": "Notify everyone",
+      "hint": "Sends a push notification to every device with notifications enabled. It cannot be recalled.",
+      "loading": "Counting recipients…",
+      "recipientsFailed": "Could not load the recipients count.",
+      "notConfigured": "Web Push is not configured on the server (VAPID keys are missing).",
+      "recipients": "Recipients: {devices} devices, {users} users.",
+      "labelTitle": "Title",
+      "labelBody": "Text",
+      "labelUrl": "Page to open on tap (path in the app)",
+      "send": "Send to everyone",
+      "sending": "Sending…",
+      "confirm": "Send this notification to {devices} devices ({users} users)? It cannot be undone.",
+      "errorCooldown": "Too soon after the previous broadcast. Wait a minute.",
+      "errorGeneric": "Could not send the notification.",
+      "result": "Delivered to push services: {sent} of {devices}. Expired subscriptions removed: {removed}. Errors: {failed}.",
+      "defaultTitle": "Christ App has moved to a new website",
+      "defaultBody": "We moved: https://christapp.ddns.net. This site will stop working soon. Please switch to the new one!"
+    }
   },
   "profile": {
     "iconCredits": {
@@ -434,10 +448,6 @@
     "username": "@username",
     "bgColor": "Background color",
     "bgColorAria": "Background color",
-    "font": "Interface font",
-    "fontInterDefault": "Inter (default)",
-    "fontAchiko": "Achiko",
-    "fontBodoniModa": "Bodoni Moda",
     "bio": "About you",
     "bioPlaceholder": "A few words about yourself…",
     "bioHint": "Up to 500 characters. Visible to others in chat.",
@@ -2166,5 +2176,143 @@
     "passwordSaved": "Password set. You can now disconnect Google.",
     "cancel": "Cancel",
     "unavailable": "Google sign-in is not configured"
+  },
+  "site": {
+    "meta": {
+      "homeTitle": "Christ App — United in Christ",
+      "homeDescription": "A Christian community platform designed to bring believers together through faith, communication, Scripture, and meaningful experiences.",
+      "homeOgAlt": "Christ App logo: a cross on a Bible"
+    },
+    "nav": {
+      "label": "Main navigation",
+      "features": "Features",
+      "about": "About",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "signIn": "Sign In",
+      "menu": "Menu",
+      "skip": "Skip to content",
+      "home": "Christ App — home",
+      "language": "Language"
+    },
+    "hero": {
+      "eyebrow": "Christian community platform",
+      "title": "Christ App — United in Christ",
+      "subtitle": "A Christian community platform designed to bring believers together through faith, communication, Scripture, and meaningful experiences.",
+      "exploreFeatures": "Explore Features",
+      "signIn": "Sign In",
+      "hint": "Sign in with your Google account. No payment required to look around this page."
+    },
+    "preview": {
+      "alt": "Preview of the Christ App interface: a chat, a Bible verse and a game card",
+      "chatTitle": "General chat",
+      "chatOnline": "Community",
+      "msg1": "Good morning, everyone! Today’s reading is so encouraging.",
+      "msg2": "Amen! Praying for you all this week.",
+      "msg3": "Thank you. Let’s read it together tonight.",
+      "inputPlaceholder": "Write a message…",
+      "verseLabel": "Bible",
+      "verseRef": "John 3:16",
+      "verseText": "For God so loved the world, that he gave his only begotten Son…",
+      "gameLabel": "Games",
+      "gameTitle": "Oтара",
+      "gameText": "Play together with the community",
+      "gameAlt": "Sheep illustration from the Oтара game"
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything a community needs, in one calm place",
+      "intro": "Christ App combines the tools believers use to stay close to God and to each other.",
+      "items": {
+        "community": {
+          "title": "Christian Community",
+          "text": "Meet and talk with other believers in shared chat rooms, join shared video rooms and encourage one another in faith."
+        },
+        "bible": {
+          "title": "Bible Reading",
+          "text": "Read and study Scripture by book and chapter, search the text and save the verses that speak to you."
+        },
+        "chat": {
+          "title": "Real-Time Chat",
+          "text": "Talk instantly with text, images, voice messages and reactions, with notifications when someone writes to you."
+        },
+        "notes": {
+          "title": "Personal Notes",
+          "text": "Keep your thoughts, reflections and favorite verses in a private space that is yours."
+        },
+        "games": {
+          "title": "Christian Games",
+          "text": "Enjoy Bible-themed mini-games and spend meaningful time together with friends and the community."
+        },
+        "profiles": {
+          "title": "Personal Profiles",
+          "text": "Every member has an individual profile with a nickname, avatar and short bio, so the community feels personal."
+        }
+      }
+    },
+    "about": {
+      "eyebrow": "About Christ App",
+      "title": "A home for believers, built around faith and Scripture",
+      "lead": "Christ App is a Christian community platform created to unite believers, encourage spiritual fellowship, support the study of the Bible and build a caring, active community.",
+      "p1": "Faith is lived best together. Many believers are spread across cities, countries and time zones, and it can be hard to find a place for sincere conversation, shared Scripture reading and mutual support. Christ App brings these things into one simple app that works in your browser and on your phone.",
+      "p2": "In Christ App you can sign in with your Google account, set up your profile, read the Bible, keep private notes and verses, chat with other members in real time, watch videos together and play friendly Christian games. The app is available in English, Ukrainian and Russian.",
+      "p3": "Christ App is an independent project run by Eduard Sekan. It is not an official product of any church or denomination.",
+      "pillars": {
+        "faith": {
+          "title": "Faith",
+          "text": "A place to grow spiritually and share what God is doing in your life."
+        },
+        "scripture": {
+          "title": "Scripture",
+          "text": "Reading and studying the Bible is at the center of the app."
+        },
+        "community": {
+          "title": "Community",
+          "text": "Real conversations and shared experiences with other believers."
+        }
+      }
+    },
+    "transparency": {
+      "eyebrow": "Privacy & Transparency",
+      "title": "Clear about how you sign in and how your data is handled",
+      "googleTitle": "Sign in with Google",
+      "googleText": "Christ App uses Google Sign-In to authenticate users. When you sign in, Christ App receives your Google account ID, email address, name and profile picture so it can create and operate your account. Christ App does not receive your Google password.",
+      "policyTitle": "Your data and the Privacy Policy",
+      "policyText": "Information about what personal data is collected, how it is used, where it is stored, which service providers are involved, and how you can request deletion of your account and data is described in the Privacy Policy.",
+      "readPolicy": "Read the Privacy Policy",
+      "readTerms": "Read the Terms of Service"
+    },
+    "contact": {
+      "title": "Contact",
+      "text": "Questions about Christ App, your account or your data? Write to us:"
+    },
+    "footer": {
+      "tagline": "United in Christ.",
+      "navLabel": "Footer navigation",
+      "contact": "Contact",
+      "rights": "All rights reserved."
+    },
+    "legal": {
+      "back": "Back to Christ App",
+      "effective": "Effective date",
+      "updated": "Last updated",
+      "englishOnly": "This document is available in English only."
+    }
+  },
+  "migration": {
+    "badge": "We have moved",
+    "title": "Christ App has a new website",
+    "text": "We moved to a new address. This site will stop working soon, so please continue on the new one.",
+    "endedText": "We moved to a new address. This site is no longer supported, please continue on the new one.",
+    "timerLabel": "This site will stop working in",
+    "hours": "hours",
+    "minutes": "min",
+    "seconds": "sec",
+    "go": "Go to the new site",
+    "stay": "Continue here for now",
+    "badgeAria": "Time until this site stops working",
+    "popTitle": "This site is closing",
+    "popText": "This is the time left until this site stops working. We moved to a new address — please continue there.",
+    "composerText": "We moved to a new site — this one will stop working soon:"
   }
 }

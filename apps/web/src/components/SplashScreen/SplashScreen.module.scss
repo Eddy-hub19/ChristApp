@@ -1,5 +1,5 @@
-$splash-gold: #d4af37;
-$splash-bg: #17151a;
+$splash-gold: var(--splash-ink);
+$splash-bg: #e8f0fb;
 
 @keyframes splash-draw {
   to {
@@ -31,6 +31,10 @@ $splash-bg: #17151a;
 }
 
 .splashWrapper {
+  /* По умолчанию светлый «шёлк» (как экран входа); тёмный — по <html data-auth-theme="dark"> */
+  --splash-ink: #3f5a44;
+  --splash-glow: rgba(95, 125, 99, 0.35);
+
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -51,9 +55,15 @@ $splash-bg: #17151a;
     pointer-events: none;
   }
 
+  .logo,
+  .quoteContainer {
+    position: relative;
+    z-index: 1;
+  }
+
   .logo {
     margin-bottom: 0.5rem;
-    filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.3));
+    filter: drop-shadow(0 0 15px var(--splash-glow));
 
     .pathDraw {
       fill: none;
@@ -125,4 +135,11 @@ $splash-bg: #17151a;
       opacity: 0.7;
     }
   }
+}
+
+:global(html[data-auth-theme="dark"]) .splashWrapper {
+  --splash-ink: #d4af37;
+  --splash-glow: rgba(212, 175, 55, 0.3);
+
+  background: #17151a;
 }

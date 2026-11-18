@@ -1,9 +1,72 @@
 /*
- * Экран входа и регистрации: всегда тёмный (светлая тема приложения его не меняет).
- * Палитра объявлена прямо на .screen, поэтому вложенные «старые» компоненты (LoginServerWarmupPanel и др.),
- * которые читают --foreground / --login-*, тоже рисуются тёмными.
+ * Экран входа и регистрации. По умолчанию светлый, зеленоватый (как публичный лендинг); тёмный вариант включается
+ * лампочкой (ThemeToggle → localStorage "authTheme" → <html data-auth-theme="dark">). Тема входа не зависит
+ * от темы самого приложения. Палитра объявлена на .screen, поэтому вложенные компоненты
+ * (LoginServerWarmupPanel и др.), которые читают --foreground / --login-*, рисуются в той же теме.
  */
 .screen {
+  --auth-gold: #5f7d63;
+  --auth-gold-light: #3f5a44;
+  --auth-text: #1f2a22;
+  --auth-muted: #5b675e;
+  --auth-line: rgba(31, 42, 34, 0.16);
+  --auth-error: #a33a3a;
+  --auth-ok: #2f7a45;
+
+  --auth-field-bg: #ffffff;
+  --auth-field-bg-focus: #ffffff;
+  --auth-placeholder: rgba(31, 42, 34, 0.4);
+  --auth-autofill: #ffffff;
+  --auth-focus-ring: rgba(95, 125, 99, 0.25);
+  --auth-error-bg: #fff3f1;
+  --auth-error-border: rgba(163, 58, 58, 0.35);
+  --auth-surface: rgba(31, 42, 34, 0.06);
+  --auth-primary-from: #5f7d63;
+  --auth-primary-to: #3f5a44;
+  --auth-primary-text: #ffffff;
+  --auth-primary-shadow: rgba(47, 74, 52, 0.35);
+  --auth-primary-inset: rgba(255, 255, 255, 0.25);
+  --auth-logo-glow: rgba(95, 125, 99, 0.3);
+  --auth-google-bg: #ffffff;
+  --auth-google-border: #747775;
+  --auth-google-text: #1f1f1f;
+  --auth-google-hover: #f1f5ef;
+
+  --foreground: #1f2a22;
+  --login-card-bg: #ffffff;
+  --login-card-border: #dfe6dc;
+  --login-card-shadow: rgba(31, 42, 34, 0.12);
+  --login-muted: #5b675e;
+  --login-title: #1f2a22;
+  --login-label: #34413a;
+  --login-footer: #5b675e;
+  --login-input-bg: #ffffff;
+  --login-input-border: #c7d2c4;
+  --login-link: #3f5a44;
+  --login-error-bg: #fff3f1;
+  --login-error-text: #a33a3a;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  color-scheme: light;
+  color: var(--auth-text);
+  font-family: var(--ui-font, system-ui, sans-serif);
+  background: #e8f0fb;
+  /* safe-area + место под клавиатуру (iOS не сжимает fixed-контейнер, поэтому добавляем отступ и скроллим) */
+  padding: max(env(safe-area-inset-top), 20px)
+    max(env(safe-area-inset-right), 16px)
+    calc(max(env(safe-area-inset-bottom), 20px) + var(--keyboard-inset, 0px))
+    max(env(safe-area-inset-left), 16px);
+  scroll-padding-bottom: 24px;
+}
+
+/* Тёмный вариант: лампочка ставит <html data-auth-theme="dark"> (до отрисовки — блокирующим скриптом в layout). */
+:global(html[data-auth-theme="dark"]) .screen {
   --auth-gold: #ddb468;
   --auth-gold-light: #f1cd8a;
   --auth-text: #f5ecde;
@@ -11,6 +74,25 @@
   --auth-line: rgba(255, 255, 255, 0.16);
   --auth-error: #ffb4b4;
   --auth-ok: #9fd9a8;
+
+  --auth-field-bg: rgba(255, 255, 255, 0.06);
+  --auth-field-bg-focus: rgba(255, 255, 255, 0.09);
+  --auth-placeholder: rgba(245, 236, 222, 0.38);
+  --auth-autofill: #2a2832;
+  --auth-focus-ring: rgba(221, 180, 104, 0.22);
+  --auth-error-bg: rgba(120, 40, 40, 0.28);
+  --auth-error-border: rgba(229, 138, 138, 0.4);
+  --auth-surface: rgba(255, 255, 255, 0.06);
+  --auth-primary-from: #f1cd8a;
+  --auth-primary-to: #ddb468;
+  --auth-primary-text: #2a2013;
+  --auth-primary-shadow: rgba(221, 180, 104, 0.28);
+  --auth-primary-inset: rgba(255, 255, 255, 0.45);
+  --auth-logo-glow: rgba(221, 180, 104, 0.35);
+  --auth-google-bg: #131314;
+  --auth-google-border: #8e918f;
+  --auth-google-text: #e3e3e3;
+  --auth-google-hover: #1c1c1e;
 
   --foreground: #ffffff;
   --login-card-bg: #242323;
@@ -26,37 +108,13 @@
   --login-error-bg: #3d2222;
   --login-error-text: #ffc2c2;
 
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   color-scheme: dark;
-  color: var(--auth-text);
-  font-family: var(--ui-font, system-ui, sans-serif);
-  background:
-    radial-gradient(
-      120% 70% at 15% -10%,
-      rgba(221, 180, 104, 0.22) 0%,
-      transparent 55%
-    ),
-    radial-gradient(
-      90% 60% at 105% 105%,
-      rgba(70, 84, 140, 0.32) 0%,
-      transparent 60%
-    ),
-    linear-gradient(180deg, #17151a 0%, #0f0e12 100%);
-  /* safe-area + место под клавиатуру (iOS не сжимает fixed-контейнер, поэтому добавляем отступ и скроллим) */
-  padding: max(env(safe-area-inset-top), 20px)
-    max(env(safe-area-inset-right), 16px)
-    calc(max(env(safe-area-inset-bottom), 20px) + var(--keyboard-inset, 0px))
-    max(env(safe-area-inset-left), 16px);
-  scroll-padding-bottom: 24px;
+  background: linear-gradient(180deg, #14110f 0%, #0a0909 55%, #090808 100%);
 }
 
 .inner {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 400px;
   min-height: 100%;
@@ -90,7 +148,7 @@
 
 .logo {
   display: block;
-  filter: drop-shadow(0 4px 18px rgba(221, 180, 104, 0.35));
+  filter: drop-shadow(0 4px 18px var(--auth-logo-glow));
 }
 
 .brandName {
@@ -144,7 +202,7 @@
   padding: 0 14px;
   border-radius: 12px;
   border: 1px solid var(--auth-line);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--auth-field-bg);
   color: var(--auth-text);
   /* 16px: иначе iOS Safari приближает страницу при фокусе */
   font: inherit;
@@ -156,13 +214,13 @@
     background-color 0.2s ease;
 
   &::placeholder {
-    color: rgba(245, 236, 222, 0.38);
+    color: var(--auth-placeholder);
   }
 
   &:focus {
     border-color: var(--auth-gold);
-    background: rgba(255, 255, 255, 0.09);
-    box-shadow: 0 0 0 3px rgba(221, 180, 104, 0.22);
+    background: var(--auth-field-bg-focus);
+    box-shadow: 0 0 0 3px var(--auth-focus-ring);
   }
 
   /* автозаполнение браузера не должно красить поле в белый/жёлтый */
@@ -170,8 +228,8 @@
     -webkit-text-fill-color: var(--auth-text);
     caret-color: var(--auth-text);
     box-shadow:
-      0 0 0 1000px #2a2832 inset,
-      0 0 0 3px rgba(221, 180, 104, 0.15);
+      0 0 0 1000px var(--auth-autofill) inset,
+      0 0 0 3px var(--auth-focus-ring);
   }
 }
 
@@ -241,8 +299,8 @@
   margin: 0 0 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(229, 138, 138, 0.4);
-  background: rgba(120, 40, 40, 0.28);
+  border: 1px solid var(--auth-error-border);
+  background: var(--auth-error-bg);
   color: var(--auth-error);
   font-size: 13.5px;
   line-height: 1.4;
@@ -288,15 +346,15 @@
   margin-top: 6px;
   border: 0;
   font-weight: 700;
-  color: #2a2013;
+  color: var(--auth-primary-text);
   background: linear-gradient(
     180deg,
-    var(--auth-gold-light) 0%,
-    var(--auth-gold) 100%
+    var(--auth-primary-from) 0%,
+    var(--auth-primary-to) 100%
   );
   box-shadow:
-    0 8px 22px rgba(221, 180, 104, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    0 8px 22px var(--auth-primary-shadow),
+    inset 0 1px 0 var(--auth-primary-inset);
 
   &:hover:not(:disabled) {
     filter: brightness(1.05);
@@ -309,14 +367,14 @@
 
 /* Google: тёмная тема по их брендингу - #131314, рамка #8E918F, текст #E3E3E3, цветной логотип G */
 .googleBtn {
-  border: 1px solid #8e918f;
-  background: #131314;
-  color: #e3e3e3;
+  border: 1px solid var(--auth-google-border);
+  background: var(--auth-google-bg);
+  color: var(--auth-google-text);
   font-family: Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
   font-weight: 500;
 
   &:hover:not(:disabled) {
-    background: #1c1c1e;
+    background: var(--auth-google-hover);
   }
 
   &:disabled {
@@ -444,7 +502,7 @@
   place-items: center;
   font-weight: 700;
   color: var(--auth-text);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--auth-surface);
 }
 
 .ghostBtn {
@@ -452,7 +510,7 @@
   padding: 0 16px;
   border-radius: 999px;
   border: 1px solid var(--auth-line);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--auth-surface);
   color: var(--auth-text);
   font: inherit;
   font-size: 14px;

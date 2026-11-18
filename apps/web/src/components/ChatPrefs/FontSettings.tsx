@@ -7,14 +7,11 @@ import { SampleBubble } from "@/components/BubbleStyleSettings/BubbleStyleSettin
 import { ChatBackgroundLayer, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
 import { normalizeBubbleStyle } from "@/lib/bubbleStyles";
 import {
-  CHAT_FONTS,
   DEFAULT_FONT_PREFS,
   TEXT_SIZES,
   TEXT_SIZE_SCALE,
-  fontFamilyOf,
   isDefaultFontPrefs,
   normalizeFontPrefs,
-  type ChatFontId,
   type FontPrefs,
   type TextSize,
 } from "@/lib/chatFonts";
@@ -23,51 +20,7 @@ import base from "@/components/BubbleStyleSettings/BubbleStyleSettings.module.sc
 import styles from "./ChatPrefs.module.scss";
 import PrefsScreen from "./PrefsScreen";
 
-/** Пример текста в карточке шрифта: украинские буквы с ї є і ґ (проверка кириллицы) всегда, плюс строка на языке интерфейса. */
-const UA_SAMPLE = "Мир вам! Як минув день?";
-
-function FontGrid({
-  label,
-  value,
-  onPick,
-}: {
-  label: string;
-  value: ChatFontId;
-  onPick: (id: ChatFontId) => void;
-}) {
-  const t = useTranslations("fontSettings");
-  return (
-    <div className={base.grid} role="radiogroup" aria-label={label}>
-      {CHAT_FONTS.map((f) => {
-        const family = fontFamilyOf(f.id);
-        const name = f.label ?? (f.id === "system" ? t("system") : t("asIs"));
-        const style: CSSProperties | undefined = family ? { fontFamily: family } : undefined;
-        return (
-          <button
-            key={f.id}
-            type="button"
-            role="radio"
-            aria-checked={value === f.id}
-            className={`${base.card} ${styles.fontCard} ${value === f.id ? base.cardActive : ""}`}
-            onClick={() => onPick(f.id)}
-          >
-            <span className={styles.fontName} style={style}>
-              {name}
-            </span>
-            <span className={styles.fontSample} style={style}>
-              {UA_SAMPLE}
-            </span>
-            <span className={styles.fontSample} style={style}>
-              {t("sample")}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** «Шрифт»: шрифт интерфейса, шрифт сообщений, размер текста; живое превью, «Зберегти» / «Скасувати» / «Назад». */
+/** «Розмір тексту»: размер текста сообщений; живое превью, «Зберегти» / «Скасувати» / «Назад». Шрифт у всех по умолчанию. */
 export default function FontSettings({ onClose }: { onClose: () => void }) {
   const t = useTranslations("fontSettings");
   const tBubble = useTranslations("bubbleStyles");
@@ -82,10 +35,7 @@ export default function FontSettings({ onClose }: { onClose: () => void }) {
   const bg = useResolvedChatBackground(null);
 
   const set = (patch: Partial<FontPrefs>) => setDraft({ ...current, ...patch });
-  const msgFamily = fontFamilyOf(current.msg);
-  const uiFamily = fontFamilyOf(current.ui);
   const sampleStyle: CSSProperties = {
-    ...(msgFamily ? { fontFamily: msgFamily } : null),
     fontSize: 14 * TEXT_SIZE_SCALE[current.size],
   };
 
@@ -116,14 +66,7 @@ export default function FontSettings({ onClose }: { onClose: () => void }) {
           <SampleBubble style={bubbleStyle} text={tBubble("exampleOther")} textStyle={sampleStyle} />
           <SampleBubble style={bubbleStyle} own text={tBubble("exampleOwn")} textStyle={sampleStyle} />
         </span>
-        <p style={{ margin: 0, fontSize: 14, ...(uiFamily ? { fontFamily: uiFamily } : null) }}>{t("uiPreview")}</p>
       </div>
-
-      <h3 className={styles.sectionTitle}>{t("ui")}</h3>
-      <FontGrid label={t("ui")} value={current.ui} onPick={(id) => set({ ui: id })} />
-
-      <h3 className={styles.sectionTitle}>{t("msg")}</h3>
-      <FontGrid label={t("msg")} value={current.msg} onPick={(id) => set({ msg: id })} />
 
       <h3 className={styles.sectionTitle}>{t("size")}</h3>
       <div className={styles.sizeRow} role="radiogroup" aria-label={t("size")}>

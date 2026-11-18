@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ServerBootPhase } from "@/hooks/useServerStartupBoot";
+import AuthBackdrop from "@/components/AuthBackdrop/AuthBackdrop";
 import styles from "./ServerStartupScreen.module.scss";
 
 type ServerStartupScreenProps = {
@@ -47,6 +48,7 @@ export default function ServerStartupScreen({
       aria-live="polite"
       aria-busy="true"
     >
+      <AuthBackdrop />
       <div className={styles.card}>
         <svg
           width="88"

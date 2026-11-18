@@ -1,11 +1,43 @@
+/*
+ * Стартовый экран перед входом: тот же фон и палитра, что у экрана входа (AuthScreen): по умолчанию светлый,
+ * тёмный — если выбран лампочкой (`<html data-auth-theme="dark">`).
+ */
 .screen {
+  --accent: #5f7d63;
+  --foreground: #1f2a22;
+  --login-card-bg: rgba(255, 255, 255, 0.82);
+  --login-card-border: rgba(255, 255, 255, 0.9);
+  --login-card-shadow: rgba(47, 74, 52, 0.35);
+  --login-muted: #5b675e;
+  --login-title: #1f2a22;
+  --login-label: #34413a;
+  --login-footer: #5b675e;
+  --login-link: #3f5a44;
+
+  position: fixed;
+  inset: 0;
+  z-index: 40;
   display: grid;
   place-items: center;
-  width: 100%;
-  min-height: calc(100svh - 80px);
-  min-height: calc(100dvh - 80px);
+  overflow-y: auto;
   padding: 24px 16px;
+  background: #e8f0fb;
   animation: startup-fade-in 0.25s ease both;
+}
+
+:global(html[data-auth-theme="dark"]) .screen {
+  --accent: #ddb468;
+  --foreground: #ffffff;
+  --login-card-bg: rgba(36, 35, 35, 0.82);
+  --login-card-border: #3a3939;
+  --login-card-shadow: rgba(0, 0, 0, 0.35);
+  --login-muted: #bdb8b8;
+  --login-title: #f1efef;
+  --login-label: #d8d4d4;
+  --login-footer: #bdb8b8;
+  --login-link: #f3c98b;
+
+  background: #0a0909;
 }
 
 @keyframes startup-fade-in {
@@ -24,6 +56,8 @@
 }
 
 .card {
+  position: relative;
+  z-index: 1;
   width: min(92vw, 380px);
   display: flex;
   flex-direction: column;

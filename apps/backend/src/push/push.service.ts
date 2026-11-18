@@ -983,4 +983,68 @@ export class PushService implements OnModuleDestroy {
       `Push subscription removed (HTTP ${httpStatus}, id=${subscription.id}) — подписка недействительна.`,
     );
   }
+
+  /** Сколько устройств и пользователей получат рассылку «всем». */
+  async countBroadcastRecipients() {
+    const rows = await this.prisma.pushSubscription.findMany({
+      select: { userId: true },
+    });
+    return {
+      enabled: this.isConfigured,
+      devices: rows.length,
+      users: new Set(rows.map((r) => r.userId)).size,
+    };
+  }
+
+  /**
+   * Рассылка одного уведомления на все подписанные устройства (админка: «мы переезжаем» и т. п.).
+   * Формат полезной нагрузки тот же, что ждёт sw.js; недействительные подписки (404/410) удаляются как обычно.
+   */
+  async broadcast(input: { title: string; body: string; targetUrl: string }) {
+    if (!this.isConfigured) {
+      throw new BadRequestException('push_not_configured');
+    }
+    const subs = await this.prisma.pushSubscription.findMany({
+      select: {
+        id: true,
+        userId: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+      },
+    });
+    const createdAt = new Date().toISOString();
+    const stamp = Date.now();
+    const results = await mapWithConcurrency(
+      subs,
+      CHAT_PUSH_CONCURRENCY,
+      (sub) =>
+        this.sendToSubscription(
+          sub,
+          {
+            title: input.title,
+            body: input.body,
+            targetUrl: input.targetUrl,
+            roomId: 'broadcast',
+            senderId: 'system',
+            createdAt,
+            messageId: `broadcast-${stamp}-${sub.id}`,
+          },
+          'broadcast',
+        ),
+    );
+    const recipients = new Set(subs.map((s) => s.userId)).size;
+    this.logger.log(
+      summarizeDispatch('broadcast', `title="${input.title}"`, recipients, results),
+    );
+    const sent = results.filter((r) => r.ok).length;
+    const removed = results.filter((r) => r.removed).length;
+    return {
+      devices: results.length,
+      users: recipients,
+      sent,
+      removed,
+      failed: results.length - sent - removed,
+    };
+  }
 }

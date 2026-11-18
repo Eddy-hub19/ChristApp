@@ -10,9 +10,58 @@ import styles from "./ThemeToggle.module.scss";
 
 type ThemeMode = "light" | "dark";
 const THEME_STORAGE_KEY = "theme";
+/** Тема екранів входу/реєстрації окрема від теми застосунку: за замовчуванням світла, "dark" — вибір користувача. */
+const AUTH_THEME_STORAGE_KEY = "authTheme";
 
 function applyTheme(theme: ThemeMode) {
   document.documentElement.setAttribute("data-theme", theme);
+}
+
+/** Лампочка на екранах входу: перемикає лише тему цих екранів (`<html data-auth-theme>`), тему застосунку не чіпає. */
+function AuthThemeLamp() {
+  const t = useTranslations("theme");
+  const [isLight, setIsLight] = useState(true);
+
+  useEffect(() => {
+    setIsLight(
+      document.documentElement.getAttribute("data-auth-theme") !== "dark",
+    );
+  }, []);
+
+  const handleToggle = () => {
+    const nextLight = !isLight;
+    setIsLight(nextLight);
+    const root = document.documentElement;
+    if (nextLight) {
+      root.removeAttribute("data-auth-theme");
+    } else {
+      root.setAttribute("data-auth-theme", "dark");
+    }
+    try {
+      window.localStorage.setItem(
+        AUTH_THEME_STORAGE_KEY,
+        nextLight ? "light" : "dark",
+      );
+    } catch {}
+  };
+
+  return (
+    <div className={styles.hanger} data-theme-toggle>
+      <span className={styles.mount} />
+      <button
+        type="button"
+        className={`${styles.toggle} ${isLight ? styles.light : styles.dark}`}
+        onClick={handleToggle}
+        aria-label={isLight ? t("toDark") : t("toLight")}
+        title={isLight ? t("titleDark") : t("titleLight")}
+      >
+        <span className={styles.rope} />
+        <span className={styles.lamp}>
+          <span className={styles.glow} />
+        </span>
+      </button>
+    </div>
+  );
 }
 
 export default function ThemeToggle() {
@@ -57,7 +106,7 @@ export default function ThemeToggle() {
   const isLight = theme === "light";
   const isProfilePage = pathname.startsWith("/profile");
   const isOfflinePage = pathname === "/offline";
-  /** Экраны входа/регистрации/выбора ника всегда тёмные - переключатель темы там ничего не меняет. */
+  /** Экраны входа/регистрации/выбора ника имеют свою тему (`authTheme`): здесь лампочка переключает её, а не тему приложения. */
   const isAuthScreen =
     pathname === "/" || pathname === "/register" || pathname === "/choose-nickname";
   /** Кінозала завжди темна — перемикач теми там лише заважає. */
@@ -106,6 +155,10 @@ export default function ThemeToggle() {
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [hidden]);
+
+  if (isAuthScreen) {
+    return <AuthThemeLamp />;
+  }
 
   if (hidden) {
     return null;

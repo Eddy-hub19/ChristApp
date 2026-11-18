@@ -311,6 +311,14 @@
     gap: 12px;
     width: 100%;
 
+    .titleGroup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
     .headerActions {
       display: flex;
       align-items: center;

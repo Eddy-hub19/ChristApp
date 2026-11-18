@@ -1,5 +1,6 @@
 "use client";
 
+import AuthBackdrop from "@/components/AuthBackdrop/AuthBackdrop";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
@@ -315,6 +316,7 @@ export default function AuthScreen({ initialMode }: { initialMode: Mode }) {
       data-glass={flat ? "flat" : undefined}
       onFocusCapture={handleFocusCapture}
     >
+      <AuthBackdrop />
       <div className={styles.inner}>
         <header className={styles.brand}>
           <Image
