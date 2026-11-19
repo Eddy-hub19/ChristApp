@@ -360,7 +360,18 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) {
-        window.alert(t("alertAvatarUploadFail"));
+        // Причину не прячем: 413 - файл больше лимита сервера, 503 - хранилище фото не настроено на сервере (Cloudinary).
+        const detail = await response.text().catch(() => "");
+        console.warn("avatar upload failed", response.status, detail.slice(0, 300));
+        window.alert(
+          t(
+            response.status === 413
+              ? "alertImageTooBig"
+              : response.status === 503
+                ? "alertAvatarUploadUnavailable"
+                : "alertAvatarUploadFail",
+          ),
+        );
         return;
       }
 
