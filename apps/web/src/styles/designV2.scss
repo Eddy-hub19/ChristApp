@@ -285,6 +285,116 @@ html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] [role="dialog
   --surface-elevated: #1c1815;
 }
 
+/* ───────── Светлая тема для каждого фона: те же токены, что у сливовой, но в цвет фона ───────── */
+
+/* Лесной светлый: фон приложения «forest» при светлой теме. */
+html[data-design="v2"][data-theme="light"][data-design-bg="forest"] {
+  --v2-glass-border: rgba(40, 110, 70, 0.3);
+  --v2-glass-shadow: 0 14px 30px -18px rgba(30, 80, 50, 0.4);
+  --v2-text: #14301f;
+  --v2-title: #1f5a3a;
+  --v2-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(105deg);
+  --v2-nav-icon-filter: brightness(0) saturate(100%) invert(18%) sepia(25%) saturate(700%) hue-rotate(100deg);
+  --v2-logo-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(105deg);
+  --foreground: #14301f;
+  --accent: #3f9a68;
+  --accent-soft: #1f5a3a;
+  --line-soft: rgba(40, 110, 70, 0.3);
+  --text-muted: rgba(20, 48, 32, 0.7);
+  --text-dim: rgba(20, 48, 32, 0.55);
+  --chat-column-surface: rgba(250, 255, 251, 0.6);
+  --surface: rgba(250, 255, 251, 0.78);
+  --surface-elevated: rgba(250, 255, 251, 0.66);
+  --v2-base: #e7f2e9;
+  background: #e7f2e9;
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="forest"] [data-design-backdrop] {
+  background:
+    radial-gradient(70% 45% at 10% 6%, rgba(150, 214, 172, 0.45) 0%, transparent 70%),
+    radial-gradient(80% 50% at 95% 102%, rgba(190, 228, 172, 0.5) 0%, transparent 68%),
+    radial-gradient(60% 35% at 0% 100%, rgba(140, 206, 186, 0.35) 0%, transparent 70%),
+    linear-gradient(180deg, #eff8f0 0%, #e1efe4 50%, #d6eadb 100%);
+
+  > i {
+    display: none;
+  }
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="forest"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #f3faf4;
+}
+
+/* Ночной светлый: фон приложения «night» при светлой теме. */
+html[data-design="v2"][data-theme="light"][data-design-bg="night"] {
+  --v2-glass-border: rgba(50, 90, 160, 0.3);
+  --v2-glass-shadow: 0 14px 30px -18px rgba(30, 55, 110, 0.4);
+  --v2-text: #14213d;
+  --v2-title: #23467a;
+  --v2-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(185deg);
+  --v2-nav-icon-filter: brightness(0) saturate(100%) invert(18%) sepia(25%) saturate(700%) hue-rotate(190deg);
+  --v2-logo-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(185deg);
+  --foreground: #14213d;
+  --accent: #3a6fc4;
+  --accent-soft: #23467a;
+  --line-soft: rgba(50, 90, 160, 0.3);
+  --text-muted: rgba(20, 33, 61, 0.7);
+  --text-dim: rgba(20, 33, 61, 0.55);
+  --chat-column-surface: rgba(250, 252, 255, 0.6);
+  --surface: rgba(250, 252, 255, 0.78);
+  --surface-elevated: rgba(250, 252, 255, 0.66);
+  --v2-base: #e5edf9;
+  background: #e5edf9;
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="night"] [data-design-backdrop] {
+  background:
+    radial-gradient(70% 45% at 10% 6%, rgba(150, 186, 242, 0.45) 0%, transparent 70%),
+    radial-gradient(80% 50% at 95% 102%, rgba(170, 202, 246, 0.5) 0%, transparent 68%),
+    radial-gradient(60% 35% at 0% 100%, rgba(130, 172, 228, 0.35) 0%, transparent 70%),
+    linear-gradient(180deg, #eff4fc 0%, #dee9f7 50%, #d4e2f4 100%);
+
+  > i {
+    display: none;
+  }
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="night"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #f2f7fd;
+}
+
+/* Пустынный светлый: фон приложения «desert» при светлой теме. */
+html[data-design="v2"][data-theme="light"][data-design-bg="desert"] {
+  --v2-glass-border: rgba(150, 115, 70, 0.3);
+  --v2-glass-shadow: 0 14px 30px -18px rgba(110, 80, 40, 0.4);
+  --v2-text: #2b2218;
+  --v2-title: #6b4a22;
+  --v2-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(0deg) saturate(70%);
+  --v2-nav-icon-filter: brightness(0) saturate(100%) invert(18%) sepia(25%) saturate(700%) hue-rotate(10deg);
+  --v2-logo-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(0deg) saturate(70%);
+  --foreground: #2b2218;
+  --accent: #b98a3e;
+  --accent-soft: #6b4a22;
+  --line-soft: rgba(150, 115, 70, 0.3);
+  --text-muted: rgba(43, 34, 24, 0.7);
+  --text-dim: rgba(43, 34, 24, 0.55);
+  --chat-column-surface: rgba(255, 252, 246, 0.6);
+  --surface: rgba(255, 252, 246, 0.78);
+  --surface-elevated: rgba(255, 252, 246, 0.66);
+  --v2-base: #f4ede2;
+  background: #f4ede2;
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="desert"] [data-design-backdrop] {
+  background:
+    radial-gradient(70% 45% at 10% 6%, rgba(228, 202, 162, 0.45) 0%, transparent 70%),
+    radial-gradient(80% 50% at 95% 102%, rgba(216, 198, 172, 0.5) 0%, transparent 68%),
+    radial-gradient(60% 35% at 0% 100%, rgba(202, 182, 152, 0.35) 0%, transparent 70%),
+    linear-gradient(180deg, #f9f4eb 0%, #f0e7d9 50%, #e9ddca 100%);
+
+  > i {
+    display: none;
+  }
+}
+html[data-design="v2"][data-theme="light"][data-design-bg="desert"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #fbf6ec;
+}
+
 /* Чат на ПК в две колонки (chat/layout.tsx ставит html[data-chat-split]): колонка шире, навбар под списком слева. */
 html[data-chat-split] main {
   max-width: none !important;
