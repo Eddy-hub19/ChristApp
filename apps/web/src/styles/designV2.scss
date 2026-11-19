@@ -212,6 +212,10 @@ html[data-design="v2"] [data-design-thumb="desert"] {
 html[data-design="v2"][data-theme="dark"][data-design-bg="night"] {
   background: #070b16;
   --v2-base: #070b16;
+  /* Поверхности (карточки, поля ввода) в тон фона, а не сливовые. */
+  --chat-column-surface: rgba(10, 20, 46, 0.55);
+  --surface: rgba(16, 28, 58, 0.72);
+  --surface-elevated: rgba(22, 38, 74, 0.62);
 }
 html[data-design="v2"][data-theme="dark"][data-design-bg="night"] [data-design-backdrop] {
   background:
@@ -229,6 +233,10 @@ html[data-design="v2"][data-theme="dark"][data-design-bg="night"] [data-design-b
 html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] {
   background: #06120d;
   --v2-base: #06120d;
+  /* Поверхности (карточки, поля ввода) в тон фона, а не сливовые. */
+  --chat-column-surface: rgba(8, 30, 20, 0.55);
+  --surface: rgba(14, 38, 28, 0.72);
+  --surface-elevated: rgba(18, 48, 36, 0.62);
 }
 html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] [data-design-backdrop] {
   background:
@@ -246,6 +254,10 @@ html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] [data-design-
 html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] {
   background: #12100e;
   --v2-base: #12100e;
+  /* Поверхности (карточки, поля ввода) в тон фона, а не сливовые. */
+  --chat-column-surface: rgba(32, 27, 22, 0.55);
+  --surface: rgba(40, 34, 28, 0.72);
+  --surface-elevated: rgba(52, 45, 37, 0.62);
 }
 html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] [data-design-backdrop] {
   background:
