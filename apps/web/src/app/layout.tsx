@@ -2,7 +2,6 @@ import { inter, geistMono, bodoniModa } from "@/styles/fonts";
 import "@/styles/globals.scss";
 import type { ReactNode } from "react";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
-import { NEW_SITE_HOST } from "@/lib/siteMigration";
 
 /**
  * Блокуючий скрипт у <head>: тема (і окрема тема екранів входу `authTheme`, за замовчуванням світла) застосовується до першого paint, інакше сторінка
@@ -11,11 +10,11 @@ import { NEW_SITE_HOST } from "@/lib/siteMigration";
 const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}try{if(localStorage.getItem("authTheme")==="dark")document.documentElement.setAttribute("data-auth-theme","dark");}catch(e){}try{var p=JSON.parse(localStorage.getItem("christapp:fontPrefs")||"null"),h=document.documentElement;if(p&&p.size&&p.size!=="md")h.setAttribute("data-text-size",String(p.size));}catch(e){}})();`;
 
 /**
- * Новый дизайн (`<html data-design="v2">`) включается на новом домене и при локальной разработке (localhost, 127.0.0.1, локальная сеть).
- * `?design=v2` включает на любом хосте, `?design=off` выключает (оба запоминаются в localStorage). Новый дизайн всегда тёмный.
+ * Новый дизайн (`<html data-design="v2">`) включён по умолчанию на всех хостах.
+ * `?design=off` выключает (запоминается в localStorage), `?design=v2` включает обратно. Новый дизайн всегда тёмный.
  * Выполняется до первого paint, после скрипта темы.
  */
-const DESIGN_BOOTSTRAP_SCRIPT = `(function(){try{var h=document.documentElement,q=new URLSearchParams(location.search).get("design"),n=location.hostname,on=n===${JSON.stringify(NEW_SITE_HOST)}||n==="localhost"||n==="127.0.0.1"||/^(192\\.168|10)\\./.test(n),v=null;try{if(q==="v2"||q==="off")localStorage.setItem("design",q);v=localStorage.getItem("design");}catch(e){}if(v==="v2")on=true;else if(v==="off")on=false;if(on){h.setAttribute("data-design","v2");h.setAttribute("data-design-bg","forest");try{var g=localStorage.getItem("christapp:designBg");if(g==="plum"||g==="night"||g==="forest"||g==="desert")h.setAttribute("data-design-bg",g);}catch(e){}}}catch(e){}})();`;
+const DESIGN_BOOTSTRAP_SCRIPT = `(function(){try{var h=document.documentElement,q=new URLSearchParams(location.search).get("design"),on=true,v=null;try{if(q==="v2"||q==="off")localStorage.setItem("design",q);v=localStorage.getItem("design");}catch(e){}if(v==="off")on=false;if(on){h.setAttribute("data-design","v2");h.setAttribute("data-design-bg","forest");try{var g=localStorage.getItem("christapp:designBg");if(g==="plum"||g==="night"||g==="forest"||g==="desert")h.setAttribute("data-design-bg",g);}catch(e){}}}catch(e){}})();`;
 
 /**
  * Критичний CSS, який фарбує html/body у колір теми ще до того, як завантажиться і

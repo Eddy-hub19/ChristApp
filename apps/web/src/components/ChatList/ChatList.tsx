@@ -1,6 +1,5 @@
 "use client";
 
-import MigrationCountdownBadge from "@/components/MigrationNotice/MigrationCountdownBadge";
 import {
   Fragment,
   useCallback,
@@ -488,7 +487,6 @@ const ChatList = ({
               aria-hidden
             />
             <h2>ChristApp</h2>
-            <MigrationCountdownBadge />
           </div>
           <div className={styles.headerActions}>
             <Link

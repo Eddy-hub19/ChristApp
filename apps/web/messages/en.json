@@ -2335,21 +2335,5 @@
       "updated": "Last updated",
       "englishOnly": "This document is available in English only."
     }
-  },
-  "migration": {
-    "badge": "We have moved",
-    "title": "Christ App has a new website",
-    "text": "We moved to a new address. This site will stop working soon, so please continue on the new one.",
-    "endedText": "We moved to a new address. This site is no longer supported, please continue on the new one.",
-    "timerLabel": "This site will stop working in",
-    "hours": "hours",
-    "minutes": "min",
-    "seconds": "sec",
-    "go": "Go to the new site",
-    "stay": "Continue here for now",
-    "badgeAria": "Time until this site stops working",
-    "popTitle": "This site is closing",
-    "popText": "This is the time left until this site stops working. We moved to a new address — please continue there.",
-    "composerText": "We moved to a new site — this one will stop working soon:"
   }
 }
