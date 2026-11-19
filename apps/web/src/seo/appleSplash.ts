@@ -8,6 +8,12 @@
  * iOS завжди звітує `device-width`/`device-height` у портретних (природних) CSS-пікселях,
  * незалежно від фактичної орієнтації — міняється лише `orientation` і розміри самого файлу.
  */
+/**
+ * Версия картинок. iOS кеширует startup-image по URL и сам никогда не обновляет — при каждой смене
+ * дизайна заставки поднимайте число, чтобы URL стал новым, и iOS скачал свежие PNG.
+ */
+const SPLASH_VERSION = 2;
+
 const DEVICE_PROFILES = [
   { w: 320, h: 568, dpr: 2 },
   { w: 375, h: 667, dpr: 2 },
@@ -38,11 +44,11 @@ export const appleStartupImages = DEVICE_PROFILES.flatMap(({ w, h, dpr }) => {
   const portraitH = h * dpr;
   return [
     {
-      url: `/splash/apple-splash-${portraitW}x${portraitH}.png`,
+      url: `/splash/apple-splash-${portraitW}x${portraitH}.png?v=${SPLASH_VERSION}`,
       media: mediaFor(w, h, dpr, "portrait"),
     },
     {
-      url: `/splash/apple-splash-${portraitH}x${portraitW}.png`,
+      url: `/splash/apple-splash-${portraitH}x${portraitW}.png?v=${SPLASH_VERSION}`,
       media: mediaFor(w, h, dpr, "landscape"),
     },
   ];
