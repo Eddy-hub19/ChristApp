@@ -23,6 +23,8 @@ npm workspaces, one root `package-lock.json`:
 
 Env files are not tracked by git; create them yourself with the keys the compose files and apps read.
 
+Running the backend without Docker (`npm run dev`): it reads only the root `.env.local` and `.env.development` (`apps/backend/src/load-env.ts`), `.env.local` wins; variables already set in the environment are never overwritten. `apps/backend/.env` is not read any more. Put `DATABASE_URL` (a local Postgres) into `.env.local`: in Docker it is built by the compose file from `DB_*`, so `.env.development` does not have it.
+
 ### Network and nginx
 
 Backend and web of both stacks join the external Docker network `web` (created automatically by the scripts, name in the `config` block of `package.json`). Put nginx on the same network and proxy to the container aliases:

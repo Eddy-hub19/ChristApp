@@ -1,9 +1,9 @@
-import 'dotenv/config';
+import './src/load-env';
 import { defineConfig, env } from 'prisma/config';
 
 /**
  * Prisma ORM 7+: URL для миграций и CLI задаётся здесь (не в schema.prisma).
- * Задайте DATABASE_URL в apps/backend/.env или в окружении (см. .env.example).
+ * Задайте DATABASE_URL в корневом .env.local или в окружении (см. .env.example).
  *
  * Миграции не работают через PgBouncer (пулер, хост с `-pooler`): если приложение ходит в базу через пулер,
  * задайте DIRECT_URL (прямой хост без `-pooler`) - CLI возьмёт его. Без DIRECT_URL всё как раньше.

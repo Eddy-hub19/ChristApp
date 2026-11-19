@@ -1,5 +1,5 @@
 /**
- * Проверка VAPID из backend/.env:
+ * Проверка VAPID из корневых .env.local / .env.development:
  * 1) формат ключей (через web-push)
  * 2) публичный ключ действительно соответствует приватному (ECDH P-256)
  *
@@ -11,7 +11,11 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const webpush = require('web-push');
 
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+const rootDir = path.resolve(__dirname, '..', '..', '..');
+dotenv.config({
+  path: ['.env.local', '.env.development'].map((n) => path.resolve(rootDir, n)),
+  quiet: true,
+});
 
 function b64urlToBuf(s) {
   const pad = '='.repeat((4 - (s.length % 4)) % 4);
