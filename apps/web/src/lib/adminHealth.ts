@@ -36,8 +36,8 @@ export type ServerHealth = {
 };
 
 /**
- * Доля бюджета CPU инстанса, %. `cpuPercent` меряется от одного ядра (100 = 1000 мс CPU/с), а Render душит процесс
- * по квоте (0.5 vCPU = 500 мс/с), поэтому «светофор» смотрит на долю квоты, а не ядра.
+ * Доля бюджета CPU, %. `cpuPercent` меряется от одного ядра (100 = 1000 мс CPU/с); бюджет — CPU_BUDGET_MS
+ * (по умолчанию 1000 = одно ядро Node, на сервере 2 vCPU), «светофор» смотрит на долю бюджета.
  */
 export function cpuBudgetShare(status: AdminServerStatus): number {
   const budgetMs = status.cpuBudgetMs && status.cpuBudgetMs > 0 ? status.cpuBudgetMs : 1000;

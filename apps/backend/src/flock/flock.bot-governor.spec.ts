@@ -1,7 +1,8 @@
 import { FLOCK_CONFIG as C } from './flock.config';
 import {
   BotGovernor,
-  botCapForHumans,
+  botsForHumans,
+  circleBotsForHumans,
   classifyLoad,
   type LoadSample,
 } from './flock.bot-governor';
@@ -32,12 +33,22 @@ describe('classifyLoad', () => {
   });
 });
 
-describe('botCapForHumans (жёсткие лимиты)', () => {
-  it('до 3 людей лимита нет, 4-5 -> 2, 6 -> 0', () => {
-    for (const n of [0, 1, 2, 3]) expect(botCapForHumans(n)).toBe(Infinity);
-    expect(botCapForHumans(4)).toBe(2);
-    expect(botCapForHumans(5)).toBe(2);
-    expect(botCapForHumans(6)).toBe(0);
+describe('botsForHumans (боты по людям)', () => {
+  it('до первой строки таблицы - botTarget, дальше растёт по botsByHumans, потолок maxBots', () => {
+    expect(botsForHumans(0)).toBe(C.botTarget);
+    expect(botsForHumans(1)).toBe(C.botTarget);
+    for (const [from, n] of C.botsByHumans)
+      expect(botsForHumans(from)).toBe(Math.min(n, C.maxBots));
+    for (let h = 0; h <= C.maxHumansPerArena; h++)
+      expect(botsForHumans(h)).toBeLessThanOrEqual(C.maxBots);
+    expect(botsForHumans(C.maxHumansPerArena)).toBe(C.maxBots);
+  });
+
+  it('режим «Звужуване коло» остаётся на старых правилах', () => {
+    expect(circleBotsForHumans(0)).toBe(8);
+    expect(circleBotsForHumans(3)).toBe(6);
+    expect(circleBotsForHumans(4)).toBe(2);
+    expect(circleBotsForHumans(6)).toBe(0);
   });
 });
 
@@ -156,19 +167,44 @@ describe('Арена: боты по нагрузке', () => {
     mgr.dispose();
   });
 
-  it('при 4-5 людях ботов не больше 2, при 6 - 0, даже когда нагрузка в норме', () => {
-    const { mgr } = setup(() => ({ loopP99Ms: 1, cpuPct: 1 }));
+  it('при 6 людях и спокойной нагрузке боты набираются постепенно до maxBots и не выше', () => {
+    const { mgr, advance } = setup(() => ({ loopP99Ms: 1, cpuPct: 1 }));
     for (let i = 0; i < 6; i++) mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
     const arena = mgr._arena(1)!;
     expect(arena.humans).toBe(6);
-    for (let i = 0; i < 40; i++) arena.evaluateLoad();
-    for (let i = 0; i < 400; i++) arena.step();
-    expect(arena.bots.size).toBe(0);
+    expect(arena.targetBots()).toBe(C.maxBots);
+    // не разом: сверх botTarget добавляется по одному за botRampMs
+    expect(arena.activeBots).toBeLessThan(C.maxBots);
+    let prev = arena.activeBots;
+    for (let i = 0; i < C.maxBots * 2; i++) {
+      advance(C.botRampMs + 1);
+      arena.syncBots();
+      expect(arena.activeBots - prev).toBeLessThanOrEqual(1);
+      prev = arena.activeBots;
+    }
+    expect(arena.activeBots).toBe(C.maxBots);
+    mgr.dispose();
+  });
 
-    // один человек вышел -> 5 людей -> до 2 ботов, больше нельзя
-    mgr.leave('c5');
-    for (let i = 0; i < 40; i++) arena.evaluateLoad();
-    expect(arena.activeBots).toBeLessThanOrEqual(2);
+  it('при 6 людях и перегрузке регулятор убирает ботов, а потом возвращает', () => {
+    let load = { loopP99Ms: 1, cpuPct: 1 };
+    const { mgr, advance } = setup(() => load);
+    for (let i = 0; i < 6; i++) mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
+    const arena = mgr._arena(1)!;
+    for (let i = 0; i < C.maxBots * 2; i++) {
+      advance(C.botRampMs + 1);
+      arena.syncBots();
+    }
+    expect(arena.activeBots).toBe(C.maxBots);
+    load = { loopP99Ms: 5000, cpuPct: 1 };
+    for (let i = 0; i < 5; i++) arena.evaluateLoad();
+    expect(arena.activeBots).toBe(C.maxBots - 5);
+    load = { loopP99Ms: 1, cpuPct: 1 };
+    for (let i = 0; i < C.botLoad.returnAfterLow * 5; i++) {
+      advance(C.botRampMs + 1);
+      arena.evaluateLoad();
+    }
+    expect(arena.activeBots).toBe(C.maxBots);
     mgr.dispose();
   });
 

@@ -9,7 +9,7 @@ export interface LoadSample {
   lateMs: number;
   /** p99 затримки event loop процесу, мс. */
   loopP99Ms: number;
-  /** CPU процесу, % від бюджету інстанса (RENDER_CPU_BUDGET_MS). */
+  /** CPU процесу, % від бюджету інстанса (CPU_BUDGET_MS). */
   cpuPct: number;
 }
 
@@ -107,12 +107,27 @@ export class BotGovernor {
   }
 }
 
-/** Жорсткий ліміт ботів за кількістю живих людей (flock.config: botCapByHumans). */
-export function botCapForHumans(humans: number): number {
-  for (const [from, cap] of FLOCK_CONFIG.botCapByHumans) {
-    if (humans >= from) return cap;
+/** Штатна кількість ботів за числом живих людей (flock.config: botsByHumans, стеля maxBots, стартове botTarget). */
+export function botsForHumans(humans: number): number {
+  let bots: number = FLOCK_CONFIG.botTarget;
+  let best = -1;
+  for (const [from, n] of FLOCK_CONFIG.botsByHumans) {
+    if (humans >= from && from > best) {
+      best = from;
+      bots = n;
+    }
   }
-  return Infinity;
+  return Math.min(bots, FLOCK_CONFIG.maxBots);
+}
+
+/** Режим «Звужуване коло»: старі правила (circle.bots), без botsByHumans. */
+export function circleBotsForHumans(humans: number): number {
+  const b = FLOCK_CONFIG.circle.bots;
+  const base = Math.max(b.min, Math.min(b.target, b.total - humans));
+  for (const [from, cap] of b.capByHumans) {
+    if (humans >= from) return Math.min(base, cap);
+  }
+  return base;
 }
 
 /**

@@ -2,6 +2,7 @@ import {
   ARENA_BASE_MS,
   ARENA_PER_PLAYER_MS,
   buildResult,
+  CPU_BUDGET_MS,
   CpuBenchmarkService,
   cpuWorkload,
   measureCpuMs,
@@ -35,11 +36,12 @@ describe('buildResult', () => {
 });
 
 describe('CPU budget', () => {
-  it('defaults to 500 ms/s (0.5 vCPU) and reads RENDER_CPU_BUDGET_MS', () => {
-    expect(resolveCpuBudgetMs(undefined)).toBe(500);
-    expect(resolveCpuBudgetMs('1000')).toBe(1000);
-    expect(resolveCpuBudgetMs('abc')).toBe(500);
-    expect(resolveCpuBudgetMs('0')).toBe(500);
+  it('defaults to CPU_BUDGET_MS = 1000 ms/s (one core) and accepts an override', () => {
+    expect(resolveCpuBudgetMs(undefined)).toBe(CPU_BUDGET_MS);
+    expect(CPU_BUDGET_MS).toBe(1000);
+    expect(resolveCpuBudgetMs('500')).toBe(500);
+    expect(resolveCpuBudgetMs('abc')).toBe(1000);
+    expect(resolveCpuBudgetMs('0')).toBe(1000);
     const r = buildResult(Array(9).fill(REF_M2_MS), new Date(), 500);
     expect(r.budgetMs).toBe(500);
     expect(r.arena.find((a) => a.players === 6)!.budgetPercent).toBe(7);

@@ -427,7 +427,7 @@
     "procBenchDetail": "медіана {ms} мс, еталон M2 {ref} мс",
     "procBenchArena": "Арена «Отара», {count} гравц.",
     "procBenchArenaSub": "≈ {ms} мс CPU/с",
-    "procBenchHint": "Частка бюджету (~{vcpu} vCPU ≈ {ms} мс CPU/с). Менше ~75% — комфортно; понад 100% — арена не вкладається, зменште maxHumansPerArena. Бюджет береться зі змінної RENDER_CPU_BUDGET_MS на сервері. Результат зберігається до перезапуску сервера.",
+    "procBenchHint": "Частка бюджету (одне ядро Node ≈ {ms} мс CPU/с). Менше ~75% — комфортно; понад 100% — арена не вкладається, зменште maxHumansPerArena. Бюджет береться зі змінної CPU_BUDGET_MS на сервері (стара назва RENDER_CPU_BUDGET_MS теж працює). Результат зберігається до перезапуску сервера.",
     "tabPush": "Push",
     "broadcast": {
       "title": "Сповістити всіх",

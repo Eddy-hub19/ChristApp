@@ -1,5 +1,6 @@
 import { FLOCK_CONFIG as C, FREE_SKIN_IDS } from './flock.config';
 import { FlockManager } from './flock.manager';
+import { botsForHumans } from './flock.bot-governor';
 import {
   decodeBoard,
   decodeState,
@@ -56,7 +57,7 @@ describe('FlockManager', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('боти зменшуються, коли приходять люди: 4-5 людей -> не більше 2, 6 -> 0 (штатно, без навантаження)', () => {
+  it('боти додаються з приходом людей: 1-2 -> botTarget, далі за botsByHumans до maxBots (штатно, без навантаження)', () => {
     ctx.mgr.join('c0', 'u0', 'P0', 0);
     expect(ctx.mgr.stats()[0].botsTarget).toBe(C.botTarget);
     const targetAt = (n: number) => {
@@ -64,15 +65,15 @@ describe('FlockManager', () => {
         ctx.mgr.join(`c${i}`, `u${i}`, `P${i}`, 0);
       return ctx.mgr.stats()[0];
     };
-    expect(targetAt(3).botsTarget).toBe(
-      Math.max(C.botMin, Math.min(C.botTarget, C.botTotalTarget - 3)),
-    );
-    expect(targetAt(4).botsTarget).toBeLessThanOrEqual(2);
-    expect(targetAt(5).botsTarget).toBeLessThanOrEqual(2);
-    const six = targetAt(6);
-    expect(six.humans).toBe(6);
-    expect(six.botsTarget).toBe(0);
-    expect(six.botsActive).toBe(0);
+    for (let n = 2; n <= C.maxHumansPerArena; n++) {
+      const st = targetAt(n);
+      expect(st.humans).toBe(n);
+      expect(st.botsTarget).toBe(botsForHumans(n));
+      expect(st.botsTarget).toBeLessThanOrEqual(C.maxBots);
+    }
+    expect(ctx.mgr.stats()[0].botsTarget).toBe(C.maxBots);
+    // боты сверх botTarget набираются постепенно (botRampMs), а не разом
+    expect(ctx.mgr.stats()[0].botsActive).toBeLessThan(C.maxBots);
   });
 
   it('арена одна й має ліміт людей: сьомий - відмова full, без входу', () => {

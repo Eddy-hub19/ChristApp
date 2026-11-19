@@ -31,7 +31,8 @@ import { AdaptiveRate } from './flock.adaptive';
 import {
   BotGovernor,
   ProcessLoadSampler,
-  botCapForHumans,
+  botsForHumans,
+  circleBotsForHumans,
   classifyLoad,
   type GovernorDecision,
   type LoadSample,
@@ -218,6 +219,8 @@ class Arena {
   private bossMsgs: { k: number; n?: string }[] = [];
   lastSample: LoadSample | null = null;
   private lastLoadEval = -Infinity;
+  /** Когда последний раз добавили бота сверх botTarget (плавный набор до maxBots). */
+  private lastBotAddAt = -Infinity;
   private lateSnap = { sum: 0, n: 0 };
   private sampler: ProcessLoadSampler | null = null;
 
@@ -303,15 +306,12 @@ class Arena {
     this.timer.unref?.();
   }
 
-  /** Штатна кількість ботів: за людьми, з жорстким лімітом за числом людей (4-5 -> 2, 6 -> 0). */
+  /** Штатна кількість ботів: botsByHumans (стеля maxBots); у режимі «Звужуване коло» - старі правила. */
   targetBots() {
     if (this.coliseum) return 0; // на «Арені» лише вовки хвиль
     if (this.castle) return this.castle.wantedBots(1) + this.castle.wantedBots(2);
-    const base = Math.max(
-      C.botMin,
-      Math.min(C.botTarget, C.botTotalTarget - this.humans),
-    );
-    return Math.min(base, botCapForHumans(this.humans));
+    if (this.mode === 'circle') return circleBotsForHumans(this.humans);
+    return botsForHumans(this.humans);
   }
 
   /** Скільки ботів має грати зараз: штатна кількість, обмежена навантаженням. */
@@ -588,6 +588,11 @@ class Arena {
         active++;
       }
       while (active < want && !this.circleLocked()) {
+        // понад стартову кількість боти додаються поступово (botRampMs); до неї - одразу
+        if (active >= C.botTarget) {
+          if (this.now() - this.lastBotAddAt < C.botRampMs) break;
+          this.lastBotAddAt = this.now();
+        }
         this.addBot();
         active++;
       }

@@ -218,7 +218,7 @@ export type AdminCpuBenchmark = {
   refMs: number;
   /** У скільки разів ядро сервера повільніше за M2 (1 = як M2). */
   slowdown: number;
-  /** Бюджет CPU сервера, мс CPU/с (RENDER_CPU_BUDGET_MS; 500 = 0.5 vCPU). */
+  /** Бюджет CPU сервера, мс CPU/с (CPU_BUDGET_MS; по умолчанию 1000 = одно ядро Node). */
   budgetMs: number;
   /** Скільки % бюджету CPU з'їсть арена "Отара" з N гравців. */
   arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];
