@@ -17,7 +17,8 @@ import { FlockModule } from './flock/flock.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // env читает ./load-env (корневые .env.local / .env.development), свой .env бэкенда не используется
+    ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
     PrismaModule,
     AuthModule,
     UsersModule,
