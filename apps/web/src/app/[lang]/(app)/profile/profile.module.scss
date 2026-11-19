@@ -216,6 +216,7 @@
       flex-shrink: 0;
       border: 2px solid var(--accent);
       background: var(--accent-soft);
+      position: relative;
       overflow: hidden;
       display: grid;
       place-items: center;
@@ -237,9 +238,13 @@
       }
     }
 
+    /* Фото растягиваем на весь круг абсолютно: иначе в grid-кнопке (place-items: center) оно может не дотягиваться до рамки и показывать зазор. */
     .avatarImage {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
+      max-width: none;
       object-fit: cover;
       border-radius: 50%;
     }
