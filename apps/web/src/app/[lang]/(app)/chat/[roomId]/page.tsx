@@ -105,7 +105,7 @@ import { focusChatComposer } from "@/lib/chatComposerFocus";
 import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
 import { Gamepad2, MoreVertical, Phone } from "lucide-react";
 import { usePublishChatBackgroundKey, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
-import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
+import DesignBackgroundSettings from "@/components/ChatPrefs/DesignBackgroundSettings";
 import BubbleStyleSettings from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { chatRoomBackgroundKey } from "@/lib/chatBackgrounds";
 import dynamic from "next/dynamic";
@@ -4443,7 +4443,8 @@ export default function ChatPageDetails() {
         </div>
         {isBubbleStylesOpen ? <BubbleStyleSettings onClose={() => setIsBubbleStylesOpen(false)} /> : null}
         {isChatBgOpen && chatBgKey ? (
-          <ChatBackgroundSettings scope={{ kind: "room", roomKey: chatBgKey }} onClose={() => setIsChatBgOpen(false)} />
+          /* Пока вместо старых личных фонов чата - те же фоны приложения, что и в профиле. */
+          <DesignBackgroundSettings onClose={() => setIsChatBgOpen(false)} />
         ) : null}
         <VideoNoteScene
           open={isVideoSceneOpen}
