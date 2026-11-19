@@ -13,12 +13,12 @@ import {
 } from "react";
 import Image from "next/image";
 import { Clapperboard, Gamepad2 } from "lucide-react";
+import SkinPreview from "@/components/FlockMiniGame/FlockSkinPreview";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import styles from "@/components/ChatList/ChatList.module.scss";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
-import GameIcon from "@/lib/games/gameIcons";
 import { GLOBAL_ROOM_ID, SHARE_WITH_JESUS_CHAT_ID } from "@/lib/chatRooms";
 import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
@@ -538,21 +538,20 @@ const ChatList = ({
         {!normalizedSearch ? (
           <div className={styles.promoGrid}>
             <Link href="/games/flock" className={`${styles.promoCard} ${styles.promoFlock}`} prefetch={false}>
-              <span className={styles.promoBadge}>{t("promo.badge")}</span>
-              <span className={styles.promoArt} aria-hidden>
-                <GameIcon game="flock" size={56} />
-              </span>
               <span className={styles.promoTitle}>{t("promo.flockTitle")}</span>
               <span className={styles.promoText}>{t("promo.flockText")}</span>
+              <span className={`${styles.promoArt} ${styles.promoSheep}`} aria-hidden>
+                <SkinPreview skinId={0} size={46} />
+                <SkinPreview skinId={1} size={46} />
+              </span>
               <span className={styles.promoCta}>{t("promo.flockCta")}</span>
             </Link>
             <Link href="/cinema" className={`${styles.promoCard} ${styles.promoCinema}`}>
-              <span className={styles.promoBadge}>{t("promo.badge")}</span>
-              <span className={styles.promoArt} aria-hidden>
-                <Clapperboard size={52} strokeWidth={1.6} />
-              </span>
               <span className={styles.promoTitle}>{t("promo.cinemaTitle")}</span>
               <span className={styles.promoText}>{t("promo.cinemaText")}</span>
+              <span className={styles.promoArt} aria-hidden>
+                <Clapperboard size={40} strokeWidth={1.6} />
+              </span>
               <span className={styles.promoCta}>{t("promo.cinemaCta")}</span>
             </Link>
           </div>
