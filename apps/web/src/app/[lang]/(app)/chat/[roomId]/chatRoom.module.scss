@@ -966,3 +966,13 @@ html[data-theme="dark"] .chat {
     padding: 0 12px;
   }
 }
+
+/* Плашка «Делись своими мыслями» временно скрыта в новом дизайне (вернём позже). */
+:global(html[data-design="v2"]) .shareJesusParchment {
+  display: none;
+}
+
+/* Личные фоны чата убраны в новом дизайне (фон один, выбирается в профиле), поэтому пункта «Фон чата» в меню нет. */
+:global(html[data-design="v2"]) .menuItemChatBg {
+  display: none;
+}

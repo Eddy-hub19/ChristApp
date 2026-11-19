@@ -143,3 +143,28 @@ $splash-bg: #e8f0fb;
 
   background: #17151a;
 }
+
+/* Новый дизайн: вместо рисующегося логотипа и печати названия - заставка с овечкой (SheepLoader). */
+.sheepSplash {
+  display: none;
+}
+
+:global(html[data-design="v2"]) .splashWrapper {
+  /* Сплошная база под фоном пользователя (--v2-base задаётся в styles/designV2.scss для каждого фона). */
+  background: var(--v2-base, #160e1f);
+
+  .sheepSplash {
+    display: block;
+    width: 100%;
+  }
+
+  .logo,
+  .quoteContainer {
+    display: none;
+  }
+
+  /* Фон входа (AuthBackdrop) в новом дизайне не нужен. */
+  > div:not(.sheepSplash):not([data-design-backdrop]) {
+    display: none;
+  }
+}

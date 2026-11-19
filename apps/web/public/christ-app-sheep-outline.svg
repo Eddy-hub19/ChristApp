@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 128 128" fill="none">
+  <title>Christ App — sheep speech bubble</title>
+  <g stroke="#FFF2D7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 87 C13 82 9 73 11 62 C13 49 23 43 35 43 C31 32 39 20 50 20 C56 20 60 22 65 26 C70 14 81 11 91 15 C99 18 104 25 105 32 C116 32 124 41 122 53 C121 57 120 59 118 61 C124 65 127 71 125 77 C122 83 116 82 110 79 C109 99 92 111 72 111 C59 111 51 107 45 104 L17 124 L21 92 C20 90 21 88 23 87 Z" stroke-width="5.2"/>
+    <path d="M48 54 C60 65 76 62 86 50 C92 58 104 60 112 55" stroke-width="5.2"/>
+    <path d="M43 58 L33 72" stroke-width="6.5"/>
+    <path d="M111 56 L120 66" stroke-width="6.5"/>
+    <path d="M62 77 Q67 83 72 76" stroke-width="4.1"/>
+    <path d="M84 77 Q89 83 94 76" stroke-width="4.1"/>
+    <path d="M75 90 Q79 94 83 89" stroke-width="3.7"/>
+  </g>
+</svg>

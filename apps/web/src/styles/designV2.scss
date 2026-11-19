@@ -1,0 +1,308 @@
+/*
+ * Новый дизайн (`html[data-design="v2"]`, включается на новом домене - см. DESIGN_BOOTSTRAP_SCRIPT в app/layout.tsx).
+ * Здесь: токены, единственный фон (сливовый градиент с тёплыми дугами) и общие правила. Экранные стили лежат рядом с экраном
+ * в *.module.scss под `:global(html[data-design="v2"])`. Тёмная тема по умолчанию, светлая - лампочкой в профиле.
+ */
+
+[data-design-backdrop] {
+  display: none;
+}
+
+html[data-design="v2"] {
+  --v2-plum-0: #140c1c;
+  --v2-plum-1: #24122f;
+  --v2-plum-2: #3a1b3c;
+  --v2-rose: #e0806f;
+  --v2-gold: #e8bd70;
+  --v2-gold-soft: #f6dfb0;
+  --v2-glass-top: rgba(255, 255, 255, 0.1);
+  --v2-glass-bottom: rgba(255, 255, 255, 0.035);
+  --v2-glass-border: rgba(255, 214, 170, 0.2);
+  --v2-glass-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
+  /* Цвета текста и иконок: в светлой теме переопределяются ниже. */
+  --v2-text: #fff;
+  --v2-title: var(--v2-gold-soft);
+  --v2-icon-filter: brightness(0) saturate(100%) invert(92%) sepia(20%) saturate(500%) hue-rotate(335deg);
+  --v2-nav-icon-filter: brightness(0) saturate(100%) invert(100%);
+  --v2-logo-filter: brightness(1);
+
+  --foreground: #ffffff;
+  --accent: var(--v2-gold);
+  --accent-soft: var(--v2-gold-soft);
+  --line-soft: rgba(255, 214, 170, 0.24);
+  --text-muted: rgba(244, 232, 238, 0.7);
+  --text-dim: rgba(244, 232, 238, 0.55);
+  /* Прозрачные поверхности: сквозь них виден фон. */
+  --page-surface: transparent;
+  --chat-column-surface: rgba(32, 16, 40, 0.55);
+  --surface: rgba(40, 22, 50, 0.72);
+  --surface-elevated: rgba(52, 30, 62, 0.62);
+  --theme-toggle-inset: 0px;
+
+  --v2-base: #160e1f;
+  background: var(--v2-plum-0);
+}
+
+html[data-design="v2"] body {
+  background: transparent !important;
+}
+
+/* Все прежние фоны чата убраны: остаётся только фон нового дизайна. */
+html[data-design="v2"] [data-chat-bg-layer] {
+  display: none !important;
+}
+
+html[data-design="v2"] [data-design-backdrop] {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  background:
+    radial-gradient(70% 45% at 12% 8%, rgba(120, 60, 140, 0.45) 0%, transparent 70%),
+    radial-gradient(80% 50% at 95% 102%, rgba(236, 120, 104, 0.5) 0%, transparent 68%),
+    radial-gradient(60% 35% at 0% 100%, rgba(150, 70, 110, 0.35) 0%, transparent 70%),
+    linear-gradient(180deg, var(--v2-plum-0) 0%, var(--v2-plum-1) 42%, var(--v2-plum-2) 78%, #5a2a3e 100%);
+
+  > i {
+    position: absolute;
+    border-radius: 50%;
+    border-style: solid;
+    border-color: transparent;
+  }
+
+  /* Тёплая дуга в верхней части экрана, уходящая вправо. */
+  > i[data-arc="a"] {
+    left: -40%;
+    top: 14%;
+    width: 150%;
+    height: 60%;
+    border-width: 2px 0 0 0;
+    border-top-color: rgba(255, 170, 140, 0.5);
+    box-shadow: 0 -18px 50px -6px rgba(255, 130, 110, 0.28);
+    transform: rotate(-9deg);
+    filter: blur(0.6px);
+  }
+  /* Мягкая широкая «волна» под ней. */
+  > i[data-arc="b"] {
+    left: -30%;
+    top: 22%;
+    width: 160%;
+    height: 80%;
+    background: radial-gradient(60% 40% at 50% 0%, rgba(255, 150, 130, 0.14), transparent 70%);
+    transform: rotate(-7deg);
+  }
+  /* Золотая дуга снизу справа. */
+  > i[data-arc="c"] {
+    right: -55%;
+    bottom: -38%;
+    width: 150%;
+    height: 70%;
+    border-width: 2px 0 0 0;
+    border-top-color: rgba(255, 196, 140, 0.55);
+    box-shadow: 0 -16px 46px -8px rgba(255, 150, 110, 0.3);
+    transform: rotate(8deg);
+    filter: blur(0.6px);
+  }
+}
+
+html[data-design="v2"][data-app-bg-off] [data-design-backdrop] {
+  display: none;
+}
+
+/* Общая «стеклянная» подложка карточек. */
+html[data-design="v2"] {
+  --v2-glass-bg: linear-gradient(180deg, var(--v2-glass-top), var(--v2-glass-bottom));
+}
+
+/* Выбор фона чата в профиле не нужен: фон один. */
+html[data-design="v2"] [data-prefs-row="background"] {
+  display: none;
+}
+
+
+/* ───────── Светлая тема нового дизайна (лампочка в профиле) ───────── */
+html[data-design="v2"][data-theme="light"] {
+  --v2-glass-top: rgba(255, 255, 255, 0.78);
+  --v2-glass-bottom: rgba(255, 255, 255, 0.42);
+  --v2-glass-border: rgba(176, 116, 70, 0.3);
+  --v2-glass-shadow: 0 14px 30px -18px rgba(110, 50, 70, 0.4);
+  --v2-text: #2a1730;
+  --v2-title: #6b3d1b;
+  --v2-icon-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(335deg);
+  --v2-nav-icon-filter: brightness(0) saturate(100%) invert(18%) sepia(25%) saturate(700%) hue-rotate(250deg);
+  --v2-logo-filter: brightness(0) saturate(100%) invert(22%) sepia(35%) saturate(900%) hue-rotate(335deg);
+
+  --foreground: #2a1730;
+  --accent: #c58a3a;
+  --accent-soft: #6b3d1b;
+  --line-soft: rgba(176, 116, 70, 0.3);
+  --text-muted: rgba(52, 30, 62, 0.7);
+  --text-dim: rgba(52, 30, 62, 0.55);
+  --chat-column-surface: rgba(255, 255, 255, 0.6);
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-elevated: rgba(255, 255, 255, 0.66);
+  color-scheme: light;
+  --v2-base: #f6e6ee;
+  background: #f6e6ee;
+}
+
+html[data-design="v2"][data-theme="light"] [data-design-backdrop] {
+  background:
+    radial-gradient(70% 45% at 10% 6%, rgba(200, 160, 235, 0.45) 0%, transparent 70%),
+    radial-gradient(80% 50% at 95% 102%, rgba(255, 168, 138, 0.55) 0%, transparent 68%),
+    radial-gradient(60% 35% at 0% 100%, rgba(240, 150, 175, 0.4) 0%, transparent 70%),
+    linear-gradient(180deg, #f8eef6 0%, #f5e1ec 45%, #f8d9d2 100%);
+
+  > i[data-arc="a"] {
+    border-top-color: rgba(224, 120, 96, 0.5);
+    box-shadow: 0 -18px 50px -6px rgba(255, 140, 110, 0.25);
+  }
+  > i[data-arc="b"] {
+    background: radial-gradient(60% 40% at 50% 0%, rgba(255, 150, 130, 0.16), transparent 70%);
+  }
+  > i[data-arc="c"] {
+    border-top-color: rgba(214, 150, 70, 0.55);
+    box-shadow: 0 -16px 46px -8px rgba(255, 170, 110, 0.3);
+  }
+}
+
+html[data-design="v2"][data-theme="light"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #fbf1f5;
+}
+
+/* Строки, нужные только в новом дизайне («Фон приложения»). */
+[data-v2-only] {
+  display: none !important;
+}
+html[data-design="v2"] [data-v2-only] {
+  display: flex !important;
+}
+
+/* Превью фонов: карточки и миниатюры в настройках. */
+html[data-design="v2"] [data-design-thumb="plum"] {
+  background:
+    radial-gradient(80% 50% at 95% 102%, rgba(236, 120, 104, 0.55), transparent 68%),
+    linear-gradient(180deg, #140c1c 0%, #24122f 42%, #3a1b3c 78%, #5a2a3e 100%);
+}
+html[data-design="v2"] [data-design-thumb="night"] {
+  background:
+    radial-gradient(70% 45% at 10% 12%, rgba(40, 80, 170, 0.6), transparent 70%),
+    radial-gradient(70% 45% at 95% 95%, rgba(30, 60, 140, 0.5), transparent 70%),
+    linear-gradient(180deg, #0a1226 0%, #070b18 100%);
+}
+
+html[data-design="v2"] [data-design-thumb="forest"] {
+  background:
+    radial-gradient(70% 45% at 10% 12%, rgba(40, 150, 100, 0.55), transparent 70%),
+    radial-gradient(70% 45% at 95% 95%, rgba(24, 110, 74, 0.5), transparent 70%),
+    linear-gradient(180deg, #0a1f16 0%, #06120d 100%);
+}
+
+html[data-design="v2"] [data-design-thumb="desert"] {
+  background:
+    radial-gradient(70% 45% at 10% 12%, rgba(196, 168, 128, 0.42), transparent 70%),
+    radial-gradient(70% 45% at 95% 95%, rgba(160, 144, 128, 0.36), transparent 70%),
+    linear-gradient(180deg, #221e1a 0%, #12100e 100%);
+}
+
+/* «Ночная синева»: тёмно-синий фон с мягкими голубыми бликами (как тёмный экран входа). */
+html[data-design="v2"][data-theme="dark"][data-design-bg="night"] {
+  background: #070b16;
+  --v2-base: #070b16;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="night"] [data-design-backdrop] {
+  background:
+    radial-gradient(60% 40% at 8% 14%, rgba(36, 76, 168, 0.5) 0%, transparent 70%),
+    radial-gradient(55% 40% at 96% 94%, rgba(28, 58, 140, 0.45) 0%, transparent 70%),
+    radial-gradient(40% 30% at 70% 8%, rgba(70, 110, 200, 0.14) 0%, transparent 70%),
+    linear-gradient(180deg, #0a1226 0%, #070b18 55%, #05080f 100%);
+
+  > i {
+    display: none;
+  }
+}
+
+/* «Зелёный лес»: тёмно-зелёный фон с мягкими изумрудными бликами (в тон овечке). */
+html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] {
+  background: #06120d;
+  --v2-base: #06120d;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] [data-design-backdrop] {
+  background:
+    radial-gradient(60% 40% at 8% 14%, rgba(38, 148, 98, 0.45) 0%, transparent 70%),
+    radial-gradient(55% 40% at 96% 94%, rgba(24, 112, 76, 0.42) 0%, transparent 70%),
+    radial-gradient(40% 30% at 70% 8%, rgba(90, 190, 140, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #0a1f16 0%, #07150f 55%, #040b08 100%);
+
+  > i {
+    display: none;
+  }
+}
+
+/* «Пустыня»: тёплый серо-песочный фон с мягкими песочными бликами. */
+html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] {
+  background: #12100e;
+  --v2-base: #12100e;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] [data-design-backdrop] {
+  background:
+    radial-gradient(60% 40% at 8% 14%, rgba(196, 168, 128, 0.34) 0%, transparent 70%),
+    radial-gradient(55% 40% at 96% 94%, rgba(160, 144, 128, 0.3) 0%, transparent 70%),
+    radial-gradient(40% 30% at 70% 8%, rgba(230, 210, 175, 0.1) 0%, transparent 70%),
+    linear-gradient(180deg, #221e1a 0%, #171410 55%, #0e0c0a 100%);
+
+  > i {
+    display: none;
+  }
+}
+
+/* Экраны настроек поверх приложения: плотный фон, чтобы не просвечивало содержимое. */
+html[data-design="v2"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #1d1028;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="night"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #0b1226;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #0b1d15;
+}
+html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] [role="dialog"][aria-modal="true"] {
+  --surface-elevated: #1c1815;
+}
+
+/* Чат на ПК в две колонки (chat/layout.tsx ставит html[data-chat-split]): колонка шире, навбар под списком слева. */
+html[data-chat-split] main {
+  max-width: none !important;
+  height: calc(100svh - 20px);
+  padding-bottom: 0 !important;
+}
+html[data-chat-split] nav[class*="TabBar"] {
+  left: max(16px, env(safe-area-inset-left, 0px)) !important;
+  right: auto !important;
+  transform: none !important;
+  width: 348px !important;
+  gap: 4px;
+}
+/* Навбар встаёт под список, который центрируется вместе с колонками (max-width 1240px). */
+@media (min-width: 1272px) {
+  html[data-chat-split] nav[class*="TabBar"] {
+    left: calc(50% - 620px) !important;
+  }
+}
+
+/* Строка только для ПК («Окно чата на ПК»): на узких экранах скрыта. */
+@media (max-width: 1023px) {
+  html[data-design="v2"] [data-desktop-only] {
+    display: none !important;
+  }
+}
+
+/* Стили пузырей «Агнец», «Голубь мира» и «Рыба (ихтис)» убраны из выбора в новом дизайне (вернём позже). */
+html[data-design="v2"] [data-bubble-style-card="lamb"],
+html[data-design="v2"] [data-bubble-style-card="dove"],
+html[data-design="v2"] [data-bubble-style-card="ichthys"] {
+  display: none;
+}

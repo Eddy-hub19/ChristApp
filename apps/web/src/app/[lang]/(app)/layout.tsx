@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import DesignBackdrop from "@/components/DesignBackdrop/DesignBackdrop";
 import AppBackground from "@/components/ChatBackground/ChatBackground";
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain";
 import CinemaProvider from "@/components/Cinema/CinemaProvider";
@@ -55,6 +56,7 @@ export default function AppShellLayout({
           <CinemaProvider>
             <OtaraAnnouncement />
             <MigrationNotice />
+            <DesignBackdrop />
             <AppBackground />
             <ThemeToggle />
             <AdaptiveMain>{children}</AdaptiveMain>

@@ -36,6 +36,7 @@ import {
 } from "@/hooks/useMediaQuery";
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge";
 import { watchRoomsQueryOptions } from "@/lib/queries/watchRoomsQueries";
+import { useChatSplit } from "@/hooks/useChatSplit";
 
 const UNREAD_REFRESH_INTERVAL_MS = 30_000;
 
@@ -48,6 +49,7 @@ export default function TabBar() {
   const narrowForChatComposer = useMediaQuery(
     chatComposerTabLayoutMediaQuery(),
   );
+  const chatSplit = useChatSplit();
   const [authEpoch, setAuthEpoch] = useState(0);
   /** Токен у localStorage недоступний на SSR — інакше кількість вкладок і active-іконка не збігаються з клієнтом (hydration error). */
   const [tabBarClientReady, setTabBarClientReady] = useState(false);
@@ -93,7 +95,8 @@ export default function TabBar() {
   ];
   /** Список чатів — таб видимий; відкрита кімната — таб прихований, більше місця під листування. */
   const hideOnActiveChatRoom =
-    pathname.startsWith("/chat/") || pathname.startsWith("/cinema/");
+    (pathname.startsWith("/chat/") && !chatSplit) ||
+    pathname.startsWith("/cinema/");
   const shouldHideTabBar =
     hideOnActiveChatRoom ||
     hiddenRoutes.some(
@@ -182,6 +185,7 @@ export default function TabBar() {
     <nav className={styles.nav}>
       <Link
         className={styles.tabLink}
+        data-tab="bible"
         href="/bible"
         prefetch
         onPointerEnter={() => prefetchTabBibleData(queryClient)}

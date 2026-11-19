@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import AuthBackdrop from "@/components/AuthBackdrop/AuthBackdrop";
+import SheepLoader from "@/components/SheepLoader/SheepLoader";
+import DesignBackdrop from "@/components/DesignBackdrop/DesignBackdrop";
 import styles from "./SplashScreen.module.scss";
 
 const BRAND_TEXT = "Christ App";
 
 const BRAND_HOLD_MS = 1000;
+/** Новый дизайн: заставка с овечкой показывается дольше, чтобы успели увидеть анимацию. */
+const SHEEP_HOLD_MS = 2400;
 const TYPING_MS = 30;
 const EXIT_MS = 330;
 
@@ -35,7 +39,8 @@ export default function SplashScreen() {
       }
     }, TYPING_MS);
 
-    const t = window.setTimeout(() => setPhase("exit"), BRAND_HOLD_MS);
+    const isV2 = document.documentElement.getAttribute("data-design") === "v2";
+    const t = window.setTimeout(() => setPhase("exit"), isV2 ? SHEEP_HOLD_MS : BRAND_HOLD_MS);
     return () => {
       cancelled = true;
       window.clearInterval(typingInterval);
@@ -58,6 +63,11 @@ export default function SplashScreen() {
       className={`${styles.splashWrapper} ${phase === "exit" ? styles.splashWrapperExiting : ""}`}
       aria-hidden={phase === "exit"}
     >
+      {/* Новый дизайн: тот же фон, что выбрал пользователь (сливовый, синий, зелёный, пустыня; светлая тема). */}
+      <DesignBackdrop />
+      <div className={styles.sheepSplash}>
+        <SheepLoader />
+      </div>
       <AuthBackdrop lightOnly />
       <svg
         width="100"

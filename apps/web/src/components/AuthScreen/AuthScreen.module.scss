@@ -539,3 +539,19 @@
     text-decoration: underline;
   }
 }
+
+/* Новый дизайн: вместо креста над названием - овечка. */
+.sheepLogo {
+  display: none;
+}
+
+:global(html[data-design="v2"]) {
+  .brand .logo {
+    display: none;
+  }
+
+  .brand .sheepLogo {
+    display: block;
+    filter: drop-shadow(0 4px 18px var(--auth-logo-glow));
+  }
+}

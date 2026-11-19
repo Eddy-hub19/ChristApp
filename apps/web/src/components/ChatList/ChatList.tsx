@@ -12,12 +12,13 @@ import {
   type TouchEvent as ReactTouchEvent,
 } from "react";
 import Image from "next/image";
-import { Gamepad2 } from "lucide-react";
+import { Clapperboard, Gamepad2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import styles from "@/components/ChatList/ChatList.module.scss";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
+import GameIcon from "@/lib/games/gameIcons";
 import { GLOBAL_ROOM_ID, SHARE_WITH_JESUS_CHAT_ID } from "@/lib/chatRooms";
 import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
@@ -478,6 +479,14 @@ const ChatList = ({
       <div className={styles.chatListWrapper}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
+            <Image
+              src="/christ-app-sheep-logo.svg"
+              alt=""
+              width={44}
+              height={44}
+              className={styles.sheepLogo}
+              aria-hidden
+            />
             <h2>ChristApp</h2>
             <MigrationCountdownBadge />
           </div>
@@ -524,6 +533,30 @@ const ChatList = ({
         </div>
 
         <FlockResumeBanner />
+
+        {/* Два квадрата-приглашения над чатами: новая игра «Отара» и совместный просмотр в «Киношке» (только новый дизайн, стили - ChatList.module.scss). */}
+        {!normalizedSearch ? (
+          <div className={styles.promoGrid}>
+            <Link href="/games/flock" className={`${styles.promoCard} ${styles.promoFlock}`} prefetch={false}>
+              <span className={styles.promoBadge}>{t("promo.badge")}</span>
+              <span className={styles.promoArt} aria-hidden>
+                <GameIcon game="flock" size={56} />
+              </span>
+              <span className={styles.promoTitle}>{t("promo.flockTitle")}</span>
+              <span className={styles.promoText}>{t("promo.flockText")}</span>
+              <span className={styles.promoCta}>{t("promo.flockCta")}</span>
+            </Link>
+            <Link href="/cinema" className={`${styles.promoCard} ${styles.promoCinema}`}>
+              <span className={styles.promoBadge}>{t("promo.badge")}</span>
+              <span className={styles.promoArt} aria-hidden>
+                <Clapperboard size={52} strokeWidth={1.6} />
+              </span>
+              <span className={styles.promoTitle}>{t("promo.cinemaTitle")}</span>
+              <span className={styles.promoText}>{t("promo.cinemaText")}</span>
+              <span className={styles.promoCta}>{t("promo.cinemaCta")}</span>
+            </Link>
+          </div>
+        ) : null}
 
         <ul className={styles.chatList}>
           {isLoading

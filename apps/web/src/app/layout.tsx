@@ -2,6 +2,7 @@ import { inter, geistMono, bodoniModa } from "@/styles/fonts";
 import "@/styles/globals.scss";
 import type { ReactNode } from "react";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
+import { NEW_SITE_HOST } from "@/lib/siteMigration";
 
 /**
  * Блокуючий скрипт у <head>: тема (і окрема тема екранів входу `authTheme`, за замовчуванням світла) застосовується до першого paint, інакше сторінка
@@ -10,11 +11,18 @@ import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 const THEME_BOOTSTRAP_SCRIPT = `(function(){try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){}try{if(localStorage.getItem("authTheme")==="dark")document.documentElement.setAttribute("data-auth-theme","dark");}catch(e){}try{var p=JSON.parse(localStorage.getItem("christapp:fontPrefs")||"null"),h=document.documentElement;if(p&&p.size&&p.size!=="md")h.setAttribute("data-text-size",String(p.size));}catch(e){}})();`;
 
 /**
+ * Новый дизайн (`<html data-design="v2">`) включается на новом домене и при локальной разработке (localhost, 127.0.0.1, локальная сеть).
+ * `?design=v2` включает на любом хосте, `?design=off` выключает (оба запоминаются в localStorage). Новый дизайн всегда тёмный.
+ * Выполняется до первого paint, после скрипта темы.
+ */
+const DESIGN_BOOTSTRAP_SCRIPT = `(function(){try{var h=document.documentElement,q=new URLSearchParams(location.search).get("design"),n=location.hostname,on=n===${JSON.stringify(NEW_SITE_HOST)}||n==="localhost"||n==="127.0.0.1"||/^(192\\.168|10)\\./.test(n),v=null;try{if(q==="v2"||q==="off")localStorage.setItem("design",q);v=localStorage.getItem("design");}catch(e){}if(v==="v2")on=true;else if(v==="off")on=false;if(on){h.setAttribute("data-design","v2");try{var g=localStorage.getItem("christapp:designBg");if(g==="night"||g==="forest"||g==="desert")h.setAttribute("data-design-bg",g);}catch(e){}}}catch(e){}})();`;
+
+/**
  * Критичний CSS, який фарбує html/body у колір теми ще до того, як завантажиться і
  * розпарситься основний stylesheet — без нього перший кадр малюється білим за замовчуванням.
  * Дублює `--background` з `globals.scss` (dark = дефолт, light — під атрибутом теми).
  */
-const CRITICAL_THEME_CSS = `html,body{background:#17151a;color-scheme:dark}html[data-theme="light"],html[data-theme="light"] body{background:#f8f2e9;color-scheme:light}`;
+const CRITICAL_THEME_CSS = `html,body{background:#17151a;color-scheme:dark}html[data-theme="light"],html[data-theme="light"] body{background:#f8f2e9;color-scheme:light}html[data-design="v2"],html[data-design="v2"] body{background:#160e1f;color-scheme:dark}html[data-design="v2"][data-theme="light"],html[data-design="v2"][data-theme="light"] body{background:#f6e6ee;color-scheme:light}html[data-design="v2"][data-theme="dark"][data-design-bg="night"],html[data-design="v2"][data-theme="dark"][data-design-bg="night"] body{background:#070b16}html[data-design="v2"][data-theme="dark"][data-design-bg="forest"],html[data-design="v2"][data-theme="dark"][data-design-bg="forest"] body{background:#06120d}html[data-design="v2"][data-theme="dark"][data-design-bg="desert"],html[data-design="v2"][data-theme="dark"][data-design-bg="desert"] body{background:#12100e}`;
 
 /**
  * Health-check бекенду стартує тут, у <head>, ще до завантаження React-бандла —
@@ -52,6 +60,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             старий vendor-tag лишаємо вручну під iOS-версії, що ще не знають новий. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: DESIGN_BOOTSTRAP_SCRIPT }} />
         {preconnectOrigin ? (
           <>
             <link rel="preconnect" href={preconnectOrigin} />

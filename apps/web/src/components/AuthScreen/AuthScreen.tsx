@@ -327,6 +327,14 @@ export default function AuthScreen({ initialMode }: { initialMode: Mode }) {
             priority
             className={styles.logo}
           />
+          <Image
+            src="/christ-app-sheep-logo.svg"
+            width={76}
+            height={76}
+            alt=""
+            priority
+            className={styles.sheepLogo}
+          />
           <h1 className={styles.brandName}>{tLogin("title")}</h1>
           <p className={styles.tagline}>{t("tagline")}</p>
         </header>
