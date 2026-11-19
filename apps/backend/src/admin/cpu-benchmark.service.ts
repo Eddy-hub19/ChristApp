@@ -12,15 +12,20 @@ const COOLDOWN_MS = 3_000;
  */
 export const ARENA_BASE_MS = 20.65;
 export const ARENA_PER_PLAYER_MS = 2.125;
-/** Бюджет CPU інстанса за замовчуванням: 0.5 vCPU на Render = ~500 мс CPU/с. */
-export const DEFAULT_CPU_BUDGET_MS = 500;
+/**
+ * Бюджет CPU за замовчуванням, мс CPU/с: Node однопотоковий і на сервері (2 vCPU) використовує одне ядро = 1000 мс/с.
+ * Змінюється змінною `CPU_BUDGET_MS`.
+ */
+export const CPU_BUDGET_MS = 1000;
+export const DEFAULT_CPU_BUDGET_MS = CPU_BUDGET_MS;
 
-/** Бюджет CPU (мс/с) зі змінної `RENDER_CPU_BUDGET_MS`; сміття й нуль -> значення за замовчуванням. */
+/** Бюджет CPU (мс/с): `CPU_BUDGET_MS`, запасне старе ім'я `RENDER_CPU_BUDGET_MS`; сміття й нуль -> CPU_BUDGET_MS (1000). */
 export function resolveCpuBudgetMs(
-  raw: string | undefined = process.env.RENDER_CPU_BUDGET_MS,
+  raw: string | undefined = process.env.CPU_BUDGET_MS ??
+    process.env.RENDER_CPU_BUDGET_MS,
 ): number {
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_CPU_BUDGET_MS;
+  return Number.isFinite(n) && n > 0 ? n : CPU_BUDGET_MS;
 }
 const ESTIMATE_PLAYERS = [2, 3, 4, 6] as const;
 
@@ -57,7 +62,7 @@ export type CpuBenchmarkResult = {
   refMs: number;
   /** У скільки разів ядро цього сервера повільніше за M2 (1 = як M2). */
   slowdown: number;
-  /** Бюджет CPU інстанса, мс CPU/с (RENDER_CPU_BUDGET_MS). */
+  /** Бюджет CPU, мс CPU/с (CPU_BUDGET_MS). */
   budgetMs: number;
   /** Скільки відсотків бюджету CPU з'їсть арена з N гравців. */
   arena: { players: number; cpuMsPerSec: number; budgetPercent: number }[];

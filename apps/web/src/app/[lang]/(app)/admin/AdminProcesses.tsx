@@ -292,7 +292,7 @@ function CpuBenchmark({ active }: { active: boolean }) {
               />
             ))}
           </div>
-          <p className={styles.metaSmall}>{t("procBenchHint", { vcpu: Math.round((result.budgetMs / 1000) * 100) / 100, ms: result.budgetMs })}</p>
+          <p className={styles.metaSmall}>{t("procBenchHint", { ms: result.budgetMs })}</p>
         </>
       ) : (
         <p className={styles.metaSmall}>{latest.isLoading ? t("procLoading") : t("procBenchNone")}</p>

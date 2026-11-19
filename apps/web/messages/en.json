@@ -427,7 +427,7 @@
     "procBenchDetail": "median {ms} ms, M2 reference {ref} ms",
     "procBenchArena": "Flock arena, {count} players",
     "procBenchArenaSub": "≈ {ms} ms CPU/s",
-    "procBenchHint": "Share of the budget (~{vcpu} vCPU ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from RENDER_CPU_BUDGET_MS on the server. The result is kept until the server restarts.",
+    "procBenchHint": "Share of the budget (one Node core ≈ {ms} ms CPU/s). Below ~75% is comfortable; above 100% the arena does not fit, lower maxHumansPerArena. The budget comes from CPU_BUDGET_MS on the server (old name RENDER_CPU_BUDGET_MS also works). The result is kept until the server restarts.",
     "tabPush": "Push",
     "broadcast": {
       "title": "Notify everyone",

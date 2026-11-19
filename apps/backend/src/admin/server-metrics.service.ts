@@ -128,7 +128,7 @@ export class ServerMetricsService implements OnModuleInit, OnModuleDestroy {
   snapshot() {
     const mem = process.memoryUsage();
     return {
-      /** Бюджет CPU інстанса, мс CPU/с (RENDER_CPU_BUDGET_MS): cpuPercent 100 = 1000 мс/с. */
+      /** Бюджет CPU інстанса, мс CPU/с (CPU_BUDGET_MS): cpuPercent 100 = 1000 мс/с. */
       cpuBudgetMs: resolveCpuBudgetMs(),
       process: {
         pid: process.pid,

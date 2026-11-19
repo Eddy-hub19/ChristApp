@@ -30,11 +30,14 @@ const LAST = Number(lastArg ?? (mode === 'sim' ? 3000 : 30));
 const CFG = FLOCK_CONFIG as unknown as Record<string, number>;
 CFG.tickHz = HZ;
 CFG.botTarget = BOTS;
-CFG.botMin = Math.min(CFG.botMin, BOTS);
-CFG.botTotalTarget = HUMANS + BOTS;
-// Скрипт замеряет заданное число ботов; реальные лимиты по людям (4-5 -> 2, 6 -> 0) включаются через FLOCK_REAL_CAPS=1.
-if (!process.env.FLOCK_REAL_CAPS)
-  (FLOCK_CONFIG as unknown as { botCapByHumans: unknown }).botCapByHumans = [];
+CFG.maxBots = Math.max(CFG.maxBots, BOTS);
+// Скрипт замеряет заданное число ботов; реальная таблица botsByHumans включается через FLOCK_REAL_CAPS=1.
+if (!process.env.FLOCK_REAL_CAPS) {
+  (FLOCK_CONFIG as unknown as { botsByHumans: unknown }).botsByHumans = [
+    [0, BOTS],
+  ];
+  CFG.botRampMs = 0;
+}
 // FLOCK_NOBOOST=1: без розгіну на старті (вклад розгону в навантаження)
 if (process.env.FLOCK_NOBOOST)
   (FLOCK_CONFIG.spawnBoost as unknown as Record<string, number>).speedBonus = 0;
