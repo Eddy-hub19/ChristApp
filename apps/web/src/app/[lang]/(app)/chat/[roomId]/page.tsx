@@ -1,6 +1,5 @@
 "use client";
 
-import MigrationComposerBanner from "@/components/MigrationNotice/MigrationComposerBanner";
 import ChatWindow from "@/components/ChatWindow/ChatWindow";
 import styles from "./chatRoom.module.scss";
 import MessageInput from "@/components/MessageInput/MessageInput";
@@ -4378,7 +4377,6 @@ export default function ChatPageDetails() {
 
         <div className={styles.composerDock}>
           <div className={styles.composerGlass}>
-            <MigrationComposerBanner />
             <MessageInput
               onSend={handleSend}
               onSaveEdit={handleSaveEditedMessage}
