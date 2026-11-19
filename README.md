@@ -98,7 +98,7 @@ Web: http://localhost:3000, backend: http://localhost:3001 (`/health`), Postgres
 | `npm run docker:psql` | psql shell |
 | `npm run docker:restore` | load the newest dump from `backups/` (or `-- <file>`): `.sql`, `.sql.gz` or `pg_dump -Fc`, then apply pending migrations |
 | `npm run docker:dump` | `pg_dump -Fc` of the local database into `backups/` |
-| `SOURCE_DATABASE_URL=<url> npm run docker:dump:remote` | dump a remote database (Neon) into `backups/` and check that the file is readable |
+| `SOURCE_DATABASE_URL=<url> npm run docker:dump:remote` | dump a remote database into `backups/` and check that the file is readable |
 | `npm run docker:build` | build backend and web images (`docker-bake.hcl`) |
 | `IMAGE_TAG=vX.Y.Z npm run docker:push` | push images to GHCR |
 
