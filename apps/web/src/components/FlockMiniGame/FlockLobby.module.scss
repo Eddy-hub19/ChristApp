@@ -395,7 +395,8 @@ $emerald: #1fb572;
   z-index: 8;
   display: flex;
   flex-direction: column;
-  background: var(--background);
+  /* Плотный фон: var(--background) полупрозрачный, и сквозь шторку просвечивала игра под ней. */
+  background: var(--sheet-solid-bg, #17151a);
   color: var(--foreground);
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   animation: sheetIn 0.2s ease-out both;
@@ -496,7 +497,7 @@ $emerald: #1fb572;
   padding: 10px 16px 12px;
   box-sizing: border-box;
   border-top: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
-  background: var(--background);
+  background: var(--sheet-solid-bg, #17151a);
 }
 .miniPreview {
   display: grid;
@@ -833,4 +834,44 @@ $emerald: #1fb572;
   .sheet {
     animation: none;
   }
+}
+
+/* Секции «Обычные / Особенные / Премиум / Легендарные» подряд в шторке «Усі обліки». */
+.sheetSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 14px;
+}
+.sheetSectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 2px 0;
+}
+.sheetSectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sheetSectionCount {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* Цвет сплошной подложки шторки по теме (светлая) и в новом дизайне. */
+:global(html[data-theme="light"]) .sheet {
+  --sheet-solid-bg: #f8f2e9;
+}
+:global(html[data-design="v2"]) .sheet {
+  --sheet-solid-bg: #1c0f26;
+}
+:global(html[data-design="v2"][data-theme="light"]) .sheet {
+  --sheet-solid-bg: #f6e6ee;
 }

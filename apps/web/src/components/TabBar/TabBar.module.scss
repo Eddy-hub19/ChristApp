@@ -138,3 +138,55 @@ html[data-theme="dark"] .activeIcon img {
 html[data-theme="light"] .tabLink img {
   filter: brightness(0) saturate(100%) invert(14%);
 }
+
+/* ───────── Новый дизайн (html[data-design="v2"]): стеклянная «таблетка» с золотой кнопкой активной вкладки ───────── */
+:global(html[data-design="v2"]) .nav {
+  /* Три вкладки: компактная «таблетка» по центру, а не на всю ширину. */
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(320px, calc(100vw - 48px));
+  min-height: 76px;
+  padding-inline: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 189, 112, 0.45);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03));
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 16px 40px -14px rgba(0, 0, 0, 0.7),
+    0 0 26px -10px rgba(232, 189, 112, 0.35);
+}
+
+:global(html[data-design="v2"]) .iconWrap {
+  width: 28px;
+  height: 28px;
+}
+
+:global(html[data-design="v2"]) .iconWrap img {
+  filter: var(--v2-nav-icon-filter);
+  opacity: 0.92;
+}
+
+:global(html[data-design="v2"]) .activeIcon {
+  width: 64px;
+  height: 64px;
+  padding: 18px;
+  background: radial-gradient(circle at 35% 25%, #f6dfb0 0%, #e8bd70 55%, #c98f4d 100%);
+  box-shadow:
+    0 0 26px 2px rgba(232, 189, 112, 0.45),
+    0 10px 20px -8px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transform: none;
+
+  img {
+    filter: brightness(0) saturate(100%) opacity(0.78);
+    opacity: 1;
+  }
+}
+
+/* Вкладка «Библия» временно скрыта в новом дизайне (вернём позже). */
+:global(html[data-design="v2"]) .tabLink[data-tab="bible"] {
+  display: none;
+}

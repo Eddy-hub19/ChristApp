@@ -14,7 +14,7 @@ export function ChatBackgroundRow({ onOpen }: { onOpen: () => void }) {
   const prefs = useChatBackgroundPrefs();
   const def = prefs.def ?? { id: "default" as const, dim: 0 };
   return (
-    <button type="button" className={base.row} onClick={onOpen} aria-haspopup="dialog">
+    <button type="button" className={base.row} data-prefs-row="background" onClick={onOpen} aria-haspopup="dialog">
       <span className={base.rowTitle}>{t("title")}</span>
       <span className={base.current}>
         <span className={base.currentName}>{t(`items.${def.id}`)}</span>
@@ -35,6 +35,9 @@ export function FontRow({ onOpen }: { onOpen: () => void }) {
   const summary = t(`sizes.${p.size}`);
   return (
     <button type="button" className={base.row} onClick={onOpen} aria-haspopup="dialog">
+      <span className={base.rowIcon} aria-hidden>
+        <span style={{ fontWeight: 600, fontSize: 19, letterSpacing: "-0.02em" }}>Aa</span>
+      </span>
       <span className={base.rowTitle}>{t("title")}</span>
       <span className={base.current}>
         <span className={base.currentName}>{summary}</span>

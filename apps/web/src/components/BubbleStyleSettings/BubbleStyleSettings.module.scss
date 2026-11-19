@@ -282,3 +282,34 @@
     color: var(--text-muted);
   }
 }
+
+/* Иконка слева в строке настроек: только в новом дизайне (html[data-design="v2"]). */
+.rowIcon {
+  display: none;
+}
+
+:global(html[data-design="v2"]) .rowIcon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  color: var(--v2-title);
+}
+
+:global(html[data-design="v2"]) .rowTitle {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* Строки разделены тонкой линией, как на макете. */
+:global(html[data-design="v2"]) .row {
+  padding: 12px 0;
+  min-height: 60px;
+}
+:global(html[data-design="v2"]) .row + .row,
+:global(html[data-design="v2"]) .row + div {
+  border-top: 1px solid rgba(255, 214, 170, 0.14);
+  border-radius: 0;
+}

@@ -4,6 +4,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { Clapperboard, Plus } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +51,14 @@ export default function CinemaPage() {
         <span className={styles.pageIcon} aria-hidden>
           <Clapperboard size={22} />
         </span>
+        <Image
+          src="/christ-app-sheep-outline.svg"
+          alt=""
+          width={44}
+          height={44}
+          className={styles.sheepLogo}
+          aria-hidden
+        />
         <div>
           <h1 className={styles.pageTitle}>{t("title")}</h1>
           <p className={styles.pageSubtitle}>{t("subtitle")}</p>

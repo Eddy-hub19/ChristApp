@@ -6,6 +6,7 @@ import { usePathname } from "@/i18n/navigation";
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext";
 import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { reapplyUserAppearanceForCurrentTheme } from "@/lib/userAppearance";
+import { useDesignV2 } from "@/hooks/useChatSplit";
 import styles from "./ThemeToggle.module.scss";
 
 type ThemeMode = "light" | "dark";
@@ -71,6 +72,7 @@ export default function ThemeToggle() {
   // після гідрації ми лише зчитуємо його, а не перезастосовуємо (звідси й брався спалах).
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const [hasHydratedTheme, setHasHydratedTheme] = useState(false);
+  const designV2 = useDesignV2();
   const pathname = usePathname();
   const fullscreenActive =
     useTabBarOverlayOptional()?.themeToggleHiddenByFullscreen ?? false;
@@ -118,8 +120,14 @@ export default function ThemeToggle() {
   /** Екрани чатів (особисті, Global chat, «Поділися з Ісусом»): лампочка не займає місце в шапці; тема - на головному й у профілі. */
   const isChatRoom = /^\/chat\/[^/]+/.test(pathname);
 
+  /** Старый дизайн: лампочка везде, кроме профиля. Новый дизайн: лампочка только в профиле. */
   const hidden =
-    isProfilePage || isOfflinePage || isAuthScreen || isCinemaHall || isFullscreen || isChatRoom;
+    isOfflinePage ||
+    isAuthScreen ||
+    isCinemaHall ||
+    isFullscreen ||
+    isChatRoom ||
+    (designV2 ? !isProfilePage : isProfilePage);
 
   // Место под лампочку для шапок экранов (--theme-toggle-inset): атрибут на <html> вместо `:root:has([data-theme-toggle])`.
   useEffect(() => {

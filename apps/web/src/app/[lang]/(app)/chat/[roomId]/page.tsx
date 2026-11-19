@@ -107,6 +107,7 @@ import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene";
 import { Gamepad2, MoreVertical, Phone } from "lucide-react";
 import { usePublishChatBackgroundKey, useResolvedChatBackground } from "@/components/ChatBackground/ChatBackground";
 import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
+import BubbleStyleSettings from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { chatRoomBackgroundKey } from "@/lib/chatBackgrounds";
 import dynamic from "next/dynamic";
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame";
@@ -159,7 +160,7 @@ import {
   type AvatarLikesUserResponse,
 } from "@/lib/queries/avatarLikesQueries";
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav";
-import { attachBubbleStyleListener } from "@/lib/bubbleStyles";
+import { attachBubbleStyleListener, canUseBubbleStyles } from "@/lib/bubbleStyles";
 
 const CHAT_SOCKET_URL = getDirectApiOrigin();
 const CHAT_HTTP_API = getHttpApiBase();
@@ -4035,6 +4036,8 @@ export default function ChatPageDetails() {
   usePublishChatBackgroundKey(chatBgKey);
   const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
   const [isChatBgOpen, setIsChatBgOpen] = useState(false);
+  const [isBubbleStylesOpen, setIsBubbleStylesOpen] = useState(false);
+  const tBubbleStyles = useTranslations("bubbleStyles");
   useEffect(() => {
     if (!isChatMenuOpen) return;
     const close = () => setIsChatMenuOpen(false);
@@ -4066,9 +4069,22 @@ export default function ChatPageDetails() {
       </button>
       {isChatMenuOpen ? (
         <div className={styles.gameMenu} role="menu" onClick={(event) => event.stopPropagation()}>
+          {canUseBubbleStyles(user?.username) ? (
+            <button
+              type="button"
+              className={styles.gameMenuItem}
+              role="menuitem"
+              onClick={() => {
+                setIsChatMenuOpen(false);
+                setIsBubbleStylesOpen(true);
+              }}
+            >
+              <span>{tBubbleStyles("title")}</span>
+            </button>
+          ) : null}
           <button
             type="button"
-            className={styles.gameMenuItem}
+            className={`${styles.gameMenuItem} ${styles.menuItemChatBg}`}
             role="menuitem"
             onClick={() => {
               setIsChatMenuOpen(false);
@@ -4427,6 +4443,7 @@ export default function ChatPageDetails() {
             ) : null}
           </div>
         </div>
+        {isBubbleStylesOpen ? <BubbleStyleSettings onClose={() => setIsBubbleStylesOpen(false)} /> : null}
         {isChatBgOpen && chatBgKey ? (
           <ChatBackgroundSettings scope={{ kind: "room", roomKey: chatBgKey }} onClose={() => setIsChatBgOpen(false)} />
         ) : null}

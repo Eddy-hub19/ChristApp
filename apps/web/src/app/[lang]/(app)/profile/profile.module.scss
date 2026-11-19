@@ -1055,3 +1055,194 @@ html[data-theme="dark"] .profile {
   margin: 24px 0 8px;
   padding: 0 4px;
 }
+
+/* Блок «С нами с … | Лайков на аватар» - в старом дизайне прозрачная обёртка, чтобы разметка не менялась. */
+.profile .userInfo .info .metaRow {
+  display: contents;
+}
+
+/* ───────── Новый дизайн (html[data-design="v2"]) ───────── */
+:global(html[data-design="v2"]) .profile {
+  gap: 18px;
+
+  .header {
+    .profileHeaderBar {
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+
+      h1 {
+        flex: none;
+        text-align: left;
+        color: var(--v2-title);
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+    }
+
+    /* Справа место под лампочку темы (она висит у правого края экрана). */
+    .headerActions {
+      margin-left: auto;
+      padding-right: 44px;
+    }
+
+    .settingsBtn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 1px solid var(--v2-glass-border);
+      background: var(--v2-glass-bg);
+      color: var(--v2-title);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+  }
+
+  .userInfo {
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+
+    .avatarButton {
+      width: 124px;
+      height: 124px;
+      border: 3px solid var(--v2-gold);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow:
+        0 0 0 4px rgba(232, 189, 112, 0.18),
+        0 0 32px -2px rgba(232, 189, 112, 0.4);
+    }
+
+    /* Значок серии - у нижнего правого края аватара. */
+    .streakCorner {
+      top: 100px;
+      left: calc(50% + 34px);
+      right: auto;
+    }
+
+    .info {
+      align-items: center;
+      text-align: center;
+      gap: 4px;
+      padding-right: 0;
+      color: color-mix(in srgb, var(--v2-text) 78%, transparent);
+
+      .username {
+        color: var(--v2-text);
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+
+      .userHandle {
+        font-size: 16px;
+        color: color-mix(in srgb, var(--v2-text) 60%, transparent);
+      }
+
+      .userBio {
+        margin: 12px 0 8px;
+        font-size: 17px;
+        color: var(--v2-text);
+      }
+
+      .metaRow {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 6px 22px;
+        font-size: 14px;
+      }
+
+      .avatarLikesLine {
+        margin: 0;
+        font-size: 14px;
+        color: color-mix(in srgb, var(--v2-text) 85%, transparent);
+      }
+    }
+  }
+
+  .savedVersesSection,
+  .settingsSection,
+  .profileEdit {
+    border: 1px solid var(--v2-glass-border);
+    border-radius: 24px;
+    background: var(--v2-glass-bg);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      var(--v2-glass-shadow);
+  }
+
+  .savedVersesSection {
+    min-height: 0;
+    padding: 16px 18px;
+
+    .sectionHeader {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .verseItem {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--v2-glass-border);
+      border-radius: 14px;
+    }
+  }
+
+  .settingsSection {
+    padding: 14px 18px 8px;
+    gap: 2px;
+
+    .settingsSectionTitle {
+      color: color-mix(in srgb, var(--v2-text) 72%, transparent);
+      font-size: 15px;
+      font-weight: 600;
+    }
+  }
+
+  .signOut {
+    border-radius: 20px;
+    border: 1px solid var(--v2-glass-border);
+    background: var(--v2-glass-bg);
+  }
+}
+
+:global(html[data-design="v2"]) .signOut {
+  border-radius: 20px;
+  border-color: var(--v2-glass-border);
+  background: var(--v2-glass-bg);
+}
+
+/* Авторы иконок временно скрыты в новом дизайне (вернём позже). */
+:global(html[data-design="v2"]) .iconCredits {
+  display: none;
+}
+
+/* Логотип-овечка над заголовком: только в новом дизайне. */
+.profile .header .sheepLogo {
+  display: none;
+}
+:global(html[data-design="v2"]) .profile .header {
+  .sheepLogo {
+    display: block;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    filter: var(--v2-logo-filter) drop-shadow(0 0 12px rgba(255, 170, 130, 0.4));
+  }
+}
+
+/* Поле «Цвет фона» убрано из редактирования профиля в новом дизайне: фон выбирается в настройках («Фон приложения»). */
+:global(html[data-design="v2"]) .profile .bgColorField {
+  display: none;
+}

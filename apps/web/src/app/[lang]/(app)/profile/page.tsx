@@ -53,6 +53,8 @@ import { useLocale, useTranslations } from "next-intl";
 import BubbleStyleSettings, { BubbleStyleRow } from "@/components/BubbleStyleSettings/BubbleStyleSettings";
 import { canUseBubbleStyles } from "@/lib/bubbleStyles";
 import ChatBackgroundSettings from "@/components/ChatPrefs/ChatBackgroundSettings";
+import ChatLayoutSettings, { ChatLayoutRow } from "@/components/ChatPrefs/ChatLayoutSettings";
+import DesignBackgroundSettings, { DesignBackgroundRow } from "@/components/ChatPrefs/DesignBackgroundSettings";
 import FontSettings from "@/components/ChatPrefs/FontSettings";
 import { ChatBackgroundRow, FontRow } from "@/components/ChatPrefs/ChatPrefsRows";
 
@@ -99,6 +101,8 @@ export default function ProfilePage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [bubbleSettingsOpen, setBubbleSettingsOpen] = useState(false);
   const [bgSettingsOpen, setBgSettingsOpen] = useState(false);
+  const [designBgOpen, setDesignBgOpen] = useState(false);
+  const [chatLayoutOpen, setChatLayoutOpen] = useState(false);
   const [fontSettingsOpen, setFontSettingsOpen] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -659,6 +663,14 @@ export default function ProfilePage() {
     <section className={styles.profile}>
       <div className={styles.header}>
         <div className={styles.profileHeaderBar}>
+          <Image
+            src="/christ-app-sheep-outline.svg"
+            alt=""
+            width={44}
+            height={44}
+            className={styles.sheepLogo}
+            aria-hidden
+          />
           <h1>{t("title")}</h1>
           <div className={styles.headerActions}>
             <LanguageSwitcher variant="inline" />
@@ -757,8 +769,8 @@ export default function ProfilePage() {
             src={avatarPhotoSrc ?? undefined}
             initials={initials}
             colorSeed={user?.id ?? "profile"}
-            width={60}
-            height={60}
+            width={128}
+            height={128}
             imageClassName={styles.avatarImage}
             fallbackClassName={styles.avatarInitials}
             fallbackTag="span"
@@ -773,12 +785,14 @@ export default function ProfilePage() {
           {user?.bio?.trim() ? (
             <p className={styles.userBio}>{user.bio.trim()}</p>
           ) : null}
-          <span>{t("memberSince", { date: formattedDate })}</span>
-          <span className={styles.avatarLikesLine}>
-            {t("avatarLikesReceived", {
-              count: myAvatarLikes?.receivedCount ?? 0,
-            })}
-          </span>
+          <div className={styles.metaRow}>
+            <span>{t("memberSince", { date: formattedDate })}</span>
+            <span className={styles.avatarLikesLine}>
+              {t("avatarLikesReceived", {
+                count: myAvatarLikes?.receivedCount ?? 0,
+              })}
+            </span>
+          </div>
         </div>
         <StreakBadge
           className={styles.streakCorner}
@@ -825,7 +839,7 @@ export default function ProfilePage() {
             <span className={styles.bioHint}>{t("bioHint")}</span>
           </label>
 
-          <label className={styles.profileLabel}>
+          <label className={`${styles.profileLabel} ${styles.bgColorField}`}>
             {t("bgColor")}
             <span className={styles.colorRow}>
               <input
@@ -932,11 +946,15 @@ export default function ProfilePage() {
       <section className={styles.settingsSection} aria-label={tBubbles("settingsTitle")}>
         <h2 className={styles.settingsSectionTitle}>{tBubbles("settingsTitle")}</h2>
         {canUseBubbleStyles(user?.username) ? <BubbleStyleRow onOpen={() => setBubbleSettingsOpen(true)} /> : null}
+        <DesignBackgroundRow onOpen={() => setDesignBgOpen(true)} />
+        <ChatLayoutRow onOpen={() => setChatLayoutOpen(true)} />
         <ChatBackgroundRow onOpen={() => setBgSettingsOpen(true)} />
         <FontRow onOpen={() => setFontSettingsOpen(true)} />
         <GoogleSettingsRow />
       </section>
       {bubbleSettingsOpen ? <BubbleStyleSettings onClose={() => setBubbleSettingsOpen(false)} /> : null}
+      {chatLayoutOpen ? <ChatLayoutSettings onClose={() => setChatLayoutOpen(false)} /> : null}
+      {designBgOpen ? <DesignBackgroundSettings onClose={() => setDesignBgOpen(false)} /> : null}
       {bgSettingsOpen ? <ChatBackgroundSettings scope={{ kind: "default" }} onClose={() => setBgSettingsOpen(false)} /> : null}
       {fontSettingsOpen ? <FontSettings onClose={() => setFontSettingsOpen(false)} /> : null}
 

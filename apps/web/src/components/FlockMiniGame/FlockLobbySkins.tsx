@@ -162,12 +162,18 @@ function SkinTabs({ tabs, tab, onTab, isOwned }: { tabs: Props["tabs"]; tab: Ski
   );
 }
 
-/** Полноэкранная шторка «Усі обліки»: вкладки сверху, сетка категории, мини-превью выбранного и «Готово» внизу. */
+/** Полноэкранная шторка «Усі обліки»: все категории подряд на одном экране (прокрутка), мини-превью выбранного и «Готово» внизу. */
 function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, priceNode, renderTile, perks, buyBlock, onPeek, onSelect, skinName, currentSkin, previewSkin, artifact, tabHint }: Props & { initialTab: SkinTabKey; onClose: () => void }) {
   const t = useTranslations("flock");
-  const [tab, setTab] = useState<SkinTabKey>(initialTab);
   const [focus, setFocus] = useState<number>(previewSkin ?? currentSkin);
-  const active = tabs.find((x) => x.key === tab) ?? tabs[0];
+  const sectionRefs = useRef<Partial<Record<SkinTabKey, HTMLElement | null>>>({});
+
+  // Открыли шторку из вкладки: сразу прокручиваем к её секции (сами секции идут подряд, вкладок нет).
+  useLayoutEffect(() => {
+    if (initialTab === tabs[0]?.key) return;
+    sectionRefs.current[initialTab]?.scrollIntoView({ block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -196,14 +202,33 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
           <X size={20} aria-hidden />
         </button>
       </header>
-      <div className={styles.sheetTabs}>
-        <SkinTabs tabs={tabs} tab={tab} onTab={setTab} isOwned={isOwned} />
-        {tabHint?.(active.key)}
-      </div>
       <div className={styles.sheetScroll}>
-        <div className={styles.allGrid} role="radiogroup" aria-label={labelOf(t, active.key)}>
-          {active.ids.map((id) => renderTile(id, { focused: focus === id, onPick: () => pick(id) }))}
-        </div>
+        {tabs.map((x) => {
+          const have = x.ids.filter(isOwned).length;
+          return (
+            <section
+              key={x.key}
+              ref={(el) => {
+                sectionRefs.current[x.key] = el;
+              }}
+              className={styles.sheetSection}
+              aria-label={labelOf(t, x.key)}
+            >
+              <div className={styles.sheetSectionHead}>
+                <h3 className={styles.sheetSectionTitle}>{labelOf(t, x.key)}</h3>
+                {x.key !== "regular" ? (
+                  <span className={styles.sheetSectionCount} aria-label={t("lobby.ownedAria", { have, total: x.ids.length })}>
+                    {have}/{x.ids.length}
+                  </span>
+                ) : null}
+              </div>
+              {tabHint?.(x.key)}
+              <div className={styles.allGrid} role="radiogroup" aria-label={labelOf(t, x.key)}>
+                {x.ids.map((id) => renderTile(id, { focused: focus === id, onPick: () => pick(id) }))}
+              </div>
+            </section>
+          );
+        })}
       </div>
       <footer className={styles.sheetFoot}>
         <div className={styles.miniPreview}>

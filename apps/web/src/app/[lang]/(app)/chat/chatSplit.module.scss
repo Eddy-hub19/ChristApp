@@ -1,0 +1,63 @@
+/* Раскладка раздела «Чат»: на телефоне прозрачная обёртка, на ПК (новый дизайн) - две колонки как в Telegram. */
+.single {
+  display: contents;
+}
+
+.fullPane {
+  display: contents;
+}
+
+.split {
+  --chat-split-list-w: 380px;
+  /* Не растягиваем на весь монитор: окно переписки чуть компактнее, колонки по центру. */
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: var(--chat-split-list-w) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.listPane {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  /* Навбар стоит поверх нижней части списка: оставляем под него место. */
+  > section {
+    padding-bottom: 112px;
+  }
+}
+
+.roomPane {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid var(--v2-glass-border, rgba(255, 214, 170, 0.2));
+  background: rgba(24, 12, 32, 0.35);
+}
+
+.empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.emptyBadge {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 214, 170, 0.22);
+  color: color-mix(in srgb, var(--v2-text) 80%, transparent);
+  font-size: 14px;
+}

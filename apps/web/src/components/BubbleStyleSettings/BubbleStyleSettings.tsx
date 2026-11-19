@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -61,6 +62,9 @@ export function BubbleStyleRow({ onOpen }: { onOpen: () => void }) {
   const saved = normalizeBubbleStyle(user?.bubbleStyle);
   return (
     <button type="button" className={styles.row} onClick={onOpen} aria-haspopup="dialog">
+      <span className={styles.rowIcon} aria-hidden>
+        <MessageCircle size={22} strokeWidth={1.8} />
+      </span>
       <span className={styles.rowTitle}>{t("title")}</span>
       <span className={styles.current}>
         <span className={styles.currentName}>{t(`styles.${saved}`)}</span>
@@ -149,6 +153,7 @@ export default function BubbleStyleSettings({ onClose }: { onClose: () => void }
               type="button"
               role="radio"
               aria-checked={current === id}
+              data-bubble-style-card={id}
               className={`${styles.card} ${current === id ? styles.cardActive : ""}`}
               onClick={() => setDraft(id)}
             >

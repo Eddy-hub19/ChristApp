@@ -1,6 +1,6 @@
 # ChristApp
 
-Bible chat app for reading the Bible, sharing verses, and building Christian community.
+Christ App for reading the Bible, sharing verses, and building Christian community.
 
 ## Monorepo
 
