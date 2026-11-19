@@ -1,15 +1,15 @@
 /** Де живе база (за хостом з DATABASE_URL; пароль і логін не читаємо й не віддаємо). */
 export type DbLocation = {
   host: string;
-  /** `neon` | `other` */
+  /** Сейчас всегда `postgres`. */
   vendor: string;
   /** Регіон хмари, напр. `us-east-1` (null, якщо в хості його нема). */
   region: string | null;
-  /** Хост із суфіксом `-pooler` (PgBouncer у Neon). Для не-Neon хостів null: невідомо. */
+  /** Через пулер ли идёт подключение; null - неизвестно. */
   pooled: boolean | null;
 };
 
-/** `ep-name-123456[-pooler].us-east-1.aws.neon.tech` -> регіон і пулер. */
+/** Хост з DATABASE_URL (без логіна й пароля). */
 export function describeDatabaseUrl(
   url: string | undefined = process.env.DATABASE_URL,
 ): DbLocation | null {
@@ -19,22 +19,10 @@ export function describeDatabaseUrl(
   } catch {
     return null;
   }
-  const neon =
-    /^(ep-[a-z0-9-]+?)(-pooler)?\.([a-z0-9-]+)\.(?:aws|azure)\.neon\.tech$/i.exec(
-      host,
-    );
-  if (neon) {
-    return {
-      host,
-      vendor: 'neon',
-      region: neon[3].toLowerCase(),
-      pooled: Boolean(neon[2]),
-    };
-  }
-  return { host, vendor: 'other', region: null, pooled: null };
+  return { host, vendor: 'postgres', region: null, pooled: null };
 }
 
-/** Регіони Render -> регіон AWS, у якому вони розміщені (для порівняння з регіоном Neon). */
+/** Регіони Render -> регіон AWS, у якому вони розміщені (для порівняння з регіоном бази). */
 export const RENDER_REGION_TO_AWS: Record<string, string> = {
   oregon: 'us-west-2',
   ohio: 'us-east-2',

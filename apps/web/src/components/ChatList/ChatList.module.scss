@@ -1220,21 +1220,26 @@ html[data-theme="light"] .chatListSection {
   margin-top: 12px;
 }
 
+/* Карточки-приглашения: по центру название, под ним текст и «картинка» (овечки / клаппер). */
 :global(html[data-design="v2"]) .promoCard {
   position: relative;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "art title"
-    "text text";
+    "title"
+    "text"
+    "art";
+  justify-items: center;
   align-items: center;
-  gap: 4px 8px;
+  gap: 3px;
   min-width: 0;
-  padding: 8px 12px 9px 9px;
+  min-height: 132px;
+  padding: 16px 12px 22px;
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid var(--v2-glass-border);
   color: var(--v2-text);
+  text-align: center;
   text-decoration: none;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -1247,7 +1252,6 @@ html[data-theme="light"] .chatListSection {
 
   &:hover {
     transform: translateY(-1px);
-    border-color: rgba(232, 189, 112, 0.55);
   }
 
   &:active {
@@ -1255,44 +1259,96 @@ html[data-theme="light"] .chatListSection {
   }
 }
 
+/* «Отара»: зелёная лужайка, трава растёт по нижнему и верхнему краю и по бокам-уголкам. */
 :global(html[data-design="v2"]) .promoFlock {
+  border-color: rgba(88, 190, 118, 0.55);
   background:
-    radial-gradient(80% 120% at 0% 0%, rgba(60, 170, 110, 0.4), transparent 70%),
+    radial-gradient(90% 70% at 50% 100%, rgba(70, 180, 100, 0.45), transparent 75%),
+    radial-gradient(70% 60% at 50% 0%, rgba(120, 210, 150, 0.16), transparent 75%),
     var(--v2-glass-bg);
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='16' viewBox='0 0 36 16'%3E%3Cpath d='M0 16 L3 4 L6 16 M5 16 L9 1 L13 16 M12 16 L15 6 L18 16 M17 16 L22 2 L26 16 M25 16 L28 7 L31 16 M30 16 L34 3 L36 16 Z' fill='%2342a85f'/%3E%3Cpath d='M2 16 L6 7 L9 16 M14 16 L18 8 L21 16 M27 16 L31 8 L34 16 Z' fill='%232f8a4a'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+  }
+
+  &::after {
+    bottom: -1px;
+    height: 16px;
+    background-size: 36px 16px;
+    background-position: 0 bottom;
+  }
+
+  &::before {
+    top: -1px;
+    height: 9px;
+    background-size: 22px 9px;
+    transform: scaleY(-1);
+    opacity: 0.7;
+  }
+
+  &:hover {
+    border-color: rgba(120, 220, 145, 0.8);
+  }
 }
 
+/* «Киношка»: тёмный зал, лучи проектора и кинолента с перфорацией сверху и снизу. */
 :global(html[data-design="v2"]) .promoCinema {
+  border-color: rgba(232, 189, 112, 0.5);
   background:
-    radial-gradient(80% 120% at 0% 0%, rgba(232, 189, 112, 0.38), transparent 70%),
-    var(--v2-glass-bg);
-}
+    conic-gradient(from 180deg at 50% -10%, transparent 150deg, rgba(255, 226, 160, 0.22) 172deg, rgba(255, 226, 160, 0.22) 188deg, transparent 210deg),
+    radial-gradient(90% 80% at 50% 0%, rgba(214, 70, 70, 0.28), transparent 75%),
+    linear-gradient(180deg, rgba(36, 14, 20, 0.92), rgba(14, 8, 12, 0.96));
 
-/* «Новое»: маленькая золотая точка в углу вместо надписи. */
-:global(html[data-design="v2"]) .promoBadge {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 25%, #f6dfb0 0%, #e8bd70 60%, #c98f4d 100%);
-  box-shadow: 0 0 8px rgba(232, 189, 112, 0.7);
-  font-size: 0;
-  overflow: hidden;
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 12px;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 244, 214, 0.85) 0 6px, transparent 6px 13px) 4px 3px / 100% 6px no-repeat,
+      #0b0709;
+  }
+
+  &::before {
+    top: 0;
+  }
+
+  &::after {
+    bottom: 0;
+  }
+
+  &:hover {
+    border-color: rgba(246, 210, 140, 0.85);
+  }
 }
 
 :global(html[data-design="v2"]) .promoArt {
   grid-area: art;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 4px;
   color: var(--v2-title);
 }
 
-:global(html[data-design="v2"]) .promoArt svg {
-  width: 26px;
-  height: 26px;
+:global(html[data-design="v2"]) .promoCinema .promoArt {
+  color: #f6dfb0;
+  filter: drop-shadow(0 0 10px rgba(246, 223, 176, 0.55));
+}
+
+:global(html[data-design="v2"]) .promoSheep canvas {
+  filter: drop-shadow(0 3px 4px rgba(0, 20, 8, 0.45));
 }
 
 :global(html[data-design="v2"]) .promoTitle {

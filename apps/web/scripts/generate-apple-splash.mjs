@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Генерує PNG для `apple-touch-startup-image`: тёмний фон застосунку + хрест по центру,
- * в стилі екрана завантаження (SplashScreen/ServerStartupScreen), щоб iOS показував його
- * замість порожнього білого/чорного екрана під час холодного старту PWA.
+ * Генерує PNG для `apple-touch-startup-image`: фон «Ліс» (зелений) нового дизайну (див. DesignBackdrop /
+ * styles/designV2.scss) + овечка (public/sheep-bubble.webp) по центру. Це статична картинка, яку iOS
+ * показує до запуску будь-якого коду, тому анімації тут бути не може; далі SplashScreen показує ту
+ * саму овечку вже анімованою.
  *
  * Запуск: node scripts/generate-apple-splash.mjs
  * Вихід: public/splash/apple-splash-<width>x<height>.png (по одному на кожну орієнтацію профілю).
@@ -15,8 +16,9 @@ import sharp from "sharp";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(__dirname, "..", "public", "splash");
 
-const BG = "#17151a";
-const CROSS = "#d4af37";
+const SHEEP_PATH = path.join(__dirname, "..", "public", "sheep-bubble.webp");
+/** Ширина овечки відносно короткої сторони екрана. */
+const SHEEP_SCALE = 0.5;
 
 /** Логічні (CSS) розміри портрету + пікс. щільність — iOS завжди звітує device-width/height у портретній орієнтації. */
 export const DEVICE_PROFILES = [
@@ -32,22 +34,32 @@ export const DEVICE_PROFILES = [
   { id: "14-pro-max", w: 430, h: 932, dpr: 3 },
 ];
 
+/** Градієнти повторюють фон «Ліс» (зелений) з designV2.scss (html[data-design-bg="forest"] [data-design-backdrop]). */
 function splashSvg(width, height) {
-  const shortSide = Math.min(width, height);
-  const crossHalf = shortSide * 0.09;
-  const stroke = Math.max(6, shortSide * 0.02);
-  const cx = width / 2;
-  const cy = height / 2;
+  const glow = (id, cx, cy, rx, ry, color) => `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${cx * width}" cy="${cy * height}" r="1" gradientTransform="translate(${cx * width} ${cy * height}) scale(${rx * width} ${ry * height}) translate(${-cx * width} ${-cy * height})"><stop offset="0" stop-color="${color}" /><stop offset="1" stop-color="${color}" stop-opacity="0" /></radialGradient>`;
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${width}" height="${height}" fill="${BG}" />
-  <path d="M ${cx} ${cy - crossHalf} V ${cy + crossHalf} M ${cx - crossHalf} ${cy - crossHalf * 0.25} H ${cx + crossHalf}" fill="none" stroke="${CROSS}" stroke-width="${stroke}" stroke-linecap="round" />
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1f16" /><stop offset="0.55" stop-color="#07150f" /><stop offset="1" stop-color="#040b08" /></linearGradient>
+    ${glow("g1", 0.08, 0.14, 0.6, 0.4, "rgba(38,148,98,0.45)")}
+    ${glow("g2", 0.96, 0.94, 0.55, 0.4, "rgba(24,112,76,0.42)")}
+    ${glow("g3", 0.7, 0.08, 0.4, 0.3, "rgba(90,190,140,0.12)")}
+  </defs>
+  <rect width="${width}" height="${height}" fill="url(#base)" />
+  <rect width="${width}" height="${height}" fill="url(#g1)" />
+  <rect width="${width}" height="${height}" fill="url(#g2)" />
+  <rect width="${width}" height="${height}" fill="url(#g3)" />
 </svg>`;
 }
 
 async function renderOne(width, height) {
   const fileName = `apple-splash-${width}x${height}.png`;
-  const svg = splashSvg(width, height);
-  await sharp(Buffer.from(svg)).png().toFile(path.join(OUT_DIR, fileName));
+  const sheepWidth = Math.round(Math.min(width, height) * SHEEP_SCALE);
+  const sheep = await sharp(SHEEP_PATH).resize({ width: sheepWidth }).png().toBuffer();
+  const { width: sw, height: sh } = await sharp(sheep).metadata();
+  await sharp(Buffer.from(splashSvg(width, height)))
+    .composite([{ input: sheep, left: Math.round((width - sw) / 2), top: Math.round((height - sh) / 2) }])
+    .png()
+    .toFile(path.join(OUT_DIR, fileName));
   return fileName;
 }
 

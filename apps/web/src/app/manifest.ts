@@ -16,8 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     lang: "ru",
     /** Той самий темний фон, що й екран завантаження (`SplashScreen`/`ServerStartupScreen`) — без спалаху іншого кольору між системною заставкою й першим пейнтом. */
-    background_color: "#17151a",
-    theme_color: "#17151a",
+    background_color: "#06120d",
+    theme_color: "#06120d",
     categories: ["books", "education", "lifestyle"],
     icons: [
       {

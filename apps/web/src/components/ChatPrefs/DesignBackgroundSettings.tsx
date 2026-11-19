@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Image as ImageIcon } from "lucide-react";
 import {
+  DEFAULT_DESIGN_BACKGROUND,
   DESIGN_BACKGROUNDS,
   getDesignBackground,
   setDesignBackground,
@@ -15,7 +16,7 @@ import styles from "./DesignBackgroundSettings.module.scss";
 
 /** Текущий выбор (читаем с <html> после монтирования: на сервере его нет). */
 function useDesignBackground() {
-  const [id, setId] = useState<DesignBackgroundId>("plum");
+  const [id, setId] = useState<DesignBackgroundId>(DEFAULT_DESIGN_BACKGROUND);
   useEffect(() => setId(getDesignBackground()), []);
   const choose = (next: DesignBackgroundId) => {
     setDesignBackground(next);
