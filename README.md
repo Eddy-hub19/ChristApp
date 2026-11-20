@@ -23,7 +23,7 @@ npm workspaces, one root `package-lock.json`:
 
 Env files are not tracked by git; create them yourself with the keys the compose files and apps read.
 
-Running the backend without Docker (`npm run dev`): it reads only the root `.env.local` and `.env.development` (`apps/backend/src/load-env.ts`), `.env.local` wins; variables already set in the environment are never overwritten. `apps/backend/.env` is not read any more. Put `DATABASE_URL` (a local Postgres) into `.env.local`: in Docker it is built by the compose file from `DB_*`, so `.env.development` does not have it.
+Running the backend without Docker (`npm run dev`): it reads only the root `.env.local` and `.env.development` (`apps/backend/src/load-env.ts`), `.env.local` wins; variables already set in the environment are never overwritten. `apps/backend/.env` is not read any more. `npm run dev` first runs `scripts/dev-db.mjs`, which starts a local Postgres (data in `~/.local/christapp-pg`, port 5433; override with `LOCAL_PG_DATA` / `LOCAL_PG_PORT` / `PG_BIN`) if it exists and is not running; it does nothing when that folder is absent. Put `DATABASE_URL` (a local Postgres) into `.env.local`: in Docker it is built by the compose file from `DB_*`, so `.env.development` does not have it.
 
 ### Network and nginx
 
