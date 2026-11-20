@@ -58,6 +58,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Next 16 генерує лише сучасний `mobile-web-app-capable` для appleWebApp.capable;
             старий vendor-tag лишаємо вручну під iOS-версії, що ще не знають новий. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* Овечка заставки грузится заранее: SVG-<image> иначе начинает качать её только после разбора разметки. */}
+        <link rel="preload" as="image" href="/sheep-bubble.webp" type="image/webp" />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: DESIGN_BOOTSTRAP_SCRIPT }} />
         {preconnectOrigin ? (
