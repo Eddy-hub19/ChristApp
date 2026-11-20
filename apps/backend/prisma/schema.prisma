@@ -40,6 +40,7 @@ model User {
   roomReadStates    RoomReadState[]
   savedVerses       SavedVerse[]
   reactions         Reaction[]
+  messagePins       MessagePin[]      @relation("MessagePinnedBy")
   refreshSessions   RefreshSession[]
   authIdentities    AuthIdentity[]
   /// false у нового Google-пользователя, пока он не выбрал @username (без этого в приложение не пускаем).
@@ -143,6 +144,7 @@ model Message {
   sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions Reaction[]
   voiceListens VoiceMessageListen[]
+  pins      MessagePin[]
 
   @@unique([senderId, clientMessageId])
   @@index([roomId, createdAt])
@@ -174,6 +176,21 @@ model Reaction {
   @@index([messageId, createdAt])
 }
 
+/// Закріплене повідомлення чату (до 3 на чат; лімітом і правами керує сервер). Видалення повідомлення знімає закріплення.
+model MessagePin {
+  id         String   @id @default(uuid())
+  roomId     String   @db.Uuid
+  messageId  String
+  pinnedById String
+  createdAt  DateTime @default(now())
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy   User     @relation("MessagePinnedBy", fields: [pinnedById], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, messageId])
+  @@index([roomId, createdAt])
+}
+
 model Room {
   id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title      String          @unique
@@ -181,6 +198,7 @@ model Room {
   messages   Message[]
   members    RoomMember[]
   readStates RoomReadState[]
+  pins       MessagePin[]
 }
 
 model RoomMember {

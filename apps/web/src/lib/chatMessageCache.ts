@@ -18,6 +18,8 @@ type CacheEntry<T> = {
   messages: T[];
   /** Кто до какого момента дочитал чат: { userId: ISO lastReadAt } (из RoomReadState). */
   readStates?: Record<string, string>;
+  /** Закреплённые сообщения чата (RoomPinDto с сервера). */
+  pins?: unknown[];
 };
 
 export function trimForCache<T>(messages: T[], limit = CACHED_MESSAGES_LIMIT): T[] {
@@ -79,6 +81,7 @@ export async function writeCachedMessages<T>(userId: string, roomId: string, mes
           savedAt: Date.now(),
           messages: trimForCache(messages),
           ...(prev && prev.userId === userId && prev.readStates ? { readStates: prev.readStates } : {}),
+          ...(prev && prev.userId === userId && prev.pins ? { pins: prev.pins } : {}),
         };
         store.put(entry, key);
       };
@@ -127,6 +130,52 @@ export async function writeCachedReadStates(userId: string, roomId: string, read
         const base: CacheEntry<unknown> =
           prev && prev.userId === userId ? prev : { userId, savedAt: Date.now(), messages: [] };
         store.put({ ...base, readStates }, key);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+  db.close();
+}
+
+/** Закреплённые сообщения из кеша: полоска над чатом видна сразу, до ответа сервера. */
+export async function readCachedPins<T>(userId: string, roomId: string): Promise<T[] | null> {
+  const db = await openDb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(STORE).objectStore(STORE).get(cacheKey(userId, roomId));
+      request.onsuccess = () => {
+        const entry = request.result as CacheEntry<unknown> | undefined;
+        resolve(entry && entry.userId === userId && Array.isArray(entry.pins) ? (entry.pins as T[]) : null);
+      };
+      request.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    } finally {
+      db.close();
+    }
+  });
+}
+
+/** Сохраняет закреплённые сообщения чата (в ту же запись, что и сообщения). */
+export async function writeCachedPins(userId: string, roomId: string, pins: unknown[]): Promise<void> {
+  const db = await openDb();
+  if (!db) return;
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const key = cacheKey(userId, roomId);
+      const getReq = store.get(key);
+      getReq.onsuccess = () => {
+        const prev = getReq.result as CacheEntry<unknown> | undefined;
+        const base: CacheEntry<unknown> =
+          prev && prev.userId === userId ? prev : { userId, savedAt: Date.now(), messages: [] };
+        store.put({ ...base, pins }, key);
       };
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();

@@ -709,6 +709,8 @@ export class ChatGateway
         skip,
       );
 
+      const pins = await this.messagesService.getRoomPins(roomId);
+
       const readStates = await this.prisma.roomReadState.findMany({
         where: { roomId },
         select: {
@@ -751,6 +753,7 @@ export class ChatGateway
         messages: history,
         plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
         readStates: readStatesPayload.readStates,
+        pins,
       });
 
       client.emit('roomReadStates', readStatesPayload);
@@ -2778,6 +2781,89 @@ export class ChatGateway
         error: 'Ошибка редактирования сообщения',
       });
     }
+  }
+
+  /**
+   * Закрепление и открепление: в личных чатах могут оба участника, в общем - только админ. Ограничение в 3 закрепа на чат,
+   * при успехе вся комната получает свежий список (`pinsUpdated`), при закреплении - ещё `messagePinned` для системной строки.
+   */
+  private async resolvePinAccess(
+    client: SocketWithUser,
+    data: { chatId?: unknown; messageId?: unknown },
+  ): Promise<{
+    user: NonNullable<Awaited<ReturnType<ChatGateway['resolveSocketUser']>>>;
+    chatId: string;
+    messageId: string;
+  } | null> {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('error', 'Не авторизован');
+      return null;
+    }
+    const chatId = typeof data?.chatId === 'string' ? data.chatId.trim() : '';
+    const messageId =
+      typeof data?.messageId === 'string' ? data.messageId.trim() : '';
+    if (!chatId || !messageId) {
+      client.emit('error', 'messageId и chatId обязательны');
+      return null;
+    }
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, chatId);
+    const isGlobal = chatId === this.GLOBAL_ROOM;
+    if (!hasAccess || (isGlobal && !isAdminDashboardUsername(user.username))) {
+      client.emit('pinError', { messageId, reason: 'forbidden' });
+      return null;
+    }
+    return { user, chatId, messageId };
+  }
+
+  @SubscribeMessage('pin-message')
+  async handlePinMessage(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() data: { chatId?: string; messageId?: string },
+  ) {
+    const ctx = await this.resolvePinAccess(client, data);
+    if (!ctx) return;
+    const result = await this.messagesService.pinMessage(
+      ctx.chatId,
+      ctx.messageId,
+      ctx.user.id,
+    );
+    if (!result.ok) {
+      client.emit('pinError', {
+        messageId: ctx.messageId,
+        reason: result.reason,
+      });
+      return;
+    }
+    const pins = await this.messagesService.getRoomPins(ctx.chatId);
+    this.server.to(ctx.chatId).emit('pinsUpdated', {
+      roomId: ctx.chatId,
+      pins,
+    });
+    if (!result.alreadyPinned) {
+      // Только для системной строки в открытом чате: без пуша и без записи в историю сообщений.
+      this.server.to(ctx.chatId).emit('messagePinned', {
+        roomId: ctx.chatId,
+        messageId: ctx.messageId,
+        userId: ctx.user.id,
+        name: ctx.user.nickname || ctx.user.username,
+      });
+    }
+  }
+
+  @SubscribeMessage('unpin-message')
+  async handleUnpinMessage(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() data: { chatId?: string; messageId?: string },
+  ) {
+    const ctx = await this.resolvePinAccess(client, data);
+    if (!ctx) return;
+    await this.messagesService.unpinMessage(ctx.chatId, ctx.messageId);
+    const pins = await this.messagesService.getRoomPins(ctx.chatId);
+    this.server.to(ctx.chatId).emit('pinsUpdated', {
+      roomId: ctx.chatId,
+      pins,
+    });
   }
 
   @SubscribeMessage('toggle-reaction')

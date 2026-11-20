@@ -168,6 +168,18 @@ html[data-theme="light"] .recentDividerLine {
   );
 }
 
+.systemNote {
+  align-self: center;
+  max-width: 90%;
+  margin: 6px 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 80%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .typingLane {
   display: flex;
   align-items: center;

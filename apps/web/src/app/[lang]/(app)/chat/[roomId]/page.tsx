@@ -36,6 +36,8 @@ import {
   SHARE_WITH_JESUS_SLUG,
 } from "@/lib/chatRooms";
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
+import PinnedBar from "@/components/ChatShared/PinnedBar";
+import type { RoomPin } from "@/types/pin";
 import {
   parseLegacyReplyPrefix,
   stripLegacyReplyPrefix,
@@ -49,8 +51,10 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { reconcileMessages } from "@/lib/chatReconcile";
 import {
   readCachedMessages,
+  readCachedPins,
   readCachedReadStates,
   writeCachedMessages,
+  writeCachedPins,
   writeCachedReadStates,
 } from "@/lib/chatMessageCache";
 import {
@@ -237,6 +241,8 @@ type RoomHistoryPayload = {
   messages: IncomingSocketMessage[];
   /** Кто до какого момента дочитал чат: приходит вместе с историей (RoomReadState на сервере). */
   readStates?: Array<{ userId?: string; lastReadAt?: string | Date }>;
+  /** Закреплённые сообщения чата. */
+  pins?: RoomPin[];
 };
 
 type OnlineUsersPayload = {
@@ -673,6 +679,9 @@ export default function ChatPageDetails() {
     Map<string, { username: string; activity: "text" | "voice" }>
   >(() => new Map());
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null);
+  /** Закреплённые сообщения текущего чата (до 3) и разовые системные строки («X закрепил сообщение»). */
+  const [pins, setPins] = useState<RoomPin[]>([]);
+  const [systemNotes, setSystemNotes] = useState<Array<{ id: string; text: string }>>([]);
   const [roomReadStatesByUserId, setRoomReadStatesByUserId] = useState<
     Map<string, string>
   >(() => new Map());
@@ -1297,6 +1306,11 @@ export default function ChatPageDetails() {
       setMessages(uniqueHistory);
       setIsHistoryLoading(false);
     });
+    // Закреплённые из кеша: полоска видна сразу (серверные данные потом перезапишут).
+    void readCachedPins<RoomPin>(userId, effectiveSocketRoomId).then((cachedPins) => {
+      if (cancelled || !cachedPins?.length) return;
+      setPins((prev) => (prev.length ? prev : cachedPins));
+    });
     // Отметки «Переглянуто» из кеша: видны сразу, до ответа сервера и без сети.
     void readCachedReadStates(userId, effectiveSocketRoomId).then((cachedReads) => {
       if (cancelled || !cachedReads) return;
@@ -1329,6 +1343,16 @@ export default function ChatPageDetails() {
     }, 800);
     return () => window.clearTimeout(timer);
   }, [roomReadStatesByUserId, user?.id, effectiveSocketRoomId]);
+
+  // Закреплённые тоже в кеш (в т.ч. пустой список: сняли закреп - в кеше он не остаётся).
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !effectiveSocketRoomId || !historyAppliedRef.current) return;
+    const timer = window.setTimeout(() => {
+      void writeCachedPins(userId, effectiveSocketRoomId, pins);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [pins, user?.id, effectiveSocketRoomId]);
 
   useEffect(() => {
     if (showSkeleton) setSkeletonWasShown(true);
@@ -1423,6 +1447,8 @@ export default function ChatPageDetails() {
     typingTextEmitRef.current = false;
     typingVoiceEmitRef.current = false;
     setPeerLastReadAt(null);
+    setPins([]);
+    setSystemNotes([]);
     setLastSeenByUserId(new Map());
     setRoomReadStatesByUserId(new Map());
     setIsAvatarPreviewOpen(false);
@@ -1682,6 +1708,8 @@ export default function ChatPageDetails() {
           ),
       );
 
+      // Сообщение удалено - сервер каскадно снял закреп, убираем его и в полоске.
+      setPins((prev) => prev.filter((pin) => pin.messageId !== deletedMessageId));
       setReplyToMessage((prev) =>
         prev?.id === deletedMessageId ? null : prev,
       );
@@ -1749,11 +1777,13 @@ export default function ChatPageDetails() {
       roomId: historyRoomId,
       messages: history,
       readStates: historyReadStates,
+      pins: historyPins,
     }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return;
       }
       applyReadStatesRef.current(historyReadStates);
+      if (historyPins) setPins(historyPins);
 
       awaitingRoomHistoryRef.current = false;
 
@@ -2037,6 +2067,26 @@ export default function ChatPageDetails() {
       applyReadStatesRef.current(payload.readStates);
     };
     socket.on("roomReadStates", onRoomReadStates);
+
+    const onPinsUpdated = (payload: { roomId?: string; pins?: RoomPin[] }) => {
+      if (!payload?.roomId || payload.roomId !== joinedRoomRef.current) return;
+      setPins(Array.isArray(payload.pins) ? payload.pins : []);
+    };
+    socket.on("pinsUpdated", onPinsUpdated);
+
+    // Системная строка «X закрепил(а) сообщение»: только в открытом чате, без пуша и без записи в историю.
+    const onMessagePinned = (payload: { roomId?: string; name?: string; messageId?: string }) => {
+      if (!payload?.roomId || payload.roomId !== joinedRoomRef.current) return;
+      const text = tShared("pinnedBySystem", { name: payload.name || "" });
+      const note = { id: `pin-${payload.messageId ?? ""}-${Date.now()}`, text };
+      setSystemNotes((prev) => [...prev.slice(-4), note]);
+    };
+    socket.on("messagePinned", onMessagePinned);
+
+    const onPinError = (payload: { reason?: string }) => {
+      window.alert(tShared(payload?.reason === "limit" ? "pinLimit" : "pinForbidden"));
+    };
+    socket.on("pinError", onPinError);
 
     const onUpdateMessageReactions = (
       payload: UpdateMessageReactionsPayload,
@@ -2376,6 +2426,9 @@ export default function ChatPageDetails() {
       socket.off("userJoinedRoom", onUserJoinedRoom);
       socket.off("roomReadUpdated", onRoomReadUpdated);
       socket.off("roomReadStates", onRoomReadStates);
+      socket.off("pinsUpdated", onPinsUpdated);
+      socket.off("messagePinned", onMessagePinned);
+      socket.off("pinError", onPinError);
       socket.off("update-message-reactions", onUpdateMessageReactions);
       socket.off("reactionError", onReactionError);
       socket.off("incoming-call", onIncomingCall);
@@ -3379,6 +3432,24 @@ export default function ChatPageDetails() {
    * Затримане ехо (повільна мережа, перепідключення) реакцію не скасовує; відкат — лише за `reactionError`
    * або якщо після перепідключення сервер так і не підтвердив (див. `PendingReactions`).
    */
+  /** Закрепить / открепить: в личных чатах могут оба, в общем - админ (сервер проверяет права и лимит в 3). */
+  const canPinMessages = Boolean(
+    effectiveSocketRoomId && (roomId !== GLOBAL_ROOM_ID || canModerateMessages),
+  );
+  const pinnedMessageIds = useMemo(() => new Set(pins.map((pin) => pin.messageId)), [pins]);
+  const handleTogglePin = useCallback(
+    (message: Message, pin: boolean) => {
+      const socket = socketRef.current;
+      if (!socket || !socket.connected || !effectiveSocketRoomId) return;
+      if (isOptimisticMessageId(message.id)) return;
+      socket.emit(pin ? "pin-message" : "unpin-message", {
+        chatId: effectiveSocketRoomId,
+        messageId: message.id,
+      });
+    },
+    [effectiveSocketRoomId],
+  );
+
   const handleToggleReaction = useCallback(
     (message: Message, reaction: AppReactionType) => {
       const targetRoomId = effectiveSocketRoomId;
@@ -4183,6 +4254,9 @@ export default function ChatPageDetails() {
       onMissingReferencedMessage={handleMissingReferencedMessage}
       onEditMessage={handleStartEditMessage}
       onDeleteMessage={handleDeleteMessage}
+      onTogglePin={canPinMessages ? handleTogglePin : undefined}
+      pinnedMessageIds={pinnedMessageIds}
+      systemNotes={systemNotes}
       canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
       canModerateMessages={canModerateMessages}
       topBanner={shareJesusParchmentBanner}
@@ -4402,6 +4476,10 @@ export default function ChatPageDetails() {
             </div>
           </div>
         </div>
+
+        {!authError && !isHistoryLoading && pins.length > 0 ? (
+          <PinnedBar pins={pins} onOpen={(messageId) => jumpToMessageRef.current?.(messageId)} />
+        ) : null}
 
         {authError ? (
           <p className={styles.stateMessage}>{authError}</p>

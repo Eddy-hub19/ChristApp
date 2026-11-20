@@ -1079,6 +1079,15 @@
     }
   },
   "chatShared": {
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pinnedMessage": "Pinned message",
+    "pinPrev": "Previous pinned",
+    "pinNext": "Next pinned",
+    "pinCounter": "{index} of {total}",
+    "pinnedBySystem": "{name} pinned a message",
+    "pinLimit": "You can pin up to 3 messages. Unpin one first.",
+    "pinForbidden": "Only an administrator can pin messages here.",
     "reply": "Reply",
     "copy": "Copy",
     "edit": "Edit",

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Download, PenLine, Reply, Share, Trash2 } from "lucide-react";
+import { Copy, Download, Pin, PinOff, PenLine, Reply, Share, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import styles from "./ChatShared.module.scss";
 
@@ -31,6 +31,9 @@ type MessageActionMenuProps = {
   onShare?: () => void;
   shareMode?: "share" | "download";
   onEdit?: () => void;
+  /** «Закрепить» / «Открепить» (если задано; в Киношке не нужно). */
+  onTogglePin?: () => void;
+  isPinned?: boolean;
   onDelete?: () => void;
   onClose: () => void;
 };
@@ -68,6 +71,8 @@ export default function MessageActionMenu({
   onShare,
   shareMode = "download",
   onEdit,
+  onTogglePin,
+  isPinned = false,
   onDelete,
   onClose,
 }: MessageActionMenuProps) {
@@ -141,6 +146,14 @@ export default function MessageActionMenu({
       label: shareMode === "share" ? t("openIn") : t("download"),
       icon: shareMode === "share" ? <Share size={17} /> : <Download size={17} />,
       onClick: run(onShare),
+    });
+  }
+  if (onTogglePin) {
+    actions.push({
+      key: "pin",
+      label: isPinned ? t("unpin") : t("pin"),
+      icon: isPinned ? <PinOff size={17} /> : <Pin size={17} />,
+      onClick: run(onTogglePin),
     });
   }
   if (onEdit) {

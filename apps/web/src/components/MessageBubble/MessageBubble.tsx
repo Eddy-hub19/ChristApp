@@ -68,6 +68,9 @@ type MessageBubbleProps = {
   onReply?: (message: Message) => void;
   onDelete?: (message: Message) => void;
   onEdit?: (message: Message) => void;
+  /** Закрепить / открепить сообщение (меню); `pin` - нужное состояние. Нет обработчика - пункта нет. */
+  onTogglePin?: (message: Message, pin: boolean) => void;
+  isPinned?: boolean;
   canDeleteOwnMessage?: boolean;
   canDeleteAnyMessage?: boolean;
   showReadReceipt?: boolean;
@@ -339,6 +342,8 @@ function MessageBubble({
   onReply,
   onDelete,
   onEdit,
+  onTogglePin,
+  isPinned,
   canDeleteOwnMessage = false,
   onRetryUnsent,
   onDismissUnsent,
@@ -942,6 +947,10 @@ function MessageBubble({
       onShare={handleShareBook}
       shareMode={canShareFiles() ? "share" : "download"}
       onEdit={canEditThisMessage ? handleEditClick : undefined}
+      onTogglePin={
+        onTogglePin && !message.deliveryStatus ? () => onTogglePin(message, !isPinned) : undefined
+      }
+      isPinned={isPinned}
       onDelete={canDeleteThisMessage ? handleDeleteClick : undefined}
       onClose={closeMenu}
     />
