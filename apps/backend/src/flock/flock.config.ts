@@ -384,6 +384,19 @@ export const FLOCK_CONFIG = {
   },
 
   /**
+   * Карта «Цукеркова країна» (FLOCK_MAPS, id 8): зони створюються разом з ареною (випадково, не в центрі, не біля країв, не перетинаються)
+   * й один раз йдуть клієнтам у welcome. Нічого не вбивають, лише уповільнюють клітину на slowFraction.
+   * puddles - карамельні калюжі; sticky - липка карамель (сильніше; там не з'являються їжа, бонуси й гравці, боти її об'їжджають).
+   */
+  candy: {
+    puddles: { min: 8, max: 12, radiusMin: 90, radiusMax: 150, slowFraction: 0.3 },
+    sticky: { min: 3, max: 5, radiusMin: 110, radiusMax: 170, slowFraction: 0.45 },
+    centerClear: 450,
+    edgeMargin: 200,
+    gap: 90,
+  },
+
+  /**
    * «Лавові чудовиська» (лише карти з лавою): орда з min..max істот, що нападають на найближчу людину. Швидші за гравця
    * тієї ж маси на speedMultiplier - 1, маса невелика, ділитися не вміють, лави не бояться й ходять по ній. Їх можна з'їсти
    * (звичайна маса), мертві відроджуються в лаві через respawnMs. Не нападають на новачків (botGraceMs), щит, привида й паузу;
@@ -1065,7 +1078,7 @@ export interface QuestDef {
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
 
 /** Вигляд кущів карти: `bush` - зелений, `autumn` - жовте осіннє листя, `fir` - ялинка зі сніговими шапками. */
-export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred' | 'night';
+export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred' | 'night' | 'jelly';
 
 export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
@@ -1090,6 +1103,8 @@ export interface FlockMapDef {
   sky?: boolean;
   /** Нічна карта: лише у вікні night.fromHour..toHour (за Києвом), з підвищеною вагою; світло гравця (див. FLOCK_CONFIG.night). */
   night?: boolean;
+  /** «Цукеркова країна»: зони карамелі, що уповільнюють (див. FLOCK_CONFIG.candy); кущі - мармеладні зарості (thornStyle 'jelly'). */
+  candy?: boolean;
 }
 
 /**
@@ -1109,6 +1124,11 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, sky: true },
   /** «Арена» (колізей): овечки заодно проти хвиль вовків і тигра. Вимкнена (weight 0: не випадає й адмін її не вибере); щоб повернути - поставте weight: 1. */
   { id: 7, name: 'coliseum', layout: 'scatter', thornStyle: 'bush', thorns: { min: 2, max: 3, minGap: 600 }, weight: 0, coliseum: true },
+  /**
+   * «Цукеркова країна»: пастельна земля, карамельні калюжі й липка карамель (FLOCK_CONFIG.candy), мармеладні зарості замість кущів
+   * (звичайні кущі: ховають меншу клітину, розривають більшу; кількість і розмір - тут, у thorns). Вітер, дощ, лава й падіння вимкнені.
+   */
+  { id: 8, name: 'candy', layout: 'scatter', thornStyle: 'jelly', thorns: { min: 10, max: 14, minGap: 520, massMin: 90, massMax: 900 }, weight: 1, candy: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -1203,6 +1223,16 @@ export function clientGameConfig() {
     },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
+    candy: {
+      puddlesMin: c.candy.puddles.min,
+      puddlesMax: c.candy.puddles.max,
+      puddleSlowPct: Math.round(c.candy.puddles.slowFraction * 100),
+      stickyMin: c.candy.sticky.min,
+      stickyMax: c.candy.sticky.max,
+      stickySlowPct: Math.round(c.candy.sticky.slowFraction * 100),
+      bushesMin: FLOCK_MAPS.find((m) => m.candy)?.thorns.min ?? c.thorns.min,
+      bushesMax: FLOCK_MAPS.find((m) => m.candy)?.thorns.max ?? c.thorns.max,
+    },
     rain: {
       intervalMinMs: c.rain.intervalMinMs,
       intervalMaxMs: c.rain.intervalMaxMs,

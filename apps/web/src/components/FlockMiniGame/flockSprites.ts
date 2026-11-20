@@ -1,3 +1,4 @@
+import { drawJellyBush, isJellyKind, type JellyKind } from "./flockCandy";
 import { TIGER_SKIN } from "./flockColiseum";
 import { drawTigerCached } from "./flockTiger";
 import { LAYER_BEHIND, LAYER_FRONT, animLayers, circle, drawAnimLayer, drawCreature, layerExtent } from "./flockCreature";
@@ -405,7 +406,7 @@ const THORN_COLORS = {
   night: ["#050813", "#0b1224", "#1a2848", "#5f86e6"],
 } as const;
 /** Вид «куста» карты: bush - зеленый, autumn - желтая осенняя листва, fir - елочка со снежными шапками. */
-export type ThornKind = keyof typeof THORN_COLORS;
+export type ThornKind = keyof typeof THORN_COLORS | JellyKind;
 
 /** Осенний куст: поверх тела - мелкие листочки (желтые, золотисто-оранжевые, редкие красно-коричневые). */
 function drawAutumnLeaves(c: CanvasRenderingContext2D, r: number) {
@@ -488,6 +489,17 @@ function drawFir(c: CanvasRenderingContext2D, r: number) {
 export function thornSprite(kind: ThornKind = "green") {
   const cached = thornCvs[kind];
   if (cached) return cached;
+  if (isJellyKind(kind)) {
+    // «Цукеркова країна»: напівпрозорий мармеладний кущ свого кольору
+    const jv = makeCanvas(THORN_PX, THORN_PX);
+    const jc = jv.getContext("2d");
+    if (jc) {
+      jc.translate(THORN_PX / 2, THORN_PX / 2);
+      drawJellyBush(jc, THORN_PX * 0.47, kind);
+    }
+    thornCvs[kind] = jv;
+    return jv;
+  }
   const [cSpike, cBody, cShine, cBerry] = THORN_COLORS[kind];
   const cv = makeCanvas(THORN_PX, THORN_PX);
   const c = cv.getContext("2d");

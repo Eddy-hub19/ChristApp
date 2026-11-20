@@ -1,5 +1,7 @@
 import type { NavHazard } from './flock.nav';
 import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
+import { candyFactor, candyWelcome, generateCandy, inAnyCandy, inSticky, type CandyLayout } from './flock.candy';
+import type { SlowZone } from './flock.nav';
 import { generateSky, inCore, nearestCloudPoint, onCloud, randomCorePoint, type SkyLayout } from './flock.sky';
 import {
   BONUS_KINDS,
@@ -413,6 +415,10 @@ export class FlockWorld {
   leaderPid = 0;
   /** Заборонені для ШІ смуги (див. flock.nav.ts); лавова карта заповнює. */
   hazards: NavHazard[] = [];
+  /** «Цукеркова країна»: зони карамелі, створені разом з ареною (null - інша карта). */
+  candy: CandyLayout | null = null;
+  /** Ті самі зони для ШІ: боти об'їжджають липку карамель, калюжі - слабше (flock.nav). */
+  slowZones: SlowZone[] = [];
   /** Режим «Замки»: правила рушія (null - звичайна арена). Ставить менеджер до першого гравця. */
   team: TeamRules | null = null;
   /** Карта «Ніч»: темно, гравець бачить лише в радіусі світла (lightRadius). */
@@ -471,6 +477,14 @@ export class FlockWorld {
       ];
     }
     if (map.sky) this.sky = generateSky(rng, C.worldSize, C.sky);
+    if (map.candy) {
+      this.candy = generateCandy(rng, C.worldSize, C.candy);
+      this.slowZones = [
+        ...this.candy.sticky.map((z) => ({ ...z, k: 1 })),
+        ...this.candy.puddles.map((z) => ({ ...z, k: 0.5 })),
+      ];
+    }
+    const candy = this.candy;
     const lava = this.lava;
     const sky = this.sky;
     const arena = this.arena;
@@ -481,7 +495,10 @@ export class FlockWorld {
       : sky
         ? // кущі лише в «ядрі» хмари: воно завжди під хмарою, тож кущ не повисне над порожнечею
           (x: number, y: number, mass: number) => !inCore(sky, x, y, radiusOf(mass) + 20)
-        : undefined;
+        : candy
+          ? // мармеладні зарості не в карамелі: інакше кущ-укриття сидів би в липкій зоні
+            (x: number, y: number, mass: number) => inAnyCandy(candy, x, y, radiusOf(mass) + 10)
+          : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
       for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
@@ -935,6 +952,8 @@ export class FlockWorld {
   /** Точка в забороненій для об'єктів зоні лави (з відступом). Без лави - завжди false. */
   private lavaBlockedAt(x: number, y: number, margin: number = C.lava.clearMargin) {
     if (this.sky !== null) return !inCore(this.sky, x, y, Math.max(0, margin - C.lava.clearMargin));
+    // «Цукеркова країна»: їжа, бонуси й точки появи не в липкій карамелі (той самий відступ, що й біля лави)
+    if (this.candy !== null) return inSticky(this.candy, x, y, Math.max(0, margin - C.lava.clearMargin));
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
   }
 
@@ -1268,7 +1287,11 @@ export class FlockWorld {
     const perkSpeed = this.perk(p).speed;
     if (perkSpeed) m *= 1 + perkSpeed;
     if (p.sprinting) m = sprintedMultiplier(m);
-    return Math.min(speedOf(c.mass) * m, C.maxSpeedHard) * this.puddleFactor(c.x, c.y, this.perk(p).puddleLess);
+    return (
+      Math.min(speedOf(c.mass) * m, C.maxSpeedHard) *
+      this.puddleFactor(c.x, c.y, this.perk(p).puddleLess) *
+      (this.candy ? candyFactor(this.candy, c.x, c.y) : 1)
+    );
   }
 
   private moveCells(p: Player, dt: number) {
@@ -2228,6 +2251,11 @@ export class FlockWorld {
       if (dx * dx + dy * dy < rr * rr) return true;
     }
     return false;
+  }
+
+  /** Зони карамелі «Цукеркової країни» для welcome (один раз; далі не змінюються). */
+  candySnapshot() {
+    return this.candy ? candyWelcome(this.candy) : undefined;
   }
 
   /** Стан дощу для нового клієнта (welcome): l - лишилось дощу, y - лишилось підсихання після нього, d - повне підсихання. */

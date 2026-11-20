@@ -12,6 +12,7 @@ import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, la
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { isBossSkin, MONSTER_SKIN } from "./flockSkins";
 import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
+import { CANDY_MAP_ID, JELLY_KINDS, drawCandyMinimap, paintCandyZone } from "./flockCandy";
 import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
@@ -313,6 +314,22 @@ function drawCircleZone(ctx: CanvasRenderingContext2D, m: FlockModel, world: num
   ctx.stroke();
 }
 
+/** Зона карамелі: кешований спрайт на кожну зону (індекс дає свою форму краю), один drawImage на видиму зону. */
+function candyZoneSprite(sticky: boolean, index: number) {
+  return sprite(`candy-zone-${sticky ? "s" : "p"}-${index}`, 256, (c, s) => paintCandyZone(c, s, sticky, index + (sticky ? 100 : 0)));
+}
+function drawCandyZones(ctx: CanvasRenderingContext2D, candy: NonNullable<FlockModel["cfg"]["candy"]>, x0: number, x1: number, y0: number, y1: number) {
+  const draw = (zones: [number, number, number][], sticky: boolean) => {
+    for (let i = 0; i < zones.length; i++) {
+      const [x, y, r] = zones[i];
+      if (x + r < x0 || x - r > x1 || y + r < y0 || y - r > y1) continue;
+      ctx.drawImage(candyZoneSprite(sticky, i), x - r, y - r, r * 2, r * 2);
+    }
+  };
+  draw(candy.p, false);
+  draw(candy.s, true);
+}
+
 function drawPuddles(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number) {
   const rain = m.rain;
   if (!rain) return;
@@ -472,6 +489,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
   else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
+  // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
+  if (m.cfg.candy) drawCandyZones(ctx, m.cfg.candy, x0, x1, y0, y1);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
   drawPuddles(ctx, m, x0, x1, y0, y1);
   drawCircleZone(ctx, m, world, scale, o.time);
@@ -630,18 +649,21 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     drawnUnder[i] = hidden(VISIBLE[i]) && !(castleMode && m.teams.get(VISIBLE[i].pid) === myTeam);
     if (drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
   }
+  const jelly = style === "jelly";
   for (const t of m.thorns) {
     const tr = m.radiusOf(t.mass);
     if (t.x < x0 - tr || t.x > x1 + tr || t.y < y0 - tr || t.y > y1 + tr) continue;
     const sz = (tr / THORN_SPRITE_FILL) * 1.0;
+    // мармеладні зарості: колір за id куща (детерміновано), решта карт - один вид на карту
+    const kindOf: ThornKind = jelly ? JELLY_KINDS[t.id % JELLY_KINDS.length] : thornKind;
     if (far) {
-      ctx.drawImage(thornSprite(thornKind), t.x - sz, t.y - sz, sz * 2, sz * 2);
+      ctx.drawImage(thornSprite(kindOf), t.x - sz, t.y - sz, sz * 2, sz * 2);
       continue;
     }
     ctx.save();
     ctx.translate(t.x, t.y);
     ctx.rotate(Math.sin(o.time * 0.8 + t.x) * 0.04);
-    ctx.drawImage(thornSprite(thornKind), -sz, -sz, sz * 2, sz * 2);
+    ctx.drawImage(thornSprite(kindOf), -sz, -sz, sz * 2, sz * 2);
     ctx.restore();
   }
   for (let i = 0; i < VISIBLE.length; i++) if (!drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
@@ -833,12 +855,14 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   const theme = mapTheme(baseTheme, m.cfg.map);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = theme.dark ? "rgba(18,34,24,0.72)" : "rgba(235,248,225,0.78)";
+  // «Цукеркова країна»: світла рожево-кремова мініатюра на обидві теми застосунку
+  ctx.fillStyle = m.cfg.map === CANDY_MAP_ID ? "rgba(255,230,238,0.86)" : theme.dark ? "rgba(18,34,24,0.72)" : "rgba(235,248,225,0.78)";
   ctx.fillRect(0, 0, size, size);
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
+  if (m.cfg.candy || m.cfg.map === CANDY_MAP_ID) drawCandyMinimap(ctx, m.cfg.candy, m.thorns, (mass) => m.radiusOf(mass), size, m.cfg.world);
   let boss: (typeof m.board.map)[number] | null = null;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
   for (const p of m.cfg.castle || m.cfg.night ? [] : m.board.map) {
