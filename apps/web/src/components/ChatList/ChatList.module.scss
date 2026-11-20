@@ -32,8 +32,8 @@
     position: fixed;
     inset: 0;
     z-index: 220;
-    background: color-mix(in srgb, var(--background) 65%, #000 35%);
-    backdrop-filter: blur(4px);
+    /* Сплошная однотонная подложка цвета выбранного фона приложения (--v2-base): без размытия и просвечивающих краёв карточки чата. */
+    background: var(--v2-base, color-mix(in srgb, var(--background) 65%, #000 35%));
     display: flex;
     justify-content: center;
     align-items: flex-start;
