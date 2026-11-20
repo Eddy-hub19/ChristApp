@@ -656,7 +656,7 @@
     "splitEmpty": "Выберите чат, чтобы начать переписку",
     "globalChatTitle": "Общий чат для всех",
     "shareWithJesusTitle": "Уголок",
-    "directChatWith": "Чат с {name}",
+    "directChatWith": "{name}",
     "chatFallback": "Чат",
     "previewYou": "Вы",
     "anonymousUser": "пользователя",

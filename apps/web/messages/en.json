@@ -656,7 +656,7 @@
     "splitEmpty": "Select a chat to start messaging",
     "globalChatTitle": "Global chat for everyone",
     "shareWithJesusTitle": "Corner",
-    "directChatWith": "Chat with {name}",
+    "directChatWith": "{name}",
     "chatFallback": "Chat",
     "previewYou": "You",
     "anonymousUser": "someone",

@@ -702,3 +702,15 @@ html[data-theme="dark"] .senderCompact {
 .messageContent {
   font-size: calc(1em * var(--msg-scale, 1));
 }
+
+/* Стикер - просто картинка, без бабла: свои сообщения (.myBubble) задают фон с !important и в светлой, и в тёмной теме,
+   поэтому здесь специфичность выше всех этих правил. */
+html .bubble.stickerBubble,
+html[data-theme="light"] .bubble.stickerBubble,
+html[data-theme="dark"] .bubble.stickerBubble {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
