@@ -14,6 +14,7 @@
     "network": "web"
   },
   "scripts": {
+    "predev": "node scripts/dev-db.mjs",
     "dev": "concurrently -n backend,web -c yellow,cyan \"npm run dev:backend\" \"npm run dev:web\"",
     "dev:backend": "npm run start:dev -w @christapp/backend",
     "dev:web": "npm run dev -w @christapp/web",
