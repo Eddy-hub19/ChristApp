@@ -1,7 +1,10 @@
 import { FLOCK_CONFIG as C, FLOCK_CONFIG, FLOCK_MAPS as ALL_MAPS } from './flock.config';
 
 /** Карти звичайної арени (карта режиму «Замки» не входить у випадковий вибір). */
-const FLOCK_MAPS = ALL_MAPS.filter((m) => !m.team && !m.night);
+/** Карты обычной арены, участвующие в случайном выборе (вес > 0). «Небо» и «Арена» выключены: weight 0. */
+const FLOCK_MAPS = ALL_MAPS.filter((m) => !m.team && !m.night && m.weight > 0);
+/** Все карты обычной арены, включая выключенные: раскладку кустов проверяем у каждой. */
+const REGULAR_MAPS = ALL_MAPS.filter((m) => !m.team && !m.night);
 /** Полдень по Киеву: нічна карта закрыта. */
 const NOON = Date.UTC(2026, 5, 15, 9, 0, 0);
 import {
@@ -213,8 +216,14 @@ describe('Кусты передаются один раз', () => {
 });
 
 describe('Карта: виды карт', () => {
-  it('виды карт обычной арены: луг, роща, мороз, вулкан, «Небо» (id 6) и «Арена» (id 7; 4 - «Замки», 5 - «Ночь»)', () => {
-    expect(FLOCK_MAPS.map((m) => m.id)).toEqual([0, 1, 2, 3, 6, 7]);
+  it('в случайном выборе: луг, роща, мороз, вулкан; «Небо» (id 6) и «Арена» (id 7) выключены, 4 - «Замки», 5 - «Ночь»', () => {
+    expect(FLOCK_MAPS.map((m) => m.id)).toEqual([0, 1, 2, 3]);
+    expect(REGULAR_MAPS.map((m) => m.id)).toEqual([0, 1, 2, 3, 6, 7]);
+  });
+
+  it('pickMapId никогда не отдаёт выключенные карты', () => {
+    const rng = lcg(5);
+    for (let i = 0; i < 3000; i++) expect([6, 7]).not.toContain(pickMapId(rng, undefined, NOON));
   });
 
   it('pickMapId выбирает все виды с равной вероятностью', () => {
@@ -226,7 +235,7 @@ describe('Карта: виды карт', () => {
     for (const k of n) expect(Math.abs(k - N / FLOCK_MAPS.length)).toBeLessThan(200);
   });
 
-  it.each(FLOCK_MAPS.map((m) => [m.name, m] as const))(
+  it.each(REGULAR_MAPS.map((m) => [m.name, m] as const))(
     '%s: кусты в границах конфига, не у краёв и не в центре, без пересечений',
     (_n, map) => {
       const cfg = { ...FLOCK_CONFIG.thorns, ...map.thorns };

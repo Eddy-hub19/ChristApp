@@ -118,7 +118,8 @@ export function generateThorns(
 export function pickMapId(rng: Rng, exclude?: number, atMs: number = Date.now()): number {
   // не повторяємо попередню карту підряд (якщо є з чого вибирати); карта режиму не береться, нічна - лише у вікні й з вагою x
   const night = isNightOpen(atMs);
-  const regular = FLOCK_MAPS.filter((m) => !m.team && (!m.night || night));
+  // карти з weight 0 (вимкнені: «Небо», «Арена») у вибір не потрапляють
+  const regular = FLOCK_MAPS.filter((m) => !m.team && m.weight > 0 && (!m.night || night));
   const pool = regular.length > 1 ? regular.filter((m) => m.id !== exclude) : regular;
   let total = 0;
   const wt = (m: (typeof FLOCK_MAPS)[number]) => (m.night ? m.weight * C.night.weightMultiplier : m.weight);

@@ -1105,10 +1105,10 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 4, name: 'lake', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true },
   /** «Ніч»: у випадковому виборі лише вночі (isNightOpen), вага x night.weightMultiplier. */
   { id: 5, name: 'night', layout: 'clusters', thornStyle: 'night', thorns: {}, weight: 1, night: true },
-  /** «Небо»: хмари над порожнечею, у випадковому виборі наравні з іншими (вага weight). */
-  { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1, sky: true },
-  /** «Арена» (колізей): овечки заодно проти хвиль вовків і тигра; кущів мало; у випадковому виборі наравні з іншими. */
-  { id: 7, name: 'coliseum', layout: 'scatter', thornStyle: 'bush', thorns: { min: 2, max: 3, minGap: 600 }, weight: 1, coliseum: true },
+  /** «Небо»: хмари над порожнечею. Вимкнена (weight 0: не випадає й адмін її не вибере); щоб повернути - поставте weight: 1. */
+  { id: 6, name: 'sky', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, sky: true },
+  /** «Арена» (колізей): овечки заодно проти хвиль вовків і тигра. Вимкнена (weight 0: не випадає й адмін її не вибере); щоб повернути - поставте weight: 1. */
+  { id: 7, name: 'coliseum', layout: 'scatter', thornStyle: 'bush', thorns: { min: 2, max: 3, minGap: 600 }, weight: 0, coliseum: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
