@@ -27,11 +27,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   // Android: клавіатура стискає контент, а не накриває його.
   interactiveWidget: "resizes-content",
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fdf8f0" },
-    { media: "(prefers-color-scheme: dark)", color: "#17151a" },
-  ],
+  // Приложение по умолчанию тёмное («Зелёный лес»): "light dark" давал белый холст до загрузки CSS на телефонах со светлой системной
+  // темой (белая вспышка при запуске PWA). Светлую тему приложения включает CSS (color-scheme на html), а не мета-тег.
+  colorScheme: "dark",
+  themeColor: "#06120d",
 };
 
 /**
