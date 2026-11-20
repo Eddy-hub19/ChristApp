@@ -85,6 +85,8 @@ type ChatListProps = {
   onDeleteChat?: (listItemId: string) => void;
   onPrefetchChat?: (listItemId: string) => void;
   adminDashboardVisible?: boolean;
+  /** Игрок уже заходил в «Отару» (получил 20 рубинов за первый вход): промо зовёт на новую карту, а не за рубинами. */
+  flockEntered?: boolean;
   isLoading?: boolean;
 };
 
@@ -105,6 +107,7 @@ const ChatList = ({
   onDeleteChat,
   onPrefetchChat,
   adminDashboardVisible = false,
+  flockEntered = false,
   isLoading = false,
 }: ChatListProps) => {
   const locale = useLocale();
@@ -561,7 +564,7 @@ const ChatList = ({
           <div className={styles.promoGrid}>
             <Link href="/games/flock" className={`${styles.promoCard} ${styles.promoFlock}`} prefetch={false}>
               <span className={styles.promoTitle}>{t("promo.flockTitle")}</span>
-              <span className={styles.promoText}>{t("promo.flockText")}</span>
+              <span className={styles.promoText}>{t(flockEntered ? "promo.flockTextReturning" : "promo.flockText")}</span>
               <span className={`${styles.promoArt} ${styles.promoSheep}`} aria-hidden>
                 <SkinPreview skinId={0} size={46} />
                 <SkinPreview skinId={1} size={46} />

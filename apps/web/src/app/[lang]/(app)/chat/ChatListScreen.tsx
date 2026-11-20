@@ -1709,6 +1709,7 @@ export default function ChatListScreen() {
       onDeleteChat={handleDeleteChat}
       onPrefetchChat={handlePrefetchChat}
       adminDashboardVisible={adminDashboardVisible}
+      flockEntered={Boolean(user?.flockEntered)}
       isLoading={isChatListLoading}
     />
   );
