@@ -199,6 +199,8 @@ html:not([data-theme="dark"]) .message {
 .stickerDock {
   position: relative;
   flex-shrink: 0;
+  /* Строка прижата к низу (align-items: flex-end), а скрепка и микрофон стоят по центру поля: выравниваем кнопку стикеров с ними. */
+  align-self: center;
 }
 
 .stickerPickerWrap {
