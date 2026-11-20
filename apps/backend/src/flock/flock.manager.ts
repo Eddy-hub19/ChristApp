@@ -1422,6 +1422,8 @@ export interface JoinResult {
   sky?: { t: number; c: number[][]; syncMs: number; grace: number; wings: number };
   /** «Арена»: коло, ворота, колони й камні (клієнт малює з цього; сервер рахує по тому ж колу). */
   coliseum?: ReturnType<Arena['coliseumWelcome']>;
+  /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель: [x, y, r]) і частка уповільнення (pf, sf); без поля - інша карта. */
+  candy?: { p: [number, number, number][]; s: [number, number, number][]; pf: number; sf: number };
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
@@ -1622,6 +1624,7 @@ export class FlockManager {
           }
         : undefined,
       coliseum: s.arena.world.arena ? s.arena.coliseumWelcome() : undefined,
+      candy: s.arena.world.candySnapshot(),
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),

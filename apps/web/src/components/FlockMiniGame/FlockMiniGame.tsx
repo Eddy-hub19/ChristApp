@@ -92,7 +92,7 @@ type Hud = {
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy"] as const;
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
 const MINIMAP_SIZE = 96;
@@ -1432,6 +1432,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {t(`mapNames.${mapToast}`)}
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
               {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
+              {mapToast === "candy" ? <small className={styles.mapToastSub}>{t("candy.mapSub")}</small> : null}
               {mapToast === "coliseum" ? <small className={styles.mapToastSub}>{t("coliseum.mapSub", { n: (me?.config.game?.coliseum as { arrowHitsRequired?: number } | undefined)?.arrowHitsRequired ?? 3 })}</small> : null}
             </div>
           ) : null}

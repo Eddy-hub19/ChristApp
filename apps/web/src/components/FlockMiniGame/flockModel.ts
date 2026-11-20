@@ -1,3 +1,4 @@
+import { candyFactorOf, type CandyCfg } from "./flockCandy";
 import {
   decodeBoard,
   decodeState,
@@ -56,7 +57,9 @@ export interface FlockCfg {
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
   /** Вид кустов карты (bush | autumn | fir); без поля (старый сервер) - по номеру карты. */
-  thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night";
+  thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night" | "jelly";
+  /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель) і частка уповільнення; без поля - інша карта. Формула - candyFactorOf (дзеркало сервера). */
+  candy?: CandyCfg;
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
@@ -952,7 +955,7 @@ export class FlockModel {
             c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
           }
         } else if (!frozen) {
-          const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y);
+          const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y) * candyFactorOf(this.cfg.candy, c.x, c.y);
           c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
           // стіна «Арени»: те саме коло, що на сервері

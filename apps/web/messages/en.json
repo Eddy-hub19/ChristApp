@@ -1579,6 +1579,9 @@
       "hint": "Shepherd's pipe: smaller sheep nearby are pulled towards you",
       "pull": "The pipe is calling you!"
     },
+    "candy": {
+      "mapSub": "Caramel slows you, jelly hides you"
+    },
     "mapNames": {
       "meadow": "Summer meadow",
       "grove": "Autumn grove",
@@ -1587,7 +1590,8 @@
       "lake": "Forest and lake",
       "night": "Night",
       "sky": "Sky",
-      "coliseum": "Colosseum"
+      "coliseum": "Colosseum",
+      "candy": "Candy Land"
     },
     "hud": {
       "mass": "Mass",

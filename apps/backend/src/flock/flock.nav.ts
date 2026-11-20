@@ -21,13 +21,33 @@ export interface NavHazard {
   gaps: NavGap[];
 }
 
+/** Зона уповільнення («Цукеркова країна»): коло; k - наскільки ШІ її уникає (1 - липка карамель, 0.5 - калюжа). */
+export interface SlowZone {
+  x: number;
+  y: number;
+  r: number;
+  k: number;
+}
+
 /** Мінімум світу, потрібний шару (реалізує FlockWorld). */
 export interface NavWorld {
   hazards: NavHazard[];
+  /** Зони уповільнення (без поля або порожньо - їх нема). */
+  slowZones?: SlowZone[];
 }
 
 /** Чи клітина радіуса r у точці (x, y) стоїть у забороненій зоні (поза проходом). */
 export function inHazard(w: NavWorld, x: number, y: number, r = 0): boolean {
+  // липка карамель (k = 1): цілі й точки втечі всередині неї ШІ не обирає
+  if (w.slowZones) {
+    for (const z of w.slowZones) {
+      if (z.k < 1) continue;
+      const rr = z.r + r;
+      const dx = x - z.x;
+      const dy = y - z.y;
+      if (dx * dx + dy * dy < rr * rr) return true;
+    }
+  }
   for (const h of w.hazards) {
     if (y + r <= h.y0 || y - r >= h.y1) continue;
     let onGap = false;
@@ -61,6 +81,20 @@ export function navPush(
   if (x > W - margin) px -= (x - (W - margin)) / margin;
   if (y < margin) py += (margin - y) / margin;
   if (y > W - margin) py -= (y - (W - margin)) / margin;
+  // зони карамелі: м'яко відштовхують від краю й виштовхують зсередини (чим липкіша, тим сильніше)
+  if (w.slowZones) {
+    for (const z of w.slowZones) {
+      const dx = x - z.x;
+      const dy = y - z.y;
+      const reach = z.r + r + margin * 0.5;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= reach * reach) continue;
+      const d = Math.sqrt(d2) || 1;
+      const k = z.k * Math.min(1.2, 0.35 + (reach - d) / reach);
+      px += (dx / d) * k;
+      py += (dy / d) * k;
+    }
+  }
   for (const h of w.hazards) {
     const m = margin + r;
     if (y < h.y0 - m || y > h.y1 + m) continue;

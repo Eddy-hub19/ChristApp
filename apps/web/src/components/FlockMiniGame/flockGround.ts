@@ -3,11 +3,13 @@
  * Усе малюється один раз у кешований тайл / спрайт; кольори не залежать від теми застосунку (світла/темна).
  */
 
-export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night" | "arena";
+import { drawCandyFood, paintCandyGround } from "./flockCandy";
+
+export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night" | "arena" | "candy";
 
 const TAU = Math.PI * 2;
 
-/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч, 7 арена. */
+/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч, 7 арена, 8 цукеркова країна. */
 export function groundOf(map: number | undefined): Ground {
   switch (map) {
     case 1:
@@ -22,6 +24,8 @@ export function groundOf(map: number | undefined): Ground {
       return "night";
     case 7:
       return "arena";
+    case 8:
+      return "candy";
     default:
       return "meadow";
   }
@@ -91,8 +95,10 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
     c.lineTo(span, i * cell);
   }
   c.stroke();
-  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : ground === "night" ? 97 : 47);
-  if (ground === "meadow" || ground === "lake") {
+  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : ground === "night" ? 97 : ground === "candy" ? 53 : 47);
+  if (ground === "candy") {
+    paintCandyGround(c, span, r);
+  } else if (ground === "meadow" || ground === "lake") {
     // трава: пятна чуть разных оттенков (светлее и темнее базового зелёного), травинки и мелкие цветочки
     for (let i = 0; i < 34; i++) {
       const x = r() * span;
@@ -405,6 +411,10 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
 export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground: Ground) {
   c.lineCap = "round";
   c.lineJoin = "round";
+  if (ground === "candy") {
+    drawCandyFood(c, kind);
+    return;
+  }
   if (ground === "arena") {
     if (kind === 0) {
       // пучок сухої соломи: золотисті стебла з тонкою тінню
