@@ -467,7 +467,7 @@
     "menuClearCacheHint": "If something looks off: data will be re-downloaded",
     "menuClearCacheBusy": "Clearing…",
     "menuLogout": "Log out",
-    "buildInfo": "build {sha} · {date}",
+    "buildInfo": "Neskai Developer - {date}",
     "avatarChange": "Change profile photo",
     "avatarUpload": "Upload profile photo",
     "nick": "Nickname",

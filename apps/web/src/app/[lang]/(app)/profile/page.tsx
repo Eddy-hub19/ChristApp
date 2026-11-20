@@ -27,7 +27,7 @@ import {
 } from "@/lib/queries/pushQueries";
 import { getHttpApiBase } from "@/lib/apiBase";
 import { clearUserCaches } from "@/lib/clearUserCaches";
-import { BUILD_SHA, BUILD_DATE } from "@/lib/buildInfo";
+import { BUILD_DATE } from "@/lib/buildInfo";
 import { currentUserQueryKey } from "@/lib/queries/authQueries";
 import {
   fetchSavedVersesForQuery,
@@ -992,7 +992,7 @@ export default function ProfilePage() {
 
       {/* Непомітний рядок версії білда — щоб на телефоні бачити, яка збірка відкрита в PWA. */}
       <p className={styles.buildInfo}>
-        {t("buildInfo", { sha: BUILD_SHA, date: BUILD_DATE })}
+        {t("buildInfo", { date: BUILD_DATE })}
       </p>
     </section>
   );

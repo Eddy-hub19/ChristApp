@@ -467,7 +467,7 @@
     "menuClearCacheHint": "Якщо щось вантажиться не так: дані завантажаться наново",
     "menuClearCacheBusy": "Очищаємо…",
     "menuLogout": "Вийти з акаунта",
-    "buildInfo": "збірка {sha} · {date}",
+    "buildInfo": "Neskai Developer - {date}",
     "avatarChange": "Змінити фото профілю",
     "avatarUpload": "Завантажити фото профілю",
     "nick": "Нік",
