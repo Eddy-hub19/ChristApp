@@ -44,6 +44,7 @@ import { resetFlockSoundLoops, tickFlockSound } from "./flockSoundDirector";
 import FlockWhatsNew from "./FlockWhatsNew";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
+import { useAuth } from "@/hooks/useAuth";
 import { drawMinimap, drawScene, THEMES, BONUS_ICON, type Theme } from "./flockRender";
 import SkinPreview from "./FlockSkinPreview";
 import {
@@ -231,6 +232,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [boardCollapsed, setBoardCollapsed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<FlockNotice>(null);
+  const { patchUser } = useAuth();
+  const patchUserRef = useRef(patchUser);
+  patchUserRef.current = patchUser;
   /** Разовый бонус за первый вход (показывается один раз в лобби). */
   const [entryBonus, setEntryBonus] = useState(0);
   /** Нагорода за колекцію преміум: з входу (/me) или з покупки последнего скина. */
@@ -426,6 +430,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         }
       }
       setMe(data);
+      // Заход в игру засчитан (разовые 20 рубинов получены): список чатов больше не обещает их в промо.
+      patchUserRef.current({ flockEntered: true });
       if (data.entryBonus) setEntryBonus(data.entryBonus);
       if (data.premiumCollection) setCollectionAward({ amount: data.premiumCollection, fromBuy: false });
       if (data.streakAward) {

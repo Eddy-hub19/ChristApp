@@ -56,6 +56,21 @@ export class AuthService {
   private readonly accessExpiresIn: string;
   private readonly refreshTtlMs: number;
 
+  /**
+   * Дописывает к пользователю из JWT признак `flockEntered`: игрок уже заходил в «Отару» (получил разовый бонус за первый вход).
+   * Нужен списку чатов, чтобы не звать за 20 рубинами тех, кто их уже получил. Отдельный запрос только на /auth/me:
+   * горячий путь проверки токена (кеш пользователя) не расширяем.
+   */
+  async withFlockEntered<T extends { id: string }>(
+    user: T,
+  ): Promise<T & { flockEntered: boolean }> {
+    const profile = await this.prisma.flockProfile.findUnique({
+      where: { userId: user.id },
+      select: { entryBonusAt: true },
+    });
+    return { ...user, flockEntered: Boolean(profile?.entryBonusAt) };
+  }
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,

@@ -646,8 +646,9 @@
     "peerFallback": "Chat partner",
     "promo": {
       "badge": "New",
-      "flockTitle": "Play Otara",
+      "flockTitle": "Play Flock",
       "flockText": "Jump in and get 20 rubies, try the new game",
+      "flockTextReturning": "A new map has appeared, jump in",
       "flockCta": "Play",
       "cinemaTitle": "Watch together",
       "cinemaText": "Watch videos together, like in one room",

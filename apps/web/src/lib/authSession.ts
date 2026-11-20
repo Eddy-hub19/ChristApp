@@ -32,6 +32,8 @@ export type AuthUser = {
   fontPrefs?: unknown;
   /** false у нового Google-користувача, доки він не обрав @username. */
   usernameChosen?: boolean;
+  /** Игрок уже заходил в «Отару» (получил разовый бонус за первый вход): промо в списке чатов не обещает 20 рубинов. */
+  flockEntered?: boolean;
 };
 
 export type AuthSessionPayload = {

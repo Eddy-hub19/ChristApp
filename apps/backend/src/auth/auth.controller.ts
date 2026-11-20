@@ -64,7 +64,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @AllowWithoutNickname()
   getMe(@Req() req) {
-    return req.user;
+    return this.authService.withFlockEntered(req.user);
   }
 
   /** Публично: кнопка Google на экране входа показывается только при настроенных GOOGLE_CLIENT_ID/SECRET. */
