@@ -940,6 +940,7 @@ function MessageBubble({
     <MessageActionMenu
       anchorRect={menuRect}
       reactions={CHAT_REACTIONS}
+      extendedReactions
       myReactions={myReactions}
       onReact={(emoji) => onToggleReaction?.(message, emoji)}
       onReply={onReply ? () => onReply(message) : undefined}

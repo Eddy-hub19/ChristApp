@@ -509,3 +509,116 @@ button.readersRow {
   text-align: center;
   white-space: nowrap;
 }
+
+/* «+N» свёрнутых реакций под сообщением. */
+.pillMore {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+/* Кнопка «+» в быстром ряду меню и панель полного списка реакций. */
+.menuReactionPlus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.reactionPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(300px, calc(100vw - 32px));
+  align-self: center;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-elevated);
+  box-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
+}
+
+.reactionSearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: var(--text-muted);
+}
+
+.reactionSearchInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+}
+
+.reactionTabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.reactionTab {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.reactionTabActive {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.reactionGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.reactionCell {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+
+  &:active {
+    background: color-mix(in srgb, var(--foreground) 12%, transparent);
+  }
+}
+
+.reactionEmpty {
+  grid-column: 1 / -1;
+  margin: 12px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}

@@ -1079,6 +1079,18 @@
     }
   },
   "chatShared": {
+    "reactionSearch": "Пошук реакції",
+    "reactionNoResults": "Нічого не знайдено",
+    "reactionMore": "Усі реакції",
+    "reactionShowMore": "Показати ще {count}",
+    "reactionCat": {
+      "recent": "Недавні",
+      "faces": "Обличчя",
+      "gestures": "Жести",
+      "hearts": "Серця",
+      "symbols": "Символи",
+      "objects": "Предмети"
+    },
     "pin": "Закріпити",
     "unpin": "Відкріпити",
     "pinnedMessage": "Закріплене повідомлення",

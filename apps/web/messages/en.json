@@ -1079,6 +1079,18 @@
     }
   },
   "chatShared": {
+    "reactionSearch": "Search reactions",
+    "reactionNoResults": "Nothing found",
+    "reactionMore": "All reactions",
+    "reactionShowMore": "Show {count} more",
+    "reactionCat": {
+      "recent": "Recent",
+      "faces": "Faces",
+      "gestures": "Gestures",
+      "hearts": "Hearts",
+      "symbols": "Symbols",
+      "objects": "Objects"
+    },
     "pin": "Pin",
     "unpin": "Unpin",
     "pinnedMessage": "Pinned message",

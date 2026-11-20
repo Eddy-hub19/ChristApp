@@ -1,8 +1,7 @@
 "use client";
 
+import { memo, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
-import { getInitials } from "@/lib/utils";
 import styles from "./ChatShared.module.scss";
 
 export type ReactionUser = { avatarSrc?: string; label: string };
@@ -17,7 +16,8 @@ type ReactionPillsProps = {
   align?: "start" | "end";
 };
 
-const MAX_AVATARS = 3;
+/** Сколько разных реакций показываем сразу; остальные сворачиваются в «+N». */
+const MAX_VISIBLE_GROUPS = 4;
 
 type Group = { emoji: string; userIds: string[] };
 
@@ -31,21 +31,23 @@ function groupReactions(reactions: readonly ReactionInput[]): Group[] {
   return [...map.values()];
 }
 
-/** Реакції під повідомленням: емодзі, лічильник і маленькі аватарки; тап по своїй знімає її. */
-export default function ReactionPills({
-  reactions,
-  currentUserId,
-  resolveUser,
-  onToggle,
-  align = "start",
-}: ReactionPillsProps) {
+/**
+ * Реакции под сообщением, компактно: эмодзи и число; свои подсвечены, тап по своей снимает её.
+ * Больше MAX_VISIBLE_GROUPS разных реакций - остальные в «+N» (тап раскрывает). Аватарок нет: ширина сообщения не растёт.
+ */
+function ReactionPills({ reactions, currentUserId, resolveUser, onToggle, align = "start" }: ReactionPillsProps) {
   const t = useTranslations("chatShared");
-  const groups = groupReactions(reactions);
+  const [expanded, setExpanded] = useState(false);
+  const groups = useMemo(() => groupReactions(reactions), [reactions]);
   if (groups.length === 0) return null;
+
+  const folded = !expanded && groups.length > MAX_VISIBLE_GROUPS;
+  const shown = folded ? groups.slice(0, MAX_VISIBLE_GROUPS) : groups;
+  const hiddenCount = groups.length - MAX_VISIBLE_GROUPS;
 
   return (
     <div className={`${styles.pills} ${align === "end" ? styles.pillsEnd : ""}`} data-bubble-control>
-      {groups.map((group) => {
+      {shown.map((group) => {
         const mine = Boolean(currentUserId && group.userIds.includes(currentUserId));
         const names = group.userIds.map((id) => resolveUser(id).label).join(", ");
         return (
@@ -62,29 +64,25 @@ export default function ReactionPills({
             aria-label={t("reactionAria", { emoji: group.emoji, count: group.userIds.length })}
           >
             <span className={styles.pillEmoji}>{group.emoji}</span>
-            <span className={styles.pillAvatars}>
-              {group.userIds.slice(-MAX_AVATARS).map((userId) => {
-                const user = resolveUser(userId);
-                return (
-                  <AvatarWithFallback
-                    key={userId}
-                    src={user.avatarSrc}
-                    initials={getInitials(user.label || "U")}
-                    colorSeed={userId}
-                    width={14}
-                    height={14}
-                    imageClassName={styles.pillAvatarImg}
-                    fallbackClassName={styles.pillAvatarFallback}
-                    fallbackTag="span"
-                    fallbackTint="onError"
-                  />
-                );
-              })}
-            </span>
             <span className={styles.pillCount}>{group.userIds.length}</span>
           </button>
         );
       })}
+      {folded ? (
+        <button
+          type="button"
+          className={`${styles.pill} ${styles.pillMore}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded(true);
+          }}
+          aria-label={t("reactionShowMore", { count: hiddenCount })}
+        >
+          +{hiddenCount}
+        </button>
+      ) : null}
     </div>
   );
 }
+
+export default memo(ReactionPills);
