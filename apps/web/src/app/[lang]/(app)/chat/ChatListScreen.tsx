@@ -618,9 +618,19 @@ export default function ChatListScreen() {
           })();
           const currentUnread =
             typeof room.unread === "number" ? room.unread : room.unread ? 1 : 0;
+          // Галочки: моё последнее сообщение; «прочитано», когда его дочитал хотя бы один собеседник (readByCount из той же сводки).
+          const nextOwnStatus: "sent" | "read" | undefined =
+            summaryRoom?.lastMessage && user?.id && summaryRoom.lastMessage.senderId === user.id
+              ? (summaryRoom.lastMessage.readByCount ?? 0) > 0
+                ? "read"
+                : "sent"
+              : summaryRoom?.lastMessage
+                ? undefined
+                : room.lastOwnStatus;
 
           if (
             currentUnread === nextUnread &&
+            room.lastOwnStatus === nextOwnStatus &&
             (room.preview ?? "") === nextPreview &&
             (room.timeLabel ?? "") === nextTimeLabel &&
             sameLastActivityAt(room.lastActivityAt, nextLastActivityAt)
@@ -636,6 +646,7 @@ export default function ChatListScreen() {
             timeLabel: nextTimeLabel,
             lastActivityAt: nextLastActivityAt,
             lastSeenAt: room.lastSeenAt,
+            lastOwnStatus: nextOwnStatus,
           };
         });
 
@@ -1334,6 +1345,8 @@ export default function ChatListScreen() {
               timeLabel: formatChatTimeLabel(msg.createdAt),
               unread: nextUnread,
               lastActivityAt: msg.createdAt,
+              // Новое моё сообщение - одна галочка; чужое - без галочек.
+              lastOwnStatus: isOwnMessage ? ("sent" as const) : undefined,
             };
           });
 
@@ -1342,6 +1355,29 @@ export default function ChatListScreen() {
       );
     };
     socket.on("newMessage", onNewMessage);
+
+    // Собеседник прочитал чат: моя последняя «отправлено» в этом чате становится «прочитано» (без запросов, сервер шлёт на личный канал).
+    const onRoomReadUpdated = (payload: { roomId?: string; userId?: string; lastReadAt?: string }) => {
+      if (!payload?.roomId || !payload.userId || !payload.lastReadAt) return;
+      if (payload.userId === user?.id) return;
+      const directUserId =
+        roomIdToDirectUserIdRef.current.get(payload.roomId) ??
+        roomIdToDirectUserIdRef.current.get(canonicalChatUuidKey(payload.roomId));
+      const mappedId = payload.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserId;
+      if (!mappedId) return;
+      const readTs = new Date(payload.lastReadAt).getTime();
+      setRooms((prev) =>
+        prev.map((room) =>
+          room.id === mappedId &&
+          room.lastOwnStatus === "sent" &&
+          room.lastActivityAt &&
+          new Date(room.lastActivityAt).getTime() <= readTs
+            ? { ...room, lastOwnStatus: "read" as const }
+            : room,
+        ),
+      );
+    };
+    socket.on("roomReadUpdated", onRoomReadUpdated);
 
     const onMessageDeleted = () => {
       void refreshUnreadSummary();
@@ -1470,6 +1506,7 @@ export default function ChatListScreen() {
       socket.off("onlineUsers", onOnlineUsers);
       socket.off("userPresenceChanged", onUserPresenceChanged);
       socket.off("newMessage", onNewMessage);
+      socket.off("roomReadUpdated", onRoomReadUpdated);
       socket.off("messageDeleted", onMessageDeleted);
       socket.off("userInvitedToRoom", onUserInvitedToRoom);
       socket.off("roomCreated", onRoomCreated);

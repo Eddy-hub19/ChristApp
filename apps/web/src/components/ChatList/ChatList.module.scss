@@ -848,6 +848,9 @@
         }
 
         .chatTime {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
           flex-shrink: 0;
           color: var(--text-dim);
           font-family: var(--ui-font);
@@ -856,6 +859,17 @@
           font-weight: 400;
           line-height: 24px;
           white-space: nowrap;
+        }
+
+        .readTicks {
+          display: block;
+          flex-shrink: 0;
+          opacity: 0.75;
+        }
+
+        .readTicksRead {
+          opacity: 1;
+          color: var(--accent);
         }
 
         .unreadBadge {

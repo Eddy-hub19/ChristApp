@@ -52,6 +52,9 @@ type ChatWindowProps = {
   onReplyMessage?: (message: Message) => void;
   onDeleteMessage?: (message: Message) => void;
   onEditMessage?: (message: Message) => void;
+  /** Закрепление в меню сообщения (нет обработчика - пункта нет, например в Киношке). */
+  onTogglePin?: (message: Message, pin: boolean) => void;
+  pinnedMessageIds?: ReadonlySet<string>;
   canDeleteOwnMessages?: boolean;
   canModerateMessages?: boolean;
   /** Прокрутка до повідомлення (наприклад, з прев'ю відповіді). */
@@ -66,6 +69,8 @@ type ChatWindowProps = {
   typingStatuses?: Array<{ username: string; activity: "text" | "voice" }>;
   /** Інші учасники, які зараз грають (без власної активності та без тих, хто саме друкує). */
   gameActivities?: GameActivity[];
+  /** Разовые системные строки в потоке («X закрепил(а) сообщение»): живут до перезагрузки, в историю не пишутся. */
+  systemNotes?: Array<{ id: string; text: string }>;
   onJoinGame?: (game: GameId, sessionId: string) => void;
   readReceiptMessageId?: string | null;
   readReceiptUsersByMessageId?: Map<
@@ -116,11 +121,14 @@ function ChatWindow({
   onReplyMessage,
   onDeleteMessage,
   onEditMessage,
+  onTogglePin,
+  pinnedMessageIds,
   canDeleteOwnMessages = false,
   canModerateMessages = false,
   topBanner,
   typingStatuses = [],
   gameActivities = [],
+  systemNotes = [],
   onJoinGame,
   readReceiptMessageId,
   readReceiptUsersByMessageId,
@@ -305,6 +313,7 @@ function ChatWindow({
   const typingStatusesKey = typingStatuses
     .map((item) => `${item.username}:${item.activity}`)
     .join("|");
+  const systemNotesKey = systemNotes.map((note) => note.id).join("|");
   const gameActivityKey = gameActivities
     .map((item) => `${item.userId}:${item.game}:${item.joinable ? 1 : 0}`)
     .join("|");
@@ -330,7 +339,7 @@ function ChatWindow({
     if (shouldFollowBottomRef.current) {
       scrollListToBottom("smooth");
     }
-  }, [messages.length, typingStatusesKey, gameActivityKey, scrollListToBottom]);
+  }, [messages.length, typingStatusesKey, gameActivityKey, systemNotesKey, scrollListToBottom]);
 
   const estimateScrollDownThresholdPx = useCallback(() => {
     const lastMessages = messages.slice(-SCROLL_DOWN_TRIGGER_MESSAGES);
@@ -546,6 +555,17 @@ function ChatWindow({
       ))
     : null;
 
+  const systemNotesBlock =
+    systemNotes.length > 0 ? (
+      <>
+        {systemNotes.map((note) => (
+          <div key={note.id} className={styles.systemNote} role="status">
+            {note.text}
+          </div>
+        ))}
+      </>
+    ) : null;
+
   const typingLine = formatTypingLine(typingStatuses);
   const typingBlock =
     typingLine !== "" ? (
@@ -708,6 +728,8 @@ function ChatWindow({
             onReplyPreviewClick={navigateToReferencedMessage}
             onDelete={onDeleteMessage}
             onEdit={onEditMessage}
+            onTogglePin={onTogglePin}
+            isPinned={pinnedMessageIds?.has(message.id)}
             canDeleteOwnMessage={canDeleteOwnMessages}
             canDeleteAnyMessage={canModerateMessages}
             showReadReceipt={Boolean(
@@ -747,6 +769,7 @@ function ChatWindow({
           <>
             <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
             {pendingBlock}
+            {systemNotesBlock}
             {typingBlock}
             {gameActivityBlock}
             <div ref={bottomRef} />
@@ -777,6 +800,7 @@ function ChatWindow({
               </>
             )}
             {pendingBlock}
+            {systemNotesBlock}
             {typingBlock}
             {gameActivityBlock}
             <div ref={bottomRef} />

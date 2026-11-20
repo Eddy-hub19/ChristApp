@@ -17,6 +17,30 @@ import {
   stripLegacyReplyPrefix,
 } from 'src/common/legacy-reply-prefix';
 
+/** Максимум закреплённых сообщений в одном чате. */
+export const MAX_PINS_PER_ROOM = 3;
+
+/** Закреплённое сообщение для полоски над чатом: превью без запроса самого сообщения. */
+export type RoomPinDto = {
+  id: string;
+  messageId: string;
+  createdAt: string;
+  pinnedById: string;
+  message: {
+    id: string;
+    type: string;
+    /** Начало текста (до 140 символов); для медиа клиент подписывает по `type`. */
+    content: string;
+    senderId: string;
+    senderName: string;
+    senderAvatarUrl: string | null;
+  };
+};
+
+export type PinMessageResult =
+  | { ok: true; alreadyPinned: boolean }
+  | { ok: false; reason: 'not-found' | 'limit' };
+
 type UnreadRoomSummaryRow = {
   roomId: string;
   unreadCount: number;
@@ -26,6 +50,8 @@ type UnreadRoomSummaryRow = {
   messageCreatedAt: Date | string | null;
   messageSenderId: string | null;
   messageSenderUsername: string | null;
+  /** Сколько других участников дочитали до этого сообщения (RoomReadState.lastReadAt >= createdAt). */
+  messageReadByCount?: number | null;
 };
 
 type RoomLastMessageSummary = {
@@ -36,6 +62,8 @@ type RoomLastMessageSummary = {
   senderUsername: string;
   /** Тип повідомлення — клієнт підписує медіа на мові інтерфейсу. */
   type: string;
+  /** Скільки інших учасників прочитали це повідомлення (для галочок біля власного останнього повідомлення). */
+  readByCount: number;
 };
 
 type RoomUnreadSummary = {
@@ -582,6 +610,92 @@ export class MessagesService {
     };
   }
 
+  /** Закреплённые сообщения чата по порядку закрепления (самое раннее первым). */
+  async getRoomPins(roomId: string): Promise<RoomPinDto[]> {
+    const rows = await this.prisma.messagePin.findMany({
+      where: { roomId },
+      orderBy: { createdAt: 'asc' },
+      take: MAX_PINS_PER_ROOM,
+      select: {
+        id: true,
+        messageId: true,
+        createdAt: true,
+        pinnedById: true,
+        message: {
+          select: {
+            id: true,
+            type: true,
+            content: true,
+            senderId: true,
+            sender: {
+              select: { username: true, nickname: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      messageId: row.messageId,
+      createdAt: row.createdAt.toISOString(),
+      pinnedById: row.pinnedById,
+      message: {
+        id: row.message.id,
+        type: String(row.message.type),
+        content: stripLegacyReplyPrefix(row.message.content ?? '')
+          .trim()
+          .slice(0, 140),
+        senderId: row.message.senderId,
+        senderName: row.message.sender.nickname || row.message.sender.username,
+        senderAvatarUrl: row.message.sender.avatarUrl ?? null,
+      },
+    }));
+  }
+
+  /** Закрепляет сообщение комнаты: идемпотентно, не больше MAX_PINS_PER_ROOM. Права проверяет вызывающий. */
+  async pinMessage(
+    roomId: string,
+    messageId: string,
+    userId: string,
+  ): Promise<PinMessageResult> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { roomId: true },
+    });
+    if (!message || message.roomId !== roomId) {
+      return { ok: false, reason: 'not-found' };
+    }
+    const existing = await this.prisma.messagePin.findUnique({
+      where: { roomId_messageId: { roomId, messageId } },
+      select: { id: true },
+    });
+    if (existing) {
+      return { ok: true, alreadyPinned: true };
+    }
+    const count = await this.prisma.messagePin.count({ where: { roomId } });
+    if (count >= MAX_PINS_PER_ROOM) {
+      return { ok: false, reason: 'limit' };
+    }
+    try {
+      await this.prisma.messagePin.create({
+        data: { roomId, messageId, pinnedById: userId },
+      });
+    } catch (err) {
+      // Гонка двух одновременных закреплений: уникальный индекс не даст задвоить.
+      if ((err as { code?: string })?.code !== 'P2002') throw err;
+      return { ok: true, alreadyPinned: true };
+    }
+    return { ok: true, alreadyPinned: false };
+  }
+
+  /** Снимает закрепление; true, если оно было. */
+  async unpinMessage(roomId: string, messageId: string): Promise<boolean> {
+    const result = await this.prisma.messagePin.deleteMany({
+      where: { roomId, messageId },
+    });
+    return result.count > 0;
+  }
+
   async markRoomAsRead(
     roomId: string,
     userId: string,
@@ -774,7 +888,14 @@ export class MessagesService {
           m.type AS "messageType",
           m."createdAt" AS "messageCreatedAt",
           m."senderId" AS "messageSenderId",
-          u.username AS "messageSenderUsername"
+          u.username AS "messageSenderUsername",
+          (
+            SELECT COUNT(*)::int
+            FROM "RoomReadState" rr
+            WHERE rr."roomId" = m."roomId"
+              AND rr."userId" <> m."senderId"
+              AND rr."lastReadAt" >= m."createdAt"
+          ) AS "messageReadByCount"
         FROM "Message" m
         INNER JOIN accessible_rooms ar
           ON ar."roomId" = m."roomId"
@@ -790,7 +911,8 @@ export class MessagesService {
         lm."messageType" AS "messageType",
         lm."messageCreatedAt" AS "messageCreatedAt",
         lm."messageSenderId" AS "messageSenderId",
-        lm."messageSenderUsername" AS "messageSenderUsername"
+        lm."messageSenderUsername" AS "messageSenderUsername",
+        lm."messageReadByCount" AS "messageReadByCount"
       FROM accessible_rooms ar
       LEFT JOIN unread_counts uc
         ON uc."roomId" = ar."roomId"
@@ -859,6 +981,7 @@ export class MessagesService {
       senderId: row.messageSenderId,
       senderUsername: row.messageSenderUsername,
       type: String(row.messageType ?? 'TEXT'),
+      readByCount: Math.max(0, Number(row.messageReadByCount) || 0),
     };
   }
 

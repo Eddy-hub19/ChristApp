@@ -12,7 +12,7 @@ import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, la
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { isBossSkin, MONSTER_SKIN } from "./flockSkins";
 import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
-import { BONUS_WORLD_SIZE, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
+import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
 import { viewScale } from "./flockModel";
@@ -664,7 +664,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       const meta = m.players.get(c.pid);
       if (!meta) continue;
       const size = Math.max(11 / scale, Math.min(r * 0.42, 26));
-      const spr = nameSprite(isBossSkin(meta.skin) ? `👑 ${meta.name}` : meta.name, meta.bot && meta.skin !== MONSTER_SKIN, size * scale * dpr, theme);
+      const boss = isBossSkin(meta.skin);
+      const spr = nameSprite(boss ? `👑 ${meta.name}` : meta.name, meta.bot && meta.skin !== MONSTER_SKIN, size * scale * dpr, theme, boss);
       const f = size / spr.px;
       const ty = c.y - r * 0.05;
       ctx.drawImage(spr.cv, c.x - spr.centerX * f, ty - (spr.cv.height * f) / 2, spr.cv.width * f, spr.cv.height * f);
@@ -838,15 +839,28 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
+  let boss: (typeof m.board.map)[number] | null = null;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
   for (const p of m.cfg.castle || m.cfg.night ? [] : m.board.map) {
     const own = p.pid === m.cfg.pid;
     if (own) continue; // свою точку малюємо нижче з живих координат, а не з 1-секундного знімка
     const meta = m.players.get(p.pid);
+    if (meta && isBossSkin(meta.skin)) {
+      boss = p; // Вожака рисуем последним и крупнее, чтобы он не терялся среди ботов
+      continue;
+    }
     const r = Math.max(1.6, Math.min(6, p.size / 14));
     ctx.fillStyle = meta?.bot ? "rgba(120,130,125,0.8)" : "rgba(235,120,120,0.9)";
     circle(ctx, p.x * k, p.y * k, r);
     ctx.fill();
+  }
+  if (boss) {
+    ctx.fillStyle = BOSS_MARK_COLOR;
+    circle(ctx, boss.x * k, boss.y * k, Math.max(3.4, Math.min(7.5, boss.size / 14 + 1.6)));
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
   }
   const w = m.cfg.world;
   // «Звужуване коло»: межа кола на мінікарті

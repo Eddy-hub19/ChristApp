@@ -74,6 +74,7 @@ describe('ChatGateway', () => {
     createRoomMessage: jest.Mock;
     markRoomAsRead: jest.Mock;
     getRoomMessages: jest.Mock;
+    getRoomPins: jest.Mock;
     deleteMessageForUser: jest.Mock;
     resolveReplyTarget: jest.Mock;
     findByClientMessageId: jest.Mock;
@@ -100,6 +101,7 @@ describe('ChatGateway', () => {
       createRoomMessage: jest.fn(),
       markRoomAsRead: jest.fn().mockResolvedValue(undefined),
       getRoomMessages: jest.fn(),
+      getRoomPins: jest.fn().mockResolvedValue([]),
       deleteMessageForUser: jest.fn(),
       resolveReplyTarget: jest.fn().mockResolvedValue(null),
       findByClientMessageId: jest.fn().mockResolvedValue(null),
