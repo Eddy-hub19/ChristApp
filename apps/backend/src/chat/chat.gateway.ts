@@ -689,13 +689,7 @@ export class ChatGateway
         lastReadAt: readAt.toISOString(),
       });
 
-      client.emit('roomHistory', {
-        roomId,
-        messages: history,
-        plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
-      });
-
-      client.emit('roomReadStates', {
+      const readStatesPayload = {
         roomId,
         readStates: [
           ...readStates
@@ -709,7 +703,17 @@ export class ChatGateway
             lastReadAt: readAt.toISOString(),
           },
         ],
-      } satisfies RoomReadStatesPayload);
+      } satisfies RoomReadStatesPayload;
+
+      // Данные о прочтении едут вместе с историей (клиент кладёт их в кеш), отдельное событие оставлено для старых клиентов.
+      client.emit('roomHistory', {
+        roomId,
+        messages: history,
+        plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
+        readStates: readStatesPayload.readStates,
+      });
+
+      client.emit('roomReadStates', readStatesPayload);
 
       client.to(roomId).emit('userJoinedRoom', {
         roomId,

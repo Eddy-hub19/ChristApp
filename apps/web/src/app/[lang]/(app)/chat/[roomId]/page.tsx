@@ -47,7 +47,12 @@ import { fetchOlderRoomMessages } from "@/lib/chatMessagesApi";
 import { loadRoomHistoryWithCache } from "@/lib/chatHistorySync";
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys";
 import { reconcileMessages } from "@/lib/chatReconcile";
-import { readCachedMessages, writeCachedMessages } from "@/lib/chatMessageCache";
+import {
+  readCachedMessages,
+  readCachedReadStates,
+  writeCachedMessages,
+  writeCachedReadStates,
+} from "@/lib/chatMessageCache";
 import {
   addRawVoiceListen,
   appendRawMessage,
@@ -230,6 +235,8 @@ type DirectRoomOpenedPayload = {
 type RoomHistoryPayload = {
   roomId: string;
   messages: IncomingSocketMessage[];
+  /** Кто до какого момента дочитал чат: приходит вместе с историей (RoomReadState на сервере). */
+  readStates?: Array<{ userId?: string; lastReadAt?: string | Date }>;
 };
 
 type OnlineUsersPayload = {
@@ -709,6 +716,36 @@ export default function ChatPageDetails() {
     useState<SnakeRuntimeState | null>(null);
   const [socketAuthEpoch, setSocketAuthEpoch] = useState(0);
   const userIdRef = useRef<string | undefined>(undefined);
+  /** Собеседник в личном чате: от его RoomReadState строится отметка «Переглянуто». */
+  const directChatTargetUserIdRef = useRef<string | undefined>(undefined);
+  /** Применяет данные о прочтении с сервера или из кеша: карта «кто когда дочитал» и, в личном чате, время прочтения собеседником. */
+  const applyReadStatesRef = useRef<
+    (items: Array<{ userId?: string; lastReadAt?: string | Date }> | undefined) => void
+  >(() => undefined);
+  applyReadStatesRef.current = (items) => {
+    const next = new Map<string, string>();
+    for (const item of items ?? []) {
+      if (!item?.userId || !item?.lastReadAt) continue;
+      next.set(String(item.userId), new Date(item.lastReadAt).toISOString());
+    }
+    if (next.size === 0) return;
+    // Прочитанное только растёт: не откатываем уже известное (живое событие могло прийти раньше кеша).
+    setRoomReadStatesByUserId((prev) => {
+      const merged = new Map(prev);
+      for (const [id, at] of next) {
+        const cur = merged.get(id);
+        if (!cur || new Date(at).getTime() >= new Date(cur).getTime()) merged.set(id, at);
+      }
+      return merged;
+    });
+    const peerId = directChatTargetUserIdRef.current;
+    const peerAt = peerId ? next.get(peerId) : undefined;
+    if (peerAt) {
+      setPeerLastReadAt((prev) =>
+        !prev || new Date(peerAt).getTime() >= new Date(prev).getTime() ? peerAt : prev,
+      );
+    }
+  };
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null);
   const outgoingCallTimeoutRef = useRef<number | null>(null);
   const ringtoneIntervalRef = useRef<number | null>(null);
@@ -1260,6 +1297,13 @@ export default function ChatPageDetails() {
       setMessages(uniqueHistory);
       setIsHistoryLoading(false);
     });
+    // Отметки «Переглянуто» из кеша: видны сразу, до ответа сервера и без сети.
+    void readCachedReadStates(userId, effectiveSocketRoomId).then((cachedReads) => {
+      if (cancelled || !cachedReads) return;
+      applyReadStatesRef.current(
+        Object.entries(cachedReads).map(([id, lastReadAt]) => ({ userId: id, lastReadAt })),
+      );
+    });
     return () => {
       cancelled = true;
     };
@@ -1275,6 +1319,16 @@ export default function ChatPageDetails() {
     }, 600);
     return () => window.clearTimeout(timer);
   }, [messages, user?.id, effectiveSocketRoomId]);
+
+  // Данные о прочтении тоже в кеш: после перезапуска приложения отметки на месте.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !effectiveSocketRoomId || roomReadStatesByUserId.size === 0) return;
+    const timer = window.setTimeout(() => {
+      void writeCachedReadStates(userId, effectiveSocketRoomId, Object.fromEntries(roomReadStatesByUserId));
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [roomReadStatesByUserId, user?.id, effectiveSocketRoomId]);
 
   useEffect(() => {
     if (showSkeleton) setSkeletonWasShown(true);
@@ -1484,7 +1538,7 @@ export default function ChatPageDetails() {
       setOnlineCount(0);
       setOnlineUserIds(new Set());
       setLastSeenByUserId(new Map());
-      setRoomReadStatesByUserId(new Map());
+      // roomReadStatesByUserId при обрыве связи не стираем: прочитанное только растёт, после переподключения оно обновится.
       setTypingUsers(new Map());
       typingTextEmitRef.current = false;
       typingVoiceEmitRef.current = false;
@@ -1694,10 +1748,12 @@ export default function ChatPageDetails() {
     const onRoomHistory = ({
       roomId: historyRoomId,
       messages: history,
+      readStates: historyReadStates,
     }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return;
       }
+      applyReadStatesRef.current(historyReadStates);
 
       awaitingRoomHistoryRef.current = false;
 
@@ -1978,12 +2034,7 @@ export default function ChatPageDetails() {
       const joinedId = joinedRoomRef.current;
       if (!joinedId || payload.roomId !== joinedId) return;
 
-      const next = new Map<string, string>();
-      for (const item of payload.readStates ?? []) {
-        if (!item?.userId || !item?.lastReadAt) continue;
-        next.set(String(item.userId), String(item.lastReadAt));
-      }
-      setRoomReadStatesByUserId(next);
+      applyReadStatesRef.current(payload.readStates);
     };
     socket.on("roomReadStates", onRoomReadStates);
 
@@ -2577,6 +2628,9 @@ export default function ChatPageDetails() {
   }, [roomRawTitle, user?.id]);
 
   const directChatTargetUserId = routeUser?.id ?? directRoomUserIdFromTitle;
+  useEffect(() => {
+    directChatTargetUserIdRef.current = directChatTargetUserId ?? undefined;
+  }, [directChatTargetUserId]);
   const directChatTargetUser = useMemo(
     () =>
       users.find((existingUser) => existingUser.id === directChatTargetUserId),
