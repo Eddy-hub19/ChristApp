@@ -43,6 +43,7 @@ export default async function SiteLayout({
   return (
     <div
       id="site-root"
+      data-allow-select
       lang={lang === "ua" ? "uk" : lang}
       className={`${styles.root} ${ebGaramond.variable}`}
     >
