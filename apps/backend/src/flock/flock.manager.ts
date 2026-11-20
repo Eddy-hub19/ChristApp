@@ -1668,7 +1668,7 @@ export class FlockManager {
 
   /** Адмін: карта для наступної створеної арени (null - зняти примус). */
   setNextMap(id: number | null): boolean {
-    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team && (!m.night || C.night.enabled))) return false;
+    if (id !== null && !FLOCK_MAPS.some((m) => m.id === id && !m.team && m.weight > 0 && (!m.night || C.night.enabled))) return false;
     this.forcedNextMap = id;
     // карта вибрана - нові гравці мають потрапити саме на неї: звичайні арени з іншою картою закриваємо для нових (хто грає, лишається)
     if (id !== null) for (const a of this.arenas.values()) if (a.mode === 'normal' && a.mapId !== id) a.retired = true;
