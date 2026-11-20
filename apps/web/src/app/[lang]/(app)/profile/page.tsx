@@ -6,7 +6,6 @@ import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import GoogleSettingsRow from "@/components/GoogleSettings/GoogleSettingsRow";
-import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { getAppStreak, hasVisitedToday } from "@/lib/appStreak";
 import StreakBadge from "@/components/StreakBadge/StreakBadge";
