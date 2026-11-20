@@ -6,11 +6,9 @@ import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import GoogleSettingsRow from "@/components/GoogleSettings/GoogleSettingsRow";
-import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { getAppStreak, hasVisitedToday } from "@/lib/appStreak";
 import StreakBadge from "@/components/StreakBadge/StreakBadge";
-import { deleteSavedVerse } from "@/lib/versesApi";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { USERNAME_REGEX } from "@/lib/formValidation";
 import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter";
@@ -29,10 +27,6 @@ import { getHttpApiBase } from "@/lib/apiBase";
 import { clearUserCaches } from "@/lib/clearUserCaches";
 import { BUILD_DATE } from "@/lib/buildInfo";
 import { currentUserQueryKey } from "@/lib/queries/authQueries";
-import {
-  fetchSavedVersesForQuery,
-  savedVersesQueryKey,
-} from "@/lib/queries/versesQueries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   avatarLikesMeQueryKey,
@@ -57,16 +51,6 @@ import ChatLayoutSettings, { ChatLayoutRow } from "@/components/ChatPrefs/ChatLa
 import DesignBackgroundSettings, { DesignBackgroundRow } from "@/components/ChatPrefs/DesignBackgroundSettings";
 import FontSettings from "@/components/ChatPrefs/FontSettings";
 import { ChatBackgroundRow, FontRow } from "@/components/ChatPrefs/ChatPrefsRows";
-
-type SavedVerse = {
-  id: string;
-  book: string;
-  chapter: number;
-  verse: number;
-  text: string;
-  translation: string;
-  savedAt: string;
-};
 
 type PushPermissionState = NotificationPermission | "unsupported";
 
@@ -166,15 +150,6 @@ export default function ProfilePage() {
     };
   }, [user]);
 
-  const versesQuery = useQuery({
-    queryKey: savedVersesQueryKey(),
-    queryFn: fetchSavedVersesForQuery,
-    enabled: Boolean(user),
-    staleTime: 60_000,
-  });
-
-  const savedVerses = versesQuery.data ?? [];
-
   const pushStatusQuery = useQuery({
     queryKey: pushStatusQueryKey(user?.id),
     queryFn: fetchPushStatusForQuery,
@@ -263,32 +238,6 @@ export default function ProfilePage() {
 
     void refreshPushState();
   }, [isSettingsOpen, refreshPushState]);
-
-  const deleteVerseMutation = useMutation({
-    mutationFn: (verseId: string) => deleteSavedVerse(verseId),
-    onMutate: async (verseId) => {
-      await queryClient.cancelQueries({ queryKey: savedVersesQueryKey() });
-      const previous = queryClient.getQueryData<SavedVerse[]>(
-        savedVersesQueryKey(),
-      );
-      queryClient.setQueryData<SavedVerse[]>(savedVersesQueryKey(), (old) =>
-        (old ?? []).filter((v) => v.id !== verseId),
-      );
-      return { previous };
-    },
-    onError: (_err, _verseId, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(savedVersesQueryKey(), context.previous);
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() });
-    },
-  });
-
-  const handleDeleteVerse = (verseId: string) => {
-    deleteVerseMutation.mutate(verseId);
-  };
 
   const formattedDate = useMemo(() => {
     if (!user?.createdAt) {
@@ -903,54 +852,6 @@ export default function ProfilePage() {
           </div>
         </div>
       ) : null}
-
-      {/* СЕКЦІЯ ЗБЕРЕЖЕНИХ ВІРШІВ — до hydrated не спираємося на persist-кеш RQ (інакше mismatch SSR/клієнт). */}
-      <div className={styles.savedVersesSection}>
-        <div className={styles.sectionHeader}>
-          <span>
-            {t("savedVerses", { count: hydrated ? savedVerses.length : 0 })}
-          </span>
-        </div>
-
-        {!hydrated || (versesQuery.isPending && savedVerses.length === 0) ? (
-          <div className={styles.versesLoadingWrap}>{t("versesLoading")}</div>
-        ) : savedVerses.length === 0 ? (
-          <div className={styles.empty}>{t("savedVersesEmpty")}</div>
-        ) : (
-          <div className={styles.versesList}>
-            {savedVerses.map((verse) => (
-              <div key={verse.id} className={styles.verseItem}>
-                <div className={styles.verseContent}>
-                  <div className={styles.verseRef}>
-                    <strong>
-                      {verse.book} {verse.chapter}:{verse.verse}
-                    </strong>
-                    <span className={styles.translation}>
-                      {verse.translation}
-                    </span>
-                  </div>
-                  <ScriptureText
-                    html={verse.text}
-                    className={styles.verseText}
-                  />
-                  <span className={styles.savedDate}>
-                    {hydrated
-                      ? new Date(verse.savedAt).toLocaleDateString(dateLangTag)
-                      : "\u2014"}
-                  </span>
-                </div>
-                <button
-                  className={styles.deleteBtn}
-                  onClick={() => handleDeleteVerse(verse.id)}
-                  aria-label={t("deleteVerseAria")}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* «Налаштування»: строки всегда видны (без аккордеонов). «Вигляд повідомлень» при BUBBLE_STYLES_ACCESS = "admin" (тестовый режим) - только админу;
           «Фон чату» и «Шрифт» - всем. Каждая строка открывает свой экран с кнопкой «Назад». */}
