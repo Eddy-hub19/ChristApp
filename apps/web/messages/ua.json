@@ -701,6 +701,8 @@
     "onlineShort": "онлайн",
     "offline": "не в мережі",
     "lastSeenJustNow": "був(ла) в мережі щойно",
+    "messageSentTick": "Надіслано",
+    "messageReadTick": "Прочитано",
     "lastSeenMinutes": "був(ла) в мережі {count} хв тому",
     "lastSeenHours": "був(ла) в мережі {count} год тому",
     "lastSeenDays": "був(ла) в мережі {count} дн тому",

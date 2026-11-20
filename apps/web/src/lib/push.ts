@@ -31,6 +31,8 @@ export type UnreadSummaryRoomLastMessage = {
   createdAt: string;
   senderId: string;
   senderUsername: string;
+  /** Сколько других участников прочитали это сообщение (галочки в списке чатов). */
+  readByCount?: number;
 };
 
 export type UnreadSummaryRoom = {

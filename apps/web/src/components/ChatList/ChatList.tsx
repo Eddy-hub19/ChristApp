@@ -23,6 +23,28 @@ import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat";
 
+/** Компактные галочки: одна - отправлено, две - прочитано (цвет акцента). */
+function ReadTicks({ status, label }: { status: "sent" | "read"; label: string }) {
+  return (
+    <svg
+      className={`${styles.readTicks} ${status === "read" ? styles.readTicksRead : ""}`}
+      width="16"
+      height="10"
+      viewBox="0 0 16 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      role="img"
+      aria-label={label}
+    >
+      <path d="M1.5 5.5 4.5 8.5 10 1.5" />
+      {status === "read" ? <path d="M6.5 8.5 7.4 9.2 14 1.5" /> : null}
+    </svg>
+  );
+}
+
 export type ChatListItem = {
   id: string;
   title: string;
@@ -39,6 +61,8 @@ export type ChatListItem = {
   isOnline?: boolean;
   /** ISO час останньої активності в мережі (співрозмовник у приватному чаті). */
   lastSeenAt?: string | null;
+  /** Моё последнее сообщение в чате: «sent» - одна галочка, «read» - две (его прочитал хотя бы один собеседник). */
+  lastOwnStatus?: "sent" | "read";
   /** Показати меню «⋯» з видаленням (загальний чат і службові рядки — без меню). */
   deletable?: boolean;
 };
@@ -686,6 +710,16 @@ const ChatList = ({
                               )}
                             </div>
                             <span className={styles.chatTime}>
+                              {chat.lastOwnStatus ? (
+                                <ReadTicks
+                                  status={chat.lastOwnStatus}
+                                  label={t(
+                                    chat.lastOwnStatus === "read"
+                                      ? "messageReadTick"
+                                      : "messageSentTick",
+                                  )}
+                                />
+                              ) : null}
                               {chatTimeLabel}
                             </span>
                           </div>

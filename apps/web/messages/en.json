@@ -701,6 +701,8 @@
     "onlineShort": "online",
     "offline": "offline",
     "lastSeenJustNow": "last seen just now",
+    "messageSentTick": "Sent",
+    "messageReadTick": "Read",
     "lastSeenMinutes": "last seen {count}m ago",
     "lastSeenHours": "last seen {count}h ago",
     "lastSeenDays": "last seen {count}d ago",

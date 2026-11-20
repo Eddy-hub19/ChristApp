@@ -202,6 +202,43 @@ export class ChatGateway
   // Загальний чат — це просто кімната
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
+  /** Участники комнат (кеш на минуту): кому слать «прочитано» на личный канал, пока он на списке чатов, а не в комнате. */
+  private readonly roomMemberIdsCache = new Map<
+    string,
+    { at: number; ids: string[] }
+  >();
+
+  /**
+   * Оповещает остальных участников комнаты на их личные каналы (`user:<id>`), что `userId` прочитал чат:
+   * список чатов отправителя обновляет галочки сразу. Общий чат не трогаем: в нём все сокеты и так в комнате.
+   */
+  private async notifyReadToMembers(
+    roomId: string,
+    userId: string,
+    lastReadAt: string,
+  ): Promise<void> {
+    if (roomId === this.GLOBAL_ROOM) return;
+    let entry = this.roomMemberIdsCache.get(roomId);
+    if (!entry || Date.now() - entry.at > 60_000) {
+      const members = await this.prisma.roomMember.findMany({
+        where: { roomId },
+        select: { userId: true },
+      });
+      entry = { at: Date.now(), ids: members.map((m) => m.userId) };
+      this.roomMemberIdsCache.set(roomId, entry);
+      if (this.roomMemberIdsCache.size > 2000) {
+        const oldest = this.roomMemberIdsCache.keys().next().value;
+        if (oldest !== undefined) this.roomMemberIdsCache.delete(oldest);
+      }
+    }
+    for (const memberId of entry.ids) {
+      if (memberId === userId) continue;
+      this.server
+        ?.to(`user:${memberId}`)
+        .emit('roomReadUpdated', { roomId, userId, lastReadAt });
+    }
+  }
+
   /** Спільний «plasma» фон кімнати (лише в пам’яті WS; без БД). */
   private readonly roomPlasmaBackground = new Map<string, boolean>();
 
@@ -688,6 +725,9 @@ export class ChatGateway
         userId: user.id,
         lastReadAt: readAt.toISOString(),
       });
+      void this.notifyReadToMembers(roomId, user.id, readAt.toISOString()).catch(
+        () => undefined,
+      );
 
       const readStatesPayload = {
         roomId,
@@ -787,6 +827,9 @@ export class ChatGateway
       userId: user.id,
       lastReadAt: readAt.toISOString(),
     });
+    void this.notifyReadToMembers(roomId, user.id, readAt.toISOString()).catch(
+      () => undefined,
+    );
 
     // Інші пристрої цієї ж людини: прибрати сповіщення кімнати зі шторки й оновити бейдж.
     this.scheduleReadSync(user.id, roomId, () => {

@@ -26,6 +26,8 @@ type UnreadRoomSummaryRow = {
   messageCreatedAt: Date | string | null;
   messageSenderId: string | null;
   messageSenderUsername: string | null;
+  /** Сколько других участников дочитали до этого сообщения (RoomReadState.lastReadAt >= createdAt). */
+  messageReadByCount?: number | null;
 };
 
 type RoomLastMessageSummary = {
@@ -36,6 +38,8 @@ type RoomLastMessageSummary = {
   senderUsername: string;
   /** Тип повідомлення — клієнт підписує медіа на мові інтерфейсу. */
   type: string;
+  /** Скільки інших учасників прочитали це повідомлення (для галочок біля власного останнього повідомлення). */
+  readByCount: number;
 };
 
 type RoomUnreadSummary = {
@@ -774,7 +778,14 @@ export class MessagesService {
           m.type AS "messageType",
           m."createdAt" AS "messageCreatedAt",
           m."senderId" AS "messageSenderId",
-          u.username AS "messageSenderUsername"
+          u.username AS "messageSenderUsername",
+          (
+            SELECT COUNT(*)::int
+            FROM "RoomReadState" rr
+            WHERE rr."roomId" = m."roomId"
+              AND rr."userId" <> m."senderId"
+              AND rr."lastReadAt" >= m."createdAt"
+          ) AS "messageReadByCount"
         FROM "Message" m
         INNER JOIN accessible_rooms ar
           ON ar."roomId" = m."roomId"
@@ -790,7 +801,8 @@ export class MessagesService {
         lm."messageType" AS "messageType",
         lm."messageCreatedAt" AS "messageCreatedAt",
         lm."messageSenderId" AS "messageSenderId",
-        lm."messageSenderUsername" AS "messageSenderUsername"
+        lm."messageSenderUsername" AS "messageSenderUsername",
+        lm."messageReadByCount" AS "messageReadByCount"
       FROM accessible_rooms ar
       LEFT JOIN unread_counts uc
         ON uc."roomId" = ar."roomId"
@@ -859,6 +871,7 @@ export class MessagesService {
       senderId: row.messageSenderId,
       senderUsername: row.messageSenderUsername,
       type: String(row.messageType ?? 'TEXT'),
+      readByCount: Math.max(0, Number(row.messageReadByCount) || 0),
     };
   }
 
