@@ -19,7 +19,7 @@ export default function BibleMain({ bible, defaultBook }: Props) {
   };
 
   return (
-    <main className={styles.main}>
+    <main className={styles.main} data-allow-select>
       <h1>Библия</h1>
 
       <BookDropdown

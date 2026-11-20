@@ -112,6 +112,29 @@ body {
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
+/*
+ * Нативное выделение запрещено во всём приложении: долгий тап вне баблов (поле списка, шапка, окно записи видеокружка,
+ * оверлеи) выделял всю страницу синей заливкой с ручками и системным меню «Скопировать / Найти / Перевести» поверх нашего
+ * меню сообщения. Копирование текста сообщений есть в нашем меню. Выделение остаётся в полях ввода и в зонах с
+ * data-allow-select (читалка Библии, публичные страницы).
+ */
+body {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable]:not([contenteditable="false"]),
+[data-allow-select],
+[data-allow-select] * {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 body.offlinePage {
   padding: 0;
 }
