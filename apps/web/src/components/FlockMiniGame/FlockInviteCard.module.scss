@@ -1,0 +1,174 @@
+// Карточка-приглашение в «Отару» (живёт внутри пузыря сообщения): зелёная панель с овечкой-геймером слева,
+// текстом посередине и золотой кнопкой «Играть» справа; внизу трава. Рисунки вырезаны с макета (public/flock/invite-*.png),
+// их фон совпадает с цветом панели, а края растушёваны маской, поэтому швов не видно.
+// Ширина строго по пузырю (container query): на узкой ширине кнопка уходит под текст на всю ширину.
+
+$panel: #314528;
+
+.card {
+  container-type: inline-size;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.panel {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 112px;
+  padding: 8px 14px 14px 6px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(139, 172, 96, 0.34);
+  border-bottom-color: rgba(168, 204, 84, 0.7);
+  background:
+    radial-gradient(120% 150% at 22% 38%, #38502d 0%, $panel 52%, #2a3b21 100%);
+  box-shadow:
+    inset 0 0 22px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: #f3f1e4;
+}
+
+.art {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 122px;
+  height: auto;
+  align-self: end;
+  margin: 0 0 -6px;
+  user-select: none;
+  pointer-events: none;
+  // Края картинки растушёваны: слева, справа и сверху плавно уходят в фон панели, низ с травой остаётся целым.
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16%, #000 84%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 18%, #000 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 16%, #000 84%, transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 18%, #000 100%);
+  mask-composite: intersect;
+}
+
+.grass {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 1px;
+  width: 184px;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 22%, #000 100%),
+    linear-gradient(to bottom, transparent 0, #000 30%, #000 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 22%, #000 100%),
+    linear-gradient(to bottom, transparent 0, #000 30%, #000 100%);
+  mask-composite: intersect;
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  // Узкая колонка текста, как на макете: «Ты зовёшь дру-зей в Отару» в две строки, кнопка прижата вправо.
+  max-width: 156px;
+}
+
+.title {
+  min-width: 0;
+  color: #f6f3e6;
+  font-weight: 800;
+  font-size: 19px;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.sub {
+  min-width: 0;
+  color: rgba(238, 236, 218, 0.86);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+.play {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  justify-self: end;
+  min-width: 132px;
+  min-height: 52px;
+  padding: 0 20px;
+  border: 1px solid rgba(255, 233, 170, 0.6);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f6dc98 0%, #e5bd68 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 6px 14px -6px rgba(0, 0, 0, 0.55);
+  color: #26190a;
+  font: inherit;
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+// Узкий пузырь: овечка и текст в первой строке, кнопка под ними на всю ширину.
+@container (max-width: 420px) {
+  .panel {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 10px;
+    padding: 8px 12px 12px 4px;
+  }
+
+  .art {
+    width: 92px;
+    margin-bottom: 0;
+  }
+
+  .body {
+    max-width: none;
+  }
+
+  .title {
+    font-size: 16px;
+  }
+
+  .sub {
+    font-size: 13px;
+  }
+
+  .play {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 46px;
+    margin-top: 2px;
+    font-size: 16px;
+  }
+
+  .grass {
+    width: 140px;
+    opacity: 0.85;
+  }
+}
