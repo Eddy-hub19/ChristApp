@@ -33,6 +33,7 @@ export interface DeathInfoIn {
   fell?: boolean;
   swept?: boolean;
   iced?: boolean;
+  shark?: boolean;
   zone?: boolean;
   killer?: string | null;
   /** pid убийцы и признак «убийца - Вожак» (сервер: kp, kb). */
@@ -65,7 +66,7 @@ export interface DeathAnim {
 
 export function deathKindOf(info: DeathInfoIn): DeathKind {
   if (info.burned) return "lava";
-  if (info.fell || info.swept || info.iced) return "fall";
+  if (info.fell || info.swept || info.iced || info.shark) return "fall";
   if (info.zone) return "zone";
   if (info.kp && info.kp > 0) return info.kb ? "boss" : "eat";
   return "other";

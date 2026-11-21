@@ -19,6 +19,8 @@ export interface NavHazard {
   y0: number;
   y1: number;
   gaps: NavGap[];
+  /** Проходами користуються лише клітини з радіусом не більше maxR («Острів скарбів»: міст витримує не всіх); без поля - усі. */
+  maxR?: number;
 }
 
 /** Зона уповільнення («Цукеркова країна»): коло; k - наскільки ШІ її уникає (1 - липка карамель, 0.5 - калюжа). */
@@ -34,6 +36,18 @@ export interface NavWorld {
   hazards: NavHazard[];
   /** Зони уповільнення (без поля або порожньо - їх нема). */
   slowZones?: SlowZone[];
+  /** «Острів скарбів»: коло острова; усе поза ним - вода (заборонена зона для ШІ). */
+  island?: { cx: number; cy: number; r: number } | null;
+}
+
+/** Чи може клітина радіуса r користуватися проходами цієї смуги. */
+const gapUsable = (h: NavHazard, r: number) => h.maxR === undefined || r <= h.maxR;
+
+/** Чи клітина радіуса r у точці (x, y) заважає цій смузі (у смузі й поза проходом, який вона може використати). Лише ця смуга, без острова. */
+function stripBlocks(h: NavHazard, x: number, y: number, r: number): boolean {
+  if (y + r <= h.y0 || y - r >= h.y1) return false;
+  if (gapUsable(h, r)) for (const g of h.gaps) if (x - r >= g.x0 && x + r <= g.x1) return false;
+  return true;
 }
 
 /** Чи клітина радіуса r у точці (x, y) стоїть у забороненій зоні (поза проходом). */
@@ -48,10 +62,12 @@ export function inHazard(w: NavWorld, x: number, y: number, r = 0): boolean {
       if (dx * dx + dy * dy < rr * rr) return true;
     }
   }
+  // острів: вода за колом (центр + радіус клітини не повинні вийти за берег)
+  if (w.island && Math.hypot(x - w.island.cx, y - w.island.cy) + r > w.island.r) return true;
   for (const h of w.hazards) {
     if (y + r <= h.y0 || y - r >= h.y1) continue;
     let onGap = false;
-    for (const g of h.gaps) {
+    for (const g of gapUsable(h, r) ? h.gaps : []) {
       if (x - r >= g.x0 && x + r <= g.x1) {
         onGap = true;
         break;
@@ -81,6 +97,18 @@ export function navPush(
   if (x > W - margin) px -= (x - (W - margin)) / margin;
   if (y < margin) py += (margin - y) / margin;
   if (y > W - margin) py -= (y - (W - margin)) / margin;
+  // острів: біля берега м'яко тягнемо до центру (вода за колом)
+  if (w.island) {
+    const dx = w.island.cx - x;
+    const dy = w.island.cy - y;
+    const d = Math.hypot(dx, dy) || 1;
+    const edge = w.island.r - d - r;
+    if (edge < margin * 1.5) {
+      const k = Math.min(2, (margin * 1.5 - edge) / (margin * 1.5) + 0.2);
+      px += (dx / d) * k;
+      py += (dy / d) * k;
+    }
+  }
   // зони карамелі: м'яко відштовхують від краю й виштовхують зсередини (чим липкіша, тим сильніше)
   if (w.slowZones) {
     for (const z of w.slowZones) {
@@ -99,7 +127,7 @@ export function navPush(
     const m = margin + r;
     if (y < h.y0 - m || y > h.y1 + m) continue;
     let onGap = false;
-    for (const g of h.gaps) {
+    for (const g of gapUsable(h, r) ? h.gaps : []) {
       if (x - r >= g.x0 && x + r <= g.x1) {
         onGap = true;
         // на мосту біля бічного краю м'яко тягнемо до середини (лава за краєм)
@@ -146,7 +174,7 @@ export function navRoute(
     // міст: той, у стулі якого стоїмо, а ззовні - що дає найкоротший шлях x -> міст -> ціль
     let best: NavGap | null = null;
     let bestCost = Infinity;
-    for (const g of h.gaps) {
+    for (const g of gapUsable(h, r) ? h.gaps : []) {
       if (g.x1 - g.x0 < r * 2 + 30) continue;
       const cx = (g.x0 + g.x1) / 2;
       const cost =
@@ -215,10 +243,26 @@ export function navSlide(
 ) {
   out.x = mx;
   out.y = my;
-  if (w.hazards.length === 0) return;
   const len = Math.hypot(mx, my) || 1;
-  const lx = x + (mx / len) * lookAhead;
-  const ly = y + (my / len) * lookAhead;
+  // острів: біля берега скасовуємо складову «до води» (ковзаємо вздовж берега) і трохи тягнемо досередини
+  if (w.island) {
+    const isl = w.island;
+    const ox = x - isl.cx;
+    const oy = y - isl.cy;
+    const od = Math.hypot(ox, oy) || 1;
+    if (od + r + lookAhead > isl.r) {
+      const nx = ox / od;
+      const ny = oy / od;
+      const outward = (mx * nx + my * ny) / len;
+      if (outward > 0) {
+        out.x = mx - nx * outward * len * 1.1;
+        out.y = my - ny * outward * len * 1.1;
+      }
+    }
+  }
+  if (w.hazards.length === 0) return;
+  const lx = x + (out.x / len) * lookAhead;
+  const ly = y + (out.y / len) * lookAhead;
   for (const h of w.hazards) {
     // на мосту: не виходимо за бічні краї
     if (y > h.y0 - r && y < h.y1 + r) {
@@ -229,7 +273,7 @@ export function navSlide(
         }
       }
     }
-    if (!inHazard(w, lx, ly, r) || inHazard(w, x, y, 0)) continue;
+    if (!stripBlocks(h, lx, ly, r) || stripBlocks(h, x, y, 0)) continue;
     const mid = (h.y0 + h.y1) / 2;
     const away = y < mid ? -1 : 1;
     // dy, що веде до смуги (від берега в бік центру смуги), не пропускаємо
@@ -238,4 +282,18 @@ export function navSlide(
     out.x = mx;
     return;
   }
+}
+
+/**
+ * Чи заборонена смуга відділяє (x, y) від (tx, ty) без проходу для клітини радіуса r (важка клітина, мости її не тримають):
+ * тоді ціль по той бік недосяжна, і ШІ її не обирає (лишається на своєму березі).
+ */
+export function navBlocked(w: NavWorld, x: number, y: number, tx: number, ty: number, r: number): boolean {
+  for (const h of w.hazards) {
+    if (gapUsable(h, r)) continue;
+    const a = y < h.y0 ? -1 : y > h.y1 ? 1 : 0;
+    const b = ty < h.y0 ? -1 : ty > h.y1 ? 1 : 0;
+    if (a !== b) return true;
+  }
+  return false;
 }

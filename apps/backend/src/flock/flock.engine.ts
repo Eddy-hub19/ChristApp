@@ -1,5 +1,17 @@
 import type { NavHazard } from './flock.nav';
 import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
+import {
+  bankOf,
+  generateTreasure,
+  inRiverBand as treasureInBand,
+  inWater,
+  onBridge,
+  outsideIsland,
+  randomBankPoint,
+  treasureBlocked,
+  treasureWelcome,
+  type TreasureLayout,
+} from './flock.treasure';
 import { iceRinkAt, iceStep, inIce, type IceRink } from './flock.ice';
 import { candyFactor, candyWelcome, generateCandy, inAnyCandy, inCurrent, inRiverBand, inSticky, onCookie, type CandyLayout } from './flock.candy';
 import type { SlowZone } from './flock.nav';
@@ -149,6 +161,10 @@ export interface Cell {
   thornImmuneUntil: number;
   /** Скільки мс центр клітини вже над порожнечею (карта «Небо»). */
   voidMs?: number;
+  /** Скільки мс центр клітини вже у воді («Острів скарбів»): після sharkMs її з'їдає акула. */
+  waterMs?: number;
+  /** Останній берег ШІ-клітини на острові (-1 північний, 1 південний): повертаємо туди, якщо імпульс виніс у воду. */
+  bank?: -1 | 1;
   /** Тріщини льоду під клітиною 0..1 (карта «Зимовий мороз», див. flock.ice.ts). */
   ice?: number;
 }
@@ -198,6 +214,12 @@ export interface Player {
   fell: boolean;
   /** Провалився під лід («Зимовий мороз»). */
   iced: boolean;
+  /** З'їла акула («Острів скарбів»). */
+  shark: boolean;
+  /** Скільки маси з'їдено зі скринь («Острів скарбів»): іде в рекорди й топ, але не в рекорди дня, серію першого місця й нагороди. */
+  chestMass: number;
+  /** Остання підказка «Міст не витримає» (мс світового часу). */
+  bridgeHintAt: number;
   /** Відносить річкою за край світу («Цукеркова країна»). */
   swept: boolean;
   /** Були «Крильця» на попередньому тіку (щоб м'яко повернути на хмару, коли вони скінчаться над порожнечею). */
@@ -356,6 +378,8 @@ const REGULAR_BONUS_KINDS = BONUS_KINDS.filter(
 
 /** Вид їжі «Веселка» (0-2 - трава й квіти; 3 - шерсть після «Ножиць»; 4 - лише карта «Небо»). */
 export const RAINBOW_KIND = 4;
+/** «Скриня зі скарбом» («Острів скарбів»): цінна їжа. */
+export const TREASURE_KIND = 5;
 
 export const radiusOf = (mass: number) => C.radiusK * Math.sqrt(mass);
 /**
@@ -438,6 +462,17 @@ export class FlockWorld {
   candy: CandyLayout | null = null;
   /** «Зимовий мороз»: каток по центру (null - інша карта). */
   ice: IceRink | null = null;
+  /** «Острів скарбів»: острів, річка й мости (null - інша карта). */
+  treasure: TreasureLayout | null = null;
+  /** Коло острова для ШІ (flock.nav): поза ним вода. */
+  island: { cx: number; cy: number; r: number } | null = null;
+  /** Скрині на березі: id їжі й коли зникне. */
+  private readonly chests: { id: number; expiresAt: number }[] = [];
+  private nextChestAt = 0;
+  /** Береги чергуються для їжі, бонусів, звізд і точок появи: на обох порівну. */
+  private bankToggle: -1 | 1 = 1;
+  /** Гравці, чия клітина щойно відштовхнута від моста (їм іде підказка «Міст не витримає»). */
+  readonly bridgeHints: number[] = [];
   /** Ті самі зони для ШІ: боти об'їжджають липку карамель, калюжі - слабше (flock.nav). */
   slowZones: SlowZone[] = [];
   /** Режим «Замки»: правила рушія (null - звичайна арена). Ставить менеджер до першого гравця. */
@@ -511,6 +546,15 @@ export class FlockWorld {
       // боти об'їжджають каток так само, як липку карамель
       this.slowZones = [{ x: this.ice.x, y: this.ice.y, r: this.ice.r, k: 1 }];
     }
+    if (map.treasure) {
+      const t = (this.treasure = generateTreasure(rng, C.worldSize, C.treasure));
+      this.island = { cx: t.cx, cy: t.cy, r: t.r };
+      // ШІ: річка - заборонена смуга з мостами; важчі за bridgeMaxMass мостами не користуються (maxR)
+      this.hazards = [
+        { y0: t.y0, y1: t.y1, gaps: t.bridges.map((b) => ({ x0: b.x0, x1: b.x1 })), maxR: radiusOf(C.treasure.bridgeMaxMass) },
+      ];
+    }
+    const treasure = this.treasure;
     const candy = this.candy;
     const ice = this.ice;
     const lava = this.lava;
@@ -530,7 +574,10 @@ export class FlockWorld {
           : ice
             ? // на катку кущів нема (він має бути чистим льодом)
               (x: number, y: number, mass: number) => inIce(ice, x, y, radiusOf(mass) + 20)
-            : undefined;
+            : treasure
+              ? // «Острів скарбів»: кущі лише на березі, не ближче shoreMargin від води
+                (x: number, y: number, mass: number) => treasureBlocked(treasure, x, y, radiusOf(mass) + C.treasure.shoreMargin)
+              : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
       for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
@@ -538,6 +585,7 @@ export class FlockWorld {
     }
     for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout, avoid))
       this.thorns.push({ id: this.nextThornId++, ...t });
+    if (treasure) this.balanceThornsByBank(treasure);
     for (let i = 0; i < this.foodCap; i++) this.spawnFood();
   }
 
@@ -675,6 +723,9 @@ export class FlockWorld {
       burned: false,
       fell: false,
       iced: false,
+      shark: false,
+      chestMass: 0,
+      bridgeHintAt: 0,
       swept: false,
       hadWings: false,
       zoneDeath: false,
@@ -770,6 +821,8 @@ export class FlockWorld {
     p.burned = false;
     p.fell = false;
     p.iced = false;
+    p.shark = false;
+    p.chestMass = 0;
     p.swept = false;
     p.hadWings = false;
     p.zoneDeath = false;
@@ -815,8 +868,12 @@ export class FlockWorld {
       ? { x: C.worldSize / 2, y: this.lava.y0 - 300 }
       : this.ice
         ? { x: C.worldSize / 2, y: C.worldSize / 2 - C.ice.radius - 200 }
-        : { x: C.worldSize / 2, y: C.worldSize / 2 };
+        : this.treasure
+          ? { x: C.worldSize / 2, y: this.treasure.y0 - 400 }
+          : { x: C.worldSize / 2, y: C.worldSize / 2 };
     let bestD = -1;
+    if (this.treasure) this.bankToggle = this.bankToggle === 1 ? -1 : 1;
+    const spawnBank = this.bankToggle;
     for (let i = 0; i < 8; i++) {
       let x = this.rand(150, C.worldSize - 150);
       let y = this.rand(150, C.worldSize - 150);
@@ -828,6 +885,12 @@ export class FlockWorld {
         y = Math.min(C.worldSize - 150, Math.max(150, this.circle.y + Math.sin(a) * d));
       }
       if (this.arena) [x, y] = this.arenaPoint(260, 0.8);
+      if (this.treasure) {
+        // «Острів скарбів»: гравці з'являються по черзі на обох берегах (берег один на виклик, а не на кандидата: найкраща з 8 точок не зміщує баланс)
+        const pt = randomBankPoint(this.treasure, this.rng, spawnBank, C.treasure.shoreMargin + 160);
+        if (!pt) continue;
+        [x, y] = pt;
+      }
       if (this.lavaBlockedAt(x, y, C.lava.clearMargin + 160)) continue;
       let d = Infinity;
       for (const c of this.cellsById.values()) {
@@ -998,6 +1061,8 @@ export class FlockWorld {
       if (river && inRiverBand(river, y, extra) && !onCookie(river, x, y, extra + 20)) return true;
       return inSticky(this.candy, x, y, extra);
     }
+    // «Острів скарбів»: нічого не з'являється у воді, на мосту й ближче shoreMargin до води
+    if (this.treasure !== null) return treasureBlocked(this.treasure, x, y, C.treasure.shoreMargin + Math.max(0, margin - C.lava.clearMargin));
     // «Зимовий мороз»: їжа, бонуси й точки появи не на катку
     if (this.ice !== null) return inIce(this.ice, x, y, Math.max(0, margin - C.lava.clearMargin));
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
@@ -1005,6 +1070,7 @@ export class FlockWorld {
 
   /** Лише лава (без хмар): для зірок «Зорепаду», що можуть падати й над порожнечею. */
   private lavaOnlyAt(x: number, y: number, margin: number) {
+    if (this.treasure !== null) return treasureBlocked(this.treasure, x, y, C.treasure.shoreMargin);
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
   }
 
@@ -1021,6 +1087,12 @@ export class FlockWorld {
     let x = this.rand(20, C.worldSize - 20);
     let y = this.rand(20, C.worldSize - 20);
     if (this.arena) [x, y] = this.arenaPoint(40);
+    if (this.treasure) {
+      // «Острів скарбів»: їжа по черзі на обох берегах (рівно порівну), не в річці й не ближче shoreMargin від води
+      const pt = this.treasureBankPoint(C.treasure.shoreMargin + C.foodRadius);
+      if (!pt) return;
+      [x, y] = pt;
+    }
     if (this.sky) {
       const pt = randomCorePoint(this.sky, this.rng, C.foodRadius + 10);
       if (!pt) return;
@@ -1040,6 +1112,10 @@ export class FlockWorld {
   }
 
   private removeFood(food: Food) {
+    if (food.kind === TREASURE_KIND) {
+      const i = this.chests.findIndex((c) => c.id === food.id);
+      if (i >= 0) this.chests.splice(i, 1);
+    }
     if (food.kind === RAINBOW_KIND) this.rainbowCount = Math.max(0, this.rainbowCount - 1);
     this.foodById.delete(food.id);
     const chunk = chunkIndexOf(food.x, food.y);
@@ -1088,6 +1164,11 @@ export class FlockWorld {
     let bx = this.rand(120, C.worldSize - 120);
     let by = this.rand(120, C.worldSize - 120);
     if (this.arena) [bx, by] = this.arenaPoint(140);
+    if (this.treasure) {
+      const pt = this.treasureBankPoint(C.treasure.shoreMargin + 40);
+      if (!pt) return;
+      [bx, by] = pt;
+    }
     if (this.sky) {
       const pt = randomCorePoint(this.sky, this.rng, 60);
       if (!pt) return;
@@ -1150,6 +1231,7 @@ export class FlockWorld {
     this.foodEvents.length = 0;
     this.starEvents.length = 0;
     this.candyRainEvents.length = 0;
+    this.bridgeHints.length = 0;
     this.scissorsEvents.length = 0;
     this.reviveEvents.length = 0;
     this.deaths.length = 0;
@@ -1198,6 +1280,8 @@ export class FlockWorld {
     this.stepThorns();
     this.stepLava(dt);
     this.stepIce(dt);
+    this.stepTreasure(dt);
+    this.stepChests();
     this.stepSky(dt);
     this.stepCircle(dt);
     this.stepBonuses();
@@ -1931,6 +2015,13 @@ export class FlockWorld {
         for (const f of EAT) {
           if (!this.foodById.has(f.id)) continue;
           this.removeFood(f);
+          if (f.kind === TREASURE_KIND) {
+            // «Скриня зі скарбом»: маса одразу, але не «з'їсти їжу» (завдання) і не серія першого місця (chestMass віднімається там)
+            const m = f.mass ?? C.foodMass * C.treasure.chests.massFoods;
+            c.mass += m;
+            p.chestMass += m;
+            continue;
+          }
           p.qFood++;
           // шерсть несе свою масу (зрізану «Ножицями»), без подвоєння: маса не береться з повітря
           if (f.kind === RAINBOW_KIND) {
@@ -1944,6 +2035,161 @@ export class FlockWorld {
         }
       }
     }
+  }
+
+  /** «Острів скарбів»: випадкова точка твердого берега, береги чергуються (на обох порівну). */
+  private treasureBankPoint(margin: number): [number, number] | null {
+    const t = this.treasure;
+    if (!t) return null;
+    this.bankToggle = this.bankToggle === 1 ? -1 : 1;
+    return randomBankPoint(t, this.rng, this.bankToggle, margin);
+  }
+
+  /** Кущі острова: на обох берегах порівну (зайві з більшого берега прибираємо). */
+  private balanceThornsByBank(t: TreasureLayout) {
+    const north = this.thorns.filter((x) => bankOf(t, x.y) < 0);
+    const south = this.thorns.filter((x) => bankOf(t, x.y) > 0);
+    const extra = Math.abs(north.length - south.length);
+    const from = north.length > south.length ? north : south;
+    for (const th of from.slice(0, extra)) {
+      const i = this.thorns.indexOf(th);
+      if (i >= 0) this.thorns.splice(i, 1);
+    }
+  }
+
+  /**
+   * «Острів скарбів»: вода й мости. Клітина, чий центр у воді (поза колом острова або в річці поза мостом), через sharkMs гине
+   * (її з'їдає акула; маса нікому; остання клітина - смерть гравця, shark). Новачок (newbieSafeMs від появи), стартовий щит і пауза
+   * у воді не гинуть: їх м'яко виштовхує на найближчий берег (як у лаві); «Привид» і бонус «Щит» не рятують.
+   * Міст витримує клітину масою не більше bridgeMaxMass: важча на міст не заходить і зі стоячої на ньому її м'яко зсуває на найближчий берег.
+   */
+  private stepTreasure(dt: number) {
+    const t = this.treasure;
+    if (!t) return;
+    const T = C.treasure;
+    const mid = (t.y0 + t.y1) / 2;
+    for (const p of this.players.values()) {
+      if (!p.alive || p.monster) continue;
+      const safe = p.paused || this.now < p.lavaSafeUntil || this.now - p.spawnedAt < T.newbieSafeMs;
+      for (const c of [...p.cells]) {
+        // важка клітина на мосту (або заходить на нього): зсув на найближчий берег, без шкоди
+        if (c.mass > T.bridgeMaxMass && treasureInBand(t, c.y) && onBridge(t, c.x) && !outsideIsland(t, c.x, c.y)) {
+          const step = T.pushOutSpeed * dt;
+          if (c.y < mid) c.y = Math.max(t.y0 - 1, c.y - step);
+          else c.y = Math.min(t.y1 + 1, c.y + step);
+          c.vy = 0;
+          if (this.now - p.bridgeHintAt > 2000) {
+            p.bridgeHintAt = this.now;
+            this.bridgeHints.push(p.id);
+          }
+          continue;
+        }
+        // ШІ (боти й Вожак) воду за стіну не вважають: страховка, якщо плавний поворот проніс клітину за берег або повз міст
+        if ((p.bot || p.boss) && inWater(t, c.x, c.y)) this.keepAiOnLand(t, c);
+        if (!inWater(t, c.x, c.y)) {
+          if (c.waterMs) c.waterMs = undefined;
+          if (p.bot || p.boss) {
+            const bk = bankOf(t, c.y);
+            if (bk !== 0) c.bank = bk;
+          }
+          continue;
+        }
+        if (safe) {
+          c.waterMs = undefined;
+          const step = T.pushOutSpeed * dt;
+          if (outsideIsland(t, c.x, c.y)) {
+            // до берега по радіусу, до кола
+            const dx = c.x - t.cx;
+            const dy = c.y - t.cy;
+            const d = Math.hypot(dx, dy) || 1;
+            const k = Math.max(0, d - step - 1) / d;
+            c.x = t.cx + dx * Math.min(1, Math.max(k, (t.r - 2) / d));
+            c.y = t.cy + dy * Math.min(1, Math.max(k, (t.r - 2) / d));
+          } else if (c.y < mid) c.y = Math.max(t.y0 - 1, c.y - step);
+          else c.y = Math.min(t.y1 + 1, c.y + step);
+          continue;
+        }
+        c.waterMs = (c.waterMs ?? 0) + dt * 1000;
+        if (c.waterMs < T.sharkMs) continue;
+        this.dropCell(p, c);
+        if (p.cells.length > 0) continue;
+        p.alive = false;
+        p.shark = true;
+        p.diedAt = this.now;
+        p.killerPid = 0;
+        p.phrase = null;
+        this.deaths.push({ pid: p.id, killerPid: 0 });
+      }
+    }
+  }
+
+  /**
+   * Страховка для ШІ на острові: клітину у воді повертає на землю. За колом - на коло; у смузі річки поза мостом - до краю найближчого
+   * моста (якщо він поруч), інакше на найближчий берег. Тихо, без шкоди й без імпульсу.
+   */
+  private keepAiOnLand(t: TreasureLayout, c: Cell) {
+    c.vx = c.vy = 0;
+    if (outsideIsland(t, c.x, c.y)) {
+      const dx = c.x - t.cx;
+      const dy = c.y - t.cy;
+      const d = Math.hypot(dx, dy) || 1;
+      const k = (t.r - 4) / d;
+      c.x = t.cx + dx * k;
+      c.y = t.cy + dy * k;
+    }
+    if (!treasureInBand(t, c.y) || onBridge(t, c.x)) return;
+    // у смузі річки поза мостом: до краю найближчого моста (якщо поруч), інакше на найближчий берег
+    let best: { x0: number; x1: number } | null = null;
+    let bestD = Infinity;
+    for (const b of t.bridges) {
+      const d = c.x < b.x0 ? b.x0 - c.x : c.x - b.x1;
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    if (best && bestD <= 90 && c.mass <= C.treasure.bridgeMaxMass) {
+      c.x = c.x < best.x0 ? best.x0 + 2 : best.x1 - 2;
+      return;
+    }
+    // повертаємо на берег, звідки клітина прийшла (імпульс поділу не має переносити ШІ через річку), інакше на найближчий
+    const home = c.bank ?? (c.y < (t.y0 + t.y1) / 2 ? -1 : 1);
+    c.y = home < 0 ? t.y0 - 2 : t.y1 + 2;
+    // на березі в самому куті острова: ще й досередини, щоб не опинитись знову за колом
+    const dy = c.y - t.cy;
+    const maxDx = Math.sqrt(Math.max(0, (t.r - 4) ** 2 - dy * dy));
+    if (Math.abs(c.x - t.cx) > maxDx) c.x = t.cx + Math.sign(c.x - t.cx) * maxDx;
+  }
+
+  /** «Скрині зі скарбом»: з'являються на берегах (не на мостах, не у воді) до максимуму й зникають через lifetimeMs. */
+  private stepChests() {
+    const t = this.treasure;
+    if (!t) return;
+    const Ch = C.treasure.chests;
+    for (let i = this.chests.length - 1; i >= 0; i--) {
+      const ch = this.chests[i];
+      if (this.now < ch.expiresAt) continue;
+      const f = this.foodById.get(ch.id);
+      if (f) this.removeFood(f);
+      else this.chests.splice(i, 1);
+    }
+    if (this.chests.length >= Ch.max || this.now < this.nextChestAt) return;
+    this.nextChestAt = this.now + Ch.spawnEveryMs;
+    const pt = this.treasureBankPoint(C.treasure.shoreMargin + 60);
+    if (!pt) return;
+    const id = this.nextId(this.nextFoodId, (i) => this.foodById.has(i));
+    this.nextFoodId = id + 1;
+    const food: Food = { id, x: pt[0], y: pt[1], kind: TREASURE_KIND, mass: C.foodMass * Ch.massFoods };
+    this.foodById.set(id, food);
+    const chunk = chunkIndexOf(food.x, food.y);
+    this.foodChunks[chunk].set(id, food);
+    this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
+    this.chests.push({ id, expiresAt: this.now + Ch.lifetimeMs });
+  }
+
+  /** Острів для welcome (один раз; далі не змінюється): усе для малювання й дзеркальних формул на клієнті. */
+  treasureSnapshot() {
+    return this.treasure ? treasureWelcome(this.treasure, C.treasure) : undefined;
   }
 
   /**
@@ -2782,6 +3028,12 @@ export class FlockWorld {
       } else {
         x = this.rand(lo, hi);
         y = this.rand(lo, hi);
+      }
+      if (this.treasure) {
+        // «Острів скарбів»: зорі падають по черзі на обох берегах
+        const pt = this.treasureBankPoint(C.treasure.shoreMargin + 40);
+        if (!pt) continue;
+        [x, y] = pt;
       }
       x = Math.min(hi, Math.max(lo, x));
       y = Math.min(hi, Math.max(lo, y));

@@ -1,5 +1,5 @@
 import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
-import { inHazard, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
+import { inHazard, navBlocked, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
 import {
   radiusOf,
   speedOf,
@@ -346,7 +346,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
       if (s.edible < B.preyMinMass) continue;
       const o = s.p;
       if (world.isShielded(o)) continue;
-      if (inHazard(world, s.ex, s.ey)) continue;
+      if (inHazard(world, s.ex, s.ey) || navBlocked(world, me.x, me.y, s.ex, s.ey, myR)) continue;
       // «Кадило»: носій не стає ціллю Вожака
       if (world.hasArtifact(o, ARTIFACT.censer)) continue;
       // новачків-людей не чіпаємо (див. botGraceMs; рушій теж не дасть їх з'їсти)
@@ -508,7 +508,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         let ty = 0;
         world.foodNear(me.x, me.y, B.foodRadius, (f) => {
           const d = Math.hypot(f.x - me.x, f.y - me.y);
-          if (d < best && !inHazard(world, f.x, f.y, 60)) {
+          if (d < best && !inHazard(world, f.x, f.y, 60) && !navBlocked(world, me.x, me.y, f.x, f.y, myR)) {
             best = d;
             tx = f.x;
             ty = f.y;
@@ -516,7 +516,7 @@ export function thinkBoss(world: FlockWorld, p: Player, rng: Rng) {
         });
         for (const b of world.bonuses) {
           const d = Math.hypot(b.x - me.x, b.y - me.y);
-          if (d < B.bonusRadius && d * 0.35 < best && !inHazard(world, b.x, b.y, 60)) {
+          if (d < B.bonusRadius && d * 0.35 < best && !inHazard(world, b.x, b.y, 60) && !navBlocked(world, me.x, me.y, b.x, b.y, myR)) {
             best = d * 0.35;
             tx = b.x;
             ty = b.y;

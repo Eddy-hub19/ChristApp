@@ -76,6 +76,13 @@ export const APP_WHATS_NEW: AppWhatsNewEntry[] = [
       { ua: "Бонуси в Отарі більші", ru: "Бонусы в Отаре крупнее", en: "Bigger bonuses in Flock" },
     ],
   },
+  {
+    version: 9,
+    date: "2026-11-22",
+    items: [
+      { ua: "Додано нову карту «Острів скарбів»", ru: "Добавлена новая карта «Остров сокровищ»", en: "Added the new “Treasure Island” map" },
+    ],
+  },
 ];
 
 /** С этой даты идёт «новый сайт»: при первом запуске один раз показываем все записи с неё (INTRO_VERSION и новее окно не открывает). */

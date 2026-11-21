@@ -4,12 +4,13 @@
  */
 
 import { drawCandyFood, paintCandyGround } from "./flockCandy";
+import { drawTreasureFood, paintTreasureGround } from "./flockTreasure";
 
-export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night" | "arena" | "candy";
+export type Ground = "meadow" | "autumn" | "snow" | "volcano" | "lake" | "night" | "arena" | "candy" | "treasure";
 
 const TAU = Math.PI * 2;
 
-/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч, 7 арена, 8 цукеркова країна. */
+/** Вид землі за номером карти (FLOCK_MAPS на сервері): 0 луг, 1 гай, 2 мороз, 3 вулкан, 4 озеро, 5 ніч, 7 арена, 8 цукеркова країна, 9 острів скарбів. */
 export function groundOf(map: number | undefined): Ground {
   switch (map) {
     case 1:
@@ -26,6 +27,8 @@ export function groundOf(map: number | undefined): Ground {
       return "arena";
     case 8:
       return "candy";
+    case 9:
+      return "treasure";
     default:
       return "meadow";
   }
@@ -95,8 +98,10 @@ export function paintGround(c: CanvasRenderingContext2D, span: number, ground: G
     c.lineTo(span, i * cell);
   }
   c.stroke();
-  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : ground === "night" ? 97 : ground === "candy" ? 53 : 47);
-  if (ground === "candy") {
+  const r = rng(ground === "snow" ? 11 : ground === "autumn" ? 29 : ground === "meadow" ? 71 : ground === "lake" ? 83 : ground === "night" ? 97 : ground === "candy" ? 53 : ground === "treasure" ? 59 : 47);
+  if (ground === "treasure") {
+    paintTreasureGround(c, span, r);
+  } else if (ground === "candy") {
     paintCandyGround(c, span, r);
   } else if (ground === "meadow" || ground === "lake") {
     // трава: пятна чуть разных оттенков (светлее и темнее базового зелёного), травинки и мелкие цветочки
@@ -413,6 +418,10 @@ export function drawGroundFood(c: CanvasRenderingContext2D, kind: number, ground
   c.lineJoin = "round";
   if (ground === "candy") {
     drawCandyFood(c, kind);
+    return;
+  }
+  if (ground === "treasure") {
+    drawTreasureFood(c, kind);
     return;
   }
   if (ground === "arena") {

@@ -75,6 +75,8 @@ export interface DeathInfo {
   swept?: boolean;
   /** Провалився під лід (карта «Зимовий мороз»). */
   iced?: boolean;
+  /** З'їла акула (карта «Острів скарбів»). */
+  shark?: boolean;
   /** Загинув поза колом (режим «Звужуване коло»). */
   zone?: boolean;
   /** pid убивці й ознака «убивця - Вожак» (для анімації смерті). */
@@ -123,6 +125,8 @@ export interface FlockClientOptions {
   onFeed?: (m: FeedMsg) => void;
   /** Стартувала подія «Зорепад»: показати напис. */
   onZorepad?: () => void;
+  /** «Острів скарбів»: важку клітину відштовхнуло від моста (підказка «Міст не витримає»). */
+  onBridgeBlocked?: () => void;
   /** Спрацювали «Ножиці»: ми підібрали (taker), нас підстригли (victim), count - скільки зачепило. */
   /** «Вожак»: 1 - вышел на охоту, 2 - побеждён (name - кто победил). */
   /** Свій текст відхилено сервером (заборонене слово / мут / вимкнено). */
@@ -326,7 +330,7 @@ export class FlockClient {
         this.stopHeartbeat();
         clearFlockSession();
         this.stored = null;
-        playFlockSound(info?.burned ? "burn" : info?.fell || info?.swept || info?.iced ? "fall" : "death", { self: true });
+        playFlockSound(info?.burned ? "burn" : info?.fell || info?.swept || info?.iced || info?.shark ? "fall" : "death", { self: true });
         // «Замки» і клієнт без моделі: без показу смерті, одразу підсумки як раніше
         if (!this.model || this.mode === "castles" || this.pendingDeath) {
           this.setStatus("dead");
@@ -376,6 +380,9 @@ export class FlockClient {
     });
     socket.on("sy", (msg: unknown) => {
       this.later(() => this.model?.applySkySync(msg, performance.now()));
+    });
+    socket.on("br", () => {
+      this.later(() => this.opts.onBridgeBlocked?.());
     });
     socket.on("lv", (msg: unknown) => {
       this.later(() => this.model?.applyLava(msg, performance.now()));

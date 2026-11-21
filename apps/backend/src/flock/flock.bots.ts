@@ -1,6 +1,6 @@
 import { BOT_NAMES } from './flock.bot-names';
 import { ARTIFACT, FLOCK_CONFIG } from './flock.config';
-import { inHazard, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
+import { inHazard, navBlocked, navCenter, navPush, navRayHits, navRoute, navSlide } from './flock.nav';
 import {
   radiusOf,
   speedOf,
@@ -243,7 +243,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
   let pi = -1;
   let bestValue = 0;
   for (let i = 0; i < nPr; i++) {
-    if (inHazard(world, prX[i], prY[i])) continue;
+    if (inHazard(world, prX[i], prY[i]) || navBlocked(world, me.x, me.y, prX[i], prY[i], myR)) continue;
     let guarded = false;
     for (let j = 0; j < nTh; j++) {
       if (Math.hypot(thX[j] - prX[i], thY[j] - prY[i]) < prof.guardRadius + thR[j]) {
@@ -401,7 +401,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       let ty = 0;
       world.foodNear(me.x, me.y, prof.foodRadius, (f) => {
         const d = Math.hypot(f.x - me.x, f.y - me.y);
-        if (d < best && !inHazard(world, f.x, f.y, FOOD_EDGE) && !world.inPuddle(f.x, f.y)) {
+        if (d < best && !inHazard(world, f.x, f.y, FOOD_EDGE) && !world.inPuddle(f.x, f.y) && !navBlocked(world, me.x, me.y, f.x, f.y, myR)) {
           best = d;
           tx = f.x;
           ty = f.y;
@@ -409,7 +409,7 @@ export function thinkBot(world: FlockWorld, p: Player, rng: Rng) {
       });
       for (const b of world.bonuses) {
         const d = Math.hypot(b.x - me.x, b.y - me.y);
-        if (d < 450 && d * 0.5 < best && !inHazard(world, b.x, b.y, FOOD_EDGE)) {
+        if (d < 450 && d * 0.5 < best && !inHazard(world, b.x, b.y, FOOD_EDGE) && !navBlocked(world, me.x, me.y, b.x, b.y, myR)) {
           best = d * 0.5;
           tx = b.x;
           ty = b.y;

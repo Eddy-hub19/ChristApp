@@ -92,7 +92,7 @@ type Hud = {
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy", "treasure"] as const;
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
 const MINIMAP_SIZE = 96;
@@ -199,6 +199,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [buyError, setBuyError] = useState<string | null>(null);
   /** Напис «Зорепад!» (id - щоб анімація стартувала знову при повторі події). */
   const [zorepad, setZorepad] = useState<number | null>(null);
+  /** «Острів скарбів»: підказка «Міст не витримає» (мітка часу; гасне через 2 с). */
+  const [bridgeHint, setBridgeHint] = useState<number | null>(null);
   const [scissorsMsg, setScissorsMsg] = useState<{ id: number; taker: boolean; count: number; gain: number } | null>(null);
   /** Подсказка при подборе «Орлиного зору» (id - чтобы анимация стартовала снова). */
   const [eagleHint, setEagleHint] = useState<number | null>(null);
@@ -529,6 +531,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         },
         onStatus: (s) => setStatus(s),
         onZorepad: () => setZorepad(Date.now()),
+        onBridgeBlocked: () => setBridgeHint(Date.now()),
         onFeed: (m) => {
           const id = ++feedIdRef.current;
           setFeed((prev) => [...prev.slice(-(FEED_MAX - 1)), { id, pid: m.p, name: m.n, team: m.k, phrase: m.i, text: m.x, at: Date.now() }]);
@@ -679,6 +682,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     const id = setTimeout(() => setEagleHint(null), 2600);
     return () => clearTimeout(id);
   }, [eagleHint]);
+
+  useEffect(() => {
+    if (bridgeHint === null) return;
+    const id = setTimeout(() => setBridgeHint(null), 2000);
+    return () => clearTimeout(id);
+  }, [bridgeHint]);
 
   useEffect(() => {
     if (zorepad === null) return;
@@ -1434,7 +1443,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
               {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
               {mapToast === "candy" ? <small className={styles.mapToastSub}>{t("candy.mapSub")}</small> : null}
+              {mapToast === "treasure" ? <small className={styles.mapToastSub}>{t("treasure.mapSub", { n: (me?.config.game?.treasure as { bridgeMaxMass?: number } | undefined)?.bridgeMaxMass ?? 1000 })}</small> : null}
               {mapToast === "coliseum" ? <small className={styles.mapToastSub}>{t("coliseum.mapSub", { n: (me?.config.game?.coliseum as { arrowHitsRequired?: number } | undefined)?.arrowHitsRequired ?? 3 })}</small> : null}
+            </div>
+          ) : null}
+          {bridgeHint !== null ? (
+            <div key={bridgeHint} className={styles.zorepadBanner} role="status">
+              {t("treasure.bridgeNo")}
             </div>
           ) : null}
           {zorepad !== null ? (
@@ -1785,11 +1800,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {status === "dead" && death && !circleEnd ? (
         <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
-            <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : death.swept ? t("dead.sweptTitle") : death.iced ? t("dead.icedTitle") : t("dead.title")}</h2>
+            <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : death.swept ? t("dead.sweptTitle") : death.iced ? t("dead.icedTitle") : death.shark ? t("dead.sharkTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
             {death.fell ? <p className={styles.sub}>{t("dead.fell")}</p> : null}
             {death.swept ? <p className={styles.sub}>{t("dead.swept")}</p> : null}
             {death.iced ? <p className={styles.sub}>{t("dead.iced")}</p> : null}
+            {death.shark ? <p className={styles.sub}>{t("dead.shark")}</p> : null}
             {death.zone ? <p className={styles.sub}>{t("dead.zone")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
             <dl className={styles.summary}>

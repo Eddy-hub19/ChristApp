@@ -12,6 +12,7 @@ import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, la
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { isBossSkin, MONSTER_SKIN } from "./flockSkins";
 import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
+import { drawTreasureDecor, drawTreasureMinimap, drawTreasureWorld, drawSharkFin, drawWaterGlow, drawWaterWarning, twDistanceToWater, twInWater } from "./flockTreasure";
 import { drawIceMinimap, paintIceCracks, paintIceRink } from "./flockIce";
 import { CANDY_MAP_ID, JELLY_KINDS, drawCandyMinimap, drawRiverMinimap, paintChocolateTile, paintGiantCandy, paintCandyZone, paintCookie } from "./flockCandy";
 import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
@@ -150,7 +151,7 @@ const FOOD_PX = 64;
 const foodCache = new Map<string, HTMLCanvasElement>();
 function foodSprite(kind: number, dark: boolean, ground: Ground = "meadow") {
   // шерсть (kind 3) однакова на всіх картах; на не-лугових картах трава/квітка/колосок - свої спрайти, без залежності від теми
-  const gk = kind === 3 || kind === 4 ? "meadow" : ground;
+  const gk = kind === 3 || kind === 4 ? "meadow" : kind === 5 ? "treasure" : ground;
   // ключ включает карту и вид: раньше числовые индексы разных карт пересекались (листья «просачивались» на мороз)
   const i = `${gk}-${kind}-${dark && gk === "meadow" ? "d" : "l"}`;
   const cached = foodCache.get(i);
@@ -607,7 +608,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // межа світу (на «Небі» - хмарний бордюр)
   if (!sky && !col) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  if (!sky && !col) ctx.strokeRect(0, 0, world, world);
+  if (!sky && !col && !m.cfg.treasure) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
@@ -615,8 +616,13 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
+  else if (!col && !m.cfg.treasure) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
+  // «Острів скарбів»: вода, береги, річка, мости й декор на піску (загорожі нема: межу задає вода)
+  if (m.cfg.treasure) {
+    drawTreasureWorld(ctx, m.cfg.treasure, world, x0, x1, y0, y1, o.time, scale * dpr);
+    drawTreasureDecor(ctx, m.cfg.treasure, x0, x1, y0, y1);
+  }
   drawIceRink(ctx, m, x0, x1, y0, y1, o.time);
   if (m.cfg.candy?.river) drawChocolateRiver(ctx, m.cfg.candy.river, x0, x1, y0, y1, world, o.time);
   if (m.cfg.candy) drawCandyZones(ctx, m.cfg.candy, x0, x1, y0, y1);
@@ -631,12 +637,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   const ground = groundOf(m.cfg.map);
   // на світлому небі їжа завжди «денна» (кольори не залежать від теми застосунку)
   const fd = theme.dark && !sky;
-  const sprites = [foodSprite(0, fd, ground), foodSprite(1, fd, ground), foodSprite(2, fd, ground), foodSprite(3, fd, ground), foodSprite(4, fd, ground)];
+  const sprites = [foodSprite(0, fd, ground), foodSprite(1, fd, ground), foodSprite(2, fd, ground), foodSprite(3, fd, ground), foodSprite(4, fd, ground), foodSprite(5, fd, ground)];
   for (const f of m.foods.values()) {
     if (f.x < x0 - pad || f.x > x1 + pad || f.y < y0 - pad || f.y > y1 + pad) continue;
     const s = far ? fsz : fsz * (1 + Math.sin(o.time * 2 + f.id) * 0.06);
     // шерсть трохи більша за траву: це зрізана маса, її видно
-    const sz = f.kind === 3 ? s * 1.5 : f.kind === 4 ? s * 1.7 : s;
+    const sz = f.kind === 3 ? s * 1.5 : f.kind === 4 ? s * 1.7 : f.kind === 5 ? s * 2.2 : s;
     ctx.drawImage(sprites[f.kind] ?? sprites[0], f.x - sz / 2, f.y - sz / 2, sz, sz);
   }
   // кинута маса
@@ -768,7 +774,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   };
   // вид берем у сервера (welcome.thornStyle); старый сервер без поля - по номеру карты
   const style = m.cfg.thornStyle;
-  const thornKind: ThornKind = style === "night" ? "night" : style === "charred" ? "charred" : style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
+  const thornKind: ThornKind = style === "palm" ? "palm" : style === "night" ? "night" : style === "charred" ? "charred" : style === "fir" ? "fir" : style === "autumn" || (!style && m.cfg.map === AUTUMN_MAP_ID) ? "autumn" : "green";
   // «Сопілка пастуха»: хвилі, ноти й лінії до притягнутих лежать на землі під клітинами
   drawPipeEffects(ctx, m, VISIBLE, o.time, scale, prefersReducedMotion());
   const drawnUnder: boolean[] = [];
@@ -835,6 +841,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
       if (lavaDistance(m.cfg.lava, c.x, c.y) < r * 2) drawLavaWarning(ctx, c.x, c.y, r, o.time, scale);
     }
   }
+  // «Острів скарбів»: плавник акули біля кожної клітини у воді й червоне кільце біля води у своїх клітин
+  if (m.cfg.treasure) {
+    const tr = m.cfg.treasure;
+    for (let i = 0; i < VISIBLE.length; i++) {
+      const c = VISIBLE[i];
+      const r = m.radiusOf(c.mass);
+      if (twInWater(tr, c.x, c.y)) drawSharkFin(ctx, c.x, c.y, r, c.id, o.time);
+      else if (c.pid === m.cfg.pid && twDistanceToWater(tr, c.x, c.y) < r * 2) drawWaterWarning(ctx, c.x, c.y, r, o.time, scale);
+    }
+  }
   // показ смерті: овечка гине в мировых координатах поверх сцены
   if (m.death) drawDeath(ctx, m, m.death, m.localNow, scale, dpr, o.deathLabel ?? null, foodSprite(3, false));
   // «Небо»: падіння клітин і кільце-попередження біля просвіту
@@ -867,6 +883,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     let near = Infinity;
     for (const c of m.cells.values()) if (c.pid === m.cfg.pid) near = Math.min(near, lavaDistance(m.cfg.lava, c.x, c.y) - m.radiusOf(c.mass));
     drawLavaGlow(ctx, W, H, m.cfg.lava, m.camY, near, o.time);
+  }
+  // «Острів скарбів»: червоне сяйво по краях екрана, коли своя клітина біля води
+  if (m.cfg.treasure) {
+    let near = Infinity;
+    for (const c of m.cells.values()) if (c.pid === m.cfg.pid) near = Math.min(near, twDistanceToWater(m.cfg.treasure, c.x, c.y) - m.radiusOf(c.mass));
+    drawWaterGlow(ctx, W, H, near < 450 ? 1 - Math.max(0, near) / 450 : 0, o.time);
   }
   // плавное затемнение перед карточкой итогов
   if (m.death) drawDeathDim(ctx, W, H, deathDim(m.death, m.localNow));
@@ -993,6 +1015,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
   if (m.cfg.ice) drawIceMinimap(ctx, m.cfg.ice, size, m.cfg.world);
+  if (m.cfg.treasure) drawTreasureMinimap(ctx, m.cfg.treasure, size, m.cfg.world);
   if (m.cfg.candy?.river) drawRiverMinimap(ctx, m.cfg.candy.river, size, m.cfg.world);
   if (m.cfg.candy || m.cfg.map === CANDY_MAP_ID) drawCandyMinimap(ctx, m.cfg.candy, m.thorns, (mass) => m.radiusOf(mass), size, m.cfg.world);
   let boss: (typeof m.board.map)[number] | null = null;

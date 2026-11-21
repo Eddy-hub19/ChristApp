@@ -872,6 +872,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 34,
+    date: "2026-11-22",
+    items: [
+      {
+        icon: "leaf",
+        text: {
+          ua: "Нова карта «Острів скарбів»: круглий острів, річка з двома мостами й акули у воді. Міст витримує клітину масою до 1000, у воді акула з'їдає за 1,5 с. На берегах рідкісні скрині зі скарбом",
+          ru: "Новая карта «Остров сокровищ»: круглый остров, река с двумя мостами и акулы в воде. Мост выдерживает клетку массой до 1000, в воде акула съедает за 1,5 с. На берегах редкие сундуки с сокровищами",
+          en: "New map “Treasure Island”: a round island, a river with two bridges and sharks in the water. A bridge holds a cell of up to 1000 mass, a shark eats a cell in the water in 1.5 s. Rare treasure chests lie on the shores",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */
