@@ -1,4 +1,4 @@
-import { candyFactorOf, type CandyCfg } from "./flockCandy";
+import { candyFactorOf, riverDriftAt, type CandyCfg } from "./flockCandy";
 import {
   decodeBoard,
   decodeState,
@@ -142,6 +142,15 @@ export interface RStar {
   fall: number;
 }
 
+/** Цукерка «Цукеркового дощу»: падає fall мс від t0 (локальний час), далі коротко лишається на місці удару. */
+export interface RCandy {
+  id: number;
+  x: number;
+  y: number;
+  t0: number;
+  fall: number;
+}
+
 export interface RCell {
   id: number;
   pid: number;
@@ -246,6 +255,7 @@ export class FlockModel {
   thorns: { id: number; x: number; y: number; mass: number }[] = [];
   /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
   readonly stars = new Map<number, RStar>();
+  readonly candies = new Map<number, RCandy>();
   /** Коло режиму «Звужуване коло» (null - режиму нема або раунд закінчився й чекаємо новий). */
   circle: RCircle | null = null;
   /** Режим «Замки»: останній стан `cm` (null - ще не було) і локальний час його отримання. */
@@ -718,6 +728,25 @@ export class FlockModel {
     for (const s of list ?? []) this.stars.set(s.id, { id: s.id, x: s.x, y: s.y, t0: recvMs, fall: Math.max(1, s.fall) });
   }
 
+  /** Цукерки, що вже падали, коли ми зайшли (welcome.candy.rain.pending). */
+  applyCandyRainSnapshot(recvMs: number) {
+    for (const k of this.cfg.candy?.rain?.pending ?? []) this.candies.set(k.id, { id: k.id, x: k.x, y: k.y, t0: recvMs, fall: Math.max(1, k.fall) });
+  }
+
+  /** Нові цукерки «Цукеркового дощу»: [[id, x, y, мс до удару], ...]. Повертає, скільки додано. */
+  applyCandyRain(events: unknown, recvMs: number = this.localNow): number {
+    if (!Array.isArray(events)) return 0;
+    let n = 0;
+    for (const e of events) {
+      if (!Array.isArray(e) || e.length < 4) continue;
+      const fall = Math.max(1, Number(e[3]) || 1);
+      this.candies.set(Number(e[0]), { id: Number(e[0]), x: Number(e[1]), y: Number(e[2]), t0: recvMs, fall });
+      this.sound?.("starFall", Number(e[1]), Number(e[2]), false, Math.max(0, fall - 420));
+      n++;
+    }
+    return n;
+  }
+
   /**
    * Події «Зорепаду»: [0, мс] старт, [1, id, x, y, fallMs] зірка з'явилась, [2, id, pid] з'їдена/зникла.
    * Повертає тривалість, якщо в пакеті був старт події (для напису «Зорепад!»), інакше 0.
@@ -966,6 +995,11 @@ export class FlockModel {
           const wv = this.windSpeed(c.mass) * dt;
           c.x = Math.min(world, Math.max(0, c.x + wdx * wv));
           c.y = Math.min(world, Math.max(0, c.y + wdy * wv));
+        }
+        // течія шоколадної ріки (та сама формула, що на сервері): діє поза печеньками й кущами
+        if (!castle && this.cfg.candy?.river) {
+          const rd = riverDriftAt(this.cfg.candy, c.x, c.y, c.mass);
+          if (rd !== 0 && !this.insideBush(c.x, c.y, c.mass)) c.x = Math.min(world, Math.max(0, c.x + rd * dt));
         }
         // ціль: знімок сервера, екстрапольований до "зараз" за його ж швидкістю (враховує поділ/імпульси)
         const age = Math.min(250, Math.max(0, srvNow - c.t1));

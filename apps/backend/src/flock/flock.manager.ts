@@ -1,3 +1,4 @@
+import type { candyWelcome } from './flock.candy';
 import { randomBytes } from 'crypto';
 import {
   FLOCK_CONFIG,
@@ -1021,6 +1022,8 @@ class Arena {
     }
     // «Зорепад»: події (старт / зірка з'явилась / з'їдена) - одним малим повідомленням усім, без потоку позицій.
     const starMsg = w.starEvents.length ? { e: w.starEvents } : null;
+    // «Цукерковий дощ»: нові цукерки (місця падіння й час до удару) одним повідомленням
+    const candyRainMsg = w.candyRainEvents.length ? { e: w.candyRainEvents } : null;
     // «Дощ»: старт одним повідомленням (тривалість, підсихання, калюжі); далі клієнти рахують час самі
     const rainMsg = w.rainEvents.length ? w.rainEvents[0] : null;
     // «Вітер»: попередження й початок одним повідомленням (напрям, до початку, тривалість)
@@ -1070,6 +1073,7 @@ class Arena {
         if (endInfo) send(key, 'te', { ...endInfo.summary, you: { team: castle.teamOf(s.pid), pid: s.pid } });
       }
       if (starMsg) send(key, 'z', starMsg);
+      if (candyRainMsg) send(key, 'cr', candyRainMsg);
       if (rainMsg) send(key, 'rn', rainMsg);
       if (windMsg) send(key, 'wd', windMsg);
       if (lavaMsg) send(key, 'lv', lavaMsg);
@@ -1423,7 +1427,7 @@ export interface JoinResult {
   /** «Арена»: коло, ворота, колони й камні (клієнт малює з цього; сервер рахує по тому ж колу). */
   coliseum?: ReturnType<Arena['coliseumWelcome']>;
   /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель: [x, y, r]) і частка уповільнення (pf, sf); без поля - інша карта. */
-  candy?: { p: [number, number, number][]; s: [number, number, number][]; pf: number; sf: number };
+  candy?: ReturnType<typeof candyWelcome>;
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */

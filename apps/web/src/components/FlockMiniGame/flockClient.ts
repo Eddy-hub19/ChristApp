@@ -274,6 +274,7 @@ export class FlockClient {
         this.model.initSky(cfg.sky, performance.now());
         this.model.initColiseum(cfg.coliseum);
         this.model.applyStarsSnapshot(cfg.stars, performance.now());
+        this.model.applyCandyRainSnapshot(performance.now());
         this.model.applyRain(cfg.rain, performance.now());
         this.model.applyWind(cfg.wind, performance.now());
         this.model.applyCircle(cfg.circle, performance.now());
@@ -341,6 +342,13 @@ export class FlockClient {
           playFlockSound("starWarn", { self: true });
           this.opts.onZorepad?.();
         }
+      });
+    });
+    // «Цукерковий дощ»: нові цукерки (місце падіння й час до удару)
+    socket.on("cr", (msg: { e?: unknown }) => {
+      this.later(() => {
+        if (!this.model) return;
+        if (this.model.applyCandyRain(msg?.e, performance.now())) playFlockSound("starWarn", { self: true });
       });
     });
     // «Дощ»: один раз на подію (тривалість, підсихання, калюжі); далі час рахує модель
