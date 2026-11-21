@@ -558,7 +558,7 @@ interface TextSprite {
 const texts = new Lru<TextSprite>(300);
 
 /** Імʼя з обводкою одним спрайтом; бот - з непомітним значком. Розмір шрифту підбирається "відрами" по 2 px. */
-/** Цвет Вожака: мини-карта и обводка имени в игре (не зависит от темы приложения; отличается от игроков и ботов). */
+/** Цвет Вожака на мини-карте (не зависит от темы приложения; отличается от игроков и ботов). Имя Вожака подписано как обычное. */
 export const BOSS_MARK_COLOR = "#e2308f";
 
 export function nameSprite(text: string, bot: boolean, fontPx: number, theme: Theme, boss = false): TextSprite {
@@ -573,7 +573,7 @@ export function nameSprite(text: string, bot: boolean, fontPx: number, theme: Th
     probe.font = font;
     w = probe.measureText(text).width;
   }
-  const pad = Math.ceil(px * (boss ? 0.45 : 0.3));
+  const pad = Math.ceil(px * 0.3);
   const badge = bot && !boss ? px * 0.9 : 0;
   const cv = makeCanvas(w + badge + pad * 2, px * 1.5 + pad * 2);
   const c = cv.getContext("2d");
@@ -583,24 +583,13 @@ export function nameSprite(text: string, bot: boolean, fontPx: number, theme: Th
     c.textBaseline = "middle";
     c.lineJoin = "round";
     const cy = cv.height / 2;
-    if (boss) {
-      // Вожак: толстая цветная обводка под обычной, светлая заливка - видно издалека на любом фоне.
-      c.lineWidth = px * 0.5;
-      c.strokeStyle = BOSS_MARK_COLOR;
-      c.strokeText(text, pad, cy);
-      c.lineWidth = px * 0.14;
-      c.strokeStyle = "rgba(20,10,28,0.85)";
-      c.strokeText(text, pad, cy);
-      c.fillStyle = "#ffffff";
-      c.fillText(text, pad, cy);
-    } else {
-      c.lineWidth = px * 0.22;
-      c.strokeStyle = theme.nameStroke;
-      c.fillStyle = theme.nameFill;
-      c.globalAlpha = bot ? 0.88 : 1;
-      c.strokeText(text, pad, cy);
-      c.fillText(text, pad, cy);
-    }
+    // Вожак подписан как обычное имя (без цветного фона и обводки): цвет Вожака - только кружок на мини-карте
+    c.lineWidth = px * 0.22;
+    c.strokeStyle = theme.nameStroke;
+    c.fillStyle = theme.nameFill;
+    c.globalAlpha = bot ? 0.88 : 1;
+    c.strokeText(text, pad, cy);
+    c.fillText(text, pad, cy);
     if (bot && !boss) {
       // значок бота: маленька "кнопка" праворуч від імені
       c.globalAlpha = 0.55;

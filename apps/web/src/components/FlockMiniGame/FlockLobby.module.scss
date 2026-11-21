@@ -11,8 +11,8 @@ $emerald: #1fb572;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* сверху место под хрестик (12px + 40px + 12px) с учётом safe-area */
-  padding: calc(max(12px, env(safe-area-inset-top, 0px)) + 52px) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  /* хрестик теперь внутри карточки (в её шапке), сверху отдельного места под него нет */
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--background) 90%, transparent);
   overscroll-behavior: contain;
 }
@@ -45,6 +45,20 @@ $emerald: #1fb572;
   gap: 12px;
   padding: 14px 16px 20px;
   border-radius: 20px 20px 0 0;
+}
+
+/* Хрестик «Закрити» в шапці лобі (раніше висів над карткою й забирав зверху порожнє місце). */
+.closeInline {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  color: var(--foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 .tagline {
@@ -874,4 +888,30 @@ $emerald: #1fb572;
 }
 :global(html[data-design="v2"][data-theme="light"]) .sheet {
   --sheet-solid-bg: #f6e6ee;
+}
+
+/* Телефон: лобі на весь екран (без порожньої смуги зверху й полів по боках); хрестик у шапці картки. */
+@media (max-width: 720px) {
+  .lobbyWrap {
+    padding: 0;
+    align-items: stretch;
+  }
+  .lobbyCard {
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .dock {
+    border-radius: 0;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  }
+  .scroll {
+    padding-top: max(14px, env(safe-area-inset-top, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    border-radius: 0;
+  }
 }

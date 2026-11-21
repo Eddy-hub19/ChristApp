@@ -76,7 +76,7 @@ describe('бінарний протокол', () => {
   it('таблиця лідерів і мінікарта', () => {
     const buf = encodeBoard({
       top: [
-        { pid: 1, mass: 99999, name: 'A' },
+        { pid: 1, mass: 99999, name: 'A', bot: true },
         { pid: 2, mass: 5, name: 'Ягня Сем' },
       ],
       alive: 31,
@@ -84,7 +84,9 @@ describe('бінарний протокол', () => {
     });
     expect(packetType(buf)).toBe(PKT_BOARD);
     const d = decodeBoard(buf);
-    expect(d.top[1]).toEqual({ pid: 2, mass: 5, name: 'Ягня Сем' });
+    // прапорець «бот» йде хвостом пакета: людина - false, бот - true
+    expect(d.top[0]).toEqual({ pid: 1, mass: 99999, name: 'A', bot: true });
+    expect(d.top[1]).toEqual({ pid: 2, mass: 5, name: 'Ягня Сем', bot: false });
     expect(d.map).toHaveLength(1);
     expect(d.map[0]).toEqual({ pid: 1, x: 10, y: 255, size: 40 });
   });

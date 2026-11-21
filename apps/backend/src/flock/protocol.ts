@@ -80,7 +80,8 @@ export interface DecodedState {
   paused: { pid: number; remainingMs: number }[];
 }
 export interface DecodedBoard {
-  top: { pid: number; mass: number; name: string }[];
+  /** bot - ШІ (не жива людина): йде в самому кінці пакета, тож старі клієнти його просто ігнорують. */
+  top: { pid: number; mass: number; name: string; bot?: boolean }[];
   /** Одна й та сама для всіх гравців (кодується раз). Місце гравця = індекс його pid у `map` (вона відсортована за масою). */
   alive: number;
   map: { pid: number; x: number; y: number; size: number }[];
@@ -381,6 +382,8 @@ export function encodeBoard(b: DecodedBoard): Uint8Array {
     w.u8(m.y);
     w.u8(m.size);
   }
+  // прапорці «бот» для рядків топу: у хвості пакета (зворотна сумісність зі старими клієнтами)
+  for (const t of b.top) w.u8(t.bot ? 1 : 0);
   return w.out();
 }
 
@@ -399,6 +402,8 @@ export function decodeBoard(buf: ArrayBuffer | Uint8Array): DecodedBoard {
     y: r.u8(),
     size: r.u8(),
   }));
+  // хвіст із прапорцями «бот» (старий сервер його не шле)
+  if (r.left >= top.length) for (const t of top) (t as { bot?: boolean }).bot = r.u8() === 1;
   return { top, alive, map };
 }
 
