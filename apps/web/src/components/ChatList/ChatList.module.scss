@@ -329,7 +329,10 @@
 
     .gamesButton,
     .adminButton,
+    .updatesButton,
     .newChatButton {
+      position: relative;
+      color: inherit;
       width: 38px;
       height: 38px;
       border-radius: 12px;
@@ -1113,6 +1116,7 @@ html[data-theme="light"] .chatListSection {
 
     .gamesButton,
     .adminButton,
+    .updatesButton,
     .newChatButton {
       width: 44px;
       height: 44px;
