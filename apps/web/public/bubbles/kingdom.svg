@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="cr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#f0a91e"/></linearGradient>
+  </defs>
+  <!-- искры -->
+  <g fill="#ffd45a">
+    <path d="M12 8 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1z"/>
+    <path d="M54 12 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1z"/>
+  </g>
+  <!-- облако -->
+  <g fill="#ffffff" stroke="#a9cdee" stroke-width="2.2">
+    <circle cx="16" cy="40" r="10"/><circle cx="29" cy="31" r="12"/><circle cx="43" cy="33" r="11"/><circle cx="52" cy="43" r="8.5"/>
+    <rect x="12" y="42" width="44" height="13" rx="6.5"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="16" cy="40" r="8"/><circle cx="29" cy="31" r="10"/><circle cx="43" cy="33" r="9"/><circle cx="52" cy="43" r="6.4"/>
+    <rect x="13" y="43" width="42" height="11" rx="5.5"/>
+  </g>
+  <path d="M18 50 q8 3 18 1.5 M30 38 q6 -3 12 0" fill="none" stroke="#dbeafa" stroke-width="2" stroke-linecap="round"/>
+  <!-- корона -->
+  <path d="M22.5 22 L24 10 L30 15.5 L34 8 L38 15.5 L44 10 L45.5 22 Z" fill="url(#cr)" stroke="#bf8212" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="22" y="21" width="24" height="5" rx="1.8" fill="#f2b32a" stroke="#bf8212" stroke-width="1.5"/>
+  <circle cx="34" cy="23.5" r="1.5" fill="#e5483f"/><circle cx="28" cy="23.5" r="1.1" fill="#4a8fe0"/><circle cx="40" cy="23.5" r="1.1" fill="#4a8fe0"/>
+</svg>

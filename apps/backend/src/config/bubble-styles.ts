@@ -11,6 +11,8 @@ export const BUBBLE_STYLE_IDS = [
   'lion',
   'vine',
   'ichthys',
+  'light',
+  'kingdom',
 ] as const;
 export type BubbleStyleId = (typeof BUBBLE_STYLE_IDS)[number];
 export const DEFAULT_BUBBLE_STYLE: BubbleStyleId = 'default';

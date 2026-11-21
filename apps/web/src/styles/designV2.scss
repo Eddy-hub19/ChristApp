@@ -422,8 +422,7 @@ html[data-chat-split] nav[class*="TabBar"] {
   }
 }
 
-/* Стили пузырей «Агнец», «Голубь мира» и «Рыба (ихтис)» убраны из выбора в новом дизайне (вернём позже). */
-html[data-design="v2"] [data-bubble-style-card="lamb"],
+/* Стили пузырей «Голубь мира» и «Рыба (ихтис)» убраны из выбора в новом дизайне (вернём позже); «Агнец» снова в выборе. */
 html[data-design="v2"] [data-bubble-style-card="dove"],
 html[data-design="v2"] [data-bubble-style-card="ichthys"] {
   display: none;
