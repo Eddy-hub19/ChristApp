@@ -1,5 +1,6 @@
 import type { NavHazard } from './flock.nav';
 import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
+import { iceRinkAt, iceStep, inIce, type IceRink } from './flock.ice';
 import { candyFactor, candyWelcome, generateCandy, inAnyCandy, inCurrent, inRiverBand, inSticky, onCookie, type CandyLayout } from './flock.candy';
 import type { SlowZone } from './flock.nav';
 import { generateSky, inCore, nearestCloudPoint, onCloud, randomCorePoint, type SkyLayout } from './flock.sky';
@@ -148,6 +149,8 @@ export interface Cell {
   thornImmuneUntil: number;
   /** Скільки мс центр клітини вже над порожнечею (карта «Небо»). */
   voidMs?: number;
+  /** Тріщини льоду під клітиною 0..1 (карта «Зимовий мороз», див. flock.ice.ts). */
+  ice?: number;
 }
 
 export interface Player {
@@ -193,6 +196,8 @@ export interface Player {
   burned: boolean;
   /** Загинув, впавши з хмари (карта «Небо»). */
   fell: boolean;
+  /** Провалився під лід («Зимовий мороз»). */
+  iced: boolean;
   /** Відносить річкою за край світу («Цукеркова країна»). */
   swept: boolean;
   /** Були «Крильця» на попередньому тіку (щоб м'яко повернути на хмару, коли вони скінчаться над порожнечею). */
@@ -431,6 +436,8 @@ export class FlockWorld {
   hazards: NavHazard[] = [];
   /** «Цукеркова країна»: зони карамелі, створені разом з ареною (null - інша карта). */
   candy: CandyLayout | null = null;
+  /** «Зимовий мороз»: каток по центру (null - інша карта). */
+  ice: IceRink | null = null;
   /** Ті самі зони для ШІ: боти об'їжджають липку карамель, калюжі - слабше (flock.nav). */
   slowZones: SlowZone[] = [];
   /** Режим «Замки»: правила рушія (null - звичайна арена). Ставить менеджер до першого гравця. */
@@ -499,7 +506,13 @@ export class FlockWorld {
         ...this.candy.puddles.map((z) => ({ ...z, k: 0.5 })),
       ];
     }
+    if (map.ice) {
+      this.ice = iceRinkAt(C.worldSize, C.ice);
+      // боти об'їжджають каток так само, як липку карамель
+      this.slowZones = [{ x: this.ice.x, y: this.ice.y, r: this.ice.r, k: 1 }];
+    }
     const candy = this.candy;
+    const ice = this.ice;
     const lava = this.lava;
     const sky = this.sky;
     const arena = this.arena;
@@ -514,7 +527,10 @@ export class FlockWorld {
           ? // мармеладні зарості не в карамелі: інакше кущ-укриття сидів би в липкій зоні
             (x: number, y: number, mass: number) =>
               inAnyCandy(candy, x, y, radiusOf(mass) + 10) || (candy.river !== null && inRiverBand(candy.river, y, radiusOf(mass) + 10))
-          : undefined;
+          : ice
+            ? // на катку кущів нема (він має бути чистим льодом)
+              (x: number, y: number, mass: number) => inIce(ice, x, y, radiusOf(mass) + 20)
+            : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
       for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
@@ -658,6 +674,7 @@ export class FlockWorld {
       lavaSafeUntil: 0,
       burned: false,
       fell: false,
+      iced: false,
       swept: false,
       hadWings: false,
       zoneDeath: false,
@@ -752,6 +769,7 @@ export class FlockWorld {
     }
     p.burned = false;
     p.fell = false;
+    p.iced = false;
     p.swept = false;
     p.hadWings = false;
     p.zoneDeath = false;
@@ -795,7 +813,9 @@ export class FlockWorld {
     // запасна точка - центр світу; на карті з лавою центр у річці, тож береться ділянка над нею
     let best = this.lava
       ? { x: C.worldSize / 2, y: this.lava.y0 - 300 }
-      : { x: C.worldSize / 2, y: C.worldSize / 2 };
+      : this.ice
+        ? { x: C.worldSize / 2, y: C.worldSize / 2 - C.ice.radius - 200 }
+        : { x: C.worldSize / 2, y: C.worldSize / 2 };
     let bestD = -1;
     for (let i = 0; i < 8; i++) {
       let x = this.rand(150, C.worldSize - 150);
@@ -978,6 +998,8 @@ export class FlockWorld {
       if (river && inRiverBand(river, y, extra) && !onCookie(river, x, y, extra + 20)) return true;
       return inSticky(this.candy, x, y, extra);
     }
+    // «Зимовий мороз»: їжа, бонуси й точки появи не на катку
+    if (this.ice !== null) return inIce(this.ice, x, y, Math.max(0, margin - C.lava.clearMargin));
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
   }
 
@@ -1175,6 +1197,7 @@ export class FlockWorld {
     this.stepFood();
     this.stepThorns();
     this.stepLava(dt);
+    this.stepIce(dt);
     this.stepSky(dt);
     this.stepCircle(dt);
     this.stepBonuses();
@@ -2034,6 +2057,39 @@ export class FlockWorld {
     this.foodChunks[chunk].set(id, food);
     this.foodEvents.push({ op: FOOD_ADD, food, chunk, oldChunk: chunk });
     this.rainbowCount++;
+  }
+
+  /**
+   * «Зимовий мороз»: тріщини під кожною клітиною (flock.ice.ts). Не на паузі й не під стартовим щитом. Дійшли до 1 - клітина провалюється під лід
+   * (маса нікому); остання клітина - смерть гравця (`iced`).
+   */
+  private stepIce(dt: number) {
+    const rink = this.ice;
+    if (!rink) return;
+    for (const p of this.players.values()) {
+      if (!p.alive || p.monster) continue;
+      const safe = p.paused || this.spawnShielded(p);
+      for (const c of [...p.cells]) {
+        const on = !safe && inIce(rink, c.x, c.y);
+        const next = iceStep(c.ice ?? 0, on, c.mass, dt, C.ice);
+        c.ice = next > 0 ? next : undefined;
+        if (next < 1) continue;
+        this.dropCell(p, c);
+        if (p.cells.length > 0) continue;
+        p.alive = false;
+        p.iced = true;
+        p.diedAt = this.now;
+        p.killerPid = 0;
+        p.phrase = null;
+        this.deaths.push({ pid: p.id, killerPid: 0 });
+      }
+    }
+  }
+
+  /** Каток для welcome (один раз; далі не змінюється) і параметри формули: клієнт малює тріщини тією самою формулою. */
+  iceSnapshot() {
+    const r = this.ice;
+    return r ? { x: r.x, y: r.y, r: r.r, maxSec: C.ice.maxSec, minSec: C.ice.minSec, mh: C.ice.massHalf, rec: C.ice.recoverPerSec } : undefined;
   }
 
   private fallCell(p: Player, c: Cell) {

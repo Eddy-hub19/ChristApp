@@ -858,6 +858,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 33,
+    date: "2026-11-21",
+    items: [
+      {
+        icon: "leaf",
+        text: {
+          ua: "«Зимовий мороз»: по центру карти ковзанка. Лід тріскається під клітиною, і чим більша маса, тим швидше вона провалюється; зійшла з льоду — тріщини загоюються",
+          ru: "«Зимний мороз»: по центру карты каток. Лёд трескается под клеткой, и чем больше масса, тем быстрее она проваливается; сошла со льда — трещины затягиваются",
+          en: "“Winter frost”: a rink in the middle of the map. The ice cracks under a cell, and the heavier it is the faster it falls through; step off and the cracks heal",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

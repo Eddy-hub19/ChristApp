@@ -73,6 +73,8 @@ export interface DeathInfo {
   fell?: boolean;
   /** Віднесло шоколадною річкою за край світу (карта «Цукеркова країна»). */
   swept?: boolean;
+  /** Провалився під лід (карта «Зимовий мороз»). */
+  iced?: boolean;
   /** Загинув поза колом (режим «Звужуване коло»). */
   zone?: boolean;
   /** pid убивці й ознака «убивця - Вожак» (для анімації смерті). */
@@ -324,7 +326,7 @@ export class FlockClient {
         this.stopHeartbeat();
         clearFlockSession();
         this.stored = null;
-        playFlockSound(info?.burned ? "burn" : info?.fell || info?.swept ? "fall" : "death", { self: true });
+        playFlockSound(info?.burned ? "burn" : info?.fell || info?.swept || info?.iced ? "fall" : "death", { self: true });
         // «Замки» і клієнт без моделі: без показу смерті, одразу підсумки як раніше
         if (!this.model || this.mode === "castles" || this.pendingDeath) {
           this.setStatus("dead");

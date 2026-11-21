@@ -1102,6 +1102,7 @@ class Arena {
           burned: p.burned || undefined,
           fell: p.fell || undefined,
           swept: p.swept || undefined,
+          iced: p.iced || undefined,
           kp: p.killerPid > 0 ? p.killerPid : undefined,
           kb: w.players.get(p.killerPid)?.boss || undefined,
           zone: p.zoneDeath || undefined,
@@ -1430,6 +1431,8 @@ export interface JoinResult {
   coliseum?: ReturnType<Arena['coliseumWelcome']>;
   /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель: [x, y, r]) і частка уповільнення (pf, sf); без поля - інша карта. */
   candy?: ReturnType<typeof candyWelcome>;
+  /** «Зимовий мороз»: каток { x, y, r } і параметри тріщин (maxSec, minSec, mh, rec); без поля - інша карта. */
+  ice?: { x: number; y: number; r: number; maxSec: number; minSec: number; mh: number; rec: number };
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
@@ -1631,6 +1634,7 @@ export class FlockManager {
         : undefined,
       coliseum: s.arena.world.arena ? s.arena.coliseumWelcome() : undefined,
       candy: s.arena.world.candySnapshot(),
+      ice: s.arena.world.iceSnapshot(),
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),

@@ -384,6 +384,19 @@ export const FLOCK_CONFIG = {
   },
 
   /**
+   * Карта «Зимовий мороз» (FLOCK_MAPS, id 2): каток по центру світу. Лід тріскається під клітиною, що на ньому, і чим більша маса, тим
+   * швидше вона провалюється (час = maxSec * massHalf / (massHalf + маса), не менше minSec). Зійшла з льоду - тріщини загоюються.
+   * Їжа, бонуси, кущі й точки появи на катку не з'являються, боти його об'їжджають.
+   */
+  ice: {
+    radius: 360,
+    maxSec: 14,
+    minSec: 2.5,
+    massHalf: 600,
+    recoverPerSec: 0.35,
+  },
+
+  /**
    * Карта «Цукеркова країна» (FLOCK_MAPS, id 8): зони створюються разом з ареною (випадково, не в центрі, не біля країв, не перетинаються)
    * й один раз йдуть клієнтам у welcome. Нічого не вбивають, лише уповільнюють клітину на slowFraction.
    * puddles - карамельні калюжі; sticky - липка карамель (сильніше; там не з'являються їжа, бонуси й гравці, боти її об'їжджають).
@@ -1140,6 +1153,8 @@ export interface FlockMapDef {
   night?: boolean;
   /** «Цукеркова країна»: зони карамелі, що уповільнюють (див. FLOCK_CONFIG.candy); кущі - мармеладні зарості (thornStyle 'jelly'). */
   candy?: boolean;
+  /** «Зимовий мороз»: каток по центру світу (див. FLOCK_CONFIG.ice). */
+  ice?: boolean;
 }
 
 /**
@@ -1149,7 +1164,8 @@ export interface FlockMapDef {
 export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 0, name: 'meadow', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 1 },
   { id: 1, name: 'grove', layout: 'scatter', thornStyle: 'autumn', thorns: {}, weight: 1 },
-  { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {}, weight: 1 },
+  /** «Зимовий мороз»: каток по центру (FLOCK_CONFIG.ice): лід тріскається, і важка клітина провалюється швидше. */
+  { id: 2, name: 'frost', layout: 'scatter', thornStyle: 'fir', thorns: {}, weight: 1, ice: true },
   { id: 3, name: 'volcano', layout: 'scatter', thornStyle: 'charred', thorns: {}, weight: 1, lava: true },
   /** «Ліс і озеро»: лише режим «Замки» (кущі й річка задаються flock.castles.ts). */
   { id: 4, name: 'lake', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true },
@@ -1258,6 +1274,7 @@ export function clientGameConfig() {
     },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
+    ice: { radius: c.ice.radius, maxSec: c.ice.maxSec, minSec: c.ice.minSec, massHalf: c.ice.massHalf },
     candy: {
       puddlesMin: c.candy.puddles.min,
       puddlesMax: c.candy.puddles.max,
