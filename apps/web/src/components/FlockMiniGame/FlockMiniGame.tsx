@@ -92,7 +92,7 @@ type Hud = {
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy", "treasure"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy", "treasure", "terraces"] as const;
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
 const MINIMAP_SIZE = 96;
@@ -403,6 +403,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           key = "toast.returned";
           playFlockSound("bonusEnd", { self: true });
           break;
+        case "fall":
+          // «Небесні тераси»: t - команда того, хто впав
+          key = good ? "toast.fallMine" : "toast.fallEnemy";
+          ok = !good;
+          playFlockSound("fall", { self: true });
+          break;
         case "castle":
           // t - команда, чий замок зруйновано
           key = good ? "toast.castleMine" : "toast.castleEnemy";
@@ -601,7 +607,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   }, [skin, artifact, me, userId]);
 
   /** «Замки»: вхід у матч за обраними стороною й скіном (платні скіни й артефакти в режимі не діють). */
-  const playCastles = useCallback((team: Team, skinId: number) => {
+  const playCastles = useCallback((team: Team, skinId: number, castleMap?: number) => {
     maxTotalRef.current = 0;
     setDeath(null);
     setReward(null);
@@ -611,7 +617,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setCastleReward(null);
     setModesOpen(false);
     setCastlesOpen(false);
-    clientRef.current?.join(skinId, 0, "castles", {}, team);
+    clientRef.current?.join(skinId, 0, "castles", {}, team, castleMap);
   }, []);
 
   // секунды на карточке итогов и в подсказке «раунд ещё идёт» тикают раз в 500 мс
@@ -1130,6 +1136,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             carrying: model.carryingStone(),
             sp: cs?.sp ?? 0,
             rsMs: model.castleRespawnMs(now),
+            fall: cs?.fl ?? 0,
             nums: castlesNumsRef.current,
           };
         })(),

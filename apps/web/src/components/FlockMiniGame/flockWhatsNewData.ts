@@ -879,9 +879,23 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "leaf",
         text: {
-          ua: "Нова карта «Острів скарбів»: круглий острів, річка з двома мостами й акули у воді. Міст витримує клітину масою до 1000, у воді акула з'їдає за 1,5 с. На берегах рідкісні скрині зі скарбом",
-          ru: "Новая карта «Остров сокровищ»: круглый остров, река с двумя мостами и акулы в воде. Мост выдерживает клетку массой до 1000, в воде акула съедает за 1,5 с. На берегах редкие сундуки с сокровищами",
-          en: "New map “Treasure Island”: a round island, a river with two bridges and sharks in the water. A bridge holds a cell of up to 1000 mass, a shark eats a cell in the water in 1.5 s. Rare treasure chests lie on the shores",
+          ua: "Нова карта «Острів скарбів»: круглий острів, річка з двома мостами. Міст витримує клітину масою до 1000. На берегах рідкісні скрині зі скарбом",
+          ru: "Новая карта «Остров сокровищ»: круглый остров, река с двумя мостами. Мост выдерживает клетку массой до 1000. На берегах редкие сундуки с сокровищами",
+          en: "New map “Treasure Island”: a round island, a river with two bridges. A bridge holds a cell of up to 1000 mass. Rare treasure chests lie on the shores",
+        },
+      },
+    ],
+  },
+  {
+    version: 35,
+    date: "2026-11-22",
+    items: [
+      {
+        icon: "leaf",
+        text: {
+          ua: "«Замки»: нова карта «Небесні тераси» — острови в небі з мостами й водоспадами (обираєш у лобі). Хто впав за край — відроджується в замку. Тепер 8 на 8, а боти стали розумнішими: нападають хвилями, обходять захисників, захисники тримають пости",
+          ru: "«Замки»: новая карта «Небесные террасы» — острова в небе с мостами и водопадами (выбираешь в лобби). Кто упал за край — возрождается в замке. Теперь 8 на 8, а боты стали умнее: нападают волнами, обходят защитников, защитники держат посты",
+          en: "“Castles”: a new map “Sky Terraces” — islands in the sky with bridges and waterfalls (pick it in the lobby). Whoever falls off the edge respawns in the castle. Now 8 vs 8, and bots got smarter: they attack in waves, bypass defenders, and defenders hold posts",
         },
       },
     ],

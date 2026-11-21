@@ -18,6 +18,8 @@ export interface CastleHudData {
   carrying: boolean;
   sp: number;
   rsMs: number;
+  /** «Небесні тераси»: частка часу до падіння (0..1); 0 - стоїмо на опорі. */
+  fall?: number;
   nums: { damage?: number; stealHoldMs?: number; carrySlowPct?: number; waterSlowPct?: number; respawnMs?: number; deliverToWin?: number; lyingReturnMs?: number; hp?: number };
 }
 
@@ -89,6 +91,11 @@ export default function FlockCastleHud({ c }: { c: CastleHudData }) {
         <div className={styles.steal} role="progressbar" aria-valuenow={Math.round(c.sp * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={t("stealing")}>
           <span style={{ width: `${Math.round(c.sp * 100)}%` }} />
           <em>{t("stealing")}</em>
+        </div>
+      ) : null}
+      {c.fall && c.fall > 0 ? (
+        <div className={styles.fallWarn} role="alert">
+          {t("fallWarn")}
         </div>
       ) : null}
       {c.rsMs > 0 ? (

@@ -20,7 +20,7 @@ import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, 
 export { drawCreature };
 import { viewScale } from "./flockModel";
 import { drawDarkness, drawNightTop } from "./flockNight";
-import { drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamNames, drawTeamRings } from "./flockCastleRender";
+import { drawFallWarning, drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamNames, drawTeamRings } from "./flockCastleRender";
 import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
 export interface Theme {
@@ -591,12 +591,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (col) drawColiseumBack(ctx, col, { x0, y0, x1, y1 }, scale * dpr, o.time);
   if (sky) drawSkyWorld(ctx, m, sky, x0, x1, y0, y1, scale * dpr, o.time);
   // пасовище: колір + сітка-трава + пучки одним готовим патерном (тайл у кеші), а не лініями щокадру
-  if (!sky && !col) {
+  // «Небесні тераси»: замість пасовища - небо й острови (малює drawCastleWorld)
+  const terraces = m.cfg.castle?.kind === "terraces";
+  if (!sky && !col && !terraces) {
     ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
     ctx.fillRect(0, 0, world, world);
   }
   // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
-  if (!sky && !col && groundOf(m.cfg.map) === "meadow") {
+  if (!sky && !col && !terraces && groundOf(m.cfg.map) === "meadow") {
     const sun = sunlightPattern(ctx, scale * dpr);
     if (sun) {
       ctx.globalAlpha = theme.dark ? 0.55 : 1;
@@ -608,7 +610,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // межа світу (на «Небі» - хмарний бордюр)
   if (!sky && !col) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  if (!sky && !col && !m.cfg.treasure) ctx.strokeRect(0, 0, world, world);
+  if (!sky && !col && !m.cfg.treasure && !terraces) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
@@ -616,7 +618,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else if (!col && !m.cfg.treasure) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
+  else if (!col && !m.cfg.treasure && !terraces) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
   // «Острів скарбів»: вода, береги, річка, мости й декор на піску (загорожі нема: межу задає вода)
   if (m.cfg.treasure) {
@@ -803,7 +805,10 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     ctx.restore();
   }
   for (let i = 0; i < VISIBLE.length; i++) if (!drawnUnder[i]) drawCell(ctx, m, VISIBLE[i], o, scale);
-  if (castleMode) drawTeamMarkers(ctx, m, VISIBLE, scale, o.time);
+  if (castleMode) {
+    drawTeamMarkers(ctx, m, VISIBLE, scale, o.time);
+    drawFallWarning(ctx, m, scale, o.time);
+  }
 
   // клітини, що тануть (з'їдені)
   for (const d of m.dying) {
@@ -842,7 +847,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
   }
   // «Острів скарбів»: плавник акули біля кожної клітини у воді й червоне кільце біля води у своїх клітин
-  if (m.cfg.treasure) {
+  if (m.cfg.treasure && m.cfg.treasure.shark > 0) {
     const tr = m.cfg.treasure;
     for (let i = 0; i < VISIBLE.length; i++) {
       const c = VISIBLE[i];
@@ -885,7 +890,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     drawLavaGlow(ctx, W, H, m.cfg.lava, m.camY, near, o.time);
   }
   // «Острів скарбів»: червоне сяйво по краях екрана, коли своя клітина біля води
-  if (m.cfg.treasure) {
+  if (m.cfg.treasure && m.cfg.treasure.shark > 0) {
     let near = Infinity;
     for (const c of m.cells.values()) if (c.pid === m.cfg.pid) near = Math.min(near, twDistanceToWater(m.cfg.treasure, c.x, c.y) - m.radiusOf(c.mass));
     drawWaterGlow(ctx, W, H, near < 450 ? 1 - Math.max(0, near) / 450 : 0, o.time);

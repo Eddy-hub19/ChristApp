@@ -580,7 +580,7 @@ export class FlockWorld {
               : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
-      for (const t of castleMap().bushes) this.thorns.push({ id: this.nextThornId++, ...t });
+      for (const t of castleMap(map.castleKind ?? 'river').bushes) this.thorns.push({ id: this.nextThornId++, ...t });
       return;
     }
     for (const t of generateThorns(rng, { ...C.thorns, ...map.thorns }, C.worldSize, map.layout, avoid))
@@ -2070,7 +2070,7 @@ export class FlockWorld {
     const mid = (t.y0 + t.y1) / 2;
     for (const p of this.players.values()) {
       if (!p.alive || p.monster) continue;
-      const safe = p.paused || this.now < p.lavaSafeUntil || this.now - p.spawnedAt < T.newbieSafeMs;
+      const safe = !T.sharks || p.paused || this.now < p.lavaSafeUntil || this.now - p.spawnedAt < T.newbieSafeMs;
       for (const c of [...p.cells]) {
         // важка клітина на мосту (або заходить на нього): зсув на найближчий берег, без шкоди
         if (c.mass > T.bridgeMaxMass && treasureInBand(t, c.y) && onBridge(t, c.x) && !outsideIsland(t, c.x, c.y)) {

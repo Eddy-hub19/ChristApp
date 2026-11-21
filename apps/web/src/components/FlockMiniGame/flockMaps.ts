@@ -26,6 +26,8 @@ const COLISEUM_PAL: Partial<Theme> = { bg: "#e2c48a", bgOut: "#241c19", grid: "r
 const CANDY: Partial<Theme> = { bg: "#fbe4ea", bgOut: "#d6a2b8", grid: "rgba(255,255,255,0.3)", tuft: "rgba(255,255,255,0.4)" };
 // «Острів скарбів»: пісок усередині, глибока вода за краєм світу (палітра не залежить від теми застосунку)
 const TREASURE: Partial<Theme> = { bg: "#ecdcab", bgOut: "#0b3558", grid: "rgba(160,120,60,0.06)", tuft: "rgba(255,250,225,0.3)" };
+// «Небесні тераси»: небо за краєм острівів (палітра не залежить від теми застосунку; саму землю й небо малює drawTerracesWorld)
+const TERRACES: Partial<Theme> = { bg: "#9fd0f5", bgOut: "#7fc4f4", grid: "rgba(255,255,255,0.0)", tuft: "rgba(255,255,255,0.0)" };
 const VOLCANO: Partial<Theme> = { bg: "#2b2124", bgOut: "#1d1415", grid: "rgba(255,120,50,0.07)", tuft: "rgba(255,150,60,0.2)" };
 
 /** Для карт 1-3 палитра одна на обидві теми застосунку: вигляд карти не залежить від світлої/темної теми. */
@@ -44,6 +46,8 @@ export const MAP_PALETTES: Record<number, { light: Partial<Theme>; dark: Partial
   7: { light: COLISEUM_PAL, dark: COLISEUM_PAL },
   // 8: «Цукеркова країна»: пастельно-рожева земля, кремова рамка за краями, не залежить від теми застосунку
   8: { light: CANDY, dark: CANDY },
+  // 10: «Небесні тераси» (командна карта «Замків»)
+  10: { light: TERRACES, dark: TERRACES },
   // 9: «Острів скарбів»: пісок і глибока вода, не залежить від теми застосунку
   9: { light: TREASURE, dark: TREASURE },
   // 4: «Ліс і озеро» (режим «Замки»): соковита трава, одна палітра на обидві теми

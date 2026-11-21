@@ -397,6 +397,10 @@ export const FLOCK_CONFIG = {
     bridgeEdgeMargin: 200,
     bridgeMaxMass: 1000,
     sharkMs: 1500,
+    /** Акули у воді: false - вода непрохідна (клітину виштовхує на берег, ніхто не гине), плавників нема. */
+    sharks: false,
+    /** Ботів на цій карті (стеля; менше - якщо за botsByHumans менше). */
+    maxBots: 15,
     pushOutSpeed: 520,
     newbieSafeMs: 15_000,
     shoreMargin: 120,
@@ -549,9 +553,26 @@ export const FLOCK_CONFIG = {
     maxArenas: 1,
     /** Номер карти режиму (FLOCK_MAPS, поза випадковим вибором звичайної арени). */
     mapId: 4,
-    /** Формат: teamSize на teamSize (боти добивають до нього); людей у команді не більше maxTeamSize (4 на 4). */
-    teamSize: 3,
-    maxTeamSize: 4,
+    /** Формат: teamSize на teamSize (боти добивають до нього); людей у команді не більше maxTeamSize (8 на 8, обидві карти). */
+    teamSize: 8,
+    maxTeamSize: 8,
+    /** Карти режиму (FLOCK_MAPS з team: true): 4 - «Ліс і озеро», 10 - «Небесні тераси»; гравець обирає в лобі. */
+    mapIds: [4, 10] as readonly number[],
+    /** «Небесні тераси»: клітина, чий центр поза островами й мостами довше fallMs, падає й відроджується в замку (камінь, що несла, лишається лежати). */
+    terraces: {
+      fallMs: 1500,
+      /** Ширина мосту (пройде натовп) і швидкість м'якого повернення на острів захищеної клітини (одиниць за с). */
+      bridgeWidth: 240,
+      pushBackSpeed: 520,
+      /** Радіус зони бази (де доставляють) на терасах: острів замка менший за річкову базу. */
+      baseRadius: 330,
+      /** Кущі-укриття на половині карти (дзеркало дає другу); розмір - map.bushRadiusMin/Max. */
+      bushesPerSide: 11,
+      /** Розмір кущів на терасах менший (острови тісніші). */
+      bushRadiusMin: 70,
+      bushRadiusMax: 105,
+      seed: 20261122,
+    },
     /** Нова сторона не може випереджати іншу за людьми на balanceGap і більше. */
     balanceGap: 2,
     /** Відлік до початку бою від моменту, коли набралось потрібне число людей; startMinHumansEachTeam: 0 - досить однієї людини в арені. */
@@ -606,11 +627,19 @@ export const FLOCK_CONFIG = {
     },
     bots: {
       /** Частка ботів команди, що йдуть красти (решта захищають); завжди хоч один захисник, якщо в команді 2+ ботів. */
-      thiefShare: 0.5,
+      thiefShare: 0.6,
       /** Захисник тримається в цих межах від замка, поки ворога нема. */
       guardRadius: 520,
       /** Захисник помічає злодія з каменем на своїй території в цьому радіусі. */
       noticeRadius: 420,
+      /** «Хвилі» нападу: злодії збираються на плацдармі й вирушають разом, коли готова частка waveReadyShare; хвиля триває waveMs, далі пауза waveCooldownMs; перша - через waveFirstMs від старту матчу. За одним злодієм женуться не більше maxChasers захисників. */
+      waveReadyShare: 0.6,
+      waveMs: 22_000,
+      waveCooldownMs: 18_000,
+      waveFirstMs: 12_000,
+      maxChasers: 2,
+      /** Далі за цей радіус від захисника злодій, що тікає, його вже не цікавить (за ним женуться лише ближні). */
+      chaseRadius: 650,
     },
     /** Нагорода переможцям: лише сервер, через журнал рубінів (TEAM_WIN), поза добовим лімітом арени. */
     reward: 20,
@@ -1181,6 +1210,8 @@ export interface FlockMapDef {
   ice?: boolean;
   /** «Острів скарбів»: круглий острів, акули у воді, мости (див. FLOCK_CONFIG.treasure). */
   treasure?: boolean;
+  /** Командна карта «Замків»: геометрія (flock.castles.ts castleMap(kind)); без поля - «Ліс і озеро» (річка). */
+  castleKind?: 'river' | 'terraces';
 }
 
 /**
@@ -1208,6 +1239,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 8, name: 'candy', layout: 'scatter', thornStyle: 'jelly', thorns: { min: 10, max: 14, minGap: 520, massMin: 90, massMax: 900 }, weight: 1, candy: true },
   /** «Острів скарбів»: круглий острів із річкою й мостами (FLOCK_CONFIG.treasure); кущі-укриття тут - пальми (thornStyle 'palm', механіка як у кущів). У кінці списку, у випадковому виборі наравні з іншими. */
   { id: 9, name: 'treasure', layout: 'scatter', thornStyle: 'palm', thorns: { min: 10, max: 14, minGap: 520 }, weight: 1, treasure: true },
+  /** «Небесні тераси»: друга карта командного режиму «Замки» (острови в повітрі з мостами); у випадковий вибір звичайних арен не входить (team). */
+  { id: 10, name: 'terraces', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true, castleKind: 'terraces' },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -1285,6 +1318,7 @@ export function clientGameConfig() {
       countdownMs: c.teamMode.countdownMs,
       teamSize: c.teamMode.teamSize,
       maxTeamSize: c.teamMode.maxTeamSize,
+      fallMs: c.teamMode.terraces.fallMs,
       stealHoldMs: c.teamMode.stealHoldMs,
       carrySlowPct: Math.round(c.teamMode.carrySlow * 100),
       waterSlowPct: Math.round(c.teamMode.waterSlow * 100),

@@ -1,6 +1,7 @@
 import { FLOCK_CONFIG, TEAM_SHEEP, TEAM_WOLF, TEAM_FREE_SKINS, teamViewRadius } from './flock.config';
 import type { Cell, FlockWorld, Player, Rng } from './flock.engine';
 import { radiusOf } from './flock.engine';
+import { buildTerraces, circleOnIsland, islandAt, nearestLand, onBridge as tOnBridge, onLand as tOnLand, routeTerraces, type TerracesGeom } from './flock.terraces';
 
 const T = FLOCK_CONFIG.teamMode;
 const W = FLOCK_CONFIG.worldSize;
@@ -27,7 +28,11 @@ export interface CastlePos {
 }
 
 export interface CastleMapGeom {
+  /** Вид карти: 'river' - «Ліс і озеро» (діагональна річка), 'terraces' - «Небесні тераси» (острови з мостами). */
+  kind: 'river' | 'terraces';
   river: RiverGeom;
+  /** Лише для kind 'terraces'. */
+  terraces?: TerracesGeom;
   castles: [CastlePos, CastlePos];
   /** Радіус сховища навколо центра замка (де краде злодій). */
   steal: number;
@@ -51,6 +56,9 @@ export function inWater(g: RiverGeom, x: number, y: number): boolean {
 export const sideOf = (x: number, y: number) => (riverD(x, y) <= 0 ? TEAM_SHEEP : TEAM_WOLF);
 export const enemyOf = (team: number) => (team === TEAM_SHEEP ? TEAM_WOLF : TEAM_SHEEP);
 
+/** Чия територія на цій карті: на річковій - за діагоналлю, на терасах - за половиною (овечий бік знизу). */
+export const sideAt = (g: CastleMapGeom, x: number, y: number) => (g.kind === 'terraces' ? (y >= W / 2 ? TEAM_SHEEP : TEAM_WOLF) : sideOf(x, y));
+
 function mulberry32(seed: number): Rng {
   let a = seed >>> 0;
   return () => {
@@ -62,11 +70,18 @@ function mulberry32(seed: number): Rng {
   };
 }
 
-let cached: CastleMapGeom | null = null;
+const cachedMaps = new Map<string, CastleMapGeom>();
 
-/** Геометрія карти (будується один раз; детермінована за M.seed). Обидва боки дзеркальні відносно центра світу. */
-export function castleMap(): CastleMapGeom {
-  if (cached) return cached;
+/** Геометрія карти (будується один раз на вид; детермінована за seed). Обидва боки дзеркальні відносно центра світу. */
+export function castleMap(kind: 'river' | 'terraces' = 'river'): CastleMapGeom {
+  const hit = cachedMaps.get(kind);
+  if (hit) return hit;
+  const made = kind === 'terraces' ? buildTerracesMap() : buildRiverMap();
+  cachedMaps.set(kind, made);
+  return made;
+}
+
+function buildRiverMap(): CastleMapGeom {
   const M = T.map;
   const axis = W * SQ2;
   const river: RiverGeom = {
@@ -99,8 +114,41 @@ export function castleMap(): CastleMapGeom {
     bushes.push({ x: Math.round(b.x), y: Math.round(b.y), mass });
     bushes.push({ x: Math.round(W - b.x), y: Math.round(W - b.y), mass });
   }
-  cached = { river, castles: [sheep, wolf], steal: T.stealRadius, bushes, seed: M.seed };
-  return cached;
+  return { kind: 'river', river, castles: [sheep, wolf], steal: T.stealRadius, bushes, seed: M.seed };
+}
+
+/** «Небесні тераси»: острови, мости, замки на крайніх островах і кущі-укриття на островах (одна половина + дзеркало). */
+function buildTerracesMap(): CastleMapGeom {
+  const TT = T.terraces;
+  const g = buildTerraces(W, TT.bridgeWidth);
+  const sheepIsland = g.islands[0][0];
+  const sheep: CastlePos = { team: TEAM_SHEEP, x: sheepIsland[0], y: sheepIsland[1], r: TT.baseRadius };
+  const wolf: CastlePos = { team: TEAM_WOLF, x: W - sheep.x, y: W - sheep.y, r: TT.baseRadius };
+  const rng = mulberry32(TT.seed);
+  const M = T.map;
+  const half: { x: number; y: number; r: number }[] = [];
+  for (let tries = 0; half.length < TT.bushesPerSide && tries < 8000; tries++) {
+    const r = TT.bushRadiusMin + rng() * (TT.bushRadiusMax - TT.bushRadiusMin);
+    const x = 150 + rng() * (W - 300);
+    const y = W / 2 + rng() * (W / 2 - 150); // овечий бік (знизу), дзеркало дає вовчий
+    if (!circleOnIsland(g, x, y, r, 22)) continue;
+    if (Math.hypot(x - sheep.x, y - sheep.y) < sheep.r + M.bushBaseGap + r) continue;
+    // не на підходах до мостів
+    if (g.bridges.some((b) => Math.hypot(x - b.x1, y - b.y1) < r + 130 || Math.hypot(x - b.x2, y - b.y2) < r + 130)) continue;
+    if (half.some((o) => Math.hypot(o.x - x, o.y - y) < o.r + r + M.bushGap)) continue;
+    // центральний острів самозеркальний: кущ не ближче середини до свого дзеркала
+    if (Math.hypot(x - (W - x), y - (W - y)) < 2 * r + M.bushGap) continue;
+    half.push({ x, y, r });
+  }
+  const bushes: CastleMapGeom['bushes'] = [];
+  for (const b of half) {
+    const mass = Math.round((b.r / FLOCK_CONFIG.radiusK) ** 2);
+    bushes.push({ x: Math.round(b.x), y: Math.round(b.y), mass });
+    bushes.push({ x: Math.round(W - b.x), y: Math.round(W - b.y), mass });
+  }
+  // «річки» тут нема: вироджена, щоб спільний код (вода, укриття) нічого не знаходив
+  const river: RiverGeom = { hw: 0, bridges: [], bw: 0, over: 0 };
+  return { kind: 'terraces', river, terraces: g, castles: [sheep, wolf], steal: T.stealRadius, bushes, seed: TT.seed };
 }
 
 // ---------------------------------------------------------------------------
@@ -128,9 +176,13 @@ interface CP {
   bot: boolean;
   userId: string | null;
   role: Role;
+  /** Пост захисника: 0 - сховище, далі входи на територію (див. guardPosts). */
+  post: number;
   /** Команда-власник камінця, що несе гравець (0 - нічого не несе). */
   carry: number;
   stealMs: number;
+  /** Скільки мс центр клітини вже над порожнечею («Небесні тераси»). */
+  voidMs: number;
   /** Світовий час, коли закінчиться відродження (0 - не відроджується). */
   respawnUntil: number;
   actions: number;
@@ -153,7 +205,7 @@ interface Stone {
 }
 
 export interface TeamEvent {
-  k: 'steal' | 'deliver' | 'drop' | 'return' | 'castle';
+  k: 'steal' | 'deliver' | 'drop' | 'return' | 'castle' | 'fall';
   p: number;
   t: number;
 }
@@ -194,7 +246,7 @@ export interface TeamSettlement {
 const STONE_R = 28;
 
 export class CastleMatch {
-  readonly geom = castleMap();
+  readonly geom: CastleMapGeom;
   phase: TeamPhase = 0;
   readonly hp: [number, number] = [T.castleHp, T.castleHp];
   readonly score: [number, number] = [0, 0];
@@ -214,11 +266,17 @@ export class CastleMatch {
   private pendingEnd: { summary: TeamSummary; settlement: TeamSettlement } | null = null;
   /** Хто кому прихований у кущах: ключ - команда глядача. */
   private readonly hidden: [Set<number>, Set<number>] = [new Set(), new Set()];
+  /** «Хвиля» нападу кожної команди: злодії збираються на плацдармі й вирушають разом (до якого часу триває хвиля / коли можна наступну). */
+  private readonly waveUntil: [number, number] = [0, 0];
+  private readonly waveNext: [number, number] = [0, 0];
 
   constructor(
     private readonly world: FlockWorld,
     private readonly rng: Rng,
-  ) {}
+    kind: 'river' | 'terraces' = 'river',
+  ) {
+    this.geom = castleMap(kind);
+  }
 
   /** Правила для рушія (world.team). */
   readonly rules: TeamRules = {
@@ -248,10 +306,13 @@ export class CastleMatch {
   add(p: Player, team: number, userId: string | null) {
     const bot = userId === null;
     let role: Role = 'guard';
+    let post = 0;
     if (bot) {
       const mates = this.botsOf(team).map((id) => this.cps.get(id)!);
       const thieves = mates.filter((m) => m.role === 'thief').length;
       role = thieves / (mates.length + 1) < T.bots.thiefShare ? 'thief' : 'guard';
+      // захисники розходяться по постах по черзі (0 - сховище)
+      post = mates.filter((m) => m.role === 'guard').length;
     }
     const c = p.cells[0];
     this.cps.set(p.id, {
@@ -260,8 +321,10 @@ export class CastleMatch {
       bot,
       userId,
       role,
+      post,
       carry: 0,
       stealMs: 0,
+      voidMs: 0,
       respawnUntil: 0,
       actions: 0,
       moved: 0,
@@ -329,11 +392,13 @@ export class CastleMatch {
     const toward = Math.atan2(W / 2 - c.y, W / 2 - c.x);
     const k = (pid % 7) - 3;
     const along = 120 + (pid % 3) * 28;
+    // 8 на 8: ще один ряд назад, щоб стартові точки не накладались
+    const back = Math.floor(pid / 7) % 2 === 1 ? -70 : 0;
     const px = Math.cos(toward + Math.PI / 2);
     const py = Math.sin(toward + Math.PI / 2);
     return {
-      x: c.x + Math.cos(toward) * along + px * k * 46,
-      y: c.y + Math.sin(toward) * along + py * k * 46,
+      x: c.x + Math.cos(toward) * (along + back) + px * k * 46,
+      y: c.y + Math.sin(toward) * (along + back) + py * k * 46,
     };
   }
 
@@ -342,7 +407,7 @@ export class CastleMatch {
     if (!cp || cp.respawnUntil > 0 || p.paused) return 0;
     let v = T.playerSpeed;
     const c = p.cells[0];
-    if (c && inWater(this.geom.river, c.x, c.y)) v *= 1 - T.waterSlow;
+    if (c && this.geom.kind === 'river' && inWater(this.geom.river, c.x, c.y)) v *= 1 - T.waterSlow;
     if (cp.carry) v *= 1 - T.carrySlow;
     return v;
   }
@@ -363,7 +428,7 @@ export class CastleMatch {
       if (!o || !o.alive || !c) continue;
       const viewer = enemyOf(cp.team);
       let hide = cp.respawnUntil > 0;
-      if (!hide && !inWater(this.geom.river, c.x, c.y)) {
+      if (!hide && (this.geom.kind === 'terraces' ? tOnLand(this.geom.terraces!, c.x, c.y) : !inWater(this.geom.river, c.x, c.y))) {
         for (const t of w.thorns) {
           const tr = radiusOf(t.mass);
           if (Math.hypot(c.x - t.x, c.y - t.y) < tr) {
@@ -415,6 +480,7 @@ export class CastleMatch {
     for (const cp of this.cps.values()) {
       cp.carry = 0;
       cp.stealMs = 0;
+      cp.voidMs = 0;
       cp.respawnUntil = 0;
       cp.actions = 0;
       cp.moved = 0;
@@ -438,6 +504,8 @@ export class CastleMatch {
     this.phase = 2;
     this.matchStart = this.world.now;
     this.events.length = 0;
+    this.waveUntil[0] = this.waveUntil[1] = 0;
+    this.waveNext[0] = this.waveNext[1] = this.world.now + T.bots.waveFirstMs;
   }
 
   /** Один крок після тіку світу: фази, крадіжка, доставка, піймання, камені на землі. */
@@ -459,9 +527,56 @@ export class CastleMatch {
         this.resetMatch();
       }
     }
-    if (this.phase === 2) this.stepPlay(dt);
-    else this.trackMovement(false);
+    if (this.phase === 2) {
+      this.updateWaves();
+      this.stepPlay(dt);
+    } else this.trackMovement(false);
+    if (this.geom.kind === 'terraces') this.stepTerraces(dt);
     this.computeHidden();
+  }
+
+  /**
+   * «Небесні тераси»: клітина, чий центр поза островами й мостами довше fallMs, падає: камінь, що вона несла, лишається лежати на найближчій
+   * опорі, а сама клітина відроджується у своєму замку (як спійманий злодій). Бот у порожнечу не потрапляє (його повертає на опору),
+   * а в паузах між фазами, під щитом і на паузі гравця падіння не діє: клітину м'яко повертає на острів.
+   */
+  private stepTerraces(dt: number) {
+    const g = this.geom.terraces as TerracesGeom;
+    const TT = T.terraces;
+    const w = this.world;
+    for (const cp of this.cps.values()) {
+      const p = w.players.get(cp.pid);
+      const c = p?.cells[0];
+      if (!p || !c) continue;
+      if (tOnLand(g, c.x, c.y)) {
+        cp.voidMs = 0;
+        continue;
+      }
+      const spot = nearestLand(g, c.x, c.y);
+      if (cp.bot) {
+        c.x = spot.x;
+        c.y = spot.y;
+        cp.voidMs = 0;
+        continue;
+      }
+      if (this.phase !== 2 || cp.respawnUntil > 0 || w.isShielded(p) || p.paused) {
+        // м'яко до найближчої опори
+        const dx = spot.x - c.x;
+        const dy = spot.y - c.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const step = Math.min(d, TT.pushBackSpeed * dt);
+        c.x += (dx / d) * step;
+        c.y += (dy / d) * step;
+        cp.voidMs = 0;
+        continue;
+      }
+      cp.voidMs += dt * 1000;
+      if (cp.voidMs < TT.fallMs) continue;
+      cp.voidMs = 0;
+      if (cp.carry) this.dropStone(cp, spot.x, spot.y);
+      this.events.push({ k: 'fall', p: cp.pid, t: cp.team });
+      this.sendHome(cp, p);
+    }
   }
 
   private trackMovement(count: boolean) {
@@ -529,7 +644,7 @@ export class CastleMatch {
       const tc = tp?.cells[0];
       if (!tp || !tc || w.isShielded(tp)) continue;
       const defenders = enemyOf(th.team);
-      if (sideOf(tc.x, tc.y) !== defenders) continue;
+      if (sideAt(this.geom, tc.x, tc.y) !== defenders) continue;
       for (const df of this.cps.values()) {
         if (df.team !== defenders || df.respawnUntil > 0) continue;
         const dc = w.players.get(df.pid)?.cells[0];
@@ -670,6 +785,8 @@ export class CastleMatch {
       al,
       sp: me && me.stealMs > 0 ? Math.min(1, me.stealMs / T.stealHoldMs) : 0,
       rs: me && me.respawnUntil > 0 ? Math.round(me.respawnUntil - w.now) : 0,
+      /** «Небесні тераси»: частка часу до падіння (0..1), поки центр своєї клітини над порожнечею. */
+      fl: me && me.voidMs > 0 ? Math.min(1, me.voidMs / T.terraces.fallMs) : 0,
       ev,
     };
   }
@@ -705,6 +822,10 @@ export class CastleMatch {
       waterSlow: T.waterSlow,
       seed: g.seed,
       world: W,
+      /** Вид карти ('river' | 'terraces'); для терас - острови й мости, час до падіння. */
+      kind: g.kind,
+      terraces: g.terraces,
+      fallMs: T.terraces.fallMs,
     };
   }
 
@@ -713,6 +834,72 @@ export class CastleMatch {
   botSkin(team: number) {
     const list = TEAM_FREE_SKINS[team];
     return list[Math.floor(this.rng() * list.length)];
+  }
+
+  // ---------- розумніший ШІ ----------
+  /** Плацдарм команди: де збираються злодії перед хвилею (на своєму боці ближче до центру: острів посередині або берег біля середнього мосту). */
+  private stagePoint(team: number): { x: number; y: number } {
+    if (this.geom.kind === 'terraces') {
+      // центральний острів, зсунутий до свого боку
+      return { x: W / 2, y: W / 2 + (team === TEAM_SHEEP ? 150 : -150) };
+    }
+    const r = this.geom.river;
+    const side = team === TEAM_SHEEP ? -1 : 1;
+    const mid = r.bridges[Math.floor(r.bridges.length / 2)] ?? r.bridges[0] ?? 0;
+    return this.fromSD(mid, side * (r.hw + r.over + 260));
+  }
+
+  /** Раз на крок матчу: коли достатньо злодіїв команди зібралось на плацдармі - запускаємо хвилю нападу (потім пауза waveCooldownMs). */
+  private updateWaves() {
+    const now = this.world.now;
+    for (const team of [TEAM_SHEEP, TEAM_WOLF]) {
+      const i = team - 1;
+      if (now < this.waveUntil[i] || now < this.waveNext[i]) continue;
+      const stage = this.stagePoint(team);
+      let thieves = 0;
+      let ready = 0;
+      for (const cp of this.cps.values()) {
+        if (cp.team !== team || !cp.bot || cp.role !== 'thief' || cp.respawnUntil > 0) continue;
+        thieves++;
+        const c = this.world.players.get(cp.pid)?.cells[0];
+        if (c && !cp.carry && Math.hypot(c.x - stage.x, c.y - stage.y) < 320) ready++;
+      }
+      if (thieves > 0 && ready >= Math.max(1, Math.ceil(thieves * T.bots.waveReadyShare))) {
+        this.waveUntil[i] = now + T.bots.waveMs;
+        this.waveNext[i] = now + T.bots.waveMs + T.bots.waveCooldownMs;
+      }
+    }
+  }
+
+  /** Пости захисників: точки біля входів на острів/берег замка своєї команди (0-й захисник тримає сховище, решта - пости). */
+  private guardPosts(team: number): { x: number; y: number }[] {
+    const own = this.castleOf(team);
+    if (this.geom.kind === 'terraces') {
+      const g = this.geom.terraces as TerracesGeom;
+      const home = islandAt(g, own.x, own.y);
+      const out: { x: number; y: number }[] = [];
+      for (const b of g.bridges) {
+        if (b.a === home) out.push({ x: b.x1, y: b.y1 });
+        else if (b.b === home) out.push({ x: b.x2, y: b.y2 });
+      }
+      return out;
+    }
+    const r = this.geom.river;
+    const side = team === TEAM_SHEEP ? -1 : 1;
+    return r.bridges.map((b) => this.fromSD(b, side * (r.hw + r.over + 150)));
+  }
+
+  /** Вороги, що ще можуть зловити злодія: живі, не у відродженні, видимі (не в кущі) для команди cp. */
+  private foesOf(cp: CP): { x: number; y: number; pid: number; carry: number; vx: number; vy: number }[] {
+    const out: { x: number; y: number; pid: number; carry: number; vx: number; vy: number }[] = [];
+    const dt = 1 / FLOCK_CONFIG.tickHz;
+    for (const q of this.cps.values()) {
+      if (q.team === cp.team || q.respawnUntil > 0 || this.hiddenFrom(cp.team, q.pid)) continue;
+      const qc = this.world.players.get(q.pid)?.cells[0];
+      if (!qc) continue;
+      out.push({ x: qc.x, y: qc.y, pid: q.pid, carry: q.carry, vx: (qc.x - q.lastX) / dt, vy: (qc.y - q.lastY) / dt });
+    }
+    return out;
   }
 
   thinkBot(p: Player) {
@@ -728,38 +915,80 @@ export class CastleMatch {
     const enemy = enemyOf(cp.team);
     const own = this.castleOf(cp.team);
     const foe = this.castleOf(enemy);
+    const foes = this.foesOf(cp);
     let tx = foe.x;
     let ty = foe.y;
-    let stay = false;
+    let flee: { x: number; y: number; w: number } | null = null;
+
     if (cp.carry) {
+      // несу камінь додому: найкоротшим безпечним шляхом (обходимо захисників) і тікаю від тих, хто наближається
       tx = own.x;
       ty = own.y;
-    } else if (cp.role === 'thief' && this.stock[enemy - 1] > 0) {
-      // біля сховища стоїмо, поки не вкрадемо
-      if (Math.hypot(c.x - foe.x, c.y - foe.y) <= this.geom.steal * 0.6) stay = true;
-    } else {
-      // захисник (або злодій, якому нема чого красти): ворог на своїй території, камінь, що лежить, або патруль
-      let best: { x: number; y: number } | null = null;
-      let bd = Infinity;
-      for (const q of this.cps.values()) {
-        if (q.team !== enemy || q.respawnUntil > 0 || this.hiddenFrom(cp.team, q.pid)) continue;
-        const qc = w.players.get(q.pid)?.cells[0];
-        if (!qc) continue;
-        // захисник женеться лише за тим, хто несе камінь (звичайний гість нічого не псує)
-        if (!q.carry || sideOf(qc.x, qc.y) !== cp.team) continue;
-        const d = Math.hypot(qc.x - c.x, qc.y - c.y);
-        if (d < T.bots.noticeRadius && d < bd) {
-          bd = d;
-          best = qc;
+      let nd = Infinity;
+      let near: (typeof foes)[number] | null = null;
+      for (const f of foes) {
+        const d = Math.hypot(f.x - c.x, f.y - c.y);
+        // небезпечний той, хто на території, де мене можна піймати (територія ворога), і вже близько
+        if (d < 360 && d < nd && sideAt(this.geom, c.x, c.y) === enemy) {
+          nd = d;
+          near = f;
         }
       }
+      if (near) flee = { x: c.x - near.x, y: c.y - near.y, w: 1.6 * (1 - nd / 360) + 0.4 };
+    } else if (cp.role === 'thief' && this.stock[enemy - 1] > 0) {
+      if (w.now >= this.waveUntil[cp.team - 1]) {
+        // хвилі нема: збираємось на плацдармі (стоїмо, коли на місці) і чекаємо решту
+        const stage = this.stagePoint(cp.team);
+        if (Math.hypot(c.x - stage.x, c.y - stage.y) < 150) {
+          p.power = 0;
+          return;
+        }
+        tx = stage.x + Math.cos(p.id * 2.4) * 90;
+        ty = stage.y + Math.sin(p.id * 2.4) * 90;
+      } else if (Math.hypot(c.x - foe.x, c.y - foe.y) <= this.geom.steal * 0.6) {
+        // у хвилі: до сховища - в обхід захисників; біля нього стоїмо, поки не вкрадемо
+        p.power = 0;
+        return;
+      }
+    } else {
+      // захисник (або злодій, якому нема чого красти)
+      let best: { x: number; y: number } | null = null;
+      let bd = Infinity;
+      // 1) злодій із каменем на нашій території: перехоплюємо з випередженням, дистанція не обмежена радіусом спостереження
+      for (const f of foes) {
+        if (!f.carry || sideAt(this.geom, f.x, f.y) !== cp.team) continue;
+        const d = Math.hypot(f.x - c.x, f.y - c.y);
+        // не більше T.bots.maxChasers найближчих захисників женуться за одним злодієм, решта тримає пости
+        let closer = 0;
+        for (const q of this.cps.values()) {
+          if (q === cp || q.team !== cp.team || q.carry || q.respawnUntil > 0) continue;
+          const qc = w.players.get(q.pid)?.cells[0];
+          if (qc && Math.hypot(f.x - qc.x, f.y - qc.y) < d) closer++;
+        }
+        if (closer >= T.bots.maxChasers || d > T.bots.chaseRadius) continue;
+        if (d < bd) {
+          bd = d;
+          const lead = Math.min(1.1, d / (T.playerSpeed * 0.9));
+          best = { x: f.x + f.vx * lead, y: f.y + f.vy * lead };
+        }
+      }
+      // 2) наш камінь, що лежить: підбирає найближчий захисник
       if (!best) {
-        for (const s of this.stones) {
-          if (s.owner !== cp.team) continue;
-          const d = Math.hypot(s.x - c.x, s.y - c.y);
-          if (d < bd) {
+        for (const st of this.stones) {
+          if (st.owner !== cp.team) continue;
+          const d = Math.hypot(st.x - c.x, st.y - c.y);
+          let mine = true;
+          for (const q of this.cps.values()) {
+            if (q === cp || q.team !== cp.team || !q.bot || q.carry || q.respawnUntil > 0) continue;
+            const qc = w.players.get(q.pid)?.cells[0];
+            if (qc && Math.hypot(st.x - qc.x, st.y - qc.y) < d - 40) {
+              mine = false;
+              break;
+            }
+          }
+          if (mine && d < bd) {
             bd = d;
-            best = s;
+            best = { x: st.x, y: st.y };
           }
         }
       }
@@ -767,23 +996,60 @@ export class CastleMatch {
         tx = best.x;
         ty = best.y;
       } else {
-        // патруль: повільне коло біля замка, ближче до річки
-        const a = Math.atan2(W / 2 - own.y, W / 2 - own.x) + Math.sin((w.now / 6000) + p.id) * 1.2;
-        tx = own.x + Math.cos(a) * T.bots.guardRadius;
-        ty = own.y + Math.sin(a) * T.bots.guardRadius;
+        // 3) пост: нульовий тримає сховище, решта - входи на територію (чим більше ворогів поруч, тим щільніше до сховища)
+        const posts = this.guardPosts(cp.team);
+        const idx = cp.post % (posts.length + 1);
+        if (idx === 0 || posts.length === 0) {
+          const a = Math.atan2(W / 2 - own.y, W / 2 - own.x) + Math.sin(w.now / 5000 + p.id) * 0.9;
+          tx = own.x + Math.cos(a) * T.bots.guardRadius * 0.9;
+          ty = own.y + Math.sin(a) * T.bots.guardRadius * 0.9;
+        } else {
+          const post = posts[idx - 1];
+          tx = post.x + Math.cos(w.now / 3500 + p.id) * 60;
+          ty = post.y + Math.sin(w.now / 3500 + p.id) * 60;
+        }
       }
     }
-    if (stay) {
-      p.power = 0;
-      return;
+
+    const wp = this.waypoint(c.x, c.y, tx, ty, cp.carry || cp.role === 'thief' ? foes : [], p.id);
+    let dx = wp.x - c.x;
+    let dy = wp.y - c.y;
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len;
+    dy /= len;
+    if (flee) {
+      const fl = Math.hypot(flee.x, flee.y) || 1;
+      dx += (flee.x / fl) * flee.w;
+      dy += (flee.y / fl) * flee.w;
     }
-    const wp = this.waypoint(c.x, c.y, tx, ty);
-    p.angle = Math.atan2(wp.y - c.y, wp.x - c.x);
+    // «Небесні тераси»: не заходимо в порожнечу - дивимось уперед і при потребі повертаємо до опори
+    if (this.geom.kind === 'terraces') {
+      const g = this.geom.terraces as TerracesGeom;
+      const dl = Math.hypot(dx, dy) || 1;
+      const ax = c.x + (dx / dl) * 120;
+      const ay = c.y + (dy / dl) * 120;
+      if (!tOnLand(g, ax, ay)) {
+        const spot = nearestLand(g, ax, ay);
+        dx = spot.x - c.x;
+        dy = spot.y - c.y;
+      }
+    }
+    p.angle = Math.atan2(dy, dx);
     p.power = 1;
   }
 
-  /** Куди йти, щоб потрапити з (x, y) у (tx, ty): через міст, якщо ціль за річкою; у воді - до найближчого моста. */
-  private waypoint(x: number, y: number, tx: number, ty: number) {
+  /** Куди йти, щоб потрапити з (x, y) у (tx, ty) (через міст; на терасах - по графу островів з обходом ворогів). */
+  private waypoint(x: number, y: number, tx: number, ty: number, avoid: readonly { x: number; y: number }[] = [], seed = 0) {
+    if (this.geom.kind === 'terraces') {
+      const out = { x: tx, y: ty };
+      routeTerraces(this.geom.terraces as TerracesGeom, x, y, tx, ty, avoid, out, seed);
+      return out;
+    }
+    return this.riverWaypoint(x, y, tx, ty, avoid, seed);
+  }
+
+  /** Річкова карта: куди йти, щоб потрапити з (x, y) у (tx, ty): через міст, якщо ціль за річкою; у воді - до найближчого моста. */
+  private riverWaypoint(x: number, y: number, tx: number, ty: number, avoid: readonly { x: number; y: number }[] = [], seed = 0) {
     const g = this.geom.river;
     const d = riverD(x, y);
     const dt = riverD(tx, ty);
@@ -794,7 +1060,9 @@ export class CastleMatch {
     let best = g.bridges[0];
     let bc = Infinity;
     for (const b of g.bridges) {
-      const cost = Math.abs(b - s) + Math.abs(b - st);
+      let cost = Math.abs(b - s) + Math.abs(b - st) + (((b + seed * 131) | 0) % 5) * 40;
+      // міст, біля виходів якого стоять вороги, дорожчий
+      for (const a of avoid) if (Math.abs(riverS(a.x, a.y) - b) < g.bw / 2 + 120 && Math.abs(riverD(a.x, a.y)) < g.hw + g.over + 360) cost += 600;
       if (cost < bc) {
         bc = cost;
         best = b;
