@@ -486,9 +486,9 @@
     .recentDivider {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       width: 100%;
-      padding: 18px 16px 10px 16px;
+      padding: 20px 20px 8px 20px;
       flex-shrink: 0;
       box-sizing: border-box;
     }
@@ -500,29 +500,40 @@
       background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(212, 175, 55, 0.2) 18%,
-        rgba(212, 175, 55, 0.65) 50%,
-        rgba(212, 175, 55, 0.2) 82%,
-        transparent 100%
+        rgba(200, 208, 222, 0.14) 30%,
+        rgba(200, 208, 222, 0.34) 100%
       );
+
+      &:last-child {
+        transform: scaleX(-1);
+      }
     }
 
     .recentDividerLabel {
       flex-shrink: 0;
-      padding: 7px 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px 6px 11px;
       border-radius: 999px;
       font-family: var(--ui-font);
-      font-size: 10.5px;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: color-mix(in srgb, #d4af37 92%, var(--foreground) 8%);
-      border: 1.5px solid rgba(212, 175, 55, 0.88);
-      background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
-      box-shadow:
-        0 0 0 1px rgba(212, 175, 55, 0.12),
-        0 8px 28px -12px rgba(212, 175, 55, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      color: color-mix(in srgb, #c9d1de 82%, var(--foreground) 18%);
+      border: 1px solid rgba(200, 208, 222, 0.3);
+      background: linear-gradient(
+        180deg,
+        rgba(200, 208, 222, 0.13) 0%,
+        rgba(200, 208, 222, 0.05) 100%
+      );
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .recentDividerIcon {
+      flex-shrink: 0;
+      opacity: 0.85;
     }
 
     .chatItem {
@@ -1057,23 +1068,22 @@ html[data-theme="light"] .chatListSection {
 
   .chatList {
     .recentDividerLabel {
-      color: color-mix(in srgb, #9a7b1a 88%, var(--foreground) 12%);
-      background: color-mix(in srgb, var(--surface-elevated) 72%, transparent);
-      border-color: rgba(180, 140, 40, 0.75);
-      box-shadow:
-        0 0 0 1px rgba(180, 140, 40, 0.1),
-        0 6px 20px -10px rgba(180, 140, 40, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      color: color-mix(in srgb, #5f6b7d 90%, var(--foreground) 10%);
+      border-color: rgba(110, 122, 140, 0.32);
+      background: linear-gradient(
+        180deg,
+        rgba(110, 122, 140, 0.14) 0%,
+        rgba(110, 122, 140, 0.06) 100%
+      );
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
     }
 
     .recentDividerLine {
       background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(180, 140, 40, 0.15) 20%,
-        rgba(180, 140, 40, 0.45) 50%,
-        rgba(180, 140, 40, 0.15) 80%,
-        transparent 100%
+        rgba(110, 122, 140, 0.16) 30%,
+        rgba(110, 122, 140, 0.36) 100%
       );
     }
 

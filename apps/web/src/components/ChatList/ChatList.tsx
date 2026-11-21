@@ -874,6 +874,21 @@ const ChatList = ({
                   >
                     <span className={styles.recentDividerLine} aria-hidden />
                     <span className={styles.recentDividerLabel}>
+                      <svg
+                        className={styles.recentDividerIcon}
+                        viewBox="0 0 24 24"
+                        width="13"
+                        height="13"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
                       {t("recentDividerLabel")}
                     </span>
                     <span className={styles.recentDividerLine} aria-hidden />
