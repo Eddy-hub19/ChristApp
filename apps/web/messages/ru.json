@@ -1603,8 +1603,8 @@
     },
     "hud": {
       "mass": "Масса",
-      "leaderboard": "Топ-10",
-      "boardToggle": "Свернуть или развернуть «Топ-10»",
+      "leaderboard": "Топ-20",
+      "boardToggle": "Свернуть или развернуть «Топ-20»",
       "streakDays": "{days} дн.",
       "streakTitle": "Серия первого места: {days} дн. подряд"
     },

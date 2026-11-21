@@ -69,7 +69,7 @@ type Hud = {
   total: number;
   rank: number;
   alive: number;
-  top: { pid: number; mass: number; name: string }[];
+  top: { pid: number; mass: number; name: string; bot?: boolean }[];
   /** Держатель серії днів на 1-му місці (pid на арені) і скільки днів. */
   streak: { pid: number; days: number } | null;
   selfPid: number;
@@ -1375,8 +1375,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         <div ref={stickKnobRef} className={styles.stickKnob} />
       </div>
 
-      {skinsSheetOpen && showLobby ? null : (
-        <button type="button" className={styles.closeBtn} onClick={handleClose} aria-label={t("close")} title={t("close")}>
+      {showLobby ? null : (
+        // после смерти «закрыть» возвращает в лобби игры, а не выкидывает из игры; в самой игре - выход как раньше
+        <button type="button" className={styles.closeBtn} onClick={status === "dead" ? toLobby : handleClose} aria-label={t("close")} title={t("close")}>
           <X size={20} aria-hidden />
         </button>
       )}
@@ -1502,8 +1503,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {!hud.castle ? (
           <div className={styles.massBadge} aria-live="off">
             <span className={styles.massLabel}>{t("hud.mass")}</span>
-            <span className={styles.massValue}>{Math.round(hud.total)}</span>
-            <span className={styles.rank}>{rank}</span>
+            <span className={styles.massRow}>
+              <span className={styles.massValue}>{Math.round(hud.total)}</span>
+              <span className={styles.rank}>{rank}</span>
+            </span>
           </div>
           ) : null}
 
@@ -1533,7 +1536,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {boardCollapsed ? null : (
             <span className={styles.boardRows}>
               {hud.top.map((p, i) => (
-                <span key={p.pid} className={`${styles.boardRow} ${p.pid === hud.selfPid ? styles.me : ""}`}>
+                <span key={p.pid} className={`${styles.boardRow} ${p.bot ? styles.boardBot : styles.boardHuman} ${p.pid === hud.selfPid ? styles.me : ""}`}>
                   <span className={styles.boardPos}>{i + 1}.</span>
                   <span className={styles.boardName}>{p.name}</span>
                   {hud.streak && hud.streak.pid === p.pid ? (
@@ -1567,6 +1570,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           <canvas ref={miniRef} className={styles.minimap} style={{ width: MINIMAP_SIZE, height: MINIMAP_SIZE }} aria-hidden />
 
           <div className={`${styles.leftStack} ${hud.circle ? styles.leftStackBelowBanner : ""}`}>
+          <FlockChatFeed items={feed} selfPid={hud.selfPid} lang={toPhraseLang(locale)} hideOthers={hideOthersPhrases} />
           {hud.effects.length > 0 ? (
             <ul className={styles.effects}>
               {hud.effects.map((e) => (
@@ -1585,7 +1589,6 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               ))}
             </ul>
           ) : null}
-          <FlockChatFeed items={feed} selfPid={hud.selfPid} lang={toPhraseLang(locale)} hideOthers={hideOthersPhrases} />
           </div>
 
           {!hud.castle ? (
@@ -1763,7 +1766,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
                     {t("again")}
                   </button>
-                  <button type="button" className={styles.secondary} onClick={handleClose}>
+                  <button type="button" className={styles.secondary} onClick={toLobby}>
                     {t("close")}
                   </button>
                 </>
@@ -1808,7 +1811,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <button type="button" className={styles.primary} onClick={() => play()} autoFocus>
                 {t("again")}
               </button>
-              <button type="button" className={styles.secondary} onClick={handleClose}>
+              <button type="button" className={styles.secondary} onClick={toLobby}>
                 {t("close")}
               </button>
             </div>
@@ -1951,6 +1954,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           <div className={lobby.lobbyCard}>
             <div className={lobby.scroll}>
               <div className={lobby.head}>
+                <button type="button" className={lobby.closeInline} onClick={handleClose} aria-label={t("close")} title={t("close")}>
+                  <X size={20} aria-hidden />
+                </button>
                 <h2 className={lobby.headTitle}>{t("title")}</h2>
                 <div className={lobby.headTools}>
                   <button type="button" className={`${styles.infoBtn} ${lobby.toolInline}`} onClick={() => setInfoOpen(true)} aria-label={t("info.open")} title={t("info.open")} aria-haspopup="dialog">

@@ -1000,10 +1000,11 @@ class Arena {
       // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
       if (this.mode === 'normal' && !this.coliseum) this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
       boardBuf = encodeBoard({
-        top: ranked.slice(0, 10).map((t) => ({
+        top: ranked.slice(0, 20).map((t) => ({
           pid: t.id,
           mass: t.total,
-          // Вожак лишається в Топ-10 з короною
+          bot: t.bot || t.boss || undefined,
+          // Вожак лишається в Топ-20 з короною
           name: t.boss ? `👑 ${t.name}` : t.name,
         })),
         alive: ranked.length,

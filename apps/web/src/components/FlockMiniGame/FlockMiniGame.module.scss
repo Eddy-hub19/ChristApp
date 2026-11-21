@@ -58,44 +58,42 @@
   position: absolute;
   top: max(12px, env(safe-area-inset-top, 0px));
   left: calc(max(12px, env(safe-area-inset-left, 0px)) + 50px);
-  /* плашка росте за вмістом (число й місце в одному рядку), не стискається й не переносить */
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-areas:
-    "label label"
-    "value rank";
-  align-items: baseline;
-  justify-content: start;
-  column-gap: 8px;
-  width: max-content;
-  min-width: max-content;
+  /* фон росте за вмістом без обмеження ширини: велике число й місце завжди всередині плашки */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: fit-content;
+  max-width: none;
   flex-shrink: 0;
   box-sizing: border-box;
   white-space: nowrap;
   min-height: 40px;
-  padding: 4px 14px 5px;
+  padding: 4px 16px 5px 14px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
   backdrop-filter: blur(6px);
   pointer-events: none;
 
   .massLabel {
-    grid-area: label;
     font-size: 10px;
     line-height: 1.1;
     opacity: 0.7;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
+  .massRow {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    white-space: nowrap;
+  }
   .massValue {
-    grid-area: value;
     font-size: 22px;
     line-height: 1.1;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
   }
   .rank {
-    grid-area: rank;
     font-size: 12px;
     opacity: 0.75;
     white-space: nowrap;
@@ -103,7 +101,7 @@
   }
 }
 
-/* «Топ-10»: уся плашка - кнопка згортання. Розгорнуто: заголовок і таблиця; згорнуто: один рядок «Топ-10 #6/8 · лідер маса». */
+/* «Топ-20»: уся плашка - кнопка згортання. Розгорнуто: заголовок і таблиця; згорнуто: один рядок «Топ-10 #6/8 · лідер маса». */
 .board {
   position: absolute;
   top: max(12px, env(safe-area-inset-top, 0px));
@@ -164,6 +162,9 @@
     display: flex;
     flex-direction: column;
     margin-top: 4px;
+    /* 20 рядків: на низьких екранах таблиця гортається, а не лізе під кнопки */
+    max-height: min(64vh, 520px);
+    overflow-y: auto;
     animation: flockBoardIn 0.16s ease-out;
   }
   .boardRow {
@@ -172,6 +173,14 @@
     justify-content: space-between;
     gap: 8px;
     padding: 1px 0;
+  }
+  /* жива людина - блакитним, бот - сірим */
+  .boardHuman .boardName {
+    color: #6ec8ff;
+    font-weight: 600;
+  }
+  .boardBot .boardName {
+    color: rgba(255, 255, 255, 0.5);
   }
   .boardPos {
     width: 18px;
