@@ -44,6 +44,7 @@ import {
   canUserReadRoom,
 } from 'src/chat/user-may-post-to-room';
 import { MessageType } from '@prisma/client';
+import { CallSignalingService } from 'src/calls/call-signaling.service';
 import { ACCEPTED_CHAT_REACTIONS } from 'src/common/chat-reactions';
 import { PUBLIC_USER_SELECT } from 'src/common/public-user';
 
@@ -312,7 +313,23 @@ export class ChatGateway
     private messagesService: MessagesService,
     private pushService: PushService,
     private puzzleImages: PuzzleUserImagesService,
-  ) {}
+    private calls: CallSignalingService,
+  ) {
+    // Сервис звонков доставляет события по пользователю и пишет системную запись в чат через этот шлюз.
+    this.calls.setDirectory({
+      emitToUser: async (userId, event, payload, exceptSocketId) => {
+        const sockets = await this.server.in(`user:${userId}`).fetchSockets();
+        let delivered = 0;
+        for (const socket of sockets) {
+          if (socket.id === exceptSocketId) continue;
+          socket.emit(event, payload);
+          delivered += 1;
+        }
+        return delivered;
+      },
+      postMissedCallMessage: (input) => this.postMissedCallMessage(input),
+    });
+  }
 
   // userId → timestamps of suspicious attempts
   private readonly suspiciousAttempts = new Map<string, number[]>();
@@ -583,6 +600,7 @@ export class ChatGateway
     // вхолосту, і пристрій лишився б у реєстрі «привидом».
     if (!client.connected) return;
     presence.connect(client.id, user.id);
+    this.calls.onUserConnected(user.id);
 
     console.log('✅ Connected:', user.username);
 
@@ -648,6 +666,7 @@ export class ChatGateway
       this.snakeDuel.userDisconnected(userId);
       this.guessCharacter.userDisconnected(userId);
       this.puzzle.userDisconnected(userId);
+      this.calls.onUserDisconnected(userId);
     }
   }
 
@@ -2160,6 +2179,8 @@ export class ChatGateway
     }
   }
 
+  // ================= ЗВОНКИ =================
+  // Состояния и правила живут в CallSignalingService (в памяти, без БД на каждое событие); здесь только проводка событий.
   @SubscribeMessage('call-user')
   async handleCallUser(
     @MessageBody() body: CallUserPayload,
@@ -2167,95 +2188,10 @@ export class ChatGateway
   ) {
     const caller = await this.resolveSocketUser(client);
     if (!caller) {
-      client.emit('call-error', { error: 'Не авторизован' });
+      client.emit('call-error', { error: 'Не авторизован', code: 'unauthorized' });
       return;
     }
-
-    const targetUserId =
-      typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
-    const channelName =
-      typeof body?.channelName === 'string' ? body.channelName.trim() : '';
-
-    if (!targetUserId || !channelName) {
-      client.emit('call-error', {
-        error: 'targetUserId и channelName обязательны',
-      });
-      return;
-    }
-
-    if (targetUserId === caller.id) {
-      client.emit('call-error', { error: 'Нельзя позвонить самому себе' });
-      return;
-    }
-
-    const targetUser = await this.prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { id: true },
-    });
-    if (!targetUser) {
-      client.emit('call-error', { error: 'Пользователь не найден' });
-      return;
-    }
-
-    const callerProfile = await this.prisma.user.findUnique({
-      where: { id: caller.id },
-      select: {
-        username: true,
-        nickname: true,
-        avatarUrl: true,
-      },
-    });
-
-    const targetSockets = await this.getSocketsByUserId(targetUserId);
-    if (!targetSockets.length) {
-      const initiatorName =
-        callerProfile?.nickname?.trim() ||
-        callerProfile?.username?.trim() ||
-        caller.nickname ||
-        caller.username;
-
-      void this.pushService.sendCallPush({
-        callerId: caller.id,
-        callerName: initiatorName,
-        targetUserId,
-        targetUrl: `/chat/${caller.id}`,
-      });
-
-      client.emit('call-user-sent', {
-        ok: true,
-        offline: true,
-        targetUserId,
-        channelName,
-      });
-      return;
-    }
-
-    const initiatorName =
-      callerProfile?.nickname?.trim() ||
-      callerProfile?.username?.trim() ||
-      caller.nickname ||
-      caller.username;
-
-    const incomingCallPayload = {
-      channelName,
-      initiator: {
-        id: caller.id,
-        username: callerProfile?.username || caller.username,
-        nickname: callerProfile?.nickname || caller.nickname || null,
-        name: initiatorName,
-        avatarUrl: callerProfile?.avatarUrl || null,
-      },
-    };
-
-    for (const targetSocket of targetSockets) {
-      targetSocket.emit('incoming-call', incomingCallPayload);
-    }
-
-    client.emit('call-user-sent', {
-      ok: true,
-      targetUserId,
-      channelName,
-    });
+    await this.calls.callUser(caller, body, (event, payload) => client.emit(event, payload));
   }
 
   @SubscribeMessage('call-response')
@@ -2265,39 +2201,61 @@ export class ChatGateway
   ) {
     const receiver = await this.resolveSocketUser(client);
     if (!receiver) {
-      client.emit('call-error', { error: 'Не авторизован' });
+      client.emit('call-error', { error: 'Не авторизован', code: 'unauthorized' });
       return;
     }
+    await this.calls.callResponse(receiver, body, (event, payload) => client.emit(event, payload), client.id);
+  }
 
-    const initiatorId =
-      typeof body?.initiatorId === 'string' ? body.initiatorId.trim() : '';
-    const channelName =
-      typeof body?.channelName === 'string' ? body.channelName.trim() : '';
-    if (!initiatorId || !channelName) {
-      client.emit('call-error', {
-        error: 'initiatorId и channelName обязательны',
-      });
-      return;
-    }
+  @SubscribeMessage('call-cancel')
+  async handleCallCancel(
+    @MessageBody() body: { callId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    await this.calls.callCancel(user, body, (event, payload) => client.emit(event, payload));
+  }
 
-    const accepted = body?.accepted === true;
-    const initiatorSockets = await this.getSocketsByUserId(initiatorId);
-    if (!initiatorSockets.length) {
-      return;
-    }
+  @SubscribeMessage('call-end')
+  async handleCallEnd(
+    @MessageBody() body: { callId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    this.calls.callEnd(user, body);
+  }
 
-    const payload = {
-      channelName,
-      responder: {
-        id: receiver.id,
-        username: receiver.username,
-        nickname: receiver.nickname ?? null,
-      },
-    };
+  @SubscribeMessage('call-sync')
+  async handleCallSync(
+    @MessageBody() body: { callId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    await this.calls.callSync(user, body, (event, payload) => client.emit(event, payload));
+  }
 
-    for (const socket of initiatorSockets) {
-      socket.emit(accepted ? 'call-accepted' : 'call-declined', payload);
-    }
+  /**
+   * Системная запись «Пропущенный звонок» в личном чате: от имени звонящего (FK), без пуша и без read-receipt.
+   * Тип SYSTEM не считается непрочитанным (см. запросы в messages.service). Только для звонков нового образца.
+   */
+  private async postMissedCallMessage(input: { roomId: string; callerId: string; callId: string }) {
+    const caller = await this.prisma.user.findUnique({
+      where: { id: input.callerId },
+      select: { username: true, nickname: true, bubbleStyle: true },
+    });
+    if (!caller) return;
+    const message = await this.messagesService.createRoomMessage({
+      type: 'SYSTEM',
+      content: 'call:missed',
+      senderId: input.callerId,
+      sender: { username: caller.username, nickname: caller.nickname, bubbleStyle: caller.bubbleStyle },
+      roomId: input.roomId,
+      clientMessageId: `call-missed-${input.callId}`,
+    });
+    this.server.to(input.roomId).emit('newMessage', this.buildNewMessagePayload(input.roomId, message));
   }
 
   // ================= ЗАПРОШЕННЯ КОРИСТУВАЧА ДО КІМНАТИ =================

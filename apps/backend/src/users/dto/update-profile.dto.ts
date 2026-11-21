@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsObject,
   IsOptional,
@@ -70,4 +71,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsObject()
   fontPrefs?: Record<string, unknown> | null;
+
+  /** Входящие звонки и пуши о них (false: звонящему «Недоступно»). */
+  @IsOptional()
+  @IsBoolean()
+  callsEnabled?: boolean;
+
+  /** Мелодия звонка (исходящий гудок и входящий рингтон), пока приложение открыто. */
+  @IsOptional()
+  @IsBoolean()
+  callRingtone?: boolean;
 }

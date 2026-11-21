@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import styles from "./IncomingCallModal.module.scss";
 
 type IncomingCallModalProps = {
@@ -16,6 +17,7 @@ export default function IncomingCallModal({
   onAccept,
   onDecline,
 }: IncomingCallModalProps) {
+  const t = useTranslations("calls");
   return (
     <AnimatePresence>
       {open ? (
@@ -35,9 +37,9 @@ export default function IncomingCallModal({
             exit={{ y: 16, opacity: 0 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
           >
-            <h3 className={styles.title}>Incoming audio call</h3>
+            <h3 className={styles.title}>{t("incomingTitle")}</h3>
             <p className={styles.subtitle}>
-              {callerName} is calling you (voice)
+              {t("incomingSubtitle", { name: callerName || t("unknownCaller") })}
             </p>
             <div className={styles.actions}>
               <button
@@ -45,14 +47,14 @@ export default function IncomingCallModal({
                 className={`${styles.button} ${styles.decline}`}
                 onClick={onDecline}
               >
-                Decline
+                {t("decline")}
               </button>
               <button
                 type="button"
                 className={`${styles.button} ${styles.accept}`}
                 onClick={onAccept}
               >
-                Accept
+                {t("accept")}
               </button>
             </div>
           </motion.div>

@@ -32,6 +32,8 @@ const USER_SAFE_SELECT = {
   bubbleStyle: true,
   chatBackgrounds: true,
   fontPrefs: true,
+  callsEnabled: true,
+  callRingtone: true,
   usernameChosen: true,
 } as const;
 

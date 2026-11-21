@@ -194,6 +194,13 @@ export class MessagesService {
           type: 'VIDEO_NOTE';
           fileUrl: string;
         }
+      | {
+          /** Системная запись (напр. «Пропущенный звонок»): content - ключ вида `call:missed`. */
+          roomId: string;
+          senderId: string;
+          type: 'SYSTEM';
+          content: string;
+        }
     ),
   ) {
     const { roomId, senderId, type } = params;
@@ -803,6 +810,7 @@ export class MessagesService {
       LEFT JOIN "Message" m
         ON m."roomId" = s."roomId"
        AND m."senderId" <> s."userId"
+       AND m."type" <> 'SYSTEM'::"MessageType"
        AND m."createdAt" > COALESCE(rrs."lastReadAt", to_timestamp(0))
       GROUP BY s."userId"
     `;
@@ -877,6 +885,7 @@ export class MessagesService {
           ON rrs."roomId" = m."roomId"
          AND rrs."userId" = ${userId}
         WHERE m."senderId" <> ${userId}
+          AND m."type" <> 'SYSTEM'::"MessageType"
           AND m."createdAt" > COALESCE(rrs."lastReadAt", to_timestamp(0))
         GROUP BY m."roomId"
       ),

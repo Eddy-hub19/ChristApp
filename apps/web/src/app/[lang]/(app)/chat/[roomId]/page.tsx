@@ -18,6 +18,8 @@ import { useRouter } from "@/i18n/navigation";
 import { getInitials } from "@/lib/utils";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { useAuth } from "@/hooks/useAuth";
+import { useCalls } from "@/components/calls/CallProvider";
+import { registerCallSocket } from "@/lib/calls/callSocketRegistry";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
 import { apiFetch } from "@/lib/apiFetch";
@@ -150,13 +152,6 @@ const FlockMiniGame = dynamic(
 );
 const PuzzleMiniGame = dynamic(
   () => import("@/components/PuzzleMiniGame/PuzzleMiniGame"),
-  { ssr: false },
-);
-const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), {
-  ssr: false,
-});
-const IncomingCallModal = dynamic(
-  () => import("@/components/calls/IncomingCallModal"),
   { ssr: false },
 );
 import {
@@ -307,32 +302,6 @@ type RoomReadStatesPayload = {
   }>;
 };
 
-type IncomingCallPayload = {
-  channelName?: string;
-  initiator?: {
-    id?: string;
-    name?: string;
-    nickname?: string | null;
-    username?: string;
-    avatarUrl?: string | null;
-  };
-};
-
-type CallAcceptedPayload = {
-  channelName?: string;
-};
-
-type CallDeclinedPayload = {
-  channelName?: string;
-};
-
-type CallUserSentPayload = {
-  ok?: boolean;
-  offline?: boolean;
-  channelName?: string;
-  targetUserId?: string;
-};
-
 type DoodleScoreUpdatedPayload = {
   roomId?: string;
   userId?: string;
@@ -470,7 +439,8 @@ function normalizeMessageType(raw: unknown): Message["type"] {
     value === "VOICE" ||
     value === "IMAGE" ||
     value === "FILE" ||
-    value === "VIDEO_NOTE"
+    value === "VIDEO_NOTE" ||
+    value === "SYSTEM"
     ? value
     : undefined;
 }
@@ -625,6 +595,7 @@ export default function ChatPageDetails() {
   const tShared = useTranslations("chatShared");
   const lang = useLocale();
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" });
+  const { startCall } = useCalls();
   const queryClient = useQueryClient();
   // Runtime refs потрібні для socket callbacks, щоб уникнути stale state усередині listeners.
   const socketRef = useRef<AppSocket | null>(null);
@@ -691,15 +662,6 @@ export default function ChatPageDetails() {
   const [peekProfileUserId, setPeekProfileUserId] = useState<string | null>(
     null,
   );
-  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(
-    null,
-  );
-  const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(
-    null,
-  );
-  const [isCallOverlayVisible, setIsCallOverlayVisible] = useState(true);
-  const [pendingOutgoingCall, setPendingOutgoingCall] =
-    useState<IncomingCallPayload | null>(null);
   const [isDoodleOpen, setIsDoodleOpen] = useState(false);
   const [isSnakeOpen, setIsSnakeOpen] = useState(false);
   const [isFilwordOpen, setIsFilwordOpen] = useState(false);
@@ -755,10 +717,6 @@ export default function ChatPageDetails() {
       );
     }
   };
-  const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null);
-  const outgoingCallTimeoutRef = useRef<number | null>(null);
-  const ringtoneIntervalRef = useRef<number | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const typingTextEmitRef = useRef(false);
   const typingVoiceEmitRef = useRef(false);
 
@@ -1103,75 +1061,10 @@ export default function ChatPageDetails() {
   }, [user?.id]);
 
   useEffect(() => {
-    pendingOutgoingCallRef.current = pendingOutgoingCall;
-  }, [pendingOutgoingCall]);
-
-  useEffect(() => {
     const onAuthChanged = () => setSocketAuthEpoch((value) => value + 1);
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
   }, []);
-
-  const stopIncomingRingtone = useCallback(() => {
-    if (ringtoneIntervalRef.current !== null) {
-      window.clearInterval(ringtoneIntervalRef.current);
-      ringtoneIntervalRef.current = null;
-    }
-    if (audioCtxRef.current) {
-      void audioCtxRef.current.close();
-      audioCtxRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!incomingCall) {
-      stopIncomingRingtone();
-      return;
-    }
-
-    const playSingleRing = () => {
-      try {
-        const AudioContextCtor =
-          window.AudioContext ||
-          (
-            window as typeof window & {
-              webkitAudioContext?: typeof AudioContext;
-            }
-          ).webkitAudioContext;
-        if (!AudioContextCtor) {
-          return;
-        }
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioContextCtor();
-        }
-        const ctx = audioCtxRef.current;
-        if (ctx.state === "suspended") {
-          void ctx.resume();
-        }
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(
-          660,
-          ctx.currentTime + 0.32,
-        );
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.36);
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + 0.38);
-      } catch {
-        // ignore ringtone errors in browsers without audio support
-      }
-    };
-
-    playSingleRing();
-    ringtoneIntervalRef.current = window.setInterval(playSingleRing, 1300);
-    return () => stopIncomingRingtone();
-  }, [incomingCall, stopIncomingRingtone]);
 
   /**
    * Сирий список повідомлень кімнати для кешу RQ. Сокет-події застосовуємо до нього через ref (без перемальовування
@@ -1515,6 +1408,8 @@ export default function ChatPageDetails() {
     socketRef.current = socket;
     // «Онлайн» = застосунок видно, а не «сокет підключений» — див. presenceReporter.
     const detachPresence = attachPresenceReporter(socket);
+    // Звонки слушает глобальный CallProvider: сокет страницы чата тоже ему регистрируем.
+    const detachCallSocket = registerCallSocket(socket);
 
     const onConnect = () => {
       setIsSocketConnected(true);
@@ -2135,93 +2030,6 @@ export default function ChatPageDetails() {
     };
     socket.on("userInvitedToRoom", onInvitedToRoom);
 
-    const onIncomingCall = (payload: IncomingCallPayload) => {
-      if (!payload?.channelName) return;
-      setIncomingCall(payload);
-    };
-    socket.on("incoming-call", onIncomingCall);
-
-    const onCallAccepted = (payload: CallAcceptedPayload) => {
-      const pending = pendingOutgoingCallRef.current;
-      if (
-        !pending?.channelName ||
-        !payload?.channelName ||
-        pending.channelName !== payload.channelName
-      ) {
-        return;
-      }
-      if (outgoingCallTimeoutRef.current !== null) {
-        window.clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
-      setActiveCall(pending);
-      setIsCallOverlayVisible(true);
-      setPendingOutgoingCall(null);
-      setSendNotice(null);
-    };
-    socket.on("call-accepted", onCallAccepted);
-
-    const onCallDeclined = (payload: CallDeclinedPayload) => {
-      const pending = pendingOutgoingCallRef.current;
-      if (
-        !pending?.channelName ||
-        !payload?.channelName ||
-        pending.channelName !== payload.channelName
-      ) {
-        return;
-      }
-      if (outgoingCallTimeoutRef.current !== null) {
-        window.clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
-      setPendingOutgoingCall(null);
-      setSendNotice(t("callDeclinedNotice"));
-
-      const joinedId = joinedRoomRef.current;
-      if (joinedId) {
-        socket.emit("sendMessage", {
-          roomId: joinedId,
-          content: t("missedCallNoticeFromMe"),
-        });
-      }
-    };
-    socket.on("call-declined", onCallDeclined);
-
-    const onCallError = (payload: { error?: string }) => {
-      const pending = pendingOutgoingCallRef.current;
-      if (!pending) {
-        return;
-      }
-      if (outgoingCallTimeoutRef.current !== null) {
-        window.clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
-      setPendingOutgoingCall(null);
-      setSendNotice(payload?.error?.trim() || t("callConnectionFailed"));
-
-      const joinedId = joinedRoomRef.current;
-      if (joinedId) {
-        socket.emit("sendMessage", {
-          roomId: joinedId,
-          content: t("missedCallNoticeFromMe"),
-        });
-      }
-    };
-    socket.on("call-error", onCallError);
-
-    const onCallUserSent = (payload: CallUserSentPayload) => {
-      if (!payload?.offline) return;
-      const pending = pendingOutgoingCallRef.current;
-      if (!pending) return;
-      if (outgoingCallTimeoutRef.current !== null) {
-        window.clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
-      setPendingOutgoingCall(null);
-      setSendNotice(t("callPushSentNotice"));
-    };
-    socket.on("call-user-sent", onCallUserSent);
-
     const onGameSession = (payload: GameSessionPayload) => {
       const joinedId = joinedRoomRef.current;
       if (!joinedId || payload?.roomId !== joinedId) {
@@ -2431,11 +2239,6 @@ export default function ChatPageDetails() {
       socket.off("pinError", onPinError);
       socket.off("update-message-reactions", onUpdateMessageReactions);
       socket.off("reactionError", onReactionError);
-      socket.off("incoming-call", onIncomingCall);
-      socket.off("call-user-sent", onCallUserSent);
-      socket.off("call-accepted", onCallAccepted);
-      socket.off("call-declined", onCallDeclined);
-      socket.off("call-error", onCallError);
       socket.off("gameSession", onGameSession);
       socket.off("doodle-score-updated", onDoodleScoreUpdated);
       socket.off("doodle-reset", onDoodleReset);
@@ -2443,11 +2246,7 @@ export default function ChatPageDetails() {
       socket.off("snake-score-updated", onSnakeScoreUpdated);
       socket.off("snake-reset", onSnakeReset);
       socket.off("snake-state-updated", onSnakeStateUpdated);
-      stopIncomingRingtone();
-      if (outgoingCallTimeoutRef.current !== null) {
-        window.clearTimeout(outgoingCallTimeoutRef.current);
-        outgoingCallTimeoutRef.current = null;
-      }
+      detachCallSocket();
       leaveCurrentRoom(socket);
       detachPresence();
       socket.disconnect();
@@ -2463,7 +2262,6 @@ export default function ChatPageDetails() {
     queryClient,
     requestMyRooms,
     router,
-    stopIncomingRingtone,
     t,
     user,
     socketAuthEpoch,
@@ -3492,54 +3290,17 @@ export default function ChatPageDetails() {
   );
 
   const handleStartCall = useCallback(() => {
-    const socket = socketRef.current;
-    if (!socket?.connected || !directChatTargetUserId || !user?.id) {
-      return;
-    }
-
-    const callerUid = user.id.slice(0, 8);
-    const targetUid = directChatTargetUserId.slice(0, 8);
-    const channelName = `dm-${[callerUid, targetUid].sort().join("-")}`;
-    socket.emit("call-user", {
+    if (!directChatTargetUserId) return;
+    startCall({
       targetUserId: directChatTargetUserId,
-      channelName,
-    });
-
-    const outgoingPayload: IncomingCallPayload = {
-      channelName,
-      initiator: {
+      roomId: effectiveSocketRoomId ?? undefined,
+      peer: {
         id: directChatTargetUserId,
-        name:
-          directChatTargetUser?.nickname ??
-          directChatTargetUser?.username ??
-          t("chatFallback"),
+        name: directChatTargetUser?.nickname ?? directChatTargetUser?.username ?? t("chatFallback"),
         avatarUrl: directChatTargetUser?.avatarUrl ?? null,
       },
-    };
-    setPendingOutgoingCall(outgoingPayload);
-    setSendNotice(t("callingNotice"));
-
-    if (outgoingCallTimeoutRef.current !== null) {
-      window.clearTimeout(outgoingCallTimeoutRef.current);
-    }
-    outgoingCallTimeoutRef.current = window.setTimeout(() => {
-      const joinedId = joinedRoomRef.current;
-      if (joinedId && socket.connected) {
-        socket.emit("sendMessage", {
-          roomId: joinedId,
-          content: t("missedCallNoticeFromMe"),
-        });
-      }
-      setPendingOutgoingCall(null);
-      setSendNotice(t("callNoAnswerNotice"));
-    }, 30_000);
-  }, [directChatTargetUser, directChatTargetUserId, t, user]);
-
-  useEffect(() => {
-    if (!activeCall?.channelName) {
-      setIsCallOverlayVisible(true);
-    }
-  }, [activeCall?.channelName]);
+    });
+  }, [directChatTargetUser, directChatTargetUserId, effectiveSocketRoomId, startCall, t]);
 
   const handleOpenDoodle = useCallback((options?: { join?: boolean }) => {
     if (!directChatTargetUserId || !effectiveSocketRoomId) {
@@ -3775,19 +3536,6 @@ export default function ChatPageDetails() {
       },
     });
   }, []);
-
-  const handleCallEnded = useCallback(
-    (durationSeconds: number) => {
-      const joinedId = joinedRoomRef.current;
-      const socket = socketRef.current;
-      if (!joinedId || !socket?.connected) return;
-      const minutes = Math.floor(durationSeconds / 60);
-      const content =
-        minutes < 1 ? t("callEndedShort") : t("callEndedMinutes", { minutes });
-      socket.emit("sendMessage", { roomId: joinedId, content });
-    },
-    [t],
-  );
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     const targetRoomId = effectiveSocketRoomId;
@@ -4766,79 +4514,6 @@ export default function ChatPageDetails() {
             </div>
           </div>
         ) : null}
-        <IncomingCallModal
-          open={Boolean(incomingCall)}
-          callerName={
-            incomingCall?.initiator?.name ||
-            incomingCall?.initiator?.nickname ||
-            incomingCall?.initiator?.username ||
-            "Unknown"
-          }
-          onDecline={() => {
-            const socket = socketRef.current;
-            if (
-              socket?.connected &&
-              incomingCall?.channelName &&
-              incomingCall?.initiator?.id
-            ) {
-              socket.emit("call-response", {
-                initiatorId: incomingCall.initiator.id,
-                channelName: incomingCall.channelName,
-                accepted: false,
-              });
-            }
-            stopIncomingRingtone();
-            setIncomingCall(null);
-          }}
-          onAccept={() => {
-            const socket = socketRef.current;
-            if (
-              socket?.connected &&
-              incomingCall?.channelName &&
-              incomingCall?.initiator?.id
-            ) {
-              socket.emit("call-response", {
-                initiatorId: incomingCall.initiator.id,
-                channelName: incomingCall.channelName,
-                accepted: true,
-              });
-            }
-            stopIncomingRingtone();
-            setActiveCall(incomingCall);
-            setIsCallOverlayVisible(true);
-            setIncomingCall(null);
-          }}
-        />
-        {activeCall?.channelName && !isCallOverlayVisible ? (
-          <button
-            type="button"
-            className={styles.callReturnButton}
-            onClick={() => setIsCallOverlayVisible(true)}
-            aria-label="Вернуться к звонку"
-            title="Вернуться к звонку"
-          >
-            <Phone size={15} strokeWidth={2.25} aria-hidden />
-            <span>Вернуться к звонку</span>
-          </button>
-        ) : null}
-        <CallScreen
-          isOpen={Boolean(activeCall?.channelName)}
-          isVisible={isCallOverlayVisible}
-          channelName={activeCall?.channelName ?? null}
-          peerName={
-            activeCall?.initiator?.name ||
-            activeCall?.initiator?.nickname ||
-            activeCall?.initiator?.username ||
-            t("chatFallback")
-          }
-          peerAvatarUrl={activeCall?.initiator?.avatarUrl ?? null}
-          onMinimize={() => setIsCallOverlayVisible(false)}
-          onClose={() => {
-            setActiveCall(null);
-            setIsCallOverlayVisible(true);
-          }}
-          onCallEnded={handleCallEnded}
-        />
         {isDoodleOpen ? (
           <DoodleMiniGame
             open

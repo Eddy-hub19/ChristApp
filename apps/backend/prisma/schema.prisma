@@ -31,6 +31,10 @@ model User {
   /// Стиль пузырей сообщений отправителя (id из config/bubble-styles.ts), по умолчанию "default".
   bubbleStyle       String    @default("default") @db.VarChar(24)
   /// Личные фоны чата: { v, def: {id, dim}, rooms: { [roomKey]: {id, dim} } } (config/chat-prefs.ts). Видны только владельцу.
+  /// Показывать входящие звонки и пушить о них. false: звонящему «Недоступно».
+  callsEnabled      Boolean   @default(true)
+  /// Играть мелодию звонка (исходящий гудок и входящий рингтон), пока приложение открыто.
+  callRingtone      Boolean   @default(true)
   chatBackgrounds   Json?
   /// Личные шрифты: { v, ui, msg, size } (config/chat-prefs.ts). Видны только владельцу.
   fontPrefs         Json?
@@ -120,6 +124,8 @@ enum MessageType {
   IMAGE
   FILE
   VIDEO_NOTE
+  /// Системная запись в чате (пока: «Пропущенный звонок», content = ключ вида `call:missed`). Без пуша, не считается непрочитанным.
+  SYSTEM
 }
 
 model Message {

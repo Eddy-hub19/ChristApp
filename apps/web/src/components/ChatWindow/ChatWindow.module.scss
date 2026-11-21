@@ -289,6 +289,27 @@ html[data-theme="light"] .recentDividerLine {
   box-shadow: 0 4px 14px -10px rgba(0, 0, 0, 0.3);
 }
 
+/* Системная запись в чате («Пропущенный звонок»): тихая плашка по центру. */
+.systemLine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.systemLineLabel {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: var(--ui-font);
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--foreground) 70%, var(--text-muted) 30%);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 90%, transparent);
+}
+
 // «🎮 Ед грає в Doodle» — той самий пузир, що й «друкує», з легкою анімацією геймпада.
 .gameLane {
   gap: 8px;

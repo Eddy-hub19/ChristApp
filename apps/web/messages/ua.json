@@ -512,7 +512,14 @@
     "alertBgInvalid": "Колір тла: оберіть відтінок у палітрі (формат #RRGGBB).",
     "saveFailed": "Не вдалося зберегти",
     "resetAppearanceFailed": "Не вдалося скинути оформлення",
-    "noAuth": "Немає авторизації"
+    "noAuth": "Немає авторизації",
+    "menuCalls": "Дзвінки",
+    "menuCallsOn": "Увімкнено",
+    "menuCallsOff": "Вимкнено",
+    "menuCallRingtone": "Звук дзвінка",
+    "menuCallRingtoneOn": "Увімкнено",
+    "menuCallRingtoneOff": "Вимкнено",
+    "callsSaveFailed": "Не вдалося зберегти налаштування дзвінків"
   },
   "profileChapters": {
     "startToday": "Почніть шлях сьогодні",
@@ -1113,6 +1120,7 @@
     "previewPhoto": "🖼 Фото",
     "previewVoice": "🎤 Голосове",
     "previewVideoNote": "🎥 Відеокружок",
+    "previewMissedCall": "📞 Пропущений дзвінок",
     "previewFile": "📎 Файл",
     "messageMenu": "Дії з повідомленням",
     "closeMenu": "Закрити меню",
@@ -2364,5 +2372,30 @@
       "updated": "Останнє оновлення",
       "englishOnly": "Цей документ доступний лише англійською мовою."
     }
+  },
+  "calls": {
+    "incomingTitle": "Вхідний дзвінок",
+    "incomingSubtitle": "{name} дзвонить вам",
+    "unknownCaller": "Невідомий",
+    "accept": "Відповісти",
+    "decline": "Відхилити",
+    "calling": "Дзвонимо: {name}…",
+    "cancel": "Скинути",
+    "declined": "Співрозмовник відхилив дзвінок.",
+    "noAnswer": "Немає відповіді",
+    "busy": "Зайнято",
+    "unavailable": "Недоступно",
+    "cancelled": "Дзвінок скасовано",
+    "missed": "Пропущений дзвінок",
+    "ended": "Дзвінок завершено",
+    "failed": "Не вдалося встановити з'єднання дзвінка.",
+    "cooldown": "Зачекайте трохи перед повторним дзвінком",
+    "rateLimited": "Забагато дзвінків, спробуйте пізніше",
+    "alreadyInCall": "Ви вже в дзвінку",
+    "notParticipant": "Дзвонити можна лише в особистому чаті",
+    "returnToCall": "Повернутися до дзвінка",
+    "endedShort": "Ми поговорили менше хвилини з Божою допомогою 🙏",
+    "missedRecord": "Пропущений дзвінок",
+    "endedMinutes": "Ми поговорили {minutes} хв. з Божою допомогою 🙏"
   }
 }

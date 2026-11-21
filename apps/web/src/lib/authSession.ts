@@ -30,6 +30,9 @@ export type AuthUser = {
   chatBackgrounds?: unknown;
   /** Личные шрифты (только владельцу): lib/chatFonts.ts. */
   fontPrefs?: unknown;
+  /** Звонки: принимать входящие (по умолчанию true) и играть мелодию (по умолчанию true). */
+  callsEnabled?: boolean;
+  callRingtone?: boolean;
   /** false у нового Google-користувача, доки він не обрав @username. */
   usernameChosen?: boolean;
   /** Игрок уже заходил в «Отару» (получил разовый бонус за первый вход): промо в списке чатов не обещает 20 рубинов. */

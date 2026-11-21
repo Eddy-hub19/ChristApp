@@ -46,9 +46,11 @@ type ChatPushNotificationInput = {
 };
 
 /** Ліміт тіла JSON до шифрування web-push (запас до ~4 КБ після overhead). */
+/** Скільки пристроїв отримувача дзвінка отримують пуш одночасно. */
+const CALL_PUSH_CONCURRENCY = 8;
 const PUSH_JSON_UTF8_MAX_BYTES = 3600;
 
-type PushSubscriptionRecord = {
+export type PushSubscriptionRecord = {
   id: string;
   userId: string;
   endpoint: string;
@@ -467,11 +469,21 @@ export class PushService implements OnModuleDestroy {
       createdAt: string;
       messageId: string;
       badgeCount?: number;
-      /** 'read-sync' — службовий пуш: нічого не показувати, лише прибрати сповіщення. */
-      kind?: 'read-sync';
+      /**
+       * 'read-sync' — службовий пуш: нічого не показувати, лише прибрати сповіщення.
+       * 'call' / 'call-missed' — дзвінок і пропущений дзвінок (SW бере тег `call-<callId>`, кнопки, вібрацію);
+       * 'call-cancel' — службовий: закрити сповіщення дзвінка.
+       */
+      kind?: 'read-sync' | 'call' | 'call-cancel' | 'call-missed';
       readRoomId?: string;
+      callId?: string;
+      callerName?: string;
+      callerId?: string;
+      /** Який по порядку це сповіщення про дзвінок (0 - перше, далі повтори). */
+      repeat?: number;
     },
     kind: PushKind,
+    extra: { ttl?: number; topic?: string } = {},
   ): Promise<PushSendResult> {
     const pushSubscription: webPush.PushSubscription = {
       endpoint: subscription.endpoint,
@@ -488,8 +500,10 @@ export class PushService implements OnModuleDestroy {
     // Службовий read-sync — «тихий» і застарілий за годину; справжні повідомлення живуть добу
     // (телефон без мережі отримає їх, щойно з'явиться зв'язок).
     const options = {
-      TTL: kind === 'readSync' ? 60 * 60 : PUSH_TTL_SECONDS,
+      TTL: extra.ttl ?? (kind === 'readSync' ? 60 * 60 : PUSH_TTL_SECONDS),
       urgency: 'high' as const,
+      // однаковий topic: push-сервіс підміняє ще не доставлене повідомлення (повтор дзвінка, скасування)
+      ...(extra.topic ? { topic: extra.topic } : {}),
     };
 
     let retried = false;
@@ -682,57 +696,77 @@ export class PushService implements OnModuleDestroy {
     );
   }
 
+  /** Підписки отримувача дзвінка: один запит на дзвінок, далі сервіс дзвінків тримає список у памʼяті (повтори, скасування). */
+  async loadCallSubscriptions(userId: string): Promise<PushSubscriptionRecord[]> {
+    if (!this.isConfigured) return [];
+    return this.prisma.pushSubscription.findMany({
+      where: { userId },
+      select: { id: true, userId: true, endpoint: true, p256dh: true, auth: true },
+    });
+  }
+
+  /**
+   * Пуш про дзвінок на всі пристрої отримувача порціями по CALL_PUSH_CONCURRENCY (без блокування event loop);
+   * застарілі підписки (404/410) видаляються. Без вмісту чату: лише імʼя того, хто дзвонить.
+   *  - 'ring': «<імʼя> дзвонить вам» (повтори замінюють попереднє: один тег і topic);
+   *  - 'cancel': службовий, закриває сповіщення (дзвінок скинули чи прийняли на іншому пристрої);
+   *  - 'missed': «Пропущений дзвінок від <імʼя>» (замінює «дзвонить»).
+   */
   async sendCallPush(input: {
+    what: 'ring' | 'cancel' | 'missed';
+    callId: string;
     callerId: string;
     callerName: string;
-    targetUserId: string;
-    targetUrl: string;
-  }) {
-    if (!this.isConfigured) {
-      return;
-    }
-
-    const subscriptions = await this.prisma.pushSubscription.findMany({
-      where: { userId: input.targetUserId },
-      select: {
-        id: true,
-        userId: true,
-        endpoint: true,
-        p256dh: true,
-        auth: true,
-      },
-    });
-
-    if (!subscriptions.length) {
-      return;
-    }
-
-    const title = input.callerName;
-    const body = 'Вхідний аудіодзвінок';
+    subscriptions: PushSubscriptionRecord[];
+    repeat?: number;
+  }): Promise<PushSendResult[]> {
+    if (!this.isConfigured || !input.subscriptions.length) return [];
     const createdAt = new Date().toISOString();
-    const badge = (
-      await this.getCombinedUnreadBadgeCounts([input.targetUserId]).catch(() => null)
-    )?.get(input.targetUserId);
-
-    const results = await Promise.all(
-      subscriptions.map((sub) =>
+    const name = truncatePushText(input.callerName.trim() || 'ChristApp', 60);
+    const payloadKind =
+      input.what === 'ring' ? 'call' : input.what === 'cancel' ? 'call-cancel' : 'call-missed';
+    const text =
+      input.what === 'ring'
+        ? { title: `${name} звонит вам`, body: 'Входящий звонок' }
+        : input.what === 'missed'
+          ? { title: 'Пропущенный звонок', body: `Пропущенный звонок от ${name}` }
+          : { title: 'Звонок завершён', body: '' };
+    const results = await mapWithConcurrency(
+      input.subscriptions,
+      CALL_PUSH_CONCURRENCY,
+      (sub) =>
         this.sendToSubscription(
           sub,
           {
-            title,
-            body,
-            targetUrl: input.targetUrl,
+            ...text,
+            targetUrl: `/chat/${input.callerId}?call=${input.callId}`,
             roomId: input.callerId,
             senderId: input.callerId,
             createdAt,
-            messageId: `call-${input.callerId}-${Date.now()}`,
-            badgeCount: badge,
+            messageId: `call-${input.callId}`,
+            kind: payloadKind,
+            callId: input.callId,
+            callerName: name,
+            callerId: input.callerId,
+            repeat: input.repeat ?? 0,
           },
-          'call',
+          input.what === 'ring' ? 'call' : input.what === 'cancel' ? 'callCancel' : 'callMissed',
+          {
+            // «звонит» и отмена живут недолго (поздний пуш про закончившийся звонок бесполезен), «пропущенный» - сутки
+            ttl: input.what === 'missed' ? PUSH_TTL_SECONDS : 60,
+            topic: input.callId.replace(/-/g, '').slice(0, 32),
+          },
         ),
+    );
+    this.logger.log(
+      summarizeDispatch(
+        input.what === 'ring' ? 'call' : input.what === 'cancel' ? 'callCancel' : 'callMissed',
+        `call=${input.callId}`,
+        1,
+        results,
       ),
     );
-    this.logger.log(summarizeDispatch('call', `caller=${input.callerId}`, 1, results));
+    return results;
   }
 
   /** Запрошення до «Киношки»: клік відкриває список кімнат, де чекає «Прийняти». */
