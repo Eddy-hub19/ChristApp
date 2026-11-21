@@ -844,6 +844,20 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
     ],
   },
+  {
+    version: 32,
+    date: "2026-11-21",
+    items: [
+      {
+        icon: "leaf",
+        text: {
+          ua: "«Цукеркова країна»: там, де шоколадна річка впирається в край світу, загорожі більше нема. Течія виносить овечок за межу, і ті, кого віднесло, гинуть — переправляйтеся на печеньках",
+          ru: "«Конфетная страна»: там, где шоколадная река упирается в край мира, ограды больше нет. Течение выносит овечек за границу, и унесённые погибают — переправляйтесь на печеньках",
+          en: "“Candy Land”: where the chocolate river meets the edge of the world there is no fence any more. The current carries sheep out of the map and those swept away die — cross on the cookies",
+        },
+      },
+    ],
+  },
 ];
 
 /** Короткие правила для тех, кто заходит в «Отару» впервые. */

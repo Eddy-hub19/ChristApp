@@ -118,3 +118,58 @@ describe('Цукеркова країна: цукерковий дощ', () => {
     expect(w.candyRainEvents.length).toBe(0);
   });
 });
+
+describe('Цукеркова країна: ріка виносить за край світу', () => {
+  const W = FLOCK_CONFIG.worldSize;
+  const D = FLOCK_CONFIG.candy.river.exitKillDepth;
+  const setup = () => {
+    const w = new FlockWorld(seeded(9), 8);
+    for (const m of w.foodChunks) m.clear();
+    w.foodById.clear();
+    const rv = w.candy!.river!;
+    const p = w.addPlayer({ name: 'h', skin: 0 });
+    p.power = 0;
+    p.spawnedAt = -1e9;
+    p.effects = {};
+    p.lavaSafeUntil = 0;
+    const c = p.cells[0];
+    c.mergeAt = 0;
+    c.mass = 40;
+    c.vx = c.vy = 0;
+    return { w, rv, p, c };
+  };
+
+  it('клітина в руслі біля краю зноситься за межу й гине; остання клітина - смерть гравця (swept)', () => {
+    const { w, rv, p, c } = setup();
+    // ставимо подалі від печенек: у самому краю вздовж течії
+    const y = (rv.y0 + rv.y1) / 2;
+    c.y = y;
+    c.x = rv.dir > 0 ? W - 5 : 5;
+    let guard = 0;
+    while (p.alive && guard++ < 4000) w.tick(0.05);
+    expect(p.alive).toBe(false);
+    expect(p.swept).toBe(true);
+  });
+
+  it('поза руслом край світу лишається стіною (клітина не виходить)', () => {
+    const { w, rv, p, c } = setup();
+    c.y = rv.y0 - 300;
+    c.x = 5;
+    c.vx = -2000;
+    for (let i = 0; i < 40; i++) w.tick(0.05);
+    expect(p.alive).toBe(true);
+    expect(c.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it('під стартовим щитом і в руслі за межу не виходить', () => {
+    const { w, rv, p, c } = setup();
+    p.spawnedAt = w.now;
+    c.y = (rv.y0 + rv.y1) / 2;
+    c.x = rv.dir > 0 ? W - 5 : 5;
+    c.vx = rv.dir * 3000;
+    for (let i = 0; i < 20; i++) w.tick(0.05);
+    expect(p.alive).toBe(true);
+    expect(c.x).toBeGreaterThan(-D);
+    expect(c.x).toBeLessThan(W + 1);
+  });
+});

@@ -1616,6 +1616,8 @@
       "eatenByBoss": "The Alpha ate you",
       "fellTitle": "You fell off the cloud",
       "fell": "You stepped off the cloud and fell through the sky. Stay on the clouds or catch the Wings.",
+      "sweptTitle": "You were swept away",
+      "swept": "The chocolate river carried you off the edge of the world. Cross on the cookies and don't drift with the current.",
       "burnedTitle": "You burned",
       "burned": "You fell into the lava. Use the bridges to cross the river.",
       "zone": "You ended up outside the circle and lost all your mass.",

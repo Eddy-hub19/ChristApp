@@ -13,7 +13,7 @@ export interface CandyCfg {
   /** «Цукерковий дощ»: r - радіус цукерки, br - радіус ударної хвилі; pending - цукерки, що вже падають на момент входу (fall - мс до удару). */
   rain?: { r: number; br: number; pending: { id: number; x: number; y: number; fall: number }[] };
   /** Шоколадна ріка: смуга [y0, y1] на всю ширину, d - бік течії по x (1 / -1), c - печеньки-плоти [x, y, r], v0 і mh - формула швидкості течії. */
-  river?: { y0: number; y1: number; d: 1 | -1; c: [number, number, number][]; v0: number; mh: number };
+  river?: { y0: number; y1: number; d: 1 | -1; c: [number, number, number][]; v0: number; mh: number; ed?: number };
   p: [number, number, number][];
   s: [number, number, number][];
   pf: number;
@@ -34,6 +34,12 @@ export function candyFactorOf(cfg: CandyCfg | undefined, x: number, y: number): 
     if (dx * dx + dy * dy < z[2] * z[2]) return 1 - cfg.pf;
   }
   return 1;
+}
+
+/** Скільки центр клітини може зайти за край світу в руслі ріки (там загорожі нема; далі її відносить). 0 - не в руслі. */
+export function riverExitDepthAt(cfg: CandyCfg | undefined, y: number): number {
+  const rv = cfg?.river;
+  return rv && y > rv.y0 && y < rv.y1 ? (rv.ed ?? 0) : 0;
 }
 
 /** Швидкість течії (од./с, зі знаком по x) у точці для клітини маси mass; 0 - не в руслі або на печеньці. Дзеркало серверного inCurrent + riverSpeedFor. */

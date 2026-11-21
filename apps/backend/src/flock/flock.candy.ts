@@ -60,6 +60,8 @@ export interface RiverCfg {
   /** Сила течії: частка стартової швидкості клітини й маса, при якій снос удвічі слабший. */
   strength: number;
   massHalf: number;
+  /** На скільки центр клітини може зайти за край світу в руслі, перш ніж її віднесе (див. FLOCK_CONFIG.candy.river). */
+  exitKillDepth: number;
 }
 
 export interface CandyCfg {
@@ -195,13 +197,13 @@ export function inCurrent(river: ChocolateRiver, x: number, y: number): boolean 
 /** Для welcome: [x, y, r] і формула (клієнт рахує те саме через candyFactor). */
 export function candyWelcome(
   layout: CandyLayout,
-  river: { v0: number; massHalf: number },
+  river: { v0: number; massHalf: number; exitKillDepth: number },
   rain: { r: number; br: number; pending: { id: number; x: number; y: number; fall: number }[] },
 ) {
   const rv = layout.river;
   return {
     rain,
-    river: rv ? { y0: rv.y0, y1: rv.y1, d: rv.dir, c: rv.cookies.map((c) => [c.x, c.y, c.r] as [number, number, number]), v0: river.v0, mh: river.massHalf } : undefined,
+    river: rv ? { y0: rv.y0, y1: rv.y1, d: rv.dir, c: rv.cookies.map((c) => [c.x, c.y, c.r] as [number, number, number]), v0: river.v0, mh: river.massHalf, ed: river.exitKillDepth } : undefined,
     p: layout.puddles.map((z) => [z.x, z.y, z.r] as [number, number, number]),
     s: layout.sticky.map((z) => [z.x, z.y, z.r] as [number, number, number]),
     pf: layout.puddleSlow,

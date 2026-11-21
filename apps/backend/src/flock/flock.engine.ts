@@ -193,6 +193,8 @@ export interface Player {
   burned: boolean;
   /** Загинув, впавши з хмари (карта «Небо»). */
   fell: boolean;
+  /** Відносить річкою за край світу («Цукеркова країна»). */
+  swept: boolean;
   /** Були «Крильця» на попередньому тіку (щоб м'яко повернути на хмару, коли вони скінчаться над порожнечею). */
   hadWings: boolean;
   /** Загинув поза колом режиму «Звужуване коло». */
@@ -656,6 +658,7 @@ export class FlockWorld {
       lavaSafeUntil: 0,
       burned: false,
       fell: false,
+      swept: false,
       hadWings: false,
       zoneDeath: false,
       alive: false,
@@ -749,6 +752,7 @@ export class FlockWorld {
     }
     p.burned = false;
     p.fell = false;
+    p.swept = false;
     p.hadWings = false;
     p.zoneDeath = false;
   }
@@ -1328,7 +1332,10 @@ export class FlockWorld {
       c.vx *= decay;
       c.vy *= decay;
       const r = radiusOf(c.mass);
-      c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x));
+      // «Цукеркова країна»: у руслі шоколадної ріки краю світу нема (загорожі теж) - клітина може піти за межу, і ріка її віднесе
+      const exit = this.canLeaveWorld(p, c);
+      if (!exit) c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x));
+      else c.x = Math.min(C.worldSize + C.candy.river.exitKillDepth, Math.max(-C.candy.river.exitKillDepth, c.x));
       c.y = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.y));
       this.clampArena(c, r);
       this.pushOutOfWall(c, r);
@@ -2281,7 +2288,7 @@ export class FlockWorld {
     return this.candy
       ? candyWelcome(
           this.candy,
-          { v0: speedOf(C.startMass) * C.candy.river.strength, massHalf: C.candy.river.massHalf },
+          { v0: speedOf(C.startMass) * C.candy.river.strength, massHalf: C.candy.river.massHalf, exitKillDepth: C.candy.river.exitKillDepth },
           {
             r: C.candy.rain.candyRadius,
             br: C.candy.rain.blastRadius,
@@ -2446,18 +2453,48 @@ export class FlockWorld {
     return (speedOf(C.startMass) * R.strength) / (1 + mass / R.massHalf);
   }
 
-  /** «Цукеркова країна»: течія зносить клітини в русі поза печеньками й кущами; на краю світу упираються в межу. */
+  /** Клітина в руслі шоколадної ріки (центр по y), не на паузі й не під стартовим щитом: їй можна виходити за край світу. */
+  private canLeaveWorld(p: Player, c: Cell) {
+    const river = this.candy?.river;
+    return Boolean(river) && !p.paused && !this.spawnShielded(p) && inRiverBand(river!, c.y);
+  }
+
+  /**
+   * «Цукеркова країна»: течія зносить клітини поза печеньками й кущами. Там, де ріка впирається в край світу, загорожі нема:
+   * течія виносить клітину за межу, і коли центр зайшов за край на exitKillDepth, її віднесло (маса нікому). Остання клітина - смерть гравця.
+   */
   private stepRiver(dt: number) {
     const river = this.candy?.river;
     if (!river) return;
+    const depth = C.candy.river.exitKillDepth;
     for (const p of this.players.values()) {
       if (!p.alive || p.paused || this.spawnShielded(p)) continue;
-      for (const c of p.cells) {
-        if (!inCurrent(river, c.x, c.y) || this.insideBush(c)) continue;
-        const r = radiusOf(c.mass);
-        c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x + river.dir * FlockWorld.riverSpeedFor(c.mass) * dt));
+      for (const c of [...p.cells]) {
+        if (inCurrent(river, c.x, c.y) && !this.insideBush(c)) {
+          c.x += river.dir * FlockWorld.riverSpeedFor(c.mass) * dt;
+        }
+        if (inRiverBand(river, c.y)) {
+          if (c.x < -depth || c.x > C.worldSize + depth) {
+            this.sweepCell(p, c);
+            continue;
+          }
+        } else {
+          const r = radiusOf(c.mass);
+          c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x));
+        }
       }
     }
+  }
+
+  private sweepCell(p: Player, c: Cell) {
+    this.dropCell(p, c);
+    if (p.cells.length > 0) return;
+    p.alive = false;
+    p.swept = true;
+    p.diedAt = this.now;
+    p.killerPid = 0;
+    p.phrase = null;
+    this.deaths.push({ pid: p.id, killerPid: 0 });
   }
 
   // ---------- «Сопілка пастуха» ----------

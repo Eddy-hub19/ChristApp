@@ -1,4 +1,4 @@
-import { candyFactorOf, riverDriftAt, type CandyCfg } from "./flockCandy";
+import { candyFactorOf, riverDriftAt, riverExitDepthAt, type CandyCfg } from "./flockCandy";
 import {
   decodeBoard,
   decodeState,
@@ -985,7 +985,9 @@ export class FlockModel {
           }
         } else if (!frozen) {
           const v = this.speedOf(c.mass, boosted, startFactor, sprinting) * input.power * this.puddleFactor(c.x, c.y) * candyFactorOf(this.cfg.candy, c.x, c.y);
-          c.x = Math.min(world, Math.max(0, c.x + dx * v * dt));
+          // у руслі шоколадної ріки краю світу нема: можна зайти за межу (сервер віднесе клітину)
+          const exit = riverExitDepthAt(this.cfg.candy, c.y);
+          c.x = Math.min(world + exit, Math.max(-exit, c.x + dx * v * dt));
           c.y = Math.min(world, Math.max(0, c.y + dy * v * dt));
           // стіна «Арени»: те саме коло, що на сервері
           if (this.coliseum) [c.x, c.y] = clampToColiseum(this.coliseum, c.x, c.y, this.radiusOf(c.mass));
@@ -999,7 +1001,10 @@ export class FlockModel {
         // течія шоколадної ріки (та сама формула, що на сервері): діє поза печеньками й кущами
         if (!castle && this.cfg.candy?.river) {
           const rd = riverDriftAt(this.cfg.candy, c.x, c.y, c.mass);
-          if (rd !== 0 && !this.insideBush(c.x, c.y, c.mass)) c.x = Math.min(world, Math.max(0, c.x + rd * dt));
+          if (rd !== 0 && !this.insideBush(c.x, c.y, c.mass)) {
+            const exit = riverExitDepthAt(this.cfg.candy, c.y);
+            c.x = Math.min(world + exit, Math.max(-exit, c.x + rd * dt));
+          }
         }
         // ціль: знімок сервера, екстрапольований до "зараз" за його ж швидкістю (враховує поділ/імпульси)
         const age = Math.min(250, Math.max(0, srvNow - c.t1));
