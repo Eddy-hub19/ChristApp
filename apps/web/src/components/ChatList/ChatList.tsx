@@ -14,6 +14,7 @@ import Image from "next/image";
 import { Clapperboard, Gamepad2 } from "lucide-react";
 import SkinPreview from "@/components/FlockMiniGame/FlockSkinPreview";
 import { useLocale, useTranslations } from "next-intl";
+import AppUpdates from "@/components/AppUpdates/AppUpdates";
 import { Link } from "@/i18n/navigation";
 import styles from "@/components/ChatList/ChatList.module.scss";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
@@ -536,6 +537,7 @@ const ChatList = ({
                 </span>
               </Link>
             ) : null}
+            <AppUpdates buttonClassName={styles.updatesButton} />
             <button
               className={styles.newChatButton}
               onClick={openUserPicker}

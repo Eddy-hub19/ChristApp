@@ -29,6 +29,9 @@
 
 .list {
   margin: 0 0 16px;
+  max-height: min(58vh, 460px);
+  overflow-y: auto;
+  padding-right: 6px;
   padding-left: 18px;
   display: flex;
   flex-direction: column;
