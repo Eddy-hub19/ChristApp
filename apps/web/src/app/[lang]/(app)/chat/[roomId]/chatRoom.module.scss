@@ -92,7 +92,8 @@
     height: 100%;
     height: var(--vv-height, 100dvh);
     z-index: 10;
-    padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) 0
+    /* Шапка выше: от safe-area (Dynamic Island) отнимаем 14px, чтобы плашка с именем стояла сразу под строкой статуса, а не с пустой полосой над ней. */
+    padding: max(10px, calc(env(safe-area-inset-top, 0px) - 14px)) max(10px, env(safe-area-inset-right, 0px)) 0
       max(10px, env(safe-area-inset-left, 0px));
     overscroll-behavior: none;
     /* Стежимо за клавіатурою приблизно в її темпі — без різкого стрибка поля. */
