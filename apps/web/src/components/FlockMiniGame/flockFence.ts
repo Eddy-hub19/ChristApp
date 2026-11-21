@@ -418,9 +418,9 @@ const quant = (pxPerUnit: number) => Math.max(0.25, Math.min(2, Math.round(pxPer
 
 /**
  * Малює загорожу навколо [0, world]² у видимій області [x0..x1]×[y0..y1]. Тайл вирівняний по сітці TILE_LEN,
- * тож сусідні тайли зливаються; вертикальні сторони - поворот на 90°.
+ * тож сусідні тайли зливаються; вертикальні сторони - поворот на 90°. `gap` - смуга по y без бокової загорожі (русло ріки).
  */
-export function drawFence(ctx: CanvasRenderingContext2D, style: FenceStyle, world: number, x0: number, x1: number, y0: number, y1: number, pxPerUnit: number) {
+export function drawFence(ctx: CanvasRenderingContext2D, style: FenceStyle, world: number, x0: number, x1: number, y0: number, y1: number, pxPerUnit: number, gap?: { y0: number; y1: number }) {
   const tile = makeTile(style, quant(pxPerUnit));
   if (!tile) return;
   const q = tile.width / TILE_LEN;
@@ -456,7 +456,9 @@ export function drawFence(ctx: CanvasRenderingContext2D, style: FenceStyle, worl
   ctx.save();
   ctx.beginPath();
   ctx.rect(-edge, -GAP - 66, world + edge * 2, world + GAP * 2 + 80);
-  ctx.clip();
+  // просвіт у боковій загорожі там, де в світ входить і з нього виходить ріка (не лише ширина русла: стовпчики трохи заходять)
+  if (gap) ctx.rect(-edge, gap.y0, world + edge * 2, gap.y1 - gap.y0);
+  ctx.clip(gap ? "evenodd" : "nonzero");
   if (x0 < GAP + V_W) vside((p) => ctx.drawImage(vt, -GAP - V_W / 2 - 16, p - V_PAD, V_W, vh));
   if (x1 > world - GAP - V_W) vside((p) => ctx.drawImage(vt, world + GAP + 16 - V_W / 2, p - V_PAD, V_W, vh));
   ctx.restore();

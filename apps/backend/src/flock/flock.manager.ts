@@ -1100,6 +1100,7 @@ class Arena {
           killer: w.players.get(p.killerPid)?.name ?? null,
           burned: p.burned || undefined,
           fell: p.fell || undefined,
+          swept: p.swept || undefined,
           kp: p.killerPid > 0 ? p.killerPid : undefined,
           kb: w.players.get(p.killerPid)?.boss || undefined,
           zone: p.zoneDeath || undefined,

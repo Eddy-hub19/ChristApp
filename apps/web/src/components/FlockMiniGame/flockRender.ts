@@ -331,6 +331,7 @@ function drawCandyZones(ctx: CanvasRenderingContext2D, candy: NonNullable<FlockM
 }
 
 const CANDY_LINGER_MS = 900;
+const RIVER_EXTRA = 420;
 const CANDY_FALL_H = 1.9;
 
 /**
@@ -406,8 +407,9 @@ function drawCandyRain(ctx: CanvasRenderingContext2D, m: FlockModel, time: numbe
 /** Шоколадна ріка: тайл хвиль, що пливе за течією, береги з глазур'ю; печеньки злегка погойдуються (лише вигляд, течії на них нема). */
 function drawChocolateRiver(ctx: CanvasRenderingContext2D, rv: NonNullable<NonNullable<FlockModel["cfg"]["candy"]>["river"]>, x0: number, x1: number, y0: number, y1: number, world: number, time: number) {
   if (y1 < rv.y0 - 20 || y0 > rv.y1 + 20) return;
-  const lo = Math.max(0, x0);
-  const hi = Math.min(world, x1);
+  // русло продовжується за край світу (загорожі нема): шоколад тече далі, туди ріка й виносить клітини
+  const lo = Math.max(-RIVER_EXTRA, x0);
+  const hi = Math.min(world + RIVER_EXTRA, x1);
   const h = rv.y1 - rv.y0;
   const tile = sprite("choco-tile", 256, (c) => paintChocolateTile(c));
   const pat = ctx.createPattern(tile, "repeat");
@@ -595,7 +597,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
+  else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
   if (m.cfg.candy?.river) drawChocolateRiver(ctx, m.cfg.candy.river, x0, x1, y0, y1, world, o.time);
   if (m.cfg.candy) drawCandyZones(ctx, m.cfg.candy, x0, x1, y0, y1);
