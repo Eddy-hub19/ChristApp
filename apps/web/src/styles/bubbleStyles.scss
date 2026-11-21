@@ -70,12 +70,16 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   pointer-events: none;
   background: no-repeat center / contain;
 }
+/* Агнец: золотые искры по углам, как на макете (две вверху справа, две внизу слева, крупная и малая внизу справа). */
 [data-bubble-style="lamb"]::after {
-  top: -9px;
-  right: 10px;
-  width: 20px;
-  height: 20px;
-  background-image: url("/bubbles/spark.svg");
+  top: -10px;
+  right: -12px;
+  bottom: -12px;
+  left: -12px;
+  background-image: url("/bubbles/lamb-spark-tr.svg"), url("/bubbles/lamb-spark-br.svg"), url("/bubbles/lamb-spark-bl.svg");
+  background-repeat: no-repeat;
+  background-position: right 2px top 0, right 0 bottom 0, left 0 bottom 2px;
+  background-size: 20px 20px, 26px 26px, 20px 20px;
 }
 [data-bubble-style="ichthys"]::after {
   top: -9px;
@@ -116,11 +120,11 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
 
 /* ---------- переменные стилей: светлая тема ---------- */
 [data-bubble-style="lamb"] {
-  --bs-bg: linear-gradient(165deg, #fffaf0, #fbeccf);
-  --bs-border: #e3b866;
-  --bs-text: #44361a;
-  --bs-muted: #7d6a44;
-  --bs-radius: 20px;
+  --bs-bg: linear-gradient(165deg, #fff7ea, #fcedd8);
+  --bs-border: #d8b895;
+  --bs-text: #4a3524;
+  --bs-muted: #85705a;
+  --bs-radius: 22px;
 }
 [data-bubble-style="dove"] {
   --bs-bg: linear-gradient(165deg, #e8f4fd, #d5e9f9);
@@ -155,10 +159,10 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
 /* ---------- тёмная тема (и кинозал) ---------- */
 html[data-theme="dark"] [data-bubble-style="lamb"],
 [data-bubble-style="lamb"][data-bubble-tone="dark"] {
-  --bs-bg: linear-gradient(165deg, #3d3424, #322a1c);
-  --bs-border: #8e7439;
-  --bs-text: #f6edd7;
-  --bs-muted: #c4b48e;
+  --bs-bg: linear-gradient(165deg, #403527, #352b1f);
+  --bs-border: #957a56;
+  --bs-text: #f6ecdc;
+  --bs-muted: #c6b497;
 }
 html[data-theme="dark"] [data-bubble-style="dove"],
 [data-bubble-style="dove"][data-bubble-tone="dark"] {
