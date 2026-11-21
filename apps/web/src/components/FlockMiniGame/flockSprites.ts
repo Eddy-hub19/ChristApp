@@ -220,29 +220,29 @@ export function bonusFullSprite(kind: string, color: string, icon: string, dark:
   const c = cv.getContext("2d");
   if (c) {
     const s = BONUS_SPRITE;
-    const k = s / 100; // 100 світових одиниць = весь спрайт (радіус свічення 44, диск 17)
+    const k = s / 100; // 100 одиниць сітки = весь спрайт (радіус свічення 41, диск 21.2: +10 світових px до діаметра диска)
     c.translate(s / 2, s / 2);
-    const g = c.createRadialGradient(0, 0, 4 * k, 0, 0, 44 * k);
+    const g = c.createRadialGradient(0, 0, 4 * k, 0, 0, 41 * k);
     g.addColorStop(0, color);
     g.addColorStop(0.45, color + "99");
     g.addColorStop(1, color + "00");
     c.fillStyle = g;
-    circle(c, 0, 0, 44 * k);
+    circle(c, 0, 0, 41 * k);
     c.fill();
     c.fillStyle = dark ? "#f2f5ea" : "#ffffff";
-    circle(c, 0, 0, 17 * k);
+    circle(c, 0, 0, 21.2 * k);
     c.fill();
     c.strokeStyle = color;
-    c.lineWidth = 3 * k;
+    c.lineWidth = 2.2 * k;
     c.stroke();
     if (img && img !== "fail") {
-      c.drawImage(img, -11.5 * k, -11.5 * k, 23 * k, 23 * k);
+      c.drawImage(img, -14.3 * k, -14.3 * k, 28.6 * k, 28.6 * k);
     } else {
-    c.font = `${(icon.length > 1 && icon[0] === "✖" ? 15 : 20) * k}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+    c.font = `${(icon.length > 1 && icon[0] === "✖" ? 18.7 : 25) * k}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillStyle = "#1b2a14";
-    c.fillText(icon, 0, k);
+    c.fillText(icon, 0, 1.25 * k);
     }
   }
   if (img !== null) bonusCache.set(key, cv);
