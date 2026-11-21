@@ -1,6 +1,6 @@
 import type { NavHazard } from './flock.nav';
 import { generateLava, inLava, lavaBlocked, type LavaLayout } from './flock.lava';
-import { candyFactor, candyWelcome, generateCandy, inAnyCandy, inSticky, type CandyLayout } from './flock.candy';
+import { candyFactor, candyWelcome, generateCandy, inAnyCandy, inCurrent, inRiverBand, inSticky, onCookie, type CandyLayout } from './flock.candy';
 import type { SlowZone } from './flock.nav';
 import { generateSky, inCore, nearestCloudPoint, onCloud, randomCorePoint, type SkyLayout } from './flock.sky';
 import {
@@ -303,6 +303,13 @@ export interface Star {
   landAt: number;
   expiresAt: number;
 }
+/** «Цукерковий дощ»: велика цукерка, що вже підсвічена й ще падає (landAt - мить удару). */
+export interface RainCandy {
+  id: number;
+  x: number;
+  y: number;
+  landAt: number;
+}
 /** Подія для клієнтів: [0, тривалість] старт; [1, id, x, y, fallMs] зірка з'явилась; [2, id, pid] з'їдена (pid 0 - зникла сама). */
 export type StarEvent =
   | [0, number]
@@ -380,6 +387,11 @@ export class FlockWorld {
   /** «Зорепад»: зірки на арені й події цього тіку (очищаються щотіку, як foodEvents). */
   readonly stars: Star[] = [];
   readonly starEvents: StarEvent[] = [];
+  /** «Цукерковий дощ»: цукерки, що ще не впали, і події цього тіку ([id, x, y, мс до удару]). */
+  readonly rainCandies: RainCandy[] = [];
+  readonly candyRainEvents: [number, number, number, number][] = [];
+  private candyRainNextAt = 0;
+  private nextCandyId = 1;
   readonly scissorsEvents: ScissorsEvent[] = [];
   /** pid гравців, що цього тіку ожили від «Хреста» (очищається щотіку). */
   readonly reviveEvents: number[] = [];
@@ -479,6 +491,7 @@ export class FlockWorld {
     if (map.sky) this.sky = generateSky(rng, C.worldSize, C.sky);
     if (map.candy) {
       this.candy = generateCandy(rng, C.worldSize, C.candy);
+      this.candyRainNextAt = this.now + C.candy.rain.intervalMs;
       this.slowZones = [
         ...this.candy.sticky.map((z) => ({ ...z, k: 1 })),
         ...this.candy.puddles.map((z) => ({ ...z, k: 0.5 })),
@@ -497,7 +510,8 @@ export class FlockWorld {
           (x: number, y: number, mass: number) => !inCore(sky, x, y, radiusOf(mass) + 20)
         : candy
           ? // мармеладні зарості не в карамелі: інакше кущ-укриття сидів би в липкій зоні
-            (x: number, y: number, mass: number) => inAnyCandy(candy, x, y, radiusOf(mass) + 10)
+            (x: number, y: number, mass: number) =>
+              inAnyCandy(candy, x, y, radiusOf(mass) + 10) || (candy.river !== null && inRiverBand(candy.river, y, radiusOf(mass) + 10))
           : undefined;
     if (map.team) {
       // «Замки»: кущі-укриття задає карта; їжі нема
@@ -953,7 +967,13 @@ export class FlockWorld {
   private lavaBlockedAt(x: number, y: number, margin: number = C.lava.clearMargin) {
     if (this.sky !== null) return !inCore(this.sky, x, y, Math.max(0, margin - C.lava.clearMargin));
     // «Цукеркова країна»: їжа, бонуси й точки появи не в липкій карамелі (той самий відступ, що й біля лави)
-    if (this.candy !== null) return inSticky(this.candy, x, y, Math.max(0, margin - C.lava.clearMargin));
+    if (this.candy !== null) {
+      const extra = Math.max(0, margin - C.lava.clearMargin);
+      // і не в шоколадній річці, окрім печенек-плотів
+      const river = this.candy.river;
+      if (river && inRiverBand(river, y, extra) && !onCookie(river, x, y, extra + 20)) return true;
+      return inSticky(this.candy, x, y, extra);
+    }
     return this.lava !== null && lavaBlocked(this.lava, x, y, margin);
   }
 
@@ -1103,6 +1123,7 @@ export class FlockWorld {
     this.tickNo++;
     this.foodEvents.length = 0;
     this.starEvents.length = 0;
+    this.candyRainEvents.length = 0;
     this.scissorsEvents.length = 0;
     this.reviveEvents.length = 0;
     this.deaths.length = 0;
@@ -1134,6 +1155,7 @@ export class FlockWorld {
     }
 
     this.stepWind(dt);
+    this.stepRiver(dt);
 
     this.cellGrid.clear();
     for (const p of this.players.values()) {
@@ -1191,6 +1213,7 @@ export class FlockWorld {
     if (leader && !leader.paused) leader.topMs += dt * 1000;
 
     this.stepZorepad();
+    this.stepCandyRain();
     this.stepRain();
     this.stepWindPlan();
 
@@ -2255,7 +2278,17 @@ export class FlockWorld {
 
   /** Зони карамелі «Цукеркової країни» для welcome (один раз; далі не змінюються). */
   candySnapshot() {
-    return this.candy ? candyWelcome(this.candy) : undefined;
+    return this.candy
+      ? candyWelcome(
+          this.candy,
+          { v0: speedOf(C.startMass) * C.candy.river.strength, massHalf: C.candy.river.massHalf },
+          {
+            r: C.candy.rain.candyRadius,
+            br: C.candy.rain.blastRadius,
+            pending: this.rainCandies.map((k) => ({ id: k.id, x: Math.round(k.x), y: Math.round(k.y), fall: Math.max(1, Math.round(k.landAt - this.now)) })),
+          },
+        )
+      : undefined;
   }
 
   /** Стан дощу для нового клієнта (welcome): l - лишилось дощу, y - лишилось підсихання після нього, d - повне підсихання. */
@@ -2407,6 +2440,26 @@ export class FlockWorld {
     }
   }
 
+  /** Швидкість течії шоколадної ріки для клітини маси mass (од./с): та сама формула на клієнті (welcome.candy.river: v0, mh). */
+  static riverSpeedFor(mass: number) {
+    const R = C.candy.river;
+    return (speedOf(C.startMass) * R.strength) / (1 + mass / R.massHalf);
+  }
+
+  /** «Цукеркова країна»: течія зносить клітини в русі поза печеньками й кущами; на краю світу упираються в межу. */
+  private stepRiver(dt: number) {
+    const river = this.candy?.river;
+    if (!river) return;
+    for (const p of this.players.values()) {
+      if (!p.alive || p.paused || this.spawnShielded(p)) continue;
+      for (const c of p.cells) {
+        if (!inCurrent(river, c.x, c.y) || this.insideBush(c)) continue;
+        const r = radiusOf(c.mass);
+        c.x = Math.min(C.worldSize - r * 0.3, Math.max(r * 0.3, c.x + river.dir * FlockWorld.riverSpeedFor(c.mass) * dt));
+      }
+    }
+  }
+
   // ---------- «Сопілка пастуха» ----------
   /** Клітини, що менші за клітину власника сопілки й у радіусі, тягнуться до нього (пошук через просторову сітку). */
   private stepPipe(dt: number) {
@@ -2449,7 +2502,7 @@ export class FlockWorld {
   }
 
   private stepZorepad() {
-    if (this.arena) return; // на «Арені» «Зорепаду» нема
+    if (this.arena || this.candy) return; // на «Арені» й у «Цукерковій країні» (там цукерковий дощ) «Зорепаду» нема
     const Z = C.zorepad;
     // підбір приземлених зірок і зникання старих
     for (let i = this.stars.length - 1; i >= 0; i--) {
@@ -2520,6 +2573,68 @@ export class FlockWorld {
       if (!starter || p.total > starter.total) starter = p;
     }
     return alive >= Z.minAlive ? starter : null;
+  }
+
+  // ---------- «Цукерковий дощ» ----------
+  /** Час запуску: раз на intervalMs, якщо на арені є жива людина. Цукерки лягають по черзі, кожна з попередженням warnMs. */
+  private stepCandyRain() {
+    if (!this.candy) return;
+    const R = C.candy.rain;
+    // удар: розкидаємо клітини навколо цукерки
+    for (let i = this.rainCandies.length - 1; i >= 0; i--) {
+      const k = this.rainCandies[i];
+      if (this.now < k.landAt) continue;
+      this.rainCandies.splice(i, 1);
+      this.candyImpact(k.x, k.y);
+    }
+    if (this.now < this.candyRainNextAt) return;
+    let humans = false;
+    for (const p of this.players.values()) if (p.alive && !p.bot && !p.paused) humans = true;
+    if (!humans) return; // нікому дивитись: чекаємо
+    this.candyRainNextAt = this.now + R.intervalMs;
+    const n = R.countMin + Math.floor(this.rng() * (R.countMax - R.countMin + 1));
+    const targets: Player[] = [];
+    for (const p of this.players.values()) if (p.alive && !p.paused && !p.boss && !p.monster && !p.wolf && !p.tiger) targets.push(p);
+    const lo = R.edgeMargin;
+    const hi = C.worldSize - R.edgeMargin;
+    for (let i = 0; i < n; i++) {
+      let x = this.rand(lo, hi);
+      let y = this.rand(lo, hi);
+      if (targets.length && this.rng() < R.nearPlayerShare) {
+        const c = this.centroid(targets[Math.floor(this.rng() * targets.length)]);
+        const a = this.rng() * TWO_PI;
+        const d = this.rng() * R.nearPlayerRadius;
+        x = Math.min(hi, Math.max(lo, c.x + Math.cos(a) * d));
+        y = Math.min(hi, Math.max(lo, c.y + Math.sin(a) * d));
+      }
+      const fall = Math.round(R.warnMs + (n > 1 ? (i / (n - 1)) * R.spreadMs : 0));
+      const id = this.nextCandyId++;
+      this.rainCandies.push({ id, x, y, landAt: this.now + fall });
+      this.candyRainEvents.push([id, Math.round(x), Math.round(y), fall]);
+    }
+  }
+
+  /** Удар цукерки: усіх у blastRadius відкидає від центра, чим ближче - тим сильніше. Нічого не вбиває; під щитом новачка й на паузі не чіпає. */
+  private candyImpact(x: number, y: number) {
+    const R = C.candy.rain;
+    this.cellGrid.query(x, y, R.blastRadius + 200, (c) => {
+      const p = this.players.get(c.pid);
+      if (!p || !p.alive || p.paused || this.spawnShielded(p)) return;
+      let dx = c.x - x;
+      let dy = c.y - y;
+      let d = Math.hypot(dx, dy);
+      if (d > R.blastRadius) return;
+      if (d < 1) {
+        const a = this.rng() * TWO_PI;
+        dx = Math.cos(a);
+        dy = Math.sin(a);
+        d = 1;
+      }
+      const k = 1 - d / R.blastRadius;
+      const power = R.impulse * (0.25 + 0.75 * k);
+      c.vx += (dx / d) * power;
+      c.vy += (dy / d) * power;
+    });
   }
 
   private spawnStar() {

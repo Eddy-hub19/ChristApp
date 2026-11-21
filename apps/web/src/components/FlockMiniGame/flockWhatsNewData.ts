@@ -821,6 +821,22 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "leaf",
         text: {
+          ua: "«Цукеркова країна»: замість «Зорепаду» — цукерковий дощ. Раз на 10 хвилин з неба падають величезні цукерки; місця падіння підсвічуються заздалегідь, а удар розкидає овечок поблизу",
+          ru: "«Конфетная страна»: вместо «Звездопада» — конфетный дождь. Раз в 10 минут с неба падают огромные конфеты; места падения подсвечиваются заранее, а удар разбрасывает овечек поблизости",
+          en: "“Candy Land”: a candy rain replaces the star fall. Every 10 minutes huge candies fall from the sky; the landing spots light up in advance and the impact scatters nearby sheep",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
+          ua: "«Цукеркова країна»: шоколадна річка. Течія поступово зносить овечок, а переправитися можна на плавучих печеньках — на них течії нема",
+          ru: "«Конфетная страна»: шоколадная река. Течение постепенно уносит овечек, а переправиться можно на плавающих печеньках — на них течения нет",
+          en: "“Candy Land”: a chocolate river. The current slowly carries sheep away, and you can cross on floating cookies, which are free of the current",
+        },
+      },
+      {
+        icon: "leaf",
+        text: {
           ua: "Нова карта «Цукеркова країна»: рожева земля з льодяниками, зефірками, мармеладними ведмедиками й черв'ячками, пряникова загорожа. Карамельні калюжі (8–12) сповільнюють на 30%, липка карамель (3–5 зон) — на 45%; мармеладні зарості ховають меншу клітину, як кущі. Їжа — цукерки, драже й ягідки в глазурі",
           ru: "Новая карта «Конфетная страна»: розовая земля с леденцами, зефирками, мармеладными мишками и червячками, пряничная ограда. Карамельные лужи (8–12) замедляют на 30%, липкая карамель (3–5 зон) — на 45%; мармеладные заросли прячут меньшую клетку, как кусты. Еда — конфеты, драже и ягодки в глазури",
           en: "New map “Candy Land”: pink ground with lollipops, marshmallows, gummy bears and worms, a gingerbread fence. Caramel puddles (8–12) slow you by 30%, sticky caramel (3–5 patches) by 45%; jelly thickets hide a smaller cell like bushes. Food: candies, dragées and iced berries",

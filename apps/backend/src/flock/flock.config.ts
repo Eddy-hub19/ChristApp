@@ -389,6 +389,39 @@ export const FLOCK_CONFIG = {
    * puddles - карамельні калюжі; sticky - липка карамель (сильніше; там не з'являються їжа, бонуси й гравці, боти її об'їжджають).
    */
   candy: {
+    /**
+     * Шоколадна ріка: смуга на всю ширину світу зі течією вздовж x (бік - випадковий). Течія зносить клітини в русі й на місці
+     * (швидкість - частка стартової, слабшає з масою), нічого не вбиває; на печеньках-плотах (кола) течії нема.
+     */
+    river: {
+      width: 460,
+      offsetMin: 560,
+      offsetMax: 900,
+      fords: 3,
+      fordCookieRadius: [80, 105],
+      strays: 6,
+      strayRadius: [60, 90],
+      strength: 0.55,
+      massHalf: 1500,
+    },
+    /**
+     * «Цукерковий дощ» (замість «Зорепаду» на цій карті): раз на intervalMs з неба падає count великих цукерок. Місце падіння видно
+     * за warnMs до удару (цукерки лягають по черзі протягом spreadMs); удар не вбиває, а розкидає клітини в радіусі blastRadius
+     * (імпульс impulse у центрі, слабшає до краю). Частина цукерок падає поруч із живими людьми (nearPlayerShare).
+     */
+    rain: {
+      intervalMs: 600_000,
+      countMin: 8,
+      countMax: 12,
+      warnMs: 3000,
+      spreadMs: 3500,
+      candyRadius: 120,
+      blastRadius: 420,
+      impulse: 1700,
+      nearPlayerShare: 0.6,
+      nearPlayerRadius: 450,
+      edgeMargin: 200,
+    },
     puddles: { min: 8, max: 12, radiusMin: 90, radiusMax: 150, slowFraction: 0.3 },
     sticky: { min: 3, max: 5, radiusMin: 110, radiusMax: 170, slowFraction: 0.45 },
     centerClear: 450,
@@ -1232,6 +1265,10 @@ export function clientGameConfig() {
       stickySlowPct: Math.round(c.candy.sticky.slowFraction * 100),
       bushesMin: FLOCK_MAPS.find((m) => m.candy)?.thorns.min ?? c.thorns.min,
       bushesMax: FLOCK_MAPS.find((m) => m.candy)?.thorns.max ?? c.thorns.max,
+      rainEveryMin: Math.round(c.candy.rain.intervalMs / 60_000),
+      rainWarnSec: Math.round(c.candy.rain.warnMs / 1000),
+      riverWidth: c.candy.river.width,
+      riverStrengthPct: Math.round(c.candy.river.strength * 100),
     },
     rain: {
       intervalMinMs: c.rain.intervalMinMs,

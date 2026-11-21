@@ -12,7 +12,7 @@ import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, la
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { isBossSkin, MONSTER_SKIN } from "./flockSkins";
 import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
-import { CANDY_MAP_ID, JELLY_KINDS, drawCandyMinimap, paintCandyZone } from "./flockCandy";
+import { CANDY_MAP_ID, JELLY_KINDS, drawCandyMinimap, drawRiverMinimap, paintChocolateTile, paintGiantCandy, paintCandyZone, paintCookie } from "./flockCandy";
 import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
 export { drawCreature };
@@ -330,6 +330,113 @@ function drawCandyZones(ctx: CanvasRenderingContext2D, candy: NonNullable<FlockM
   draw(candy.s, true);
 }
 
+const CANDY_LINGER_MS = 900;
+const CANDY_FALL_H = 1.9;
+
+/**
+ * «Цукерковий дощ»: на землі підсвічене коло удару (пульсує швидше, чим ближче удар) і тонке коло ударної хвилі;
+ * цукерка спочатку велика й прозора «у небі», до удару стискається до розміру на землі; після удару - хвиля й цукерка, що тане.
+ */
+function drawCandyRain(ctx: CanvasRenderingContext2D, m: FlockModel, time: number, x0: number, x1: number, y0: number, y1: number) {
+  const rain = m.cfg.candy?.rain;
+  if (!rain || m.candies.size === 0) return;
+  const R = rain.r;
+  for (const [id, k] of m.candies) {
+    const t = m.localNow - k.t0;
+    if (t > k.fall + CANDY_LINGER_MS) {
+      m.candies.delete(id);
+      continue;
+    }
+    const reach = rain.br + R;
+    if (k.x < x0 - reach || k.x > x1 + reach || k.y < y0 - reach || k.y > y1 + reach) continue;
+    const p = Math.min(1, Math.max(0, t / k.fall));
+    if (t < k.fall) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * (5 + 10 * p));
+      // зона удару: рожеве сяйво й пунктирне коло; коло ударної хвилі - тонке
+      ctx.globalAlpha = 0.28 + 0.3 * p + 0.12 * pulse;
+      ctx.fillStyle = "#ff6fa0";
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, R * 1.15, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.55 + 0.4 * pulse;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 6;
+      ctx.setLineDash([22, 16]);
+      ctx.lineDashOffset = -time * 40;
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, R * 1.15, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.2 + 0.15 * p;
+      ctx.strokeStyle = "#ff3d7f";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, rain.br, 0, TAU);
+      ctx.stroke();
+      // цукерка: з «неба» (більша, прозоріша) до землі
+      const ease = p * p;
+      const sc = 1 + CANDY_FALL_H * (1 - ease);
+      const sz = R * 3.2 * sc;
+      ctx.globalAlpha = Math.min(1, p * 3);
+      ctx.drawImage(sprite(`candy-giant-${id % 4}`, 256, (c, s) => paintGiantCandy(c, s, id % 4)), k.x - sz / 2, k.y - sz / 2 - (1 - ease) * R * 3, sz, sz);
+    } else {
+      const q = (t - k.fall) / CANDY_LINGER_MS;
+      // хвиля удару
+      const wr = rain.br * (1 - (1 - Math.min(1, q * 1.6)) ** 2);
+      ctx.globalAlpha = Math.max(0, 0.8 * (1 - q));
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 14 * (1 - q) + 2;
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, wr, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = Math.max(0, 0.35 * (1 - q));
+      ctx.fillStyle = "#ff6fa0";
+      ctx.beginPath();
+      ctx.arc(k.x, k.y, wr, 0, TAU);
+      ctx.fill();
+      // цукерка лежить і тане
+      const sz = R * 3.2 * (1 + 0.12 * (1 - q));
+      ctx.globalAlpha = Math.max(0, 1 - q * q);
+      ctx.drawImage(sprite(`candy-giant-${id % 4}`, 256, (c, s) => paintGiantCandy(c, s, id % 4)), k.x - sz / 2, k.y - sz / 2, sz, sz);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+/** Шоколадна ріка: тайл хвиль, що пливе за течією, береги з глазур'ю; печеньки злегка погойдуються (лише вигляд, течії на них нема). */
+function drawChocolateRiver(ctx: CanvasRenderingContext2D, rv: NonNullable<NonNullable<FlockModel["cfg"]["candy"]>["river"]>, x0: number, x1: number, y0: number, y1: number, world: number, time: number) {
+  if (y1 < rv.y0 - 20 || y0 > rv.y1 + 20) return;
+  const lo = Math.max(0, x0);
+  const hi = Math.min(world, x1);
+  const h = rv.y1 - rv.y0;
+  const tile = sprite("choco-tile", 256, (c) => paintChocolateTile(c));
+  const pat = ctx.createPattern(tile, "repeat");
+  ctx.fillStyle = "#5a3220";
+  ctx.fillRect(lo, rv.y0, hi - lo, h);
+  if (pat) {
+    const off = (time * 38 * rv.d) % 256;
+    ctx.save();
+    ctx.translate(off, 0);
+    ctx.fillStyle = pat;
+    ctx.fillRect(lo - off, rv.y0, hi - lo, h);
+    ctx.restore();
+  }
+  // береги: світла глазур зовні, темна смуга всередині
+  for (const [y, dir] of [[rv.y0, -1], [rv.y1, 1]] as const) {
+    ctx.fillStyle = "rgba(255,236,214,0.9)";
+    ctx.fillRect(lo, y - (dir < 0 ? 7 : 0), hi - lo, 7);
+    ctx.fillStyle = "rgba(34,14,6,0.45)";
+    ctx.fillRect(lo, y - (dir < 0 ? 0 : 12), hi - lo, 12);
+  }
+  for (let i = 0; i < rv.c.length; i++) {
+    const [x, y, r] = rv.c[i];
+    if (x + r * 1.4 < x0 || x - r * 1.4 > x1) continue;
+    const s = r * 2.5;
+    const bob = Math.sin(time * 1.4 + i * 1.9) * 3;
+    ctx.drawImage(sprite(`cookie-${i % 5}`, 256, (c, sz) => paintCookie(c, sz, i % 5)), x - s / 2, y - s / 2 + bob, s, s);
+  }
+}
+
 function drawPuddles(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number) {
   const rain = m.rain;
   if (!rain) return;
@@ -490,6 +597,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
   else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
+  if (m.cfg.candy?.river) drawChocolateRiver(ctx, m.cfg.candy.river, x0, x1, y0, y1, world, o.time);
   if (m.cfg.candy) drawCandyZones(ctx, m.cfg.candy, x0, x1, y0, y1);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
   drawPuddles(ctx, m, x0, x1, y0, y1);
@@ -618,6 +726,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // «Ніч»: зірки малюються пізніше - поверх темного шару (видно всім незалежно від світла)
   const night = Boolean(m.cfg.night);
   if (!night) drawStars(ctx, m, o.time, x0, x1, y0, y1);
+  drawCandyRain(ctx, m, o.time, x0, x1, y0, y1);
 
   // клітини: малі - під кущами (масиви перевикористовуємо - без виділення памʼяті щокадру)
   VISIBLE.length = 0;
@@ -862,6 +971,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
+  if (m.cfg.candy?.river) drawRiverMinimap(ctx, m.cfg.candy.river, size, m.cfg.world);
   if (m.cfg.candy || m.cfg.map === CANDY_MAP_ID) drawCandyMinimap(ctx, m.cfg.candy, m.thorns, (mass) => m.radiusOf(mass), size, m.cfg.world);
   let boss: (typeof m.board.map)[number] | null = null;
   if (m.cfg.castle) drawCastleMinimap(ctx, m, size);
