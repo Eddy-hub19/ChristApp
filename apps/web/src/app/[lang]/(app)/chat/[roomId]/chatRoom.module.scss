@@ -92,8 +92,8 @@
     height: 100%;
     height: var(--vv-height, 100dvh);
     z-index: 10;
-    /* Шапка выше: от safe-area (Dynamic Island) отнимаем 14px, чтобы плашка с именем стояла сразу под строкой статуса, а не с пустой полосой над ней. */
-    padding: max(10px, calc(env(safe-area-inset-top, 0px) - 14px)) max(10px, env(safe-area-inset-right, 0px)) 0
+    /* Шапка выше: от safe-area (Dynamic Island) отнимаем 24px, чтобы плашка с именем стояла сразу под строкой статуса, а не с пустой полосой над ней. */
+    padding: max(6px, calc(env(safe-area-inset-top, 0px) - 24px)) max(10px, env(safe-area-inset-right, 0px)) 0
       max(10px, env(safe-area-inset-left, 0px));
     overscroll-behavior: none;
     /* Стежимо за клавіатурою приблизно в її темпі — без різкого стрибка поля. */
@@ -165,7 +165,7 @@
     position: sticky;
     top: 0;
     z-index: 4;
-    border-radius: 26px;
+    border-radius: 22px;
     border: 1px solid rgba(214, 180, 91, 0.45);
     // background:
     //   linear-gradient(165deg, rgba(52, 44, 28, 0.92), rgba(28, 28, 29, 0.9)),
@@ -180,16 +180,16 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px 16px;
+    padding: 8px 12px;
     justify-content: center;
     gap: 0;
     flex-shrink: 0;
-    border-radius: 30px;
+    border-radius: 24px;
 
     .headerContent {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       /* Вузькі екрани (iPhone SE): менше повітря між елементами — більше місця під назву й статус. */
       @media (max-width: 400px) {
         gap: 10px;
@@ -201,9 +201,9 @@
 
       .avatar {
         display: flex;
-        width: 40px;
-        height: 40px;
-        padding: 8px 12px;
+        width: 36px;
+        height: 36px;
+        padding: 6px 10px;
         justify-content: center;
         align-items: center;
         flex-shrink: 0;
@@ -258,7 +258,7 @@
       .wrapContent {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 0;
         flex: 1;
         min-width: 0;
 
@@ -349,15 +349,15 @@
         flex-shrink: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         margin-left: auto;
       }
 
       /* У загальному чаті в тому ж ряду — кнопка учасників: той самий розмір, що в геймпада. */
       .headerActions .participantsButton {
         margin-left: 0;
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         flex-shrink: 0;
       }
 
@@ -370,8 +370,8 @@
       .gameButton {
         position: relative;
         flex-shrink: 0;
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         padding: 0;
         border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
         border-radius: 9999px;

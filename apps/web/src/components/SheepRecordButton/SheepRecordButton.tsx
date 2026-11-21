@@ -116,8 +116,8 @@ export default function SheepRecordButton({
           {mode === "voice" ? (
             <svg
               className={styles.micIcon}
-              width="50"
-              height="50"
+              width="46"
+              height="46"
               viewBox="0 0 36 36"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
