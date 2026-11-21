@@ -138,6 +138,30 @@
   color: #ff8f8f;
 }
 
+.fallWarn {
+  position: absolute;
+  left: 50%;
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 96px);
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #d83a34;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: fallPulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes fallPulse {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .carry {
   position: absolute;
   left: 50%;

@@ -4,6 +4,7 @@
  */
 import { TEAM_COLOR, castleOf, decorFor, type Team } from "./flockCastles";
 import { drawBaseZone, drawCastle, drawDecor, drawLake, drawLakeMinimap, stoneSprite } from "./flockCastleArt";
+import { drawTerracesMinimap, drawTerracesWorld, terraceDecor } from "./flockTerraces";
 import type { FlockModel, RCell } from "./flockModel";
 
 const TAU = Math.PI * 2;
@@ -13,8 +14,14 @@ const teams: Team[] = [1, 2];
 export function drawCastleWorld(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number, pxPerUnit: number, time: number) {
   const cfg = m.cfg.castle;
   if (!cfg) return;
-  drawLake(ctx, cfg, x0, x1, y0, y1, time, pxPerUnit);
-  drawDecor(ctx, decorFor(cfg, m.thorns, m.cfg.radiusK), cfg.seed, cfg.world, x0, x1, y0, y1, pxPerUnit);
+  if (cfg.kind === "terraces") {
+    // небо, острови, мости, водоспади (під усім), потім декор на островах
+    drawTerracesWorld(ctx, cfg, x0, x1, y0, y1, time);
+    drawDecor(ctx, terraceDecor(cfg, m.thorns, m.cfg.radiusK), cfg.seed, cfg.world, x0, x1, y0, y1, pxPerUnit);
+  } else {
+    drawLake(ctx, cfg, x0, x1, y0, y1, time, pxPerUnit);
+    drawDecor(ctx, decorFor(cfg, m.thorns, m.cfg.radiusK), cfg.seed, cfg.world, x0, x1, y0, y1, pxPerUnit);
+  }
   const cs = m.castle;
   for (const t of teams) {
     const k = castleOf(cfg, t);
@@ -34,6 +41,23 @@ export function drawCastleWorld(ctx: CanvasRenderingContext2D, m: FlockModel, x0
       ctx.drawImage(stoneSprite(owner === 2 ? 2 : 1), x - s / 2, y - s / 2 + bob, s, s);
       ctx.globalAlpha = 1;
     }
+  }
+}
+
+/** «Небесні тераси»: червоне пунктирне кільце навколо своєї клітини, поки вона над порожнечею (чим ближче падіння, тим яскравіше). */
+export function drawFallWarning(ctx: CanvasRenderingContext2D, m: FlockModel, scale: number, time: number) {
+  const fl = m.castle?.fl ?? 0;
+  if (fl <= 0) return;
+  for (const c of m.ownCells()) {
+    const r = m.radiusOf(c.mass);
+    const pulse = 0.55 + 0.45 * Math.sin(time * 12);
+    ctx.strokeStyle = `rgba(255,70,50,${0.4 + 0.5 * fl * pulse})`;
+    ctx.lineWidth = Math.max(3 / scale, r * 0.12);
+    ctx.setLineDash([r * 0.35, r * 0.2]);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r * (1.3 + 0.2 * fl), 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 
@@ -184,7 +208,8 @@ export function drawCastleMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, 
   const cfg = m.cfg.castle;
   if (!cfg) return;
   const k = size / cfg.world;
-  drawLakeMinimap(ctx, cfg, size);
+  if (cfg.kind === "terraces") drawTerracesMinimap(ctx, cfg, size);
+  else drawLakeMinimap(ctx, cfg, size);
   const cs = m.castle;
   for (const t of teams) {
     const c = castleOf(cfg, t);

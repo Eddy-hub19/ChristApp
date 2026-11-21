@@ -32,6 +32,7 @@ export interface TreasureCfg {
   bridgeMaxMass: number;
   /** Скільки мс у воді до того, як клітину з'їсть акула. */
   sharkMs: number;
+  sharks: boolean;
   /** Швидкість виштовхування захищеної клітини з води (світових одиниць за с) і важкої з моста. */
   pushOutSpeed: number;
   /** Новачок цей час (мс від появи) у воді не гине (разом зі стартовим щитом і паузою). */
@@ -119,7 +120,7 @@ export function randomBankPoint(l: TreasureLayout, rng: Rng, bank: -1 | 1, margi
 }
 
 /** Для welcome: усе, що клієнту потрібно, щоб малювати острів і рахувати воду тими самими формулами. */
-export function treasureWelcome(l: TreasureLayout, cfg: Pick<TreasureCfg, 'bridgeMaxMass' | 'sharkMs' | 'shoreMargin' | 'pushOutSpeed'>) {
+export function treasureWelcome(l: TreasureLayout, cfg: Pick<TreasureCfg, 'bridgeMaxMass' | 'sharkMs' | 'sharks' | 'shoreMargin' | 'pushOutSpeed'>) {
   return {
     cx: l.cx,
     cy: l.cy,
@@ -128,7 +129,7 @@ export function treasureWelcome(l: TreasureLayout, cfg: Pick<TreasureCfg, 'bridg
     y1: l.y1,
     b: l.bridges.map((b) => [Math.round(b.x0), Math.round(b.x1)] as [number, number]),
     maxMass: cfg.bridgeMaxMass,
-    shark: cfg.sharkMs,
+    shark: cfg.sharks ? cfg.sharkMs : 0,
     shore: cfg.shoreMargin,
     push: cfg.pushOutSpeed,
   };

@@ -265,6 +265,8 @@ export class FlockGateway
       mode?: unknown;
       /** «Замки»: сторона (1 - вівці, 2 - вовки). */
       team?: unknown;
+      /** «Замки»: карта (id з teamMode.mapIds), якщо матчу ще нема. */
+      castleMap?: unknown;
       /** Версія протоколу клієнта: 2+ читає кущі з `welcome`, без поля - старий клієнт. */
       v?: unknown;
     },
@@ -330,6 +332,7 @@ export class FlockGateway
         resumeOnly: body?.resumeOnly === true,
         mode: body?.mode === 'circle' ? 'circle' : castles ? 'castles' : 'normal',
         team,
+        castleMap: typeof body?.castleMap === 'number' ? Math.floor(body.castleMap) : undefined,
         legacyThorns: !(typeof body?.v === 'number' && body.v >= 2),
       },
     );

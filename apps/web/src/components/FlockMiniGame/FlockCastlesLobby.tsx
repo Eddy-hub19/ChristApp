@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import FlockSheet from "./FlockSheet";
 import { fetchCastlesLobby } from "./flockApi";
-import { sideSkins, type CastlesLobby, type Team } from "./flockCastles";
+import { CASTLES_MAP_ID, TERRACES_MAP_ID, sideSkins, type CastlesLobby, type Team } from "./flockCastles";
 import { drawCreature } from "./flockRender";
 import { skinOf } from "./flockSkins";
 import styles from "./FlockInfo.module.scss";
@@ -13,12 +13,13 @@ type Props = {
   canPlay: boolean;
   /** Помилка від сервера при останній спробі входу (сторона зайнята, скін не підходить...). */
   error?: string | null;
-  onJoin: (team: Team, skin: number) => void;
+  onJoin: (team: Team, skin: number, castleMap?: number) => void;
   onClose: () => void;
 };
 
 const SIDE_KEY = "christapp:flock:castles:side";
 const SKIN_KEY = "christapp:flock:castles:skin";
+const MAP_KEY = "christapp:flock:castles:map";
 const POLL_MS = 3000;
 
 const loadNum = (key: string) => {
@@ -64,6 +65,11 @@ export default function FlockCastlesLobby({ canPlay, error, onJoin, onClose }: P
     return v === 1 || v === 2 ? v : null;
   });
   const [skin, setSkin] = useState(0);
+  /** Карта, яку обирає гравець, поки матчу нема (інакше грають на карті матчу). */
+  const [castleMap, setCastleMap] = useState<number>(() => {
+    const v = loadNum(MAP_KEY);
+    return v === TERRACES_MAP_ID || v === CASTLES_MAP_ID ? v : CASTLES_MAP_ID;
+  });
 
   useEffect(() => {
     let alive = true;
@@ -98,12 +104,38 @@ export default function FlockCastlesLobby({ canPlay, error, onJoin, onClose }: P
   };
 
   const sideName = (tm: Team) => t(tm === 1 ? "sheep" : "wolves");
+  const liveMap = lobby?.map ?? null;
+  const maps = lobby?.maps?.length ? lobby.maps : [CASTLES_MAP_ID, TERRACES_MAP_ID];
+  const mapKey = (id: number) => (id === TERRACES_MAP_ID ? "terraces" : "lake");
+  const mapChosen = liveMap ?? castleMap;
   const disabled = !canPlay || !team || blocked(team) || lobby?.enabled === false;
 
   return (
     <FlockSheet title={t("lobbyTitle")} closeLabel={t("close")} onClose={onClose} testId="flock-castles-lobby">
       {() => (
         <>
+          <p className={styles.modeText}>{t("mapStep")}</p>
+          {liveMap !== null ? (
+            <p className={styles.modeHint}>{t("mapLive", { name: t(`maps.${mapKey(liveMap)}`) })}</p>
+          ) : (
+            <div className={styles.sideRow}>
+              {maps.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={[styles.sideBtn, mapChosen === id ? styles.sideActive : ""].filter(Boolean).join(" ")}
+                  aria-pressed={mapChosen === id}
+                  onClick={() => {
+                    setCastleMap(id);
+                    saveNum(MAP_KEY, id);
+                  }}
+                >
+                  <strong>{t(`maps.${mapKey(id)}`)}</strong>
+                  <span>{t(`maps.${mapKey(id)}Hint`)}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <p className={styles.modeText}>{t("step1")}</p>
           <div className={styles.sideRow}>
             {([1, 2] as Team[]).map((tm) => (
@@ -146,7 +178,7 @@ export default function FlockCastlesLobby({ canPlay, error, onJoin, onClose }: P
           {lobby?.enabled === false ? <p className={styles.modeHint}>{t("off")}</p> : null}
           {error ? <p className={styles.modeHint} role="alert">{error}</p> : null}
           <div className={styles.modeFooter}>
-            <button type="button" className={styles.modePlay} disabled={disabled} onClick={() => team && onJoin(team, picked)}>
+            <button type="button" className={styles.modePlay} disabled={disabled} onClick={() => team && onJoin(team, picked, mapChosen)}>
               {canPlay ? t("join") : t("connecting")}
             </button>
           </div>

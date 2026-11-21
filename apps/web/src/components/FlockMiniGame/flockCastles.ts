@@ -4,6 +4,8 @@
  */
 
 export const CASTLES_MAP_ID = 4;
+/** «Небесні тераси»: друга карта «Замків». */
+export const TERRACES_MAP_ID = 10;
 export type Team = 1 | 2;
 /** Кольори команд: 1 - «Вівці» (синій), 2 - «Вовки» (червоний). */
 export const TEAM_COLOR: Record<Team, { main: string; dark: string; light: string }> = {
@@ -26,6 +28,18 @@ export interface CastleCfg {
   waterSlow: number;
   seed: number;
   world: number;
+  /** Вид карти: 'river' - «Ліс і озеро» (за замовчуванням), 'terraces' - «Небесні тераси» (острови з мостами). */
+  kind?: "river" | "terraces";
+  terraces?: TerracesCfg;
+  /** Скільки мс над порожнечею до падіння («Небесні тераси»). */
+  fallMs?: number;
+}
+
+/** «Небесні тераси»: острови (кола [x, y, r]) і мости (відрізки з шириною bw); дзеркало flock.terraces.ts на сервері. */
+export interface TerracesCfg {
+  islands: [number, number, number][][];
+  bridges: { a: number; b: number; x1: number; y1: number; x2: number; y2: number }[];
+  bw: number;
 }
 
 /** Числа режиму з /flock/me (config.game.castles). */
@@ -38,6 +52,7 @@ export interface CastlesGameConfig {
   countdownMs?: number;
   teamSize?: number;
   maxTeamSize?: number;
+  fallMs?: number;
   stealHoldMs?: number;
   carrySlowPct?: number;
   waterSlowPct?: number;
@@ -67,7 +82,9 @@ export interface CastleMsg {
   al: [number, number, number][];
   sp: number;
   rs: number;
-  ev?: { k: "steal" | "deliver" | "drop" | "return" | "castle" | "win" | "lose"; p: number; t: number }[];
+  /** «Небесні тераси»: частка часу до падіння (0..1), поки своя клітина над порожнечею. */
+  fl?: number;
+  ev?: { k: "steal" | "deliver" | "drop" | "return" | "castle" | "fall" | "win" | "lose"; p: number; t: number }[];
 }
 
 export type CastleEvent = NonNullable<CastleMsg["ev"]>[number];
@@ -101,6 +118,9 @@ export interface CastlesLobby {
   maxTeamSize: number;
   phase: 0 | 1 | 2 | 3;
   leftMs: number;
+  /** Карта матчу, що йде (id), або null - матчу нема, карту обирає гравець; maps - доступні карти. */
+  map?: number | null;
+  maps?: number[];
 }
 
 const SQ = Math.SQRT2;
@@ -123,6 +143,32 @@ export function inWater(g: CastleCfg["river"], x: number, y: number): boolean {
   for (const b of g.bridges) if (Math.abs(s - b) < g.bw / 2) return false;
   return true;
 }
+
+/** «Небесні тераси»: острів, на якому стоїть точка (центр у колі), або -1. */
+export function terraceIsland(g: TerracesCfg, x: number, y: number): number {
+  for (let i = 0; i < g.islands.length; i++) for (const [cx, cy, r] of g.islands[i]) if (Math.hypot(x - cx, y - cy) < r) return i;
+  return -1;
+}
+/** Точка на мосту терас (відстань до відрізка менша за пів-ширини). */
+export function terraceBridgeAt(g: TerracesCfg, x: number, y: number): boolean {
+  const half = g.bw / 2;
+  for (const b of g.bridges) {
+    const dx = b.x2 - b.x1;
+    const dy = b.y2 - b.y1;
+    const t = Math.max(0, Math.min(1, ((x - b.x1) * dx + (y - b.y1) * dy) / (dx * dx + dy * dy || 1)));
+    if (Math.hypot(x - (b.x1 + dx * t), y - (b.y1 + dy * t)) < half) return true;
+  }
+  return false;
+}
+/** Коло радіуса r з центром (x, y) цілком на одному острові (з відступом pad). */
+export function circleOnTerrace(g: TerracesCfg, x: number, y: number, r: number): boolean {
+  const i = terraceIsland(g, x, y);
+  if (i < 0) return false;
+  for (const [cx, cy, cr] of g.islands[i]) if (Math.hypot(x - cx, y - cy) < cr - r) return true;
+  return false;
+}
+/** Є опора під центром (острів або міст) на терасах. */
+export const terraceOnLand = (g: TerracesCfg, x: number, y: number) => terraceIsland(g, x, y) >= 0 || terraceBridgeAt(g, x, y);
 
 export const castleOf = (c: CastleCfg, team: Team) => c.castles.find((k) => k.team === team) ?? c.castles[0];
 

@@ -1593,7 +1593,7 @@
       "mapSub": "Caramel slows you, the chocolate river carries you off"
     },
     "treasure": {
-      "mapSub": "The bridge holds {n} mass. Sharks in the water",
+      "mapSub": "The bridge holds {n} mass",
       "bridgeNo": "The bridge won't hold"
     },
     "mapNames": {
@@ -1606,7 +1606,8 @@
       "sky": "Sky",
       "coliseum": "Colosseum",
       "candy": "Candy Land",
-      "treasure": "Treasure Island"
+      "treasure": "Treasure Island",
+      "terraces": "Sky Terraces"
     },
     "hud": {
       "mass": "Mass",
@@ -1888,7 +1889,9 @@
         "dropEnemy": "Thief caught!",
         "returned": "The stone is back at base",
         "castleMine": "The enemy castle is destroyed!",
-        "castleEnemy": "Our castle is destroyed!"
+        "castleEnemy": "Our castle is destroyed!",
+        "fallMine": "A teammate fell off the island",
+        "fallEnemy": "An enemy fell off the island"
       },
       "endTitle": "Match over",
       "endWin": "Victory!",
@@ -1912,7 +1915,16 @@
         "afk": "No reward: no activity",
         "daily": "Daily limit of win rewards reached",
         "botLimit": "Limit of rewards for games against bots reached"
-      }
+      },
+      "mapStep": "Map",
+      "mapLive": "A match is already running on “{name}” — you will join it.",
+      "maps": {
+        "lake": "Forest and Lake",
+        "lakeHint": "A river and bridges",
+        "terraces": "Sky Terraces",
+        "terracesHint": "Islands in the sky: fall and respawn in your castle"
+      },
+      "fallWarn": "You are falling — get back to the island!"
     },
     "sky": {
       "mapSub": "Don't step off the cloud",

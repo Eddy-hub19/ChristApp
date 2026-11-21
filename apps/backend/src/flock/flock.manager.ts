@@ -249,7 +249,7 @@ class Arena {
     this.coliseum = this.world.arena ? new ColiseumDirector(this.world, rng) : null;
     this.quests = mode !== 'castles' && hooks.onQuest ? new QuestTracker(hooks.onQuest, this.mapId) : null;
     if (mode === 'castles') {
-      this.castle = new CastleMatch(this.world, rng);
+      this.castle = new CastleMatch(this.world, rng, FLOCK_MAPS.find((m) => m.id === this.mapId)?.castleKind ?? 'river');
       this.world.team = this.castle.rules;
     }
     this.monsterTarget =
@@ -312,7 +312,8 @@ class Arena {
     if (this.coliseum) return 0; // на «Арені» лише вовки хвиль
     if (this.castle) return this.castle.wantedBots(1) + this.castle.wantedBots(2);
     if (this.mode === 'circle') return circleBotsForHumans(this.humans);
-    return botsForHumans(this.humans);
+    const n = botsForHumans(this.humans);
+    return this.world.treasure ? Math.min(n, C.treasure.maxBots) : n;
   }
 
   /** Скільки ботів має грати зараз: штатна кількість, обмежена навантаженням. */
@@ -1413,6 +1414,8 @@ export interface JoinOptions {
   mode?: ArenaMode;
   /** «Замки»: обрана сторона (1 - вівці, 2 - вовки). */
   team?: number;
+  /** «Замки»: обрана карта (id з FLOCK_CONFIG.teamMode.mapIds); діє лише коли матчу ще нема (інакше грають на карті матчу). */
+  castleMap?: number;
 }
 
 export interface JoinResult {
@@ -1562,7 +1565,7 @@ export class FlockManager {
       const verdict = live?.castle?.canJoin(team) ?? 'ok';
       if (verdict !== 'ok') return { ok: false, error: verdict, resumeFailed };
     }
-    const arena = this.pickArena(opts.arena, mode);
+    const arena = this.pickArena(opts.arena, mode, opts.castleMap);
     if (!arena) return { ok: false, error: 'full', resumeFailed };
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
@@ -1617,6 +1620,9 @@ export class FlockManager {
     return {
       enabled: C.teamMode.enabled,
       ...lobby,
+      /** Карта матчу, що йде (id), або null - матчу нема й карту обирає гравець; maps - доступні карти. */
+      map: this.castlesArena()?.mapId ?? null,
+      maps: [...C.teamMode.mapIds],
       teamSize: C.teamMode.teamSize,
       maxTeamSize: C.teamMode.maxTeamSize,
     };
@@ -1729,7 +1735,7 @@ export class FlockManager {
   }
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
-  private pickArena(requested?: number, mode: ArenaMode = 'normal'): Arena | null {
+  private pickArena(requested?: number, mode: ArenaMode = 'normal', castleMap?: number): Arena | null {
     const cap = mode === 'castles' ? 2 * C.teamMode.maxTeamSize : C.maxHumansPerArena;
     const roomy = (a: Arena) => a.mode === mode && a.humans < cap;
     const fresh = (a: Arena) => roomy(a) && !this.mapExpired(a);
@@ -1761,7 +1767,13 @@ export class FlockManager {
       this.hooks,
       this.opts.loadProbe,
       mode,
-      mode === 'normal' ? this.nextMapId() : undefined,
+      mode === 'normal'
+        ? this.nextMapId()
+        : mode === 'castles'
+          ? castleMap !== undefined && C.teamMode.mapIds.includes(castleMap)
+            ? castleMap
+            : C.teamMode.mapId
+          : undefined,
     );
     this.arenas.set(arena.id, arena);
     return arena;

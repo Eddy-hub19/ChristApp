@@ -176,6 +176,8 @@ export class FlockClient {
   private perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {};
   private mode: FlockMode;
   private team: Team = 1;
+  /** «Замки»: карта, обрана в лобі (id); сервер ігнорує її, коли матч уже йде. */
+  private castleMap = 0;
   private wantPlay = false;
   private disposed = false;
   private arenaId: number | null;
@@ -586,9 +588,10 @@ export class FlockClient {
   }
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
-  join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}, team?: Team) {
+  join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}, team?: Team, castleMap?: number) {
     this.perks = mode === "castles" ? {} : perks;
     if (team) this.team = team;
+    if (castleMap !== undefined) this.castleMap = castleMap;
     if (mode === "castles") artifact = 0;
     this.mode = mode;
     this.skin = skin;
@@ -604,7 +607,7 @@ export class FlockClient {
   /** Поля режиму для `j`: circle / castles (з командою); звичайна арена - без полів. */
   private modeFields() {
     if (this.mode === "circle") return { mode: "circle" };
-    if (this.mode === "castles") return { mode: "castles", team: this.team };
+    if (this.mode === "castles") return { mode: "castles", team: this.team, ...(this.castleMap ? { castleMap: this.castleMap } : {}) };
     return {};
   }
 
