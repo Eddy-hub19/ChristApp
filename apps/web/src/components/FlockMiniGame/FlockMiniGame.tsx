@@ -1782,10 +1782,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       {status === "dead" && death && !circleEnd ? (
         <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
           <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
-            <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : death.swept ? t("dead.sweptTitle") : t("dead.title")}</h2>
+            <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : death.swept ? t("dead.sweptTitle") : death.iced ? t("dead.icedTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
             {death.fell ? <p className={styles.sub}>{t("dead.fell")}</p> : null}
             {death.swept ? <p className={styles.sub}>{t("dead.swept")}</p> : null}
+            {death.iced ? <p className={styles.sub}>{t("dead.iced")}</p> : null}
             {death.zone ? <p className={styles.sub}>{t("dead.zone")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
             <dl className={styles.summary}>

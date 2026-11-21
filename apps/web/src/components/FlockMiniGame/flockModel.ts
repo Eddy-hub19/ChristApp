@@ -1,3 +1,4 @@
+import { iceStep, type IceCfg } from "./flockIce";
 import { candyFactorOf, riverDriftAt, riverExitDepthAt, type CandyCfg } from "./flockCandy";
 import {
   decodeBoard,
@@ -60,6 +61,8 @@ export interface FlockCfg {
   thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night" | "jelly";
   /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель) і частка уповільнення; без поля - інша карта. Формула - candyFactorOf (дзеркало сервера). */
   candy?: CandyCfg;
+  /** «Зимовий мороз»: каток і параметри тріщин (welcome.ice); без поля - інша карта. Формула - flockIce.ts (дзеркало сервера). */
+  ice?: IceCfg;
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
@@ -256,6 +259,9 @@ export class FlockModel {
   /** Зірки «Зорепаду»: з'являються/зникають за подіями сервера, позицій щотіку нема. */
   readonly stars = new Map<number, RStar>();
   readonly candies = new Map<number, RCandy>();
+  /** Тріщини льоду під своїми клітинами (по id клітини) і найбільше з них 0..1: від нього малюється мережа тріщин. */
+  private readonly iceLevels = new Map<number, number>();
+  iceLevel = 0;
   /** Коло режиму «Звужуване коло» (null - режиму нема або раунд закінчився й чекаємо новий). */
   circle: RCircle | null = null;
   /** Режим «Замки»: останній стан `cm` (null - ще не було) і локальний час його отримання. */
@@ -973,6 +979,7 @@ export class FlockModel {
     const carry = castle ? this.carryingStone() : false;
     const sprinting = !castle && Boolean(input.sprint) && !frozen && this.sprintReady();
     this.sprintActive = sprinting;
+    let iceMax = 0;
     for (const c of this.cells.values()) {
       c.mass += (c.tmass - c.mass) * kMass;
       if (c.pid === this.cfg.pid) {
@@ -1006,6 +1013,15 @@ export class FlockModel {
             c.x = Math.min(world + exit, Math.max(-exit, c.x + rd * dt));
           }
         }
+        // тріщини льоду під своєю клітиною («Зимовий мороз»): та сама формула, що на сервері
+        if (this.cfg.ice && !castle) {
+          const ice = this.cfg.ice;
+          const on = Math.hypot(c.x - ice.x, c.y - ice.y) < ice.r;
+          const next = iceStep(this.iceLevels.get(c.id) ?? 0, on, c.mass, dt, ice);
+          if (next > 0) this.iceLevels.set(c.id, next);
+          else this.iceLevels.delete(c.id);
+          if (next > iceMax) iceMax = next;
+        }
         // ціль: знімок сервера, екстрапольований до "зараз" за його ж швидкістю (враховує поділ/імпульси)
         const age = Math.min(250, Math.max(0, srvNow - c.t1));
         const ex = c.x1 + c.vx * age - c.x;
@@ -1023,6 +1039,10 @@ export class FlockModel {
         sampleSnap(c, tr);
       }
       c.phase += dt * (3 + Math.min(c.speed, 300) / 40);
+    }
+    if (this.cfg.ice) {
+      this.iceLevel = iceMax;
+      for (const id of this.iceLevels.keys()) if (!this.cells.has(id)) this.iceLevels.delete(id);
     }
     for (const b of this.blobs.values()) sampleSnap(b, tr);
     for (let i = this.dying.length - 1; i >= 0; i--) {

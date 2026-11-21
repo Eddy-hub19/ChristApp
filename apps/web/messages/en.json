@@ -1618,6 +1618,8 @@
       "fell": "You stepped off the cloud and fell through the sky. Stay on the clouds or catch the Wings.",
       "sweptTitle": "You were swept away",
       "swept": "The chocolate river carried you off the edge of the world. Cross on the cookies and don't drift with the current.",
+      "icedTitle": "You fell through the ice",
+      "iced": "The rink ice cracked under you. The heavier you are, the faster it breaks: don't stay on the rink.",
       "burnedTitle": "You burned",
       "burned": "You fell into the lava. Use the bridges to cross the river.",
       "zone": "You ended up outside the circle and lost all your mass.",

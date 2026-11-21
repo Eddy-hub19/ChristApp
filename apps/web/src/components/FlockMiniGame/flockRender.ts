@@ -12,6 +12,7 @@ import { drawBurns, drawLava, drawLavaGlow, drawLavaMinimap, drawLavaWarning, la
 import { drawFence, fenceMiniColor, fenceStyleOf } from "./flockFence";
 import { isBossSkin, MONSTER_SKIN } from "./flockSkins";
 import { drawPipeEffects, drawWindOverlay } from "./flockWeather";
+import { drawIceMinimap, paintIceCracks, paintIceRink } from "./flockIce";
 import { CANDY_MAP_ID, JELLY_KINDS, drawCandyMinimap, drawRiverMinimap, paintChocolateTile, paintGiantCandy, paintCandyZone, paintCookie } from "./flockCandy";
 import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, drawCreatureCached, drawDigits, nameSprite, pastureTile, sunlightPattern, prefersReducedMotion, phraseBubbleSprite, STAR_WORLD_R, starShadowSprite, starSprite, starTailSprite, thornSprite, type ThornKind } from "./flockSprites";
 
@@ -330,6 +331,23 @@ function drawCandyZones(ctx: CanvasRenderingContext2D, candy: NonNullable<FlockM
   draw(candy.s, true);
 }
 
+/** «Зимовий мороз»: каток під ногами; мережа тріщин проступає з рівнем власних клітин (0..1) і трохи тремтить, коли лід ось-ось піддасться. */
+function drawIceRink(ctx: CanvasRenderingContext2D, m: FlockModel, x0: number, x1: number, y0: number, y1: number, time: number) {
+  const ice = m.cfg.ice;
+  if (!ice) return;
+  const R = ice.r + 24;
+  if (ice.x + R < x0 || ice.x - R > x1 || ice.y + R < y0 || ice.y - R > y1) return;
+  const size = R * 2;
+  ctx.drawImage(sprite("ice-rink", 512, (c, s) => paintIceRink(c, s)), ice.x - R, ice.y - R, size, size);
+  const lvl = m.iceLevel;
+  if (lvl > 0.02) {
+    const shake = lvl > 0.75 ? Math.sin(time * 38) * (lvl - 0.75) * 10 : 0;
+    ctx.globalAlpha = Math.min(1, lvl * 1.1);
+    ctx.drawImage(sprite("ice-cracks", 512, (c, s) => paintIceCracks(c, s)), ice.x - R + shake, ice.y - R, size, size);
+    ctx.globalAlpha = 1;
+  }
+}
+
 const CANDY_LINGER_MS = 900;
 const RIVER_EXTRA = 420;
 const CANDY_FALL_H = 1.9;
@@ -599,6 +617,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
   else if (!col) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
+  drawIceRink(ctx, m, x0, x1, y0, y1, o.time);
   if (m.cfg.candy?.river) drawChocolateRiver(ctx, m.cfg.candy.river, x0, x1, y0, y1, world, o.time);
   if (m.cfg.candy) drawCandyZones(ctx, m.cfg.candy, x0, x1, y0, y1);
   // калюжі «Дощу» лежать на землі під їжею й клітинами
@@ -973,6 +992,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);
   const k = size / 256;
+  if (m.cfg.ice) drawIceMinimap(ctx, m.cfg.ice, size, m.cfg.world);
   if (m.cfg.candy?.river) drawRiverMinimap(ctx, m.cfg.candy.river, size, m.cfg.world);
   if (m.cfg.candy || m.cfg.map === CANDY_MAP_ID) drawCandyMinimap(ctx, m.cfg.candy, m.thorns, (mass) => m.radiusOf(mass), size, m.cfg.world);
   let boss: (typeof m.board.map)[number] | null = null;

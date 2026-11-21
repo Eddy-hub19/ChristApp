@@ -701,6 +701,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         params: { pct: pct("lava.riverFraction"), bmin: num("lava.bridgesMin"), bmax: num("lava.bridgesMax") },
       },
       {
+        id: "ice",
+        icon: "leaf",
+        title: { ua: "Ковзанка («Зимовий мороз»)", ru: "Каток («Зимний мороз»)", en: "Ice rink (Winter frost)" },
+        text: {
+          ua: "По центру карти — ковзанка радіусом {r}. Лід тріскається під клітиною, що на ньому стоїть: найлегшу витримує {max} с, а чим більша маса, тим швидше він ламається (не менше {min} с). Зійшла з льоду — тріщини загоюються. Клітина, що провалилась, зникає; остання клітина — це смерть. Їжа, бонуси й кущі на ковзанці не з'являються, боти її об'їжджають.",
+          ru: "По центру карты — каток радиусом {r}. Лёд трескается под клеткой, которая на нём стоит: самую лёгкую он держит {max} с, а чем больше масса, тем быстрее ломается (не меньше {min} с). Сошла со льда — трещины затягиваются. Провалившаяся клетка исчезает; последняя клетка — это смерть. Еда, бонусы и кусты на катке не появляются, боты его объезжают.",
+          en: "There is a rink of radius {r} in the middle of the map. The ice cracks under a cell standing on it: the lightest one lasts {max} s, and the heavier you are the faster it breaks (never faster than {min} s). Step off and the cracks heal. A cell that falls through disappears; your last cell is death. Food, bonuses and bushes never appear on the rink and bots steer around it.",
+        },
+        params: { r: num("ice.radius"), max: num("ice.maxSec"), min: num("ice.minSec") },
+      },
+      {
         id: "candy",
         icon: "leaf",
         title: { ua: "Карамель і мармелад («Цукеркова країна»)", ru: "Карамель и мармелад («Конфетная страна»)", en: "Caramel and jelly (Candy Land)" },
