@@ -1605,8 +1605,8 @@
     },
     "hud": {
       "mass": "Mass",
-      "leaderboard": "Top 20",
-      "boardToggle": "Collapse or expand “Top 20”",
+      "leaderboard": "Top 15",
+      "boardToggle": "Collapse or expand “Top 15”",
       "streakDays": "{days} d",
       "streakTitle": "1st-place streak: {days} days in a row"
     },
