@@ -1,6 +1,6 @@
 /*
  * Стили пузырей сообщений. Подключается в globals.scss; пузырь получает атрибуты:
- *   data-bubble-style="lamb|dove|lion|vine|ichthys"  - сам стиль (default - атрибута нет)
+ *   data-bubble-style="lamb|dove|lion|vine|ichthys|light|kingdom"  - сам стиль (default - атрибута нет)
  *   data-bubble-own                           - свой пузырь (хвостик справа, персонаж справа)
  *   data-bubble-start                         - первое сообщение группы подряд идущих сообщений одного человека (рисуем персонажа)
  *   data-bubble-tone="dark"                   - принудительно тёмный вариант (кинозал всегда тёмный)
@@ -56,10 +56,18 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
 [data-bubble-style="ichthys"] > [data-bs-char] {
   background-image: url("/bubbles/ichthys.svg");
 }
+[data-bubble-style="light"] > [data-bs-char] {
+  background-image: url("/bubbles/light.svg");
+}
+[data-bubble-style="kingdom"] > [data-bs-char] {
+  background-image: url("/bubbles/kingdom.svg");
+}
 
 /* Лёгкие края: по одному фону-SVG на псевдоэлемент (за текстом, поверх фона пузыря). */
 [data-bubble-style="lamb"]::after,
 [data-bubble-style="ichthys"]::after,
+[data-bubble-style="light"]::after,
+[data-bubble-style="kingdom"]::after,
 [data-bubble-style="dove"]::before,
 [data-bubble-style="dove"]::after,
 [data-bubble-style="vine"]::before,
@@ -87,6 +95,21 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   width: 20px;
   height: 20px;
   background-image: url("/bubbles/spark.svg");
+}
+/* Свет мира: оливковая веточка в верхнем углу; Царство Божье: маленькое облачко внизу справа. */
+[data-bubble-style="light"]::after {
+  top: -14px;
+  right: -6px;
+  width: 30px;
+  height: 30px;
+  background-image: url("/bubbles/olive.svg");
+}
+[data-bubble-style="kingdom"]::after {
+  bottom: -8px;
+  right: 10px;
+  width: 30px;
+  height: 18px;
+  background-image: url("/bubbles/cloud.svg");
 }
 [data-bubble-style="dove"]::before {
   top: -10px;
@@ -156,6 +179,21 @@ html:root [data-bubble-style]:not([data-bubble-own]) {
   --bs-radius: 18px;
 }
 
+[data-bubble-style="light"] {
+  --bs-bg: linear-gradient(165deg, #f1f4e6, #e2e9d2);
+  --bs-border: #a9b78d;
+  --bs-text: #34402a;
+  --bs-muted: #66745a;
+  --bs-radius: 20px;
+}
+[data-bubble-style="kingdom"] {
+  --bs-bg: linear-gradient(165deg, #eaf4fe, #d9eafa);
+  --bs-border: #98c2e8;
+  --bs-text: #1d3955;
+  --bs-muted: #4f6f8c;
+  --bs-radius: 20px;
+}
+
 /* ---------- тёмная тема (и кинозал) ---------- */
 html[data-theme="dark"] [data-bubble-style="lamb"],
 [data-bubble-style="lamb"][data-bubble-tone="dark"] {
@@ -191,4 +229,18 @@ html[data-theme="dark"] [data-bubble-style="ichthys"],
   --bs-border: #a98638;
   --bs-text: #f7ecd5;
   --bs-muted: #cdb98c;
+}
+html[data-theme="dark"] [data-bubble-style="light"],
+[data-bubble-style="light"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #2f3826, #272f1f);
+  --bs-border: #77875a;
+  --bs-text: #eef3e0;
+  --bs-muted: #b4c29a;
+}
+html[data-theme="dark"] [data-bubble-style="kingdom"],
+[data-bubble-style="kingdom"][data-bubble-tone="dark"] {
+  --bs-bg: linear-gradient(165deg, #243a52, #1c3047);
+  --bs-border: #5287b5;
+  --bs-text: #e8f3fd;
+  --bs-muted: #a6c1da;
 }

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="glow" cx=".5" cy=".55" r=".6"><stop offset="0" stop-color="#fff4c2"/><stop offset="1" stop-color="#f3b94c"/></radialGradient>
+  </defs>
+  <!-- оливковые веточки -->
+  <path d="M7 58 C8 50 11 44 15 38" fill="none" stroke="#5f6e2c" stroke-width="1.6" stroke-linecap="round"/>
+  <g fill="#8a9a4a" stroke="#5f6e2c" stroke-width="1.1">
+    <ellipse cx="9.5" cy="50" rx="4.2" ry="2" transform="rotate(-62 9.5 50)"/>
+    <ellipse cx="14" cy="43" rx="4.2" ry="2" transform="rotate(-50 14 43)"/>
+    <ellipse cx="6" cy="55" rx="3.6" ry="1.8" transform="rotate(20 6 55)"/>
+  </g>
+  <path d="M57 56 C56 48 53 42 49 36" fill="none" stroke="#5f6e2c" stroke-width="1.6" stroke-linecap="round"/>
+  <g fill="#8a9a4a" stroke="#5f6e2c" stroke-width="1.1">
+    <ellipse cx="54.5" cy="48" rx="4.2" ry="2" transform="rotate(62 54.5 48)"/>
+    <ellipse cx="50" cy="41" rx="4.2" ry="2" transform="rotate(50 50 41)"/>
+    <ellipse cx="58" cy="53" rx="3.6" ry="1.8" transform="rotate(-20 58 53)"/>
+  </g>
+  <!-- фонарь -->
+  <path d="M26 11 a6 5.5 0 0 1 12 0" fill="none" stroke="#5b3a1e" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M21 15 h22 l-2.6 5 h-16.8z" fill="#6b4423" stroke="#4a2d14" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M22 20 h20 l2 27 h-24z" fill="url(#glow)" stroke="#5b3a1e" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M29 20 v27 M35 20 v27" stroke="#5b3a1e" stroke-width="1.8"/>
+  <rect x="17.5" y="47" width="29" height="6" rx="2" fill="#6b4423" stroke="#4a2d14" stroke-width="1.4"/>
+  <path d="M22 53 l-2 4 M42 53 l2 4" stroke="#4a2d14" stroke-width="2" stroke-linecap="round"/>
+  <!-- свеча и пламя -->
+  <rect x="29.2" y="35" width="5.6" height="12" rx="1.2" fill="#fff7e2" stroke="#d6bf92" stroke-width="1"/>
+  <circle cx="32" cy="30" r="9" fill="#ffe27a" opacity=".35"/>
+  <path d="M32 24 c3.6 4.2 3.6 7.6 0 10 c-3.6 -2.4 -3.6 -5.8 0 -10z" fill="#ff9f1c"/>
+  <path d="M32 28 c1.7 2 1.7 3.8 0 5 c-1.7 -1.2 -1.7 -3 0 -5z" fill="#fff0a0"/>
+  <!-- искры -->
+  <g fill="#ffd45a">
+    <path d="M11 22 l1.1 2.4 2.4 1.1 -2.4 1.1 -1.1 2.4 -1.1 -2.4 -2.4 -1.1 2.4 -1.1z"/>
+    <path d="M53 18 l1.1 2.4 2.4 1.1 -2.4 1.1 -1.1 2.4 -1.1 -2.4 -2.4 -1.1 2.4 -1.1z"/>
+  </g>
+</svg>
