@@ -1592,6 +1592,10 @@
     "candy": {
       "mapSub": "Caramel slows you, the chocolate river carries you off"
     },
+    "treasure": {
+      "mapSub": "The bridge holds {n} mass. Sharks in the water",
+      "bridgeNo": "The bridge won't hold"
+    },
     "mapNames": {
       "meadow": "Summer meadow",
       "grove": "Autumn grove",
@@ -1601,7 +1605,8 @@
       "night": "Night",
       "sky": "Sky",
       "coliseum": "Colosseum",
-      "candy": "Candy Land"
+      "candy": "Candy Land",
+      "treasure": "Treasure Island"
     },
     "hud": {
       "mass": "Mass",
@@ -1622,6 +1627,8 @@
       "swept": "The chocolate river carried you off the edge of the world. Cross on the cookies and don't drift with the current.",
       "icedTitle": "You fell through the ice",
       "iced": "The rink ice cracked under you. The heavier you are, the faster it breaks: don't stay on the rink.",
+      "sharkTitle": "You were eaten by a shark",
+      "shark": "You ended up in the water and a shark ate you. Cross by the bridges: they hold light cells, heavy ones stay on their own shore.",
       "burnedTitle": "You burned",
       "burned": "You fell into the lava. Use the bridges to cross the river.",
       "zone": "You ended up outside the circle and lost all your mass.",

@@ -701,6 +701,17 @@ export const INFO_SECTIONS: InfoSection[] = [
         params: { pct: pct("lava.riverFraction"), bmin: num("lava.bridgesMin"), bmax: num("lava.bridgesMax") },
       },
       {
+        id: "treasure",
+        icon: "leaf",
+        title: { ua: "Острів скарбів", ru: "Остров сокровищ", en: "Treasure Island" },
+        text: {
+          ua: "Круглий острів: поза берегом вода, а посередині річка завширшки {rw}. Клітина, що опинилась у воді, через {shark} с потрапляє акулі. Переправа — двома мостами: міст витримує клітину масою до {max}; важча на нього не заходить («Міст не витримає»), а легші частини після поділу переходять вільно. Новачок, стартовий щит і пауза у воді не гинуть: їх виштовхує на берег. Їжа, бонуси, пальми-укриття й зорі розкладені на обох берегах порівну (пальма працює як кущ: хто менший — ховається, більша клітина рветься). До {chests} скринь зі скарбом одночасно лежать по {life} с: маса зі скринь іде в рекорд і топ, але не в завдання «з'їсти їжу», рекорди дня й серію першого місця; рубінів і смарагдів за них нема.",
+          ru: "Круглый остров: за берегом вода, а посередине река шириной {rw}. Клетку, оказавшуюся в воде, через {shark} с съедает акула. Переправа — двумя мостами: мост выдерживает клетку массой до {max}; более тяжёлая на него не заходит («Мост не выдержит»), а лёгкие части после деления переходят свободно. Новичок, стартовый щит и пауза в воде не гибнут: их выталкивает на берег. Еда, бонусы, пальмы-укрытия и звёзды разложены на обоих берегах поровну (пальма работает как куст: кто меньше — прячется, клетка больше рвётся). До {chests} сундуков с сокровищами лежат одновременно по {life} с: масса из сундуков идёт в рекорд и топ, но не в задания «съесть еду», рекорды дня и серию первого места; рубинов и изумрудов за них нет.",
+          en: "A round island: water beyond the shore and a river {rw} wide in the middle. A cell that ends up in the water is eaten by a shark after {shark} s. You cross by two bridges: a bridge holds a cell of up to {max} mass; a heavier one cannot step on it (“The bridge won't hold”), while lighter pieces after a split cross freely. Newcomers, the start shield and pause don't die in the water: they are pushed to the shore. Food, bonuses, palm-tree hideouts and stars are spread over both shores equally (a palm works like a bush: anything smaller hides, a bigger cell bursts). Up to {chests} treasure chests lie at once for {life} s each: their mass counts for your record and the top, but not for “eat food” quests, daily records or the 1st-place streak; no rubies or emeralds for them.",
+        },
+        params: { rw: num("treasure.riverWidth"), shark: num("treasure.sharkSec"), max: num("treasure.bridgeMaxMass"), chests: num("treasure.chestsMax"), life: num("treasure.chestLifetimeSec") },
+      },
+      {
         id: "ice",
         icon: "leaf",
         title: { ua: "Ковзанка («Зимовий мороз»)", ru: "Каток («Зимний мороз»)", en: "Ice rink (Winter frost)" },

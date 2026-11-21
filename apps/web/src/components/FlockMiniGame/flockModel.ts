@@ -1,4 +1,5 @@
 import { iceStep, type IceCfg } from "./flockIce";
+import { twBridgeAdjust, type TreasureCfg } from "./flockTreasure";
 import { candyFactorOf, riverDriftAt, riverExitDepthAt, type CandyCfg } from "./flockCandy";
 import {
   decodeBoard,
@@ -58,11 +59,13 @@ export interface FlockCfg {
   /** Вид карти арени (палітра, flockMaps.ts). Без поля - 0 (старий сервер). */
   map?: number;
   /** Вид кустов карты (bush | autumn | fir); без поля (старый сервер) - по номеру карты. */
-  thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night" | "jelly";
+  thornStyle?: "bush" | "autumn" | "fir" | "charred" | "night" | "jelly" | "palm";
   /** «Цукеркова країна»: зони карамелі (p - калюжі, s - липка карамель) і частка уповільнення; без поля - інша карта. Формула - candyFactorOf (дзеркало сервера). */
   candy?: CandyCfg;
   /** «Зимовий мороз»: каток і параметри тріщин (welcome.ice); без поля - інша карта. Формула - flockIce.ts (дзеркало сервера). */
   ice?: IceCfg;
+  /** «Острів скарбів»: острів, річка, мости й правила (welcome.treasure); без поля - інша карта. Формули - flockTreasure.ts (дзеркало сервера). */
+  treasure?: TreasureCfg;
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
@@ -1004,6 +1007,11 @@ export class FlockModel {
           const wv = this.windSpeed(c.mass) * dt;
           c.x = Math.min(world, Math.max(0, c.x + wdx * wv));
           c.y = Math.min(world, Math.max(0, c.y + wdy * wv));
+        }
+        // «Острів скарбів»: міст не витримує важку клітину - м'який зсув до берега (та сама формула, що на сервері)
+        if (this.cfg.treasure && !castle) {
+          const ny = twBridgeAdjust(this.cfg.treasure, c.x, c.y, c.mass, this.cfg.treasure.push * dt);
+          if (ny !== null) c.y = ny;
         }
         // течія шоколадної ріки (та сама формула, що на сервері): діє поза печеньками й кущами
         if (!castle && this.cfg.candy?.river) {

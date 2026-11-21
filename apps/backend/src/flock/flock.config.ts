@@ -384,6 +384,30 @@ export const FLOCK_CONFIG = {
   },
 
   /**
+   * Карта «Острів скарбів» (FLOCK_MAPS, id 9): круглий острів, вода навколо й річка посередині з мостами; у воді клітину
+   * з'їдає акула. Міст витримує клітину масою до bridgeMaxMass. Геометрія й правила - flock.treasure.ts.
+   * Ширина моста 460: клітина масою 1000 має радіус radiusK * sqrt(1000) = 133 (діаметр 266), тож по 97 одиниць запасу з кожного боку.
+   */
+  treasure: {
+    islandRadius: 1560,
+    riverWidth: 300,
+    bridges: 2,
+    bridgeWidth: 460,
+    bridgeMinGap: 900,
+    bridgeEdgeMargin: 200,
+    bridgeMaxMass: 1000,
+    sharkMs: 1500,
+    pushOutSpeed: 520,
+    newbieSafeMs: 15_000,
+    shoreMargin: 120,
+    /** «Скриня зі скарбом»: цінна їжа (маса як massFoods звичайних їжин), не більше max одночасно, лежить lifetimeMs. */
+    chests: { max: 8, lifetimeMs: 60_000, massFoods: 5, spawnEveryMs: 6000 },
+    /** Заготовка: 3 боти-«пірати-мисливці» на базі ШІ вовків (вимкнено; поки false нічого не малюється й не підключається). */
+    pirateHunters: false,
+    pirateHunterCount: 3,
+  },
+
+  /**
    * Карта «Зимовий мороз» (FLOCK_MAPS, id 2): каток по центру світу. Лід тріскається під клітиною, що на ньому, і чим більша маса, тим
    * швидше вона провалюється (час = maxSec * massHalf / (massHalf + маса), не менше minSec). Зійшла з льоду - тріщини загоюються.
    * Їжа, бонуси, кущі й точки появи на катку не з'являються, боти його об'їжджають.
@@ -1126,7 +1150,7 @@ export interface QuestDef {
 export type ThornCfg = { [K in keyof typeof FLOCK_CONFIG.thorns]: number };
 
 /** Вигляд кущів карти: `bush` - зелений, `autumn` - жовте осіннє листя, `fir` - ялинка зі сніговими шапками. */
-export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred' | 'night' | 'jelly';
+export type ThornStyle = 'bush' | 'autumn' | 'fir' | 'charred' | 'night' | 'jelly' | 'palm';
 
 export type MapLayout = 'scatter' | 'clusters' | 'ring';
 
@@ -1155,6 +1179,8 @@ export interface FlockMapDef {
   candy?: boolean;
   /** «Зимовий мороз»: каток по центру світу (див. FLOCK_CONFIG.ice). */
   ice?: boolean;
+  /** «Острів скарбів»: круглий острів, акули у воді, мости (див. FLOCK_CONFIG.treasure). */
+  treasure?: boolean;
 }
 
 /**
@@ -1180,6 +1206,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
    * (звичайні кущі: ховають меншу клітину, розривають більшу; кількість і розмір - тут, у thorns). Вітер, дощ, лава й падіння вимкнені.
    */
   { id: 8, name: 'candy', layout: 'scatter', thornStyle: 'jelly', thorns: { min: 10, max: 14, minGap: 520, massMin: 90, massMax: 900 }, weight: 1, candy: true },
+  /** «Острів скарбів»: круглий острів із річкою й мостами (FLOCK_CONFIG.treasure); кущі-укриття тут - пальми (thornStyle 'palm', механіка як у кущів). У кінці списку, у випадковому виборі наравні з іншими. */
+  { id: 9, name: 'treasure', layout: 'scatter', thornStyle: 'palm', thorns: { min: 10, max: 14, minGap: 520 }, weight: 1, treasure: true },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
@@ -1274,6 +1302,15 @@ export function clientGameConfig() {
     },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
+    treasure: {
+      islandRadius: c.treasure.islandRadius,
+      riverWidth: c.treasure.riverWidth,
+      bridgeWidth: c.treasure.bridgeWidth,
+      bridgeMaxMass: c.treasure.bridgeMaxMass,
+      sharkSec: Math.round((c.treasure.sharkMs / 1000) * 10) / 10,
+      chestsMax: c.treasure.chests.max,
+      chestLifetimeSec: Math.round(c.treasure.chests.lifetimeMs / 1000),
+    },
     ice: { radius: c.ice.radius, maxSec: c.ice.maxSec, minSec: c.ice.minSec, massHalf: c.ice.massHalf },
     candy: {
       puddlesMin: c.candy.puddles.min,

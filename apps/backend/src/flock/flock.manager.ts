@@ -998,7 +998,9 @@ class Arena {
     if (sendBoard) {
       const ranked = w.leaderboard(1000);
       // рубіни за 1-е місце - лише найкращому ЖИВОМУ гравцю: Вожак і боти не рахуються, навіть якщо вище
-      if (this.mode === 'normal' && !this.coliseum) this.checkTop1(ranked.find((r) => !r.bot && !r.boss));
+      if (this.mode === 'normal' && !this.coliseum) this.checkTop1(
+          [...ranked].filter((r) => !r.bot && !r.boss).sort((a, b) => b.total - b.chestMass - (a.total - a.chestMass))[0],
+        );
       boardBuf = encodeBoard({
         top: ranked.slice(0, 15).map((t) => ({
           pid: t.id,
@@ -1060,7 +1062,8 @@ class Arena {
       if (!key) continue; // у паузі: нікуди слати
       const p = w.players.get(s.pid);
       if (!p) continue;
-      const mm = Math.round(p.maxMass);
+      // рекорди дня й серія першого місця не враховують масу зі скринь («Острів скарбів»)
+      const mm = Math.round(Math.max(0, p.maxMass - p.chestMass));
       if (
         mm > s.massReported &&
         w.now - s.massReportedAt >= C.dailyRecords.writeThrottleMs
@@ -1079,6 +1082,8 @@ class Arena {
       if (windMsg) send(key, 'wd', windMsg);
       if (lavaMsg) send(key, 'lv', lavaMsg);
       if (fallMsg) send(key, 'fl', fallMsg);
+      // «Острів скарбів»: підказка «Міст не витримає» лише тому, чию клітину відштовхнуло
+      if (w.bridgeHints.length && w.bridgeHints.includes(s.pid)) send(key, 'br', {});
       if (skyMsg) send(key, 'sy', skyMsg);
       for (const m of scissorsMsgs) send(key, 'sc', m);
       // «Хрест»: «Друге життя» - лише самому гравцеві
@@ -1103,11 +1108,12 @@ class Arena {
           fell: p.fell || undefined,
           swept: p.swept || undefined,
           iced: p.iced || undefined,
+          shark: p.shark || undefined,
           kp: p.killerPid > 0 ? p.killerPid : undefined,
           kb: w.players.get(p.killerPid)?.boss || undefined,
           zone: p.zoneDeath || undefined,
         });
-        if (this.mode === 'normal' && !this.coliseum) this.hooks.onMass?.(s.userId, p.maxMass);
+        if (this.mode === 'normal' && !this.coliseum) this.hooks.onMass?.(s.userId, Math.max(0, p.maxMass - p.chestMass));
         this.hooks.onDeath?.(s.userId, {
           maxMass: p.maxMass,
           kills: p.kills,
@@ -1144,8 +1150,10 @@ class Arena {
     for (const s of this.sessions.values()) {
       if (s.pid !== first.id) continue;
       // завдання «1-ше місце з масою N» (поріг у пулі завдань, не залежить від порога рубінів)
-      if (first.alive && !first.paused && s.connKey) this.hooks.onQuest?.(s.userId, s.connKey, [{ kind: 'top1', n: first.total, mode: 'max' }], false);
-      if (first.total < C.rubies.top1MassThreshold) return;
+      // масу зі скринь («Острів скарбів») не рахуємо: ні в завдання, ні в рубіни за 1-ше місце
+      const honest = first.total - first.chestMass;
+      if (first.alive && !first.paused && s.connKey) this.hooks.onQuest?.(s.userId, s.connKey, [{ kind: 'top1', n: honest, mode: 'max' }], false);
+      if (honest < C.rubies.top1MassThreshold) return;
       if (s.rewardedThisLife || !s.connKey || !first.alive) return;
       s.rewardedThisLife = true;
       this.hooks.onTop1?.(s.userId, s.connKey);
@@ -1433,6 +1441,8 @@ export interface JoinResult {
   candy?: ReturnType<typeof candyWelcome>;
   /** «Зимовий мороз»: каток { x, y, r } і параметри тріщин (maxSec, minSec, mh, rec); без поля - інша карта. */
   ice?: { x: number; y: number; r: number; maxSec: number; minSec: number; mh: number; rec: number };
+  /** «Острів скарбів»: { cx, cy, r, y0, y1, b: мости [x0, x1][], maxMass, shark, shore }; без поля - інша карта. */
+  treasure?: ReturnType<FlockWorld['treasureSnapshot']>;
   /** Зірки «Зорепаду», що вже падають або лежать (для того, хто зайшов посеред події). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** «Дощ» на момент входу (l - лишилось дощу, y - підсихання після нього, d - повне підсихання, p - калюжі). */
@@ -1635,6 +1645,7 @@ export class FlockManager {
       coliseum: s.arena.world.arena ? s.arena.coliseumWelcome() : undefined,
       candy: s.arena.world.candySnapshot(),
       ice: s.arena.world.iceSnapshot(),
+      treasure: s.arena.world.treasureSnapshot(),
       stars: s.arena.world.starsSnapshot(),
       rain: s.arena.world.rainSnapshot(),
       wind: s.arena.world.windSnapshot(),
@@ -1959,7 +1970,7 @@ export class FlockManager {
     const arena = s.arena;
     arena.quests?.leave(arena.world, s);
     const leaving = arena.world.players.get(s.pid);
-    if (leaving && !arena.coliseum) this.hooks.onMass?.(s.userId, leaving.maxMass);
+    if (leaving && !arena.coliseum) this.hooks.onMass?.(s.userId, Math.max(0, leaving.maxMass - leaving.chestMass));
     arena.sessions.delete(s.userId);
     arena.castle?.remove(s.pid);
     arena.world.removePlayer(s.pid);

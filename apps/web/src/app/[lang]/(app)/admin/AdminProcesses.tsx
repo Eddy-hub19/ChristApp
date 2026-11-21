@@ -59,7 +59,7 @@ const flockLevelDot: Record<AdminFlockDecision["level"], HealthLevel> = { low: "
 
 /** Арены «Отари»: сколько людей и ботов, нагрузка арены и решения регулятора (кого убрали/вернули и почему). */
 /** Номер = id карты на сервере; «lake» (4) - карта режима «Замки», «sky» (6) и «coliseum» (7) вимкнены на сервере (weight 0): в выборе следующей арены их нет. */
-const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy"] as const;
+const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy", "treasure"] as const;
 const NIGHT_ID = 5;
 const PICKABLE_MAPS = MAP_KEYS.map((k, id) => ({ k, id })).filter((m) => m.id !== 4 && m.id !== 6 && m.id !== 7);
 
