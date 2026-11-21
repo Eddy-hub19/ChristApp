@@ -19,6 +19,7 @@ import {
   SUGGESTED_THEME_FOREGROUND,
 } from "@/lib/userAppearance";
 import { isPushSupportedInBrowser } from "@/lib/push";
+import { patchMyProfile } from "@/lib/patchProfile";
 import {
   fetchPushStatusForQuery,
   pushStatusQueryKey,
@@ -462,6 +463,20 @@ export default function ProfilePage() {
     setShowProfileEdit(true);
   };
 
+  /** «Звонки» и «Звук звонка»: сразу применяем локально, на сервер уходит PATCH; при ошибке откатываем. */
+  const toggleCallPref = useCallback(
+    async (key: "callsEnabled" | "callRingtone") => {
+      const prev = user?.[key] !== false;
+      patchUser({ [key]: !prev });
+      try {
+        await patchMyProfile({ [key]: !prev }, t("callsSaveFailed"));
+      } catch {
+        patchUser({ [key]: prev });
+      }
+    },
+    [patchUser, t, user],
+  );
+
   const toggleSettingsMenu = () => setIsSettingsOpen((prev) => !prev);
 
   const closeSettingsMenu = () => setIsSettingsOpen(false);
@@ -679,6 +694,33 @@ export default function ProfilePage() {
                 >
                   <span>{t("menuNotifications")}</span>
                   <span className={styles.menuHint}>{pushHint}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitemcheckbox"
+                  aria-checked={user?.callsEnabled !== false}
+                  onClick={() => void toggleCallPref("callsEnabled")}
+                >
+                  <span>{t("menuCalls")}</span>
+                  <span className={styles.menuHint}>
+                    {user?.callsEnabled !== false ? t("menuCallsOn") : t("menuCallsOff")}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className={styles.menuItem}
+                  role="menuitemcheckbox"
+                  aria-checked={user?.callRingtone !== false}
+                  disabled={user?.callsEnabled === false}
+                  onClick={() => void toggleCallPref("callRingtone")}
+                >
+                  <span>{t("menuCallRingtone")}</span>
+                  <span className={styles.menuHint}>
+                    {user?.callRingtone !== false ? t("menuCallRingtoneOn") : t("menuCallRingtoneOff")}
+                  </span>
                 </button>
 
                 <button

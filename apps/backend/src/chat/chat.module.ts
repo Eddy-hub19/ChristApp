@@ -5,6 +5,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { MessagesModule } from 'src/messages/messages.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { PushModule } from 'src/push/push.module';
+import { CallsModule } from 'src/calls/calls.module';
 import { PuzzleUserImagesModule } from './puzzle/user-images/puzzle-user-images.module';
 
 @Module({
@@ -15,6 +16,7 @@ import { PuzzleUserImagesModule } from './puzzle/user-images/puzzle-user-images.
     forwardRef(() => MessagesModule),
     AuthModule,
     forwardRef(() => PushModule),
+    CallsModule,
     PuzzleUserImagesModule,
   ],
   exports: [ChatGateway],

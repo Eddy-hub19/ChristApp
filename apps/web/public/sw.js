@@ -409,11 +409,22 @@ function parsePushPayload(event) {
       messageId:
         typeof payload?.messageId === "string" ? payload.messageId : "",
       badgeCount,
-      kind: payload?.kind === "read-sync" ? "read-sync" : undefined,
+      kind:
+        payload?.kind === "read-sync" ||
+        payload?.kind === "call" ||
+        payload?.kind === "call-cancel" ||
+        payload?.kind === "call-missed"
+          ? payload.kind
+          : undefined,
       readRoomId:
         typeof payload?.readRoomId === "string"
           ? payload.readRoomId
           : undefined,
+      callId: typeof payload?.callId === "string" ? payload.callId : undefined,
+      callerId:
+        typeof payload?.callerId === "string" ? payload.callerId : undefined,
+      callerName:
+        typeof payload?.callerName === "string" ? payload.callerName : undefined,
     };
   } catch {
     return {
@@ -450,6 +461,129 @@ async function applyAppBadgeFromPush(registration, badgeCount) {
   }
 }
 
+/**
+ * Звонки через push. Текст собираем здесь по языку устройства (сервер языка получателя не знает; payload.title/body -
+ * запасной русский вариант для старого кода). Сами пуши приходят с тегом `call-<callId>`: повтор «звонит» заменяет
+ * предыдущее сообщение, отмена/«пропущенный» подменяют его же.
+ */
+function callLang() {
+  const raw = String(
+    (self.navigator && self.navigator.language) || "ru",
+  ).toLowerCase();
+  if (raw.startsWith("uk") || raw.startsWith("ua")) return "ua";
+  if (raw.startsWith("en")) return "en";
+  return "ru";
+}
+
+const CALL_TEXTS = {
+  ru: {
+    ringing: (n) => `${n} звонит вам`,
+    ringBody: "Входящий звонок",
+    missedTitle: "Пропущенный звонок",
+    missedBody: (n) => `Пропущенный звонок от ${n}`,
+    ended: "Звонок завершён",
+    answer: "Ответить",
+    decline: "Отклонить",
+  },
+  ua: {
+    ringing: (n) => `${n} дзвонить вам`,
+    ringBody: "Вхідний дзвінок",
+    missedTitle: "Пропущений дзвінок",
+    missedBody: (n) => `Пропущений дзвінок від ${n}`,
+    ended: "Дзвінок завершено",
+    answer: "Відповісти",
+    decline: "Відхилити",
+  },
+  en: {
+    ringing: (n) => `${n} is calling you`,
+    ringBody: "Incoming call",
+    missedTitle: "Missed call",
+    missedBody: (n) => `Missed call from ${n}`,
+    ended: "Call ended",
+    answer: "Answer",
+    decline: "Decline",
+  },
+};
+
+async function closeCallNotifications(callId) {
+  try {
+    const shown = await self.registration.getNotifications({
+      tag: `call-${callId}`,
+    });
+    for (const notification of shown) notification.close();
+  } catch {
+    // getNotifications({tag}) поддерживается не везде
+  }
+}
+
+async function handleCallPush(payload) {
+  const registration = self.registration;
+  const callId = payload.callId || payload.messageId.replace(/^call-/, "");
+  const tag = `call-${callId}`;
+  const name = payload.callerName || payload.title || "ChristApp";
+  const tx = CALL_TEXTS[callLang()];
+  const data = {
+    url: payload.targetUrl,
+    roomId: payload.roomId,
+    senderId: payload.senderId,
+    createdAt: payload.createdAt,
+    messageId: payload.messageId,
+    kind: payload.kind,
+    callId,
+    callerId: payload.callerId || payload.senderId,
+  };
+
+  if (payload.kind === "call-cancel") {
+    // Звонок сброшен или принят на другом устройстве. Push обязан что-то показать, поэтому подменяем «звонит»
+    // коротким тихим «Звонок завершён» и сразу убираем: нажать на неактуальный звонок уже нельзя.
+    await registration.showNotification(tx.ended, {
+      body: "",
+      icon: "/icon-192x192.png",
+      badge: "/icon-192x192.png",
+      tag,
+      renotify: false,
+      silent: true,
+      requireInteraction: false,
+      data,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await closeCallNotifications(callId);
+    return;
+  }
+
+  if (payload.kind === "call-missed") {
+    await registration.showNotification(tx.missedTitle, {
+      body: tx.missedBody(name),
+      icon: "/icon-192x192.png",
+      badge: "/icon-192x192.png",
+      tag,
+      renotify: true,
+      vibrate: [160, 80, 160],
+      silent: false,
+      requireInteraction: false,
+      data,
+    });
+    return;
+  }
+
+  // «звонит»: держим уведомление, пока его не нажмут (где платформа это умеет), с кнопками и долгой вибрацией
+  await registration.showNotification(tx.ringing(name), {
+    body: tx.ringBody,
+    icon: "/icon-192x192.png",
+    badge: "/icon-192x192.png",
+    tag,
+    renotify: true,
+    vibrate: [400, 200, 400, 200, 400],
+    silent: false,
+    requireInteraction: true,
+    actions: [
+      { action: "answer", title: tx.answer },
+      { action: "decline", title: tx.decline },
+    ],
+    data,
+  });
+}
+
 self.addEventListener("push", (event) => {
   const payload = parsePushPayload(event);
   const registration = self.registration;
@@ -460,6 +594,16 @@ self.addEventListener("push", (event) => {
     event.waitUntil(
       dismissRoomNotifications(payload.readRoomId, payload.badgeCount ?? 0),
     );
+    return;
+  }
+
+  // Дзвінки: свій тег, тексти й кнопки (див. handleCallPush)
+  if (
+    payload.kind === "call" ||
+    payload.kind === "call-cancel" ||
+    payload.kind === "call-missed"
+  ) {
+    event.waitUntil(handleCallPush(payload));
     return;
   }
 
@@ -499,7 +643,53 @@ self.addEventListener("push", (event) => {
   );
 });
 
+/** Нажатие на уведомление звонка: открыть/сфокусировать приложение и передать ему действие (CALL_ACTION). */
+async function handleCallClick(event) {
+  const d = event.notification.data || {};
+  const callId = d.callId;
+  const action =
+    event.action === "answer"
+      ? "accept"
+      : event.action === "decline"
+        ? "decline"
+        : null;
+  let path = typeof d.url === "string" ? d.url : "/chat";
+  if (d.kind === "call-missed") {
+    // «Пропущенный»: просто открыть чат с этим человеком
+    path = d.callerId ? `/chat/${d.callerId}` : "/chat";
+  } else if (action) {
+    path += `${path.includes("?") ? "&" : "?"}callAction=${action}`;
+  }
+  const destination = new URL(path, self.location.origin);
+  const clientList = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  if (clientList.length) {
+    const target =
+      clientList.find((c) => c.visibilityState === "visible") || clientList[0];
+    if (d.kind !== "call-missed" && callId) {
+      target.postMessage({ type: "CALL_ACTION", callId, action });
+    }
+    if (action === "decline") return undefined; // отказ без открытия окна, если приложение уже открыто
+    if (d.kind === "call-missed" && "navigate" in target) {
+      await target.navigate(destination.toString());
+    }
+    return "focus" in target ? target.focus() : undefined;
+  }
+  // приложение закрыто: открываем сразу на нужном чате (?call=<id> подхватит провайдер звонков)
+  return self.clients.openWindow
+    ? self.clients.openWindow(destination.toString())
+    : undefined;
+}
+
 self.addEventListener("notificationclick", (event) => {
+  const kind = event.notification?.data?.kind;
+  if (kind === "call" || kind === "call-missed") {
+    event.notification.close();
+    event.waitUntil(handleCallClick(event));
+    return;
+  }
   event.notification.close();
 
   const targetPath =

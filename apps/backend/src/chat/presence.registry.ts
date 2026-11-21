@@ -109,6 +109,14 @@ export class PresenceRegistry {
     return this.online.has(userId);
   }
 
+  /**
+   * Прямо сейчас хотя бы одно окно пользователя видно на экране (без дебаунса «ушёл в офлайн», в отличие от isOnline).
+   * Нужен звонкам: пуш не шлём, только если окно реально видно. Не дольше PRESENCE_AWAY_AFTER_MS после пропавшего heartbeat.
+   */
+  hasVisibleDevice(userId: string) {
+    return this.hasActiveDevice(userId);
+  }
+
   onlineUserIds() {
     return Array.from(this.online);
   }

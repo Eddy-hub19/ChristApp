@@ -512,7 +512,14 @@
     "alertBgInvalid": "Цвет фона: выберите оттенок в палитре (формат #RRGGBB).",
     "saveFailed": "Не удалось сохранить",
     "resetAppearanceFailed": "Не удалось сбросить оформление",
-    "noAuth": "Нет авторизации"
+    "noAuth": "Нет авторизации",
+    "menuCalls": "Звонки",
+    "menuCallsOn": "Включены",
+    "menuCallsOff": "Выключены",
+    "menuCallRingtone": "Звук звонка",
+    "menuCallRingtoneOn": "Включён",
+    "menuCallRingtoneOff": "Выключен",
+    "callsSaveFailed": "Не удалось сохранить настройку звонков"
   },
   "profileChapters": {
     "startToday": "Начни путь сегодня",
@@ -1113,6 +1120,7 @@
     "previewPhoto": "🖼 Фото",
     "previewVoice": "🎤 Голосовое",
     "previewVideoNote": "🎥 Видеокружок",
+    "previewMissedCall": "📞 Пропущенный звонок",
     "previewFile": "📎 Файл",
     "messageMenu": "Действия с сообщением",
     "closeMenu": "Закрыть меню",
@@ -2364,5 +2372,30 @@
       "updated": "Последнее обновление",
       "englishOnly": "Этот документ доступен только на английском языке."
     }
+  },
+  "calls": {
+    "incomingTitle": "Входящий звонок",
+    "incomingSubtitle": "{name} звонит вам",
+    "unknownCaller": "Неизвестный",
+    "accept": "Ответить",
+    "decline": "Отклонить",
+    "calling": "Звоним: {name}…",
+    "cancel": "Сбросить",
+    "declined": "Собеседник отклонил звонок.",
+    "noAnswer": "Нет ответа",
+    "busy": "Занято",
+    "unavailable": "Недоступно",
+    "cancelled": "Звонок отменён",
+    "missed": "Пропущенный звонок",
+    "ended": "Звонок завершён",
+    "failed": "Не удалось установить соединение звонка.",
+    "cooldown": "Подождите немного перед повторным звонком",
+    "rateLimited": "Слишком много звонков, попробуйте позже",
+    "alreadyInCall": "Вы уже в звонке",
+    "notParticipant": "Звонить можно только в личном чате",
+    "returnToCall": "Вернуться к звонку",
+    "endedShort": "Мы поговорили менее минуты с Божьей помощью 🙏",
+    "missedRecord": "Пропущенный звонок",
+    "endedMinutes": "Мы поговорили {minutes} мин. с Божьей помощью 🙏"
   }
 }

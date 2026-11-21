@@ -1,4 +1,4 @@
-export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE" | "VIDEO_NOTE";
+export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE" | "VIDEO_NOTE" | "SYSTEM";
 /** Емодзі реакції. Набір, що пропонується, — CHAT_REACTIONS; старі реакції (напр. 🤍) теж відображаються. */
 export type AppReactionType = string;
 

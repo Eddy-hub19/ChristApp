@@ -153,6 +153,7 @@ function ChatWindow({
   revealOnMount = false,
 }: ChatWindowProps) {
   const t = useTranslations("chat");
+  const tCalls = useTranslations("calls");
   const lang = useLocale();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -695,7 +696,13 @@ function ChatWindow({
     );
   };
 
-  const renderBubbleBody = (message: Message) => (
+  const renderBubbleBody = (message: Message) =>
+    message.type === "SYSTEM" ? (
+      // Системная запись («Пропущенный звонок»): плашка по центру, без «бульбашки», реакций и меню
+      <div ref={(element) => setMessageRef(message.id, element)} data-chat-message className={styles.systemLine}>
+        <span className={styles.systemLineLabel}>{tCalls("missedRecord")}</span>
+      </div>
+    ) : (
     <div
       ref={(element) => {
         setMessageRef(message.id, element);
@@ -755,7 +762,7 @@ function ChatWindow({
         );
       })()}
     </div>
-  );
+    );
 
   const handleScrollToBottom = useCallback(() => {
     scrollListToBottom("smooth");

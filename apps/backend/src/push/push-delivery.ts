@@ -4,6 +4,8 @@ export type PushKind =
   | 'watch'
   | 'watchInvite'
   | 'call'
+  | 'callCancel'
+  | 'callMissed'
   | 'readSync'
   | 'broadcast'
   | 'test';

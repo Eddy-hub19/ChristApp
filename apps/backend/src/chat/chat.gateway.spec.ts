@@ -117,6 +117,7 @@ describe('ChatGateway', () => {
       messagesService as never,
       pushService as never,
       { ensureLoaded: jest.fn() } as never,
+      { setDirectory: jest.fn() } as never,
     );
 
     roomEmit = jest.fn();

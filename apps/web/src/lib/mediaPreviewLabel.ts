@@ -16,6 +16,7 @@ const FALLBACK: Record<string, string> = {
   previewVoice: "🎤 Голосове",
   previewVideoNote: "🎥 Відеокружок",
   previewFile: "📎 Файл",
+  previewMissedCall: "📞",
 };
 
 function mmss(seconds: number): string {
@@ -36,6 +37,8 @@ export function mediaPreviewLabel(
   const text = m.content.trim();
 
   if (m.type === "VIDEO_NOTE") return label("previewVideoNote");
+  // Системная запись (пока только «Пропущенный звонок», content = `call:missed`).
+  if (m.type === "SYSTEM") return label("previewMissedCall");
   if (m.type === "FILE") {
     return bookPreviewLabel(text) ?? (detailed && text ? `📎 ${text}` : label("previewFile"));
   }

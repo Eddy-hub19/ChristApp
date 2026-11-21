@@ -7,6 +7,7 @@ import AppWhatsNew from "@/components/AppWhatsNew/AppWhatsNew";
 import OtaraAnnouncement from "@/components/OtaraAnnouncement/OtaraAnnouncement";
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync";
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket";
+import CallProvider from "@/components/calls/CallProvider";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt/PwaInstallPrompt";
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration";
 import PushAutoSync from "@/components/PushAutoSync/PushAutoSync";
@@ -51,14 +52,16 @@ export default function AppShellLayout({
         <PushAutoSync />
         <AppWhatsNew />
         <PresenceSocket>
-          <CinemaProvider>
-            <OtaraAnnouncement />
-            <DesignBackdrop />
-            <AppBackground />
-            <ThemeToggle />
-            <AdaptiveMain>{children}</AdaptiveMain>
-            <TabBar />
-          </CinemaProvider>
+          <CallProvider>
+            <CinemaProvider>
+              <OtaraAnnouncement />
+              <DesignBackdrop />
+              <AppBackground />
+              <ThemeToggle />
+              <AdaptiveMain>{children}</AdaptiveMain>
+              <TabBar />
+            </CinemaProvider>
+          </CallProvider>
         </PresenceSocket>
       </Providers>
     </>

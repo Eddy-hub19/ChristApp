@@ -42,6 +42,8 @@ const profileSelect = {
   bubbleStyle: true,
   chatBackgrounds: true,
   fontPrefs: true,
+  callsEnabled: true,
+  callRingtone: true,
 } as const;
 
 @Injectable()
@@ -120,6 +122,7 @@ export class UsersService {
     const hasBubbleStyle = dto.bubbleStyle !== undefined;
     const hasChatBackgrounds = dto.chatBackgrounds !== undefined;
     const hasFontPrefs = dto.fontPrefs !== undefined;
+    const hasCallPrefs = dto.callsEnabled !== undefined || dto.callRingtone !== undefined;
 
     if (
       !hasIdentity &&
@@ -127,7 +130,8 @@ export class UsersService {
       !hasBio &&
       !hasBubbleStyle &&
       !hasChatBackgrounds &&
-      !hasFontPrefs
+      !hasFontPrefs &&
+      !hasCallPrefs
     ) {
       throw new BadRequestException('Нет данных для обновления');
     }
@@ -207,6 +211,8 @@ export class UsersService {
         where: { id: userId },
         data: {
           ...(hasBubbleStyle ? { bubbleStyle: dto.bubbleStyle } : {}),
+          ...(dto.callsEnabled !== undefined ? { callsEnabled: dto.callsEnabled } : {}),
+          ...(dto.callRingtone !== undefined ? { callRingtone: dto.callRingtone } : {}),
           ...(hasChatBackgrounds
             ? {
                 chatBackgrounds: chatBackgrounds

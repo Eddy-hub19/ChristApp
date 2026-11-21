@@ -512,7 +512,14 @@
     "alertBgInvalid": "Background color: pick a shade in the palette (#RRGGBB).",
     "saveFailed": "Could not save",
     "resetAppearanceFailed": "Could not reset appearance",
-    "noAuth": "Not signed in"
+    "noAuth": "Not signed in",
+    "menuCalls": "Calls",
+    "menuCallsOn": "On",
+    "menuCallsOff": "Off",
+    "menuCallRingtone": "Call sound",
+    "menuCallRingtoneOn": "On",
+    "menuCallRingtoneOff": "Off",
+    "callsSaveFailed": "Could not save the call setting"
   },
   "profileChapters": {
     "startToday": "Start your journey today",
@@ -1113,6 +1120,7 @@
     "previewPhoto": "🖼 Photo",
     "previewVoice": "🎤 Voice message",
     "previewVideoNote": "🎥 Video note",
+    "previewMissedCall": "📞 Missed call",
     "previewFile": "📎 File",
     "messageMenu": "Message actions",
     "closeMenu": "Close menu",
@@ -2364,5 +2372,30 @@
       "updated": "Last updated",
       "englishOnly": "This document is available in English only."
     }
+  },
+  "calls": {
+    "incomingTitle": "Incoming call",
+    "incomingSubtitle": "{name} is calling you",
+    "unknownCaller": "Unknown",
+    "accept": "Answer",
+    "decline": "Decline",
+    "calling": "Calling {name}…",
+    "cancel": "Hang up",
+    "declined": "The other person declined the call.",
+    "noAnswer": "No answer",
+    "busy": "Busy",
+    "unavailable": "Unavailable",
+    "cancelled": "Call cancelled",
+    "missed": "Missed call",
+    "ended": "Call ended",
+    "failed": "Could not connect the call.",
+    "cooldown": "Please wait a moment before calling again",
+    "rateLimited": "Too many calls, try again later",
+    "alreadyInCall": "You are already in a call",
+    "notParticipant": "You can only call in a personal chat",
+    "returnToCall": "Return to call",
+    "endedShort": "We talked for less than a minute with God's help 🙏",
+    "missedRecord": "Missed call",
+    "endedMinutes": "We talked for {minutes} min. with God's help 🙏"
   }
 }
