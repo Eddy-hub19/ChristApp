@@ -20,6 +20,7 @@ import {
 } from "@/lib/bubbleStyles";
 import { RECOMMENDED_BACKGROUND } from "@/lib/chatBackgrounds";
 import styles from "./BubbleStyleSettings.module.scss";
+import { track } from "@/lib/analytics";
 
 /** Пример пузыря в выбранном стиле: те же data-атрибуты, что у настоящих пузырей (styles/bubbleStyles.scss). */
 export function SampleBubble({
@@ -118,6 +119,7 @@ export default function BubbleStyleSettings({ onClose }: { onClose: () => void }
         throw new Error(getApiErrorMessage(data, t("saveFailed")));
       }
       patchUser({ bubbleStyle: draft });
+      track("bubble_style_change", { id: draft });
       setUserBubbleStyle(user.id, draft);
       setDraft(null);
       onClose();

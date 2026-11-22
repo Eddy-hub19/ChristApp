@@ -8,6 +8,7 @@ import {
   THEME_TOAST_MS,
 } from "./doodleBackground";
 import styles from "./DoodleMiniGame.module.scss";
+import { useGameAnalytics } from "@/hooks/useGameAnalytics";
 
 type Platform = {
   x: number;
@@ -101,6 +102,7 @@ export default function DoodleMiniGame({
   onScoreChange,
   onStateChange,
 }: DoodleMiniGameProps) {
+  useGameAnalytics("doodle", open);
   const t = useTranslations("doodle");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);

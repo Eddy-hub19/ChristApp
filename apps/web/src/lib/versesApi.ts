@@ -1,6 +1,7 @@
 import { getHttpApiBase } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
+import { track } from "@/lib/analytics";
 
 const API_URL = getHttpApiBase();
 
@@ -37,6 +38,7 @@ export async function saveVerse(
     throw new Error(error.message || "Failed to save verse");
   }
 
+  track("verse_saved");
   return res.json();
 }
 

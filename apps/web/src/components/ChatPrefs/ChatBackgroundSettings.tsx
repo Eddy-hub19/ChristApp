@@ -20,6 +20,7 @@ import { patchMyProfile } from "@/lib/patchProfile";
 import base from "@/components/BubbleStyleSettings/BubbleStyleSettings.module.scss";
 import styles from "./ChatPrefs.module.scss";
 import PrefsScreen from "./PrefsScreen";
+import { track } from "@/lib/analytics";
 
 export type BackgroundScope = { kind: "default" } | { kind: "room"; roomKey: string };
 
@@ -82,6 +83,7 @@ export default function ChatBackgroundSettings({ scope, onClose }: { scope: Back
       const next = isRoom && roomKey ? withRoomBackground(prefs, roomKey, draft) : withDefaultBackground(prefs, draft);
       await patchMyProfile({ chatBackgrounds: next }, t("saveFailed"));
       patchUser({ chatBackgrounds: next });
+      track("chat_background_change", { id: draft?.id ?? "default" });
       setDraft(undefined);
       onClose();
     } catch (e) {

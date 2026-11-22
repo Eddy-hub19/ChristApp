@@ -14,6 +14,7 @@ import { formatDuration, placedCount } from "./puzzleView";
 import type { PieceCount, PuzzleLang, PuzzleMode, PuzzleSocket } from "./puzzleTypes";
 import { usePuzzleSession } from "./usePuzzleSession";
 import styles from "./PuzzleMiniGame.module.scss";
+import { useGameAnalytics } from "@/hooks/useGameAnalytics";
 
 type Props = {
   open: boolean;
@@ -109,6 +110,7 @@ export default function PuzzleMiniGame({
   peerAvatarUrl,
   onClose,
 }: Props) {
+  useGameAnalytics("puzzle", open);
   const t = useTranslations("puzzle");
   const locale = useLocale();
   const lang: PuzzleLang = locale === "ru" || locale === "en" ? locale : "ua";

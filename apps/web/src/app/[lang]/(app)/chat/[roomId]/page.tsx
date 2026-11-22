@@ -26,6 +26,8 @@ import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
 import { clearServerViewState } from "@/lib/viewStateBeacon";
 import { attachPresenceReporter } from "@/lib/presenceReporter";
+import { track } from "@/lib/analytics";
+import { trackChatMessageSent } from "@/lib/analyticsEvents";
 import { showChatNotification } from "@/lib/notifications";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { Link } from "@/i18n/navigation";
@@ -3239,6 +3241,7 @@ export default function ChatPageDetails() {
       const socket = socketRef.current;
       if (!socket || !socket.connected || !effectiveSocketRoomId) return;
       if (isOptimisticMessageId(message.id)) return;
+      if (pin) track("message_pinned");
       socket.emit(pin ? "pin-message" : "unpin-message", {
         chatId: effectiveSocketRoomId,
         messageId: message.id,
@@ -3262,6 +3265,7 @@ export default function ChatPageDetails() {
         const mine = base.find(
           (item) => item.userId === myId && item.type === reaction,
         );
+        if (!mine) track("reaction_added");
         const optimistic = mine
           ? base.filter((item) => item !== mine)
           : [
@@ -3578,6 +3582,7 @@ export default function ChatPageDetails() {
       replyToId: replyTarget?.id,
       clientMessageId,
     });
+    trackChatMessageSent("text", targetRoomId, normalizedText);
 
     if (user) {
       const optimistic = {
@@ -3679,6 +3684,7 @@ export default function ChatPageDetails() {
         type: "video_note",
         fileUrl: secureUrl,
       });
+      trackChatMessageSent("video", targetRoomId);
     },
     [
       directChatTargetUserId,
@@ -3886,6 +3892,7 @@ export default function ChatPageDetails() {
         content: payload,
         replyToId: replyTarget?.id,
       });
+      trackChatMessageSent("sticker", targetRoomId);
       return true;
     },
     [

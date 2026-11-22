@@ -168,6 +168,18 @@ function shouldBypassSwFetch(request) {
     return true;
   }
 
+  /**
+   * Аналитика (Google Tag Manager / GA4): скрипты контейнера и пиксели не кешируем и не перехватываем —
+   * иначе SWR-кеш отдавал бы устаревший gtm.js, а CSP самого sw.js не пускает fetch к этим доменам.
+   */
+  if (
+    /(^|\.)(googletagmanager\.com|google-analytics\.com|analytics\.google\.com|doubleclick\.net)$/.test(
+      url.hostname,
+    )
+  ) {
+    return true;
+  }
+
   const p = url.pathname;
   if (p === "/login" || p === "/register") {
     return true;

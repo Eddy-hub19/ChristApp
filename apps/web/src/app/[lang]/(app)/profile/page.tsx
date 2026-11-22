@@ -6,6 +6,7 @@ import { useAuth, type AuthUser } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import GoogleSettingsRow from "@/components/GoogleSettings/GoogleSettingsRow";
+import AnalyticsSettingsRow from "@/components/AnalyticsSettings/AnalyticsSettingsRow";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import { getAppStreak, hasVisitedToday } from "@/lib/appStreak";
 import StreakBadge from "@/components/StreakBadge/StreakBadge";
@@ -905,6 +906,7 @@ export default function ProfilePage() {
         <ChatBackgroundRow onOpen={() => setBgSettingsOpen(true)} />
         <FontRow onOpen={() => setFontSettingsOpen(true)} />
         <GoogleSettingsRow />
+        <AnalyticsSettingsRow />
       </section>
       {bubbleSettingsOpen ? <BubbleStyleSettings onClose={() => setBubbleSettingsOpen(false)} /> : null}
       {chatLayoutOpen ? <ChatLayoutSettings onClose={() => setChatLayoutOpen(false)} /> : null}

@@ -2,6 +2,7 @@ import { hasActivePushSubscription } from "@/lib/push";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { scripturePlainText } from "@/lib/sanitizeScriptureHtml";
 import { parseFlockInvite } from "@/lib/flockInviteMessage";
+import { track } from "@/lib/analytics";
 
 const VERSE_SHARE_META_PREFIX = "[[verse-share:";
 const VERSE_SHARE_META_SUFFIX = "]]";
@@ -47,7 +48,11 @@ export async function requestNotificationPermissionIfNeeded(): Promise<Notificat
   }
 
   try {
-    return await Notification.requestPermission();
+    const result = await Notification.requestPermission();
+    if (result === "granted" || result === "denied") {
+      track("notifications_permission", { result });
+    }
+    return result;
   } catch {
     return Notification.permission;
   }

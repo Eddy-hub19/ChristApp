@@ -24,6 +24,7 @@ import type {
 } from "./guessTypes";
 import { useGuessSession } from "./useGuessSession";
 import styles from "./GuessCharacterMiniGame.module.scss";
+import { useGameAnalytics } from "@/hooks/useGameAnalytics";
 
 type Props = {
   open: boolean;
@@ -151,6 +152,7 @@ function CharacterPicker({ characters, lang, excludeIds = NO_IDS, confirmLabel, 
 }
 
 export default function GuessCharacterMiniGame({ open, roomId, socket, userId, peerName, onClose }: Props) {
+  useGameAnalytics("guess", open);
   const t = useTranslations("guessCharacter");
   const locale = useLocale();
   const lang: GuessLang = locale === "ru" || locale === "en" ? locale : "ua";

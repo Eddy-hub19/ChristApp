@@ -23,12 +23,19 @@ export type LegalDocument = {
 /** Контакт власника застосунку (публічний, використовується в Privacy, Terms і футері). */
 export const CONTACT = "sekaneduard@gmail.com";
 
+/**
+ * ВЛАСНИК: срок хранения данных событий в Google Analytics 4 (Admin → Data collection and modification → Data retention),
+ * например "2 months" или "14 months". Пока `null`, фраза о сроке в разделе Analytics Privacy Policy не показывается.
+ * Значение должно совпадать с настройкой в GA4.
+ */
+export const GA4_RETENTION: string | null = null;
+
 export const privacyPolicy: LegalDocument = {
   title: "Privacy Policy",
   description:
     "How Christ App collects, uses, stores and deletes personal data, including information received through Google Sign-In.",
   effectiveDate: "November 11, 2026",
-  lastUpdated: "November 18, 2026",
+  lastUpdated: "November 22, 2026",
   intro: (
     <>
       This Privacy Policy explains how Christ App (the “app”, “we”) handles
@@ -170,7 +177,64 @@ export const privacyPolicy: LegalDocument = {
       ],
     },
     {
-      heading: "5. Where and how information is stored",
+      heading: "5. Analytics",
+      blocks: [
+        {
+          type: "p",
+          content:
+            "Christ App can use Google Tag Manager to load Google Analytics (Google LLC) and learn, in aggregate, how the app is used. Analytics is optional and off by default: nothing from Google is loaded and no usage events are sent until you choose “Accept” in the consent banner. We do not use advertising features, and all advertising-related consent signals are always set to “denied”.",
+        },
+        {
+          type: "p",
+          content: "If you accept, the following is collected:",
+        },
+        {
+          type: "ul",
+          items: [
+            "anonymous usage events, such as which screen was opened, which feature or game was used, or that a message or call happened (only its type, never its content);",
+            "technical device and browser data that Google Analytics collects automatically, such as browser, operating system, screen size and language;",
+            "approximate location at the country level, derived by Google Analytics from your connection;",
+            "a random identifier stored by Google Analytics in a cookie in your browser.",
+          ],
+        },
+        {
+          type: "p",
+          content: "What is not collected by analytics:",
+        },
+        {
+          type: "ul",
+          items: [
+            "the text or content of messages, drafts, notes, search queries, room or video titles, or Bible verses you save;",
+            "your name, nickname, email address, user ID, or the IDs of chats and messages;",
+            "any identifier of your Christ App account: we do not send a user ID to Google Analytics, so analytics data is not linked to your account.",
+          ],
+        },
+        {
+          type: "p",
+          content: (
+            <>
+              <strong>Your choice.</strong> You can change it at any time in
+              Profile → Settings → Analytics. Turning it off stops sending
+              events and removes the analytics cookies set by the app.
+              Declining does not limit any feature of Christ App.
+              {GA4_RETENTION
+                ? ` Event data is kept in Google Analytics for ${GA4_RETENTION}.`
+                : ""}{" "}
+              How Google handles data is described in the{" "}
+              <a
+                href="https://policies.google.com/privacy"
+                rel="noopener noreferrer"
+              >
+                Google Privacy Policy
+              </a>
+              .
+            </>
+          ),
+        },
+      ],
+    },
+    {
+      heading: "6. Where and how information is stored",
       blocks: [
         {
           type: "p",
@@ -180,7 +244,7 @@ export const privacyPolicy: LegalDocument = {
       ],
     },
     {
-      heading: "6. Retention and deletion",
+      heading: "7. Retention and deletion",
       blocks: [
         {
           type: "p",
@@ -212,7 +276,7 @@ export const privacyPolicy: LegalDocument = {
       ],
     },
     {
-      heading: "7. Children",
+      heading: "8. Children",
       blocks: [
         {
           type: "p",
@@ -227,7 +291,7 @@ export const privacyPolicy: LegalDocument = {
       ],
     },
     {
-      heading: "8. Changes to this policy",
+      heading: "9. Changes to this policy",
       blocks: [
         {
           type: "p",
@@ -237,7 +301,7 @@ export const privacyPolicy: LegalDocument = {
       ],
     },
     {
-      heading: "9. Contact",
+      heading: "10. Contact",
       blocks: [
         {
           type: "p",

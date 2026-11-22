@@ -83,6 +83,7 @@ services:
         NEXT_PUBLIC_BIBLE_API_URL: ${NEXT_PUBLIC_BIBLE_API_URL:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
         NEXT_PUBLIC_AGORA_APP_ID: ${NEXT_PUBLIC_AGORA_APP_ID:-}
+        NEXT_PUBLIC_GTM_ID: ${NEXT_PUBLIC_GTM_ID:-}
         GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
         BACKEND_PROXY_TARGET: http://christapp-prod-backend:3001
     restart: always

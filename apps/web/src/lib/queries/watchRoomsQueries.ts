@@ -5,6 +5,7 @@ import { getAuthToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { WatchProvider } from "@/lib/watchSync";
+import { track } from "@/lib/analytics";
 
 const API_URL = getHttpApiBase();
 
@@ -165,6 +166,19 @@ export function createWatchRoom(input: {
   return request<{ id: string }>("/watch-rooms", {
     method: "POST",
     body: JSON.stringify(input),
+  }).then((room) => {
+    track("cinema_room_created");
+    track("cinema_provider", {
+      provider:
+        input.provider === "YOUTUBE"
+          ? "youtube"
+          : input.provider === "VIMEO"
+            ? "vimeo"
+            : input.provider === "FILE"
+              ? "file"
+              : "other",
+    });
+    return room;
   });
 }
 
@@ -189,6 +203,9 @@ export function rotateWatchInviteToken(roomId: string) {
 export function acceptWatchInvite(roomId: string) {
   return request<{ roomId: string }>(`/watch-rooms/${roomId}/accept`, {
     method: "POST",
+  }).then((res) => {
+    track("cinema_room_joined");
+    return res;
   });
 }
 
@@ -213,7 +230,10 @@ export function joinWatchRoomByToken(token: string) {
   return request<{ roomId: string }>(
     `/watch-rooms/join/${encodeURIComponent(token)}`,
     { method: "POST" },
-  );
+  ).then((res) => {
+    track("cinema_room_joined");
+    return res;
+  });
 }
 
 export function watchUserName(user: Pick<WatchUser, "nickname" | "username"> | null | undefined) {

@@ -61,6 +61,8 @@ import {
   BIBLE_LAST_READ_STORAGE_KEY,
   markBibleChapterCompleted,
 } from "@/lib/bibleReadingProgress";
+import { track } from "@/lib/analytics";
+import { isOldTestamentBook } from "@/lib/bibleBooks";
 
 type VerseType = {
   pk: number;
@@ -239,6 +241,10 @@ export default function BibleReader({
    * Клієнт + позиція читання до відмальовування: при поверненні з «Чатів» кеш книг уже в QueryClient,
    * а useQuery з enabled:false ще не віддав би data — без цього щоразу скелетон.
    */
+  useEffect(() => {
+    track("bible_open");
+  }, []);
+
   useLayoutEffect(() => {
     setIsMounted(true);
 
@@ -724,6 +730,9 @@ export default function BibleReader({
           if (timer === undefined) {
             timer = window.setTimeout(() => {
               markBibleChapterCompleted(bookId, chapter);
+              track("bible_chapter_view", {
+                testament: isOldTestamentBook(bookId) ? "old" : "new",
+              });
               clearTimer();
             }, 2000);
           }
@@ -791,6 +800,7 @@ export default function BibleReader({
               onChange={(e) => {
                 setTranslation(e.target.value);
                 saveTranslation(lang, e.target.value);
+                track("bible_translation_change", { translation: e.target.value });
               }}
             >
               {filterAllowedTranslations(translations).map((t) => (

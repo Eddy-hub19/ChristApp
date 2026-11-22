@@ -19,6 +19,7 @@ import { patchMyProfile } from "@/lib/patchProfile";
 import base from "@/components/BubbleStyleSettings/BubbleStyleSettings.module.scss";
 import styles from "./ChatPrefs.module.scss";
 import PrefsScreen from "./PrefsScreen";
+import { track } from "@/lib/analytics";
 
 /** «Розмір тексту»: размер текста сообщений; живое превью, «Зберегти» / «Скасувати» / «Назад». Шрифт у всех по умолчанию. */
 export default function FontSettings({ onClose }: { onClose: () => void }) {
@@ -46,6 +47,7 @@ export default function FontSettings({ onClose }: { onClose: () => void }) {
     try {
       await patchMyProfile({ fontPrefs: isDefaultFontPrefs(draft) ? null : draft }, t("saveFailed"));
       patchUser({ fontPrefs: isDefaultFontPrefs(draft) ? null : draft });
+      track("chat_font_change", { id: draft.size });
       setDraft(null);
       onClose();
     } catch (e) {

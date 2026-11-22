@@ -6,6 +6,7 @@ import {
   type AuthSessionPayload,
 } from "@/lib/authSession";
 import { parseAuthError, type AuthErrorInfo } from "@/lib/authErrors";
+import { markPendingAuthEvent } from "@/lib/analytics";
 
 const AUTH_PROXY_URL = "/api/auth";
 
@@ -42,6 +43,8 @@ export async function fetchGoogleEnabled(): Promise<boolean> {
 /** Повна навігація (не popup): popup у Safari/PWA на iPhone блокується. */
 export function startGoogleRedirect(mode: "login" | "link", lang: string) {
   const params = new URLSearchParams({ mode, lang });
+  // Вход через Google завершается редиректом: событие отправится на первом экране приложения после возврата.
+  if (mode === "login") markPendingAuthEvent("login", "google");
   window.location.assign(`${AUTH_PROXY_URL}/google/start?${params}`);
 }
 

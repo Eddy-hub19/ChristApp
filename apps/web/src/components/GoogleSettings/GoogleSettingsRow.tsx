@@ -18,6 +18,7 @@ import {
   type AuthMethods,
 } from "@/lib/googleAuth";
 import styles from "./GoogleSettingsRow.module.scss";
+import { track } from "@/lib/analytics";
 
 /** Строка «Google» в «Налаштування»: подключить / отключить, показывает подключённый email (только владельцу). */
 export default function GoogleSettingsRow() {
@@ -63,6 +64,7 @@ export default function GoogleSettingsRow() {
     const err = params.get("googleError");
     if (!ok && !err) return;
     if (ok) {
+      track("google_connect");
       setMessage({ ok: true, text: t("linked") });
     } else if (err) {
       const code = GOOGLE_REDIRECT_ERRORS[err] ?? "GOOGLE_AUTH_FAILED";

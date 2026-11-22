@@ -19,6 +19,8 @@ import { CalendarCheck, Crown } from "lucide-react";
 import { claimFlockAchievement, claimFlockQuest, fetchFlockAchievements, fetchFlockQuests, FlockApiError, type FlockAchievement, type FlockAchievementsView, type FlockQuest, type FlockQuestsView } from "./flockApi";
 import FlockSheet from "./FlockSheet";
 import styles from "./FlockQuests.module.scss";
+import { track } from "@/lib/analytics";
+import { questDifficulty } from "./flockAnalytics";
 
 /** Иконка по виду задания (все из общей библиотеки иконок игр). */
 export const KIND_ICON: Record<string, ComponentType<ColorIconProps>> = {
@@ -89,6 +91,7 @@ export default function FlockQuests({ onClose, onChanged }: Props) {
     setError(null);
     try {
       const r = await claimFlockQuest(q.slot);
+      track("otara_quest_claimed", { difficulty: questDifficulty(q.slot), reward: r.amount });
       setView({ day: r.day, resetInMs: r.resetInMs, quests: r.quests, claimable: r.claimable, at: Date.now() });
       onChanged({ ...(r.type === "emeralds" ? { emeralds: r.balance } : { rubies: r.balance }), claimable: r.claimable + (ach?.claimable ?? 0) });
     } catch (e) {
