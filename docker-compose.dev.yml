@@ -36,10 +36,7 @@ services:
     volumes: [backend_uploads:/repo/apps/backend/uploads]
     depends_on:
       db: { condition: service_healthy }
-    networks:
-      internal:
-      web:
-        aliases: [christapp-dev-backend]
+    networks: [internal]
 
   web:
     restart: unless-stopped
@@ -56,19 +53,16 @@ services:
         NEXT_PUBLIC_BIBLE_API_URL: ${NEXT_PUBLIC_BIBLE_API_URL:-}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
         NEXT_PUBLIC_AGORA_APP_ID: ${NEXT_PUBLIC_AGORA_APP_ID:-}
-        BACKEND_PROXY_TARGET: http://christapp-dev-backend:3001
+        BACKEND_PROXY_TARGET: http://backend:3001
     env_file: [.env.development]
     environment:
       NODE_ENV: production
       PORT: '3000'
-      BACKEND_PROXY_TARGET: http://christapp-dev-backend:3001
+      BACKEND_PROXY_TARGET: http://backend:3001
     ports: ['127.0.0.1:${FRONTEND_PORT:-3000}:3000']
     depends_on:
       backend: { condition: service_healthy }
-    networks:
-      internal:
-      web:
-        aliases: [christapp-dev-web]
+    networks: [internal]
 
 volumes:
   db_data:
@@ -76,6 +70,3 @@ volumes:
 
 networks:
   internal:
-  web:
-    external: true
-    name: web
