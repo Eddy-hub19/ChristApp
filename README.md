@@ -14,11 +14,11 @@ npm workspaces, one root `package-lock.json`:
 
 `npm install` at the root only. `npm run dev` starts backend and web together; `npm run build`, `lint`, `test` and `check` run in every workspace. Add a dependency with `npm install <dep> -w @christapp/backend`.
 
-## Docker: dev and prod
+## Docker: local and prod
 
 | File | Env file | Scripts | What |
 | --- | --- | --- | --- |
-| `docker-compose.dev.yml` | `.env.development` | `docker:*` | PostgreSQL 18, backend (migrations on start), web; ports published on `127.0.0.1` |
+| `docker-compose.dev.yml` | `.env.development` | `docker:*` | local only: PostgreSQL 18, backend (migrations on start), web; ports published on `127.0.0.1`, not on the `web` network, never deployed |
 | `docker-compose.prod.yml` | `.env.production` | `docker:prod:*` | PostgreSQL (not published), one-shot `migrate`, backend, web, log rotation |
 
 Env files are not tracked by git; create them yourself with the keys the compose files and apps read.
@@ -27,12 +27,11 @@ Running the backend without Docker (`npm run dev`): it reads only the root `.env
 
 ### Network and nginx
 
-Backend and web of both stacks join the external Docker network `web` (created automatically by the scripts, name in the `config` block of `package.json`). Put nginx on the same network and proxy to the container aliases:
+Backend and web of the prod stack join the external Docker network `web` (created automatically by `docker:prod:*`, name in the `config` block of `package.json`). Put nginx on the same network and proxy to the container aliases. The local stack is not on this network:
 
 | Stack | Backend (port 3001) | Web (port 3000) |
 | --- | --- | --- |
 | prod | `christapp-prod-backend` | `christapp-prod-web` |
-| dev | `christapp-dev-backend` | `christapp-dev-web` |
 
 The database is only on the stack-private `internal` network.
 
@@ -82,7 +81,7 @@ server {
 
 The trailing slash in `proxy_pass http://christapp-prod-backend:3001/;` is what strips the prefix. Keep it.
 
-### Dev
+### Local
 
 ```
 npm run docker:up

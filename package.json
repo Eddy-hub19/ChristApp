@@ -23,7 +23,7 @@
     "test": "npm run test --workspaces --if-present",
     "check": "npm run lint && npm run test && npm run build",
     "docker:network": "docker network inspect $npm_package_config_network > /dev/null 2>&1 || docker network create $npm_package_config_network",
-    "docker:compose": "npm run -s docker:network && docker compose --env-file $npm_package_config_envFile -f $npm_package_config_composeFile",
+    "docker:compose": "docker compose --env-file $npm_package_config_envFile -f $npm_package_config_composeFile",
     "docker:up": "npm run -s docker:compose -- up -d --build --wait",
     "docker:deps": "npm run -s docker:compose -- up -d --wait db",
     "docker:down": "npm run -s docker:compose -- down",
