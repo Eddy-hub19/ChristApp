@@ -1,4 +1,5 @@
 import { routing } from "@/i18n/routing";
+import { publicAlternateLinkHeader, publicPathOf } from "@/lib/siteOrigin";
 import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,8 +64,9 @@ export default function middleware(request: NextRequest) {
     return response;
   }
 
-  if (stripped === null) {
-    return response;
+  const publicPath = publicPathOf(request.nextUrl.pathname);
+  if (publicPath) {
+    response.headers.set("Link", publicAlternateLinkHeader(publicPath));
   }
 
   return response;

@@ -6,6 +6,8 @@ const baseRouting = defineRouting({
   // без автовизначення мови за заголовком браузера: за замовчуванням завжди російська, вибір користувача лишається в cookie
   localeDetection: false,
   localePrefix: "always",
+  // Заголовок `Link: rel=alternate` формуємо самі в middleware (`publicAlternateLinkHeader`): next-intl віддавав "ua" замість "uk" і x-default на /welcome.
+  alternateLinks: false,
 });
 
 export const routing = {
