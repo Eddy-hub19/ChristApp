@@ -1,5 +1,4 @@
 import type { useTranslations } from "next-intl";
-import { bookPreviewLabel } from "@/lib/book/bookFile";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
 import { mediaPreviewLabel } from "@/lib/mediaPreviewLabel";
 import { parseStickerMessagePayload } from "@/lib/stickerMessage";

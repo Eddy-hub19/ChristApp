@@ -266,7 +266,6 @@ function makeTile(style: FenceStyle, q: number): HTMLCanvasElement | null {
   c.scale(q, q);
   const col = COLORS[style];
   const base = FENCE_H + 8; // низ стовпчиків (y), нижче - тінь
-  const postW = 20;
   const postH = 62;
   const railH = 11;
 

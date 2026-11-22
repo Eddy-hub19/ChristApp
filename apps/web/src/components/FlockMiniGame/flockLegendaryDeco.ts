@@ -88,13 +88,6 @@ function disc(c: CanvasRenderingContext2D, x: number, y: number, r: number, fill
   c.fill();
 }
 
-/** М'яке світле плямо на вовні (як у решти скінів). */
-function sheen(c: CanvasRenderingContext2D, alpha = 0.3) {
-  c.globalAlpha = alpha;
-  disc(c, -0.25, -0.3, 0.5, "#ffffff");
-  c.globalAlpha = 1;
-}
-
 function poly(c: CanvasRenderingContext2D, pts: ArrayLike<readonly [number, number]>) {
   c.beginPath();
   for (let i = 0; i < pts.length; i++) {
