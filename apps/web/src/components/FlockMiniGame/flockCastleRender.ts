@@ -8,6 +8,8 @@ import { drawTerracesMinimap, drawTerracesWorld, terraceDecor } from "./flockTer
 import type { FlockModel, RCell } from "./flockModel";
 
 const TAU = Math.PI * 2;
+/** Тривалість польоту кинутого каменя (мс); дорівнює teamMode.throwMs на сервері. */
+const THROW_FLY_MS = 450;
 const teams: Team[] = [1, 2];
 
 /** Ріка, декор, зони баз і замки (під клітинами). */
@@ -31,10 +33,20 @@ export function drawCastleWorld(ctx: CanvasRenderingContext2D, m: FlockModel, x0
   }
   // камені, що лежать на землі
   if (cs) {
-    for (const [id, x, y, owner, left] of cs.ls) {
-      if (x < x0 - 60 || x > x1 + 60 || y < y0 - 60 || y > y1 + 60) continue;
-      const bob = Math.sin(time * 4 + id) * 3;
+    for (const [id, lx, ly, owner, left, fly, fx, fy] of cs.ls) {
+      let x = lx;
+      let y = ly;
+      let bob = Math.sin(time * 4 + id) * 3;
       const s = 44;
+      // кинутий камінь летить дугою від кидальника до місця падіння
+      const flyLeft = fly === undefined ? 0 : fly - (m.localNow - cs.t0);
+      if (fly !== undefined && fx !== undefined && fy !== undefined && flyLeft > 0) {
+        const p = 1 - flyLeft / THROW_FLY_MS;
+        x = fx + (lx - fx) * p;
+        y = fy + (ly - fy) * p;
+        bob = -Math.sin(Math.PI * p) * 70;
+      }
+      if (x < x0 - 60 || x > x1 + 60 || y < y0 - 60 || y > y1 + 60) continue;
       // повільно блимає, коли скоро повернеться сам
       const lms = left - (m.localNow - cs.t0);
       if (lms < 4000 && Math.floor(time * 5) % 2 === 0) ctx.globalAlpha = 0.45;
