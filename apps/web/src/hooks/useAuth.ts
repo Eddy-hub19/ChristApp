@@ -12,7 +12,7 @@ import {
   usersDirectoryQueryKey,
   usersDirectoryQueryOptions,
 } from "@/lib/queries/usersQueries";
-import { getAuthToken, setAuthToken } from "@/lib/auth";
+import { setAuthToken } from "@/lib/auth";
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete";
 import {
   getNetworkFailureHint,

@@ -1,7 +1,7 @@
 import { FLOCK_CONFIG, TEAM_SHEEP, TEAM_WOLF, TEAM_FREE_SKINS, teamViewRadius } from './flock.config';
 import type { Cell, FlockWorld, Player, Rng } from './flock.engine';
 import { radiusOf } from './flock.engine';
-import { buildTerraces, circleOnIsland, islandAt, nearestLand, onBridge as tOnBridge, onLand as tOnLand, routeTerraces, type TerracesGeom } from './flock.terraces';
+import { buildTerraces, circleOnIsland, islandAt, nearestLand, onLand as tOnLand, routeTerraces, type TerracesGeom } from './flock.terraces';
 
 const T = FLOCK_CONFIG.teamMode;
 const W = FLOCK_CONFIG.worldSize;

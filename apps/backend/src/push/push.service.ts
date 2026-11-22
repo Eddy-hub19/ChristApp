@@ -1,4 +1,3 @@
-import { stripLegacyReplyPrefix } from 'src/common/legacy-reply-prefix';
 import {
   BadRequestException,
   Injectable,

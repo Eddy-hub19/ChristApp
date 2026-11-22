@@ -667,11 +667,6 @@ export const TILE_CELLS = 3; // 3x3 клітини сітки (по 90 один�
 export const GRID = 90;
 let tile: { key: string; cv: HTMLCanvasElement; pattern: CanvasPattern | null } | null = null;
 
-function hash(a: number, b: number) {
-  const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return h - Math.floor(h);
-}
-
 /**
  * Патерн пасовища (колір + сітка + рідкі пучки). Розмір тайла підбирається під px/одиницю (бакети по 25%),
  * патерн повторюється у СВІТОВИХ координатах (setTransform перед fill).

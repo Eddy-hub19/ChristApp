@@ -22,7 +22,6 @@ import { useCalls } from "@/components/calls/CallProvider";
 import { registerCallSocket } from "@/lib/calls/callSocketRegistry";
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
-import { apiFetch } from "@/lib/apiFetch";
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents";
 import { dismissRoomNotificationsLocally } from "@/lib/chatRoomNotifications";
 import { clearServerViewState } from "@/lib/viewStateBeacon";

@@ -602,8 +602,6 @@ export class ChatGateway
     presence.connect(client.id, user.id);
     this.calls.onUserConnected(user.id);
 
-    console.log('✅ Connected:', user.username);
-
     try {
       // Підключаємо до загального чату
       client.join(this.GLOBAL_ROOM);
