@@ -37,6 +37,7 @@ import {
   type AuthSessionPayload,
   type AuthUser,
 } from "@/lib/authSession";
+import { markPendingAuthEvent, track } from "@/lib/analytics";
 
 export type { AuthSessionPayload, AuthUser } from "@/lib/authSession";
 
@@ -210,6 +211,7 @@ export function useAuth(options?: UseAuthOptions) {
       setError(null);
       setErrorInfo(null);
       const data = await loginWithPassword(email, password);
+      markPendingAuthEvent("login", "password");
 
       saveRecentAuthIdentity({
         email,
@@ -254,6 +256,7 @@ export function useAuth(options?: UseAuthOptions) {
       setError(null);
       setErrorInfo(null);
       const data = await registerWithPassword(input);
+      markPendingAuthEvent("sign_up_completed", "password");
 
       saveRecentAuthIdentity({
         email: input.email,
@@ -293,6 +296,7 @@ export function useAuth(options?: UseAuthOptions) {
   }, []);
 
   const logout = async () => {
+    track("logout");
     void clearAppBadgeIfSupported();
     queryClient.clear();
     applyUserAppearanceToDocument(null);

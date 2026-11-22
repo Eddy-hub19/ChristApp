@@ -2,6 +2,7 @@ import "@/i18n/uaPluralAlias";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
+import AnalyticsRoot from "@/components/Analytics/AnalyticsRoot";
 import HtmlLang from "@/components/HtmlLang/HtmlLang";
 import { routing } from "@/i18n/routing";
 
@@ -32,6 +33,7 @@ export default async function LangLayout({
     <NextIntlClientProvider locale={lang} messages={messages}>
       <HtmlLang />
       {children}
+      <AnalyticsRoot />
     </NextIntlClientProvider>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from "./announcementGate";
 import { ANNOUNCEMENT_UI, latestAnnouncement, type AnnouncementIcon, type AnnouncementLang } from "./otaraAnnouncementData";
 import styles from "./OtaraAnnouncement.module.scss";
+import { track } from "@/lib/analytics";
 
 const ICONS: Record<AnnouncementIcon, ComponentType<ColorIconProps>> = {
   quests: QuestScrollIcon,
@@ -93,8 +94,10 @@ export default function OtaraAnnouncement() {
       }
       void markAnnouncementSeen(announcement.version).catch(() => undefined);
       setAnnouncementGate("shown");
-      if (goToGame) router.push(announcement.target);
-      else returnFocusRef.current?.focus?.();
+      if (goToGame) {
+        track("otara_announcement_click");
+        router.push(announcement.target);
+      } else returnFocusRef.current?.focus?.();
     },
     [announcement, router],
   );

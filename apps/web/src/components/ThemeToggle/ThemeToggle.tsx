@@ -8,6 +8,7 @@ import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { reapplyUserAppearanceForCurrentTheme } from "@/lib/userAppearance";
 import { useDesignV2 } from "@/hooks/useChatSplit";
 import styles from "./ThemeToggle.module.scss";
+import { track } from "@/lib/analytics";
 
 type ThemeMode = "light" | "dark";
 const THEME_STORAGE_KEY = "theme";
@@ -93,6 +94,7 @@ export default function ThemeToggle() {
       return;
     }
     applyTheme(theme);
+    track("theme_change", { theme });
     reapplyUserAppearanceForCurrentTheme();
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme);

@@ -8,6 +8,7 @@
  * - Не играет при скрытой вкладке, на паузе игры и пока игра закрыта (контекст приостанавливается).
  */
 import { SOUNDS, type SoundId, type SynthEnv } from "./flockSoundDefs";
+import { track } from "@/lib/analytics";
 
 const PREFIX = "christapp:flock:sound";
 const MAX_VOICES = 8;
@@ -59,7 +60,11 @@ export function subscribeFlockSound(fn: () => void): () => void {
 }
 
 export function setFlockSoundSettings(patch: Partial<FlockSoundSettings>) {
-  const next = { ...getFlockSoundSettings(), ...patch };
+  const prev = getFlockSoundSettings();
+  const next = { ...prev, ...patch };
+  if (patch.enabled !== undefined && patch.enabled !== prev.enabled) {
+    track("otara_sound_toggle", { enabled: patch.enabled });
+  }
   next.volume = Math.min(1, Math.max(0, next.volume));
   settings = next;
   try {

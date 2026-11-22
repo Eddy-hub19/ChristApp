@@ -34,6 +34,10 @@ variable "NEXT_PUBLIC_SITE_URL" {
   default = ""
 }
 
+variable "NEXT_PUBLIC_GTM_ID" {
+  default = ""
+}
+
 variable "NEXT_PUBLIC_AGORA_APP_ID" {
   default = ""
 }
@@ -71,6 +75,7 @@ target "web" {
     NEXT_PUBLIC_BIBLE_API_URL  = NEXT_PUBLIC_BIBLE_API_URL
     NEXT_PUBLIC_SITE_URL       = NEXT_PUBLIC_SITE_URL
     NEXT_PUBLIC_AGORA_APP_ID   = NEXT_PUBLIC_AGORA_APP_ID
+    NEXT_PUBLIC_GTM_ID         = NEXT_PUBLIC_GTM_ID
     GIT_COMMIT_SHA             = GIT_COMMIT_SHA
     BACKEND_PROXY_TARGET       = BACKEND_PROXY_TARGET
   }

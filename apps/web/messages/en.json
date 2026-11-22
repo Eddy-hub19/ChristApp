@@ -2152,6 +2152,17 @@
     "puzzleSolo": "Puzzles (solo)",
     "loadingPeople": "Loading people…"
   },
+  "analytics": {
+    "bannerRegion": "Analytics and privacy",
+    "bannerText": "We use anonymous analytics (Google) to improve the app. Message text and personal data are not collected.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "privacy": "Privacy Policy",
+    "settingsTitle": "Analytics",
+    "settingsOn": "On",
+    "settingsOff": "Off",
+    "settingsAria": "Anonymous analytics"
+  },
   "pwaInstall": {
     "title": "Install Christ App",
     "subtitle": "Quick access from your home screen, like a regular app.",

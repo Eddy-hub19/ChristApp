@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import styles from "./LanguageSwitcher.module.scss";
+import { track } from "@/lib/analytics";
 
 const LABELS: Record<(typeof routing.langs)[number], string> = {
   en: "EN",
@@ -62,6 +63,7 @@ export default function LanguageSwitcher({
       return;
     }
     router.replace(pathname, { locale: next });
+    track("language_change", { lang: next });
     close();
     onLangChange?.();
   };

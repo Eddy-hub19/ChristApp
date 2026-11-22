@@ -19,6 +19,8 @@ import { attachPresenceReporter } from "@/lib/presenceReporter";
 import { attachBubbleStyleListener } from "@/lib/bubbleStyles";
 import { usePathname } from "@/i18n/navigation";
 import { getCinemaSessionActive, subscribeCinemaSession } from "@/lib/cinemaSessionStore";
+import { track } from "@/lib/analytics";
+import { secondsSince } from "@/lib/analyticsEvents";
 
 const WS_URL = getDirectApiOrigin();
 type PresenceSocket = ReturnType<typeof createSocket>;
@@ -116,8 +118,19 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
         auth: { token },
         transports: ["websocket"],
       });
-      nextSocket.on("connect", () => setIsConnected(true));
-      nextSocket.on("disconnect", () => setIsConnected(false));
+      // Аналитика: долгий обрыв связи (≥30 с) фиксируется при восстановлении, только длительность.
+      let lostAt: number | null = null;
+      nextSocket.on("connect", () => {
+        setIsConnected(true);
+        if (lostAt !== null && Date.now() - lostAt >= 30_000) {
+          track("socket_disconnect_long", { duration_s: secondsSince(lostAt) });
+        }
+        lostAt = null;
+      });
+      nextSocket.on("disconnect", () => {
+        setIsConnected(false);
+        lostAt = Date.now();
+      });
       // «Онлайн» = застосунок видно, а не «сокет підключений» — див. presenceReporter.
       detachPresenceRef.current = attachPresenceReporter(nextSocket);
       detachBubbleRef.current = attachBubbleStyleListener(nextSocket, queryClient);

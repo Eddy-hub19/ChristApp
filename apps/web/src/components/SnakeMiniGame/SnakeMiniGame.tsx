@@ -26,6 +26,7 @@ import {
 import { useKeyboardDirection, useSwipeDirection } from "./useSnakeControls";
 import { useSnakeSession } from "./useSnakeSession";
 import styles from "./SnakeMiniGame.module.scss";
+import { useGameAnalytics } from "@/hooks/useGameAnalytics";
 
 export type { SnakeRuntimeState } from "./SnakeClassicBoard";
 
@@ -67,6 +68,7 @@ export default function SnakeMiniGame({
   onStateChange,
   onModeChange,
 }: SnakeMiniGameProps) {
+  useGameAnalytics("snake", open);
   const t = useTranslations("snake");
   const { session, connected, selectLevel, setReady, sendDirection } = useSnakeSession({
     socket,

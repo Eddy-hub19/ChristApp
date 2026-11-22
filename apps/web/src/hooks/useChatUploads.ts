@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { prepareImageForUpload } from "@/lib/imageProcessing";
 import { UploadError, uploadWithProgress } from "@/lib/chatUpload";
+import { trackChatMessageSent } from "@/lib/analyticsEvents";
 import { sanitizeVoiceDuration } from "@/lib/voiceDuration";
 
 export type PendingUploadKind = "voice" | "image" | "file";
@@ -125,6 +126,16 @@ export function useChatUploads({ resolveTarget, apiBase }: Options) {
           onProgress: (progress) => patch(localId, { progress }),
         });
         remove(localId);
+        trackChatMessageSent(
+          job.kind === "image"
+            ? "photo"
+            : job.kind === "voice"
+              ? "voice"
+              : job.file.type.startsWith("audio/")
+                ? "audio"
+                : "file",
+          target.roomId,
+        );
         return true;
       } catch (error) {
         const uploadError =

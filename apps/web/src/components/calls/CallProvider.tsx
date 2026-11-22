@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { pickCallSocket, registerCallSocket, subscribeCallSockets, type Socket } from "@/lib/calls/callSocketRegistry";
 import { installCallAudioUnlock, startCallSound, stopCallSound } from "@/lib/calls/callSounds";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
+import { track } from "@/lib/analytics";
 import styles from "./CallProvider.module.scss";
 
 const CallScreen = dynamic(() => import("./CallScreen"), { ssr: false });
@@ -199,6 +200,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
     const call = incomingRef.current;
     if (!call) return;
     emit("call-response", { callId: call.callId, initiatorId: call.peer.id, channelName: call.channelName, accepted: true });
+    track("call_answered");
     clearIncoming();
     activeRef.current = call;
     setActive(call);
@@ -209,6 +211,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
     const call = incomingRef.current;
     if (!call) return;
     emit("call-response", { callId: call.callId, initiatorId: call.peer.id, channelName: call.channelName, accepted: false });
+    track("call_declined");
     clearIncoming();
   }, [clearIncoming, emit]);
 
@@ -269,6 +272,9 @@ export default function CallProvider({ children }: { children: ReactNode }) {
         }
       };
       const onMissed = (p: IdPayload) => {
+        if (matches(incomingRef.current, p) || matches(outgoingRef.current, p)) {
+          track("call_missed");
+        }
         if (matches(incomingRef.current, p)) {
           clearIncoming();
           showNotice(tRef.current("missed"));
@@ -408,6 +414,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
       // имя канала прежнее (dm-<8>-<8>): CallScreen и Agora как раньше
       const channelName = `dm-${[me.slice(0, 8), targetUserId.slice(0, 8)].sort().join("-")}`;
       if (!emit("call-user", { targetUserId, channelName, v: 2 })) return false;
+      track("call_started");
       const call: CallInfo = { channelName, peer, roomId };
       outgoingRef.current = call;
       setOutgoing(call);
@@ -432,6 +439,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
   const handleCallEnded = useCallback((durationSeconds: number) => {
     // как раньше: итог разговора пишется в личный чат (теперь по roomId звонка, а не по открытой странице)
     const call = activeRef.current;
+    track("call_ended", { duration_s: Math.round(durationSeconds) });
     const socket = pickCallSocket();
     if (!call?.roomId || !socket) return;
     const minutes = Math.floor(durationSeconds / 60);

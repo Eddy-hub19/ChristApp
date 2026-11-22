@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/navigation";
+import { track } from "@/lib/analytics";
 import {
   canShowInstallPrompt,
   readPwaState,
@@ -112,6 +113,14 @@ export default function PwaInstallPrompt() {
     };
   }, [variant, pathname]);
 
+  // Плашка реально показана пользователю (раз за сессию на вариант).
+  const shownTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!open || !variant || shownTrackedRef.current) return;
+    shownTrackedRef.current = true;
+    track("pwa_install_prompt_shown", { platform: variant });
+  }, [open, variant]);
+
   const dismiss = useCallback(() => {
     stateRef.current = recordDismiss(Date.now());
     setOpen(false);
@@ -124,6 +133,7 @@ export default function PwaInstallPrompt() {
       await ev.prompt();
       const choice = await ev.userChoice;
       if (choice.outcome === "accepted") {
+        track("pwa_install_prompt_accepted");
         stateRef.current = recordInstalled();
         deferredRef.current = null;
         setOpen(false);

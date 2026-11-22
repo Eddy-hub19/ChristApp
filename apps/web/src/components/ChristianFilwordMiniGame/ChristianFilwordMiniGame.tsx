@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import styles from "./ChristianFilwordMiniGame.module.scss";
+import { useGameAnalytics } from "@/hooks/useGameAnalytics";
 
 type ChristianFilwordMiniGameProps = {
   open: boolean;
@@ -284,6 +285,7 @@ export default function ChristianFilwordMiniGame({
   open,
   onClose,
 }: ChristianFilwordMiniGameProps) {
+  useGameAnalytics("filword", open);
   const [seed, setSeed] = useState(0);
   const [selectedPath, setSelectedPath] = useState<Point[]>([]);
   const [found, setFound] = useState<{

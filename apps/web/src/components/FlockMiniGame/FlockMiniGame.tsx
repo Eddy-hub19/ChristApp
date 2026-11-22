@@ -42,6 +42,8 @@ import FlockSoundSettings, { FlockSoundButton } from "./FlockSoundSettings";
 import { installFlockSoundUnlock, playFlockSound, setFlockMusic, setFlockSoundPaused, setFlockSoundRunning } from "./flockSound";
 import { resetFlockSoundLoops, tickFlockSound } from "./flockSoundDirector";
 import FlockWhatsNew from "./FlockWhatsNew";
+import { createMatchTracker, questDifficulty, skinCategory, skinCurrency } from "./flockAnalytics";
+import { track } from "@/lib/analytics";
 import { decideAnnouncement, loadLocalSeen, saveLocalSeen, type Announcement } from "./flockWhatsNewLogic";
 import { joystickDir, inputChanged, pointerDir, type Dir } from "./flockInputMath";
 import { useAuth } from "@/hooks/useAuth";
@@ -181,6 +183,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const aspectRef = useRef(1);
 
   const [status, setStatus] = useState<FlockStatus>("connecting");
+  /** Аналитика матча: режим последнего входа и трекер «начало/итог» (срабатывает только на смену статуса). */
+  const matchModeRef = useRef<string>("normal");
+  const matchTrackerRef = useRef(createMatchTracker());
+  const lobbyTrackedRef = useRef(false);
+  const matchContext = useCallback(() => {
+    const model = clientRef.current?.model;
+    return { map: MAP_KEYS[model?.cfg.map ?? 0] ?? MAP_KEYS[0], mode: matchModeRef.current, rank: model?.rank() ?? 0 };
+  }, []);
   const [skin, setSkin] = useState(0);
   const skinRef = useRef(0);
   skinRef.current = skin;
@@ -311,8 +321,20 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setFlockSoundRunning(false);
     };
   }, [open]);
+  // Лобби показано (один раз за открытие игры).
+  useEffect(() => {
+    if (!open) {
+      lobbyTrackedRef.current = false;
+      return;
+    }
+    if (status === "ready" && !lobbyTrackedRef.current) {
+      lobbyTrackedRef.current = true;
+      track("otara_lobby_open");
+    }
+  }, [open, status]);
   const onUpdatesViewed = useCallback(
     (version: number) => {
+      track("otara_whats_new_open");
       saveLocalSeen(userId, version);
       void markWhatsNewSeen(version).catch(() => undefined);
       setMe((m) => (m ? { ...m, whatsNewSeen: Math.max(m.whatsNewSeen ?? 0, version) } : m));
@@ -346,6 +368,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     if (!a) return;
     announcedRef.current = true;
     setAnnouncement(a);
+    track("otara_whats_new_open");
     // «один раз»: помечаем как просмотренное сразу при показе (локально и на сервере)
     saveLocalSeen(userId, a.version);
     void markWhatsNewSeen(a.version).catch(() => undefined);
@@ -542,7 +565,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           setCastleEnd(null);
           setCastleReward(null);
         },
-        onStatus: (s) => setStatus(s),
+        onStatus: (s) => {
+          setStatus(s);
+          matchTrackerRef.current.onStatus(s, matchContext());
+        },
         onZorepad: () => setZorepad(Date.now()),
         onBridgeBlocked: () => setBridgeHint(Date.now()),
         onFeed: (m) => {
@@ -592,10 +618,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     })();
     return () => {
       cancelled = true;
+      matchTrackerRef.current.dispose(matchContext());
       client?.dispose();
       clientRef.current = null;
     };
-  }, [open, userId, attempt, arenaId, refreshMe]);
+  }, [open, userId, attempt, arenaId, refreshMe, matchContext]);
 
   const play = useCallback((mode?: FlockMode) => {
     try {
@@ -604,6 +631,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       /* ignore */
     }
     maxTotalRef.current = 0;
+    matchModeRef.current = mode ?? "normal";
+    track("otara_play_click");
     setDeath(null);
     setReward(null);
     if (isPaidSkin(skin)) void selectFlockSkin(skin).catch(() => undefined);
@@ -616,6 +645,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   /** «Замки»: вхід у матч за обраними стороною й скіном (платні скіни й артефакти в режимі не діють). */
   const playCastles = useCallback((team: Team, skinId: number, castleMap?: number) => {
     maxTotalRef.current = 0;
+    matchModeRef.current = "castles";
+    track("otara_play_click");
     setDeath(null);
     setReward(null);
     setCircleEnd(null);
@@ -778,6 +809,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     skinTouchedRef.current = true;
     setSkin(i);
     saveSkin(i, userId);
+    track("otara_skin_selected", { category: skinCategory(i) });
   };
 
   const buy = async (i: number) => {
@@ -791,6 +823,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       setSkin(i);
       saveSkin(i, userId);
       playFlockSound("coins", { self: true });
+      track("otara_skin_purchased", { category: skinCategory(i), currency: skinCurrency(i), price: priceOf(i) });
       setPreviewSkin(null);
       setConfirming(false);
     } catch (e) {
@@ -835,6 +868,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       const res = await buyFlockArtifact(id);
       setMe((m) => (m ? { ...m, rubies: res.rubies ?? m.rubies, emeralds: res.emeralds ?? m.emeralds, ownedArtifacts: [...(m.ownedArtifacts ?? []), id].sort((a, b) => a - b) } : m));
       playFlockSound("coins", { self: true });
+      track("otara_artifact_purchased", { currency: isEmeraldArtifact(id) ? "emerald" : "ruby", price: priceOfArtifact(id) });
       setPreviewArtifact(null);
       setArtifactConfirming(false);
       wearArtifact(id);
@@ -915,7 +949,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         ) : (
           <>
             <div className={styles.buyButtons}>
-              <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => setConfirming(true)}>
+              <button type="button" className={styles.primary} disabled={missing > 0 || !me} onClick={() => {
+                track("otara_skin_purchase_click", { category: skinCategory(id) });
+                setConfirming(true);
+              }}>
                 {t("rubies.buy", { price })} {priceIcon(id, 14)}
               </button>
               <button type="button" className={styles.secondary} onClick={() => setPreviewSkin(null)}>
@@ -1986,7 +2023,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         </FlockSheet>
       ) : null}
       {modesOpen && showLobby ? (
-        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlayCastles={() => setCastlesOpen(true)} onClose={() => setModesOpen(false)} />
+        <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlayCastles={() => {
+          track("otara_mode_selected", { mode: "castles" });
+          setCastlesOpen(true);
+        }} onClose={() => setModesOpen(false)} />
       ) : null}
       {castlesOpen && showLobby ? (
         <FlockCastlesLobby

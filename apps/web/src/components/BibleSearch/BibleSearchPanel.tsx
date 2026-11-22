@@ -13,6 +13,7 @@ import {
 import { fetchBibleSearch } from "@/lib/bibleSearchApi";
 import type { BibleSearchScope } from "@/lib/bibleSearchTypes";
 import styles from "./BibleSearchPanel.module.scss";
+import { track } from "@/lib/analytics";
 
 export type BibleBookItem = { id: string; name: string; chapters: number };
 
@@ -117,6 +118,15 @@ export default function BibleSearchPanel({
   const first = search.data?.pages[0];
   const facets = first?.facets ?? {};
   const results = search.data?.pages.flatMap((p) => p.results) ?? [];
+
+  // Аналитика: один раз на успешный запрос (длина и число результатов первой страницы, без текста запроса).
+  const trackedSearchKeyRef = useRef("");
+  useEffect(() => {
+    if (!first || !wordSearchOn) return;
+    if (trackedSearchKeyRef.current === scopeKey) return;
+    trackedSearchKeyRef.current = scopeKey;
+    track("bible_search", { query_length: debounced.length, results: first.results.length });
+  }, [first, wordSearchOn, scopeKey, debounced]);
 
   const facetBooks = BIBLE_BOOKS.filter((b) => facets[b.id]);
 

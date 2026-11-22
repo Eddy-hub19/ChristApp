@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { getHttpApiBase } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
+import { track } from "@/lib/analytics";
 
 /** Своя картинка для «Пазлів» (мої картинки). */
 export type MyPuzzleImage = {
@@ -40,7 +41,10 @@ export const uploadPuzzleImage = (blob: Blob, showAuthor: boolean) => {
   const form = new FormData();
   form.append("image", blob, "puzzle.webp");
   form.append("showAuthor", String(showAuthor));
-  return request<MyPuzzleImage>("", { method: "POST", body: form });
+  return request<MyPuzzleImage>("", { method: "POST", body: form }).then((image) => {
+    track("puzzle_custom_image_uploaded");
+    return image;
+  });
 };
 
 export const fetchMyPuzzleImages = () => request<MyPuzzleImage[]>("/mine");
