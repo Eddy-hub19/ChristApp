@@ -8,7 +8,7 @@ export default function HtmlLang() {
   const lang = useLocale();
 
   useEffect(() => {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = lang === "ua" ? "uk" : lang;
   }, [lang]);
 
   return null;

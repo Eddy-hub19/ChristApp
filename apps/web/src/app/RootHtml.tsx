@@ -44,13 +44,20 @@ function resolvePreconnectOrigin(): string | null {
 }
 
 /**
- * Кореневий layout: шрифти та глобальні стилі. Локалізована оболонка — у `app/[lang]/layout.tsx`.
+ * Спільна `<html>`-оболонка: шрифти та глобальні стилі. `lang` задається сервером за локаллю сторінки
+ * (en/ru/uk), тому правильний і без JS. Підключається в `app/[lang]/layout.tsx` та `app/(root)/layout.tsx`.
  */
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootHtml({
+  lang,
+  children,
+}: {
+  lang: string;
+  children: ReactNode;
+}) {
   const preconnectOrigin = resolvePreconnectOrigin();
 
   return (
-    <html lang="ru" suppressHydrationWarning data-theme="dark">
+    <html lang={lang} suppressHydrationWarning data-theme="dark">
       <head>
         {/* suppressHydrationWarning: розширення браузера (напр. з `body[unresolved]{…}`) вставляють свій <style>
             першим у <head>, і React звіряє з ним наш критичний стиль — без цього прапора dev падає з hydration error. */}

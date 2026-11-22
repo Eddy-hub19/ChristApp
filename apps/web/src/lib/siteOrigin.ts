@@ -31,3 +31,22 @@ export function publicAlternates(lang: string, path: PublicPath) {
     },
   };
 }
+
+/** Значення HTTP-заголовка `Link` з hreflang-альтернативами; збігається з `<link rel="alternate">` із `publicAlternates`. */
+export function publicAlternateLinkHeader(path: PublicPath): string {
+  const origin = siteOrigin();
+  const { languages } = publicAlternates("en", path);
+  return Object.entries(languages)
+    .map(([code, href]) => `<${origin}${href}>; rel="alternate"; hreflang="${code}"`)
+    .join(", ");
+}
+
+/** Якщо `pathname` — публічна сторінка з локаллю (`/en/welcome`), повертає її шлях без локалі. */
+export function publicPathOf(pathname: string): PublicPath | null {
+  for (const l of routing.langs) {
+    for (const p of PUBLIC_PATHS) {
+      if (pathname === `/${l}${p}`) return p;
+    }
+  }
+  return null;
+}

@@ -5,6 +5,7 @@ import { getMessages, setRequestLocale } from "next-intl/server";
 import AnalyticsRoot from "@/components/Analytics/AnalyticsRoot";
 import HtmlLang from "@/components/HtmlLang/HtmlLang";
 import { routing } from "@/i18n/routing";
+import RootHtml from "../RootHtml";
 
 export function generateStaticParams() {
   return routing.langs.map((lang) => ({ lang }));
@@ -30,10 +31,12 @@ export default async function LangLayout({
   const messages = await getMessages({ locale: lang });
 
   return (
-    <NextIntlClientProvider locale={lang} messages={messages}>
-      <HtmlLang />
-      {children}
-      <AnalyticsRoot />
-    </NextIntlClientProvider>
+    <RootHtml lang={lang === "ua" ? "uk" : lang}>
+      <NextIntlClientProvider locale={lang} messages={messages}>
+        <HtmlLang />
+        {children}
+        <AnalyticsRoot />
+      </NextIntlClientProvider>
+    </RootHtml>
   );
 }
