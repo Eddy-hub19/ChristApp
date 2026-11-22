@@ -1877,6 +1877,7 @@
       "hint2": "Bring it to your base: the enemy castle loses {damage} HP. {win} deliveries win the match.",
       "hint3": "A defender touching a thief in their own territory makes them drop the stone; the thief respawns in {respawn} s.",
       "hint4": "Carrying slows you by {carry}%, water by {water}%. Bushes hide you from enemies.",
+      "throw": "Throw",
       "carrying": "You carry a stone! Run to your base",
       "stealing": "Stealing the stone…",
       "respawning": "Respawning in {s} s",
@@ -1891,7 +1892,9 @@
         "castleMine": "The enemy castle is destroyed!",
         "castleEnemy": "Our castle is destroyed!",
         "fallMine": "A teammate fell off the island",
-        "fallEnemy": "An enemy fell off the island"
+        "fallEnemy": "An enemy fell off the island",
+        "throwMine": "An ally threw the stone",
+        "throwEnemy": "The enemy threw the stone"
       },
       "endTitle": "Match over",
       "endWin": "Victory!",

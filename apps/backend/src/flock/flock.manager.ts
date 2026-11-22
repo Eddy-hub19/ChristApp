@@ -1842,6 +1842,7 @@ export class FlockManager {
     w.setInput(s.pid, angle, power);
     if (s.arena.castle) {
       s.arena.castle.noteInput(s.pid, angle, power);
+      if (thr) s.arena.castle.throwStone(s.pid);
       return;
     }
     w.setSprint(s.pid, sprint);

@@ -399,6 +399,11 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ok = !good;
           playFlockSound(good ? "eaten" : "bonus", { self: true });
           break;
+        case "throw":
+          key = good ? "toast.throwMine" : "toast.throwEnemy";
+          ok = good;
+          playFlockSound("throw", { self: true });
+          break;
         case "return":
           key = "toast.returned";
           playFlockSound("bonusEnd", { self: true });
@@ -1156,6 +1161,8 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       // пока «Прискорення» утримується - шлём ввод каждый такт (сервер держит его ~0.45 с после последнего пакета)
       const sprint = sprintHeldRef.current;
       const sprintChanged = sprint !== sprintSentRef.current;
+      // «Замки»: кидок - одноразовий (не повторюється, поки утримують клавішу)
+      if (thr && client.model?.castle) throwHeldRef.current = false;
       if (split || thr || sprint || sprintChanged || inputChanged(prev?.dir ?? null, dir, prev ? nowMs - prev.at : 1e9)) {
         sprintSentRef.current = sprint;
         client.sendInput(dir, split, thr, aspectRef.current, sprint);
@@ -1515,6 +1522,21 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           {hud.castle ? (
             <>
               <FlockCastleHud c={hud.castle} />
+              {hud.castle.carrying && hud.castle.ph === 2 ? (
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className={styles.actionBtn}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      throwHeldRef.current = true;
+                    }}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    {t("castles.throw")}
+                  </button>
+                </div>
+              ) : null}
               {castleToast ? (
                 <div key={castleToast.id} className={`${castleStyles.toast} ${castleToast.good ? castleStyles.toastGood : castleStyles.toastBad}`} role="status">
                   {castleToast.text}

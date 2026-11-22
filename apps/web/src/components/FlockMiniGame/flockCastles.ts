@@ -78,13 +78,14 @@ export interface CastleMsg {
   hu: [number, number];
   tm: [number, number][];
   cr: [number, number, number, number][];
-  ls: [number, number, number, number, number][];
+  /** [id, x, y, owner, мс до повернення] або, поки камінь летить після кидка, ще [мс польоту, звідки x, звідки y]. */
+  ls: [number, number, number, number, number, number?, number?, number?][];
   al: [number, number, number][];
   sp: number;
   rs: number;
   /** «Небесні тераси»: частка часу до падіння (0..1), поки своя клітина над порожнечею. */
   fl?: number;
-  ev?: { k: "steal" | "deliver" | "drop" | "return" | "castle" | "fall" | "win" | "lose"; p: number; t: number }[];
+  ev?: { k: "steal" | "deliver" | "drop" | "return" | "castle" | "fall" | "throw" | "win" | "lose"; p: number; t: number }[];
 }
 
 export type CastleEvent = NonNullable<CastleMsg["ev"]>[number];

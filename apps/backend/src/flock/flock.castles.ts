@@ -202,10 +202,17 @@ interface Stone {
   y: number;
   owner: number;
   expiresAt: number;
+  /** Кинутий камінь: до цього світового часу він летить із (fx, fy) у (x, y) і не підбирається. */
+  flyUntil?: number;
+  fx?: number;
+  fy?: number;
+  /** Кидальник не підбирає камінь до цього часу. */
+  lockPid?: number;
+  lockUntil?: number;
 }
 
 export interface TeamEvent {
-  k: 'steal' | 'deliver' | 'drop' | 'return' | 'castle' | 'fall';
+  k: 'steal' | 'deliver' | 'drop' | 'return' | 'castle' | 'fall' | 'throw';
   p: number;
   t: number;
 }
@@ -666,8 +673,10 @@ export class CastleMatch {
         this.stones.splice(i, 1);
         continue;
       }
+      if (s.flyUntil && now < s.flyUntil) continue;
       for (const cp of this.cps.values()) {
         if (cp.respawnUntil > 0) continue;
+        if (s.lockPid === cp.pid && s.lockUntil && now < s.lockUntil) continue;
         const c = w.players.get(cp.pid)?.cells[0];
         if (!c || Math.hypot(c.x - s.x, c.y - s.y) > radiusOf(c.mass) + STONE_R) continue;
         if (cp.team === s.owner) {
@@ -690,6 +699,49 @@ export class CastleMatch {
       const dmg2 = T.castleHp - this.hp[0];
       this.endMatch(dmg1 > dmg2 ? TEAM_SHEEP : dmg2 > dmg1 ? TEAM_WOLF : 0);
     }
+  }
+
+  /**
+   * Кинути камінь: летить уздовж поточного напрямку на throwRange (зупиняється перед краєм світу чи порожнечею), лягає й чекає,
+   * доки його підбере хтось інший (кидальник - не раніше throwerLockMs після приземлення).
+   */
+  throwStone(pid: number) {
+    const cp = this.cps.get(pid);
+    if (!cp || this.phase !== 2 || !cp.carry || cp.respawnUntil > 0) return;
+    const p = this.world.players.get(pid);
+    const c = p?.cells[0];
+    if (!p || !c) return;
+    const a = p.angle;
+    const dx = Math.cos(a);
+    const dy = Math.sin(a);
+    const valid = (x: number, y: number) => {
+      if (x < 40 || y < 40 || x > W - 40 || y > W - 40) return false;
+      return this.geom.kind === 'terraces' ? tOnLand(this.geom.terraces!, x, y) : true;
+    };
+    let tx = c.x;
+    let ty = c.y;
+    for (let d = 20; d <= T.throwRange; d += 20) {
+      const x = c.x + dx * d;
+      const y = c.y + dy * d;
+      if (!valid(x, y)) break;
+      tx = x;
+      ty = y;
+    }
+    const now = this.world.now;
+    this.stones.push({
+      id: this.nextStoneId++,
+      x: tx,
+      y: ty,
+      fx: c.x,
+      fy: c.y,
+      owner: cp.carry,
+      flyUntil: now + T.throwMs,
+      lockPid: pid,
+      lockUntil: now + T.throwMs + T.throwerLockMs,
+      expiresAt: now + T.throwMs + T.lyingReturnMs,
+    });
+    this.events.push({ k: 'throw', p: pid, t: cp.team });
+    cp.carry = 0;
   }
 
   private dropStone(cp: CP, x: number, y: number) {
@@ -781,7 +833,11 @@ export class CastleMatch {
       hu: [this.humans(TEAM_SHEEP), this.humans(TEAM_WOLF)],
       tm,
       cr,
-      ls: this.stones.map((s) => [s.id, Math.round(s.x), Math.round(s.y), s.owner, Math.round(s.expiresAt - w.now)]),
+      ls: this.stones.map((s) =>
+        s.flyUntil && w.now < s.flyUntil
+          ? [s.id, Math.round(s.x), Math.round(s.y), s.owner, Math.round(s.expiresAt - w.now), Math.round(s.flyUntil - w.now), Math.round(s.fx ?? s.x), Math.round(s.fy ?? s.y)]
+          : [s.id, Math.round(s.x), Math.round(s.y), s.owner, Math.round(s.expiresAt - w.now)]
+      ),
       al,
       sp: me && me.stealMs > 0 ? Math.min(1, me.stealMs / T.stealHoldMs) : 0,
       rs: me && me.respawnUntil > 0 ? Math.round(me.respawnUntil - w.now) : 0,
