@@ -420,6 +420,25 @@
   --mode-accent: #3b6fe0;
 }
 
+.modeBtnSoon {
+  --mode-accent: #8a8f98;
+  border-style: dashed;
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+
+  .modeBtnIcon {
+    font-size: 26px;
+    font-weight: 800;
+  }
+}
+
+.modeBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .modeBtnIcon {
   display: grid;
   place-items: center;
@@ -491,17 +510,24 @@
 }
 
 .sideBtn {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   align-items: center;
   padding: 14px 8px;
   border-radius: 14px;
-  border: 2px solid transparent;
+  border: 2px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
   background: color-mix(in srgb, var(--foreground) 6%, transparent);
   color: inherit;
   font: inherit;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  span {
+    opacity: 0.75;
+  }
 
   em {
     font-size: 12px;
@@ -515,12 +541,43 @@
   }
 }
 
+/* Выбранная карточка: яркая рамка, заливка и галочка (общий стиль для карты и стороны) */
+.sideActive {
+  --side-accent: var(--accent);
+  border-color: var(--side-accent);
+  background: color-mix(in srgb, var(--side-accent) 20%, transparent);
+  box-shadow: 0 0 0 1px var(--side-accent);
+
+  span {
+    opacity: 1;
+  }
+
+  &::after {
+    content: "✓";
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--side-accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+  }
+}
+
 .sideSheep.sideActive {
+  --side-accent: #3b82f6;
   border-color: #3b82f6;
   background: color-mix(in srgb, #3b82f6 18%, transparent);
 }
 
 .sideWolf.sideActive {
+  --side-accent: #ef4444;
   border-color: #ef4444;
   background: color-mix(in srgb, #ef4444 18%, transparent);
 }

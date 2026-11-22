@@ -14,7 +14,7 @@
     "network": "web"
   },
   "scripts": {
-    "predev": "node scripts/dev-db.mjs",
+    "predev": "node scripts/dev-db.mjs && (npm run -s db:migrate -w @christapp/backend || echo '[predev] миграции не применились, проверьте базу')",
     "dev": "concurrently -n backend,web -c yellow,cyan \"npm run dev:backend\" \"npm run dev:web\"",
     "dev:backend": "npm run start:dev -w @christapp/backend",
     "dev:web": "npm run dev -w @christapp/web",
