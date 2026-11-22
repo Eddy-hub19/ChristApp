@@ -96,6 +96,8 @@ const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky",
 
 const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
 const MINIMAP_SIZE = 96;
+/** Максимум пікселів буфера ігрового канвасу (≈1080p): вище - зменшуємо ефективний DPR, вигляд майже не змінюється. */
+const MAX_CANVAS_PX = 2_400_000;
 const SKIN_KEY = "christapp:flock:skin";
 /** Дзеркало FLOCK_CONFIG.phrases.cooldownMs на сервері (лише для сірих кнопок; ліміт тримає сервер). */
 const PHRASE_COOLDOWN_MS = 3000;
@@ -1047,13 +1049,16 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     let dpr = 1;
     const resize = () => {
       const r = cv.getBoundingClientRect();
-      dpr = Math.min(2, window.devicePixelRatio || 1);
       w = Math.max(1, Math.round(r.width));
       h = Math.max(1, Math.round(r.height));
+      // на ПК канвас великий (Retina 1440x900 при DPR 2 = 5 млн px, 2560x1440 = 15 млн): ліміт пікселів буфера, інакше заливка землі в кадрі впирається в fill-rate
+      dpr = Math.max(0.75, Math.min(2, window.devicePixelRatio || 1, Math.sqrt(MAX_CANVAS_PX / (w * h))));
       aspectRef.current = w / h;
-      if (cv.width !== w * dpr || cv.height !== h * dpr) {
-        cv.width = w * dpr;
-        cv.height = h * dpr;
+      const bw = Math.round(w * dpr);
+      const bh = Math.round(h * dpr);
+      if (cv.width !== bw || cv.height !== bh) {
+        cv.width = bw;
+        cv.height = bh;
       }
     };
     resize();
