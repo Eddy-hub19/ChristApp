@@ -1527,7 +1527,9 @@
       "keyCastles1": "Замок {hp} HP, {win} доставок",
       "keyCastles2": "Укради камень, постой {hold} с",
       "keyCastles3": "Победа: {reward} рубинов",
-      "playCastles": "Играть: Замки"
+      "playCastles": "Играть: Замки",
+      "footballTitle": "Футбол",
+      "soon": "Скоро"
     },
     "circle": {
       "warmup": "Круг начнёт сужаться через {s} с",

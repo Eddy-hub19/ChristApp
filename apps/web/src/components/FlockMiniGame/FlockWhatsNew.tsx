@@ -118,6 +118,7 @@ export default function FlockWhatsNew({ announcement, canPlay, onClose }: Props)
           </div>
         ) : null}
         <h2 className={styles.title}>{announcement.kind === "welcome" ? t("welcomeTitle") : t("title")}</h2>
+        <div className={styles.scroll}>
         {groups.map((g, gi) => (
           <div key={gi}>
             {g.title ? <h3 className={styles.version}>{g.title}</h3> : null}
@@ -136,6 +137,7 @@ export default function FlockWhatsNew({ announcement, canPlay, onClose }: Props)
             </ul>
           </div>
         ))}
+        </div>
         <div className={styles.buttons}>
           <button type="button" className={styles.primary} disabled={!canPlay} onClick={() => setClosing(true)}>
             {t("play")}

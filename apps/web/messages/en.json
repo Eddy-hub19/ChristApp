@@ -1527,7 +1527,9 @@
       "keyCastles1": "Castle {hp} HP, {win} deliveries",
       "keyCastles2": "Steal a stone, hold {hold} s",
       "keyCastles3": "Win: {reward} rubies",
-      "playCastles": "Play: Castles"
+      "playCastles": "Play: Castles",
+      "footballTitle": "Football",
+      "soon": "Coming soon"
     },
     "circle": {
       "warmup": "The circle starts shrinking in {s} s",
