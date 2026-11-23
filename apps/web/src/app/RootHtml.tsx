@@ -1,6 +1,7 @@
 import { inter, geistMono, bodoniModa } from "@/styles/fonts";
 import "@/styles/globals.scss";
 import type { ReactNode } from "react";
+import HtmlBootstrapSync from "@/components/HtmlBootstrapSync/HtmlBootstrapSync";
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase";
 
 /**
@@ -82,6 +83,7 @@ export default function RootHtml({
       <body
         className={`${inter.variable} ${geistMono.variable} ${bodoniModa.variable}`}
       >
+        <HtmlBootstrapSync />
         {children}
       </body>
     </html>
