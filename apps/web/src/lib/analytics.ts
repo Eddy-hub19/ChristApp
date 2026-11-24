@@ -445,10 +445,27 @@ export function track<E extends AnalyticsEventName>(event: E, ...rest: ParamsArg
 /** `page_view` с безопасным шаблоном пути. Вызывается из одного места (AnalyticsRoot) при смене экрана. */
 export function trackPageView(pathname: string): void {
   const template = pageTemplate(pathname);
+  const pageLocation = `${window.location.origin}${template}`;
+  setSafePageContext(template, pageLocation);
   track("page_view", {
     page_path: template,
-    page_location: `${window.location.origin}${template}`,
+    page_location: pageLocation,
   });
+}
+
+/**
+ * `gtag("set")` обновляет значения для всех последующих хитов Google-тега, в том числе автоматических
+ * (`user_engagement`), которые сам тег шлёт с реальным `document.location`. Без этого в GA4 уходил бы настоящий URL
+ * (с id чата и языком). Сама команда ничего не отправляет, поэтому до согласия безопасна; при отказе не вызывается.
+ */
+function setSafePageContext(template: string, pageLocation: string): void {
+  try {
+    if (typeof window === "undefined" || !GTM_ID || readAnalyticsConsent() === "denied") return;
+    initAnalyticsDataLayer();
+    gtag("set", { page_location: pageLocation, page_path: template, page_title: "" });
+  } catch {
+    /* аналитика не должна ломать приложение */
+  }
 }
 
 /* ───────────────────── Отложенные события входа ─────────────────────
