@@ -556,8 +556,8 @@ export const FLOCK_CONFIG = {
     /** Формат: teamSize на teamSize (боти добивають до нього); людей у команді не більше maxTeamSize (8 на 8, обидві карти). */
     teamSize: 8,
     maxTeamSize: 8,
-    /** Карти режиму (FLOCK_MAPS з team: true): 4 - «Ліс і озеро», 10 - «Небесні тераси»; гравець обирає в лобі. */
-    mapIds: [4, 10] as readonly number[],
+    /** Карти режиму (FLOCK_MAPS з team: true): 4 - «Ліс і озеро», 10 - «Небесні тераси», 11 - «Затонулі руїни»; гравець обирає в лобі. */
+    mapIds: [4, 10, 11] as readonly number[],
     /** «Небесні тераси»: клітина, чий центр поза островами й мостами довше fallMs, падає й відроджується в замку (камінь, що несла, лишається лежати). */
     terraces: {
       fallMs: 1500,
@@ -1215,7 +1215,7 @@ export interface FlockMapDef {
   /** «Острів скарбів»: круглий острів, акули у воді, мости (див. FLOCK_CONFIG.treasure). */
   treasure?: boolean;
   /** Командна карта «Замків»: геометрія (flock.castles.ts castleMap(kind)); без поля - «Ліс і озеро» (річка). */
-  castleKind?: 'river' | 'terraces';
+  castleKind?: 'river' | 'terraces' | 'ruins';
 }
 
 /**
@@ -1245,6 +1245,8 @@ export const FLOCK_MAPS: readonly FlockMapDef[] = [
   { id: 9, name: 'treasure', layout: 'scatter', thornStyle: 'palm', thorns: { min: 10, max: 14, minGap: 520 }, weight: 1, treasure: true },
   /** «Небесні тераси»: друга карта командного режиму «Замки» (острови в повітрі з мостами); у випадковий вибір звичайних арен не входить (team). */
   { id: 10, name: 'terraces', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true, castleKind: 'terraces' },
+  /** «Затонулі руїни»: третя карта «Замків» - ті самі острови з мостами (механіка терас), але на воді, з руїнами; у випадковий вибір звичайних арен не входить (team). */
+  { id: 11, name: 'ruins', layout: 'scatter', thornStyle: 'bush', thorns: {}, weight: 0, team: true, castleKind: 'ruins' },
 ];
 
 /** Чи відкрите нічне вікно (fromHour..toHour за часом night.timeZone) у момент atMs. */
