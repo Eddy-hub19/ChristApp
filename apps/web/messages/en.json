@@ -657,7 +657,7 @@
       "badge": "New",
       "flockTitle": "Play Flock",
       "flockText": "Jump in and get 20 rubies, try the new game",
-      "flockTextReturning": "A new map has appeared, jump in",
+      "flockTextReturning": "Come play with your team on the new map",
       "flockCta": "Play",
       "cinemaTitle": "Watch together",
       "cinemaText": "Watch videos together, like in one room",
@@ -1609,7 +1609,8 @@
       "coliseum": "Colosseum",
       "candy": "Candy Land",
       "treasure": "Treasure Island",
-      "terraces": "Sky Terraces"
+      "terraces": "Sky Terraces",
+      "ruins": "Sunken Ruins"
     },
     "hud": {
       "mass": "Mass",
@@ -1927,7 +1928,9 @@
         "lake": "Forest and Lake",
         "lakeHint": "A river and bridges",
         "terraces": "Sky Terraces",
-        "terracesHint": "Islands in the sky: fall and respawn in your castle"
+        "terracesHint": "Islands in the sky: fall and respawn in your castle",
+        "ruins": "Sunken Ruins",
+        "ruinsHint": "Ruin islands on water: fall in and respawn at the castle"
       },
       "fallWarn": "You are falling — get back to the island!"
     },
