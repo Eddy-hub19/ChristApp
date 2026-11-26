@@ -7,6 +7,7 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import type { AdminMember } from "@/lib/queries/adminQueries";
 import AdminMemberRubies from "./AdminMemberRubies";
 import AdminFlockMute from "./AdminFlockMute";
+import AdminPasswordReset from "./AdminPasswordReset";
 import { describeLastSeen, formatShortDate } from "./adminFormat";
 import styles from "./admin.module.scss";
 
@@ -114,6 +115,7 @@ function AdminUserCard({ member, isNew, muted, deleting, now, onDelete }: Props)
             </div>
           </dl>
 
+          <AdminPasswordReset memberId={member.id} />
           <AdminMemberRubies memberId={member.id} />
           <AdminFlockMute memberId={member.id} />
 

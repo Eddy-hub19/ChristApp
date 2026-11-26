@@ -46,6 +46,7 @@ model User {
   reactions         Reaction[]
   messagePins       MessagePin[]      @relation("MessagePinnedBy")
   refreshSessions   RefreshSession[]
+  passwordResetTokens PasswordResetToken[]
   authIdentities    AuthIdentity[]
   /// false у нового Google-пользователя, пока он не выбрал @username (без этого в приложение не пускаем).
   usernameChosen    Boolean            @default(true)
@@ -116,6 +117,19 @@ model RefreshSession {
 
   @@index([userId])
   @@index([isRevoked, revokedAt])
+}
+
+/// * Одноразовый токен сброса пароля, выданный админом (хеш в БД, сырое значение только в ссылке).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum MessageType {

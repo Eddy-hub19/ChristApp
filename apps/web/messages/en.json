@@ -190,6 +190,17 @@
     "openChat": "Open chat"
   },
   "admin": {
+    "passwordReset": {
+      "title": "Password",
+      "create": "Reset password",
+      "again": "Create a new link",
+      "creating": "Creating…",
+      "failed": "Couldn't create the link.",
+      "linkLabel": "Password reset link",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "hint": "One-time, valid for 1 hour. Send it to the person yourself; a new link cancels the previous one."
+    },
     "puzzleImages": {
       "tab": "Puzzles",
       "hint": "All pictures added by players (public at once, no moderation).",
@@ -2245,7 +2256,21 @@
     "errPasswordShort": "Password must be at least 6 characters",
     "errPasswordLong": "Password must be at most 72 characters"
   },
+  "resetPassword": {
+    "title": "New password",
+    "newPassword": "New password",
+    "confirmPassword": "Repeat password",
+    "submit": "Save password",
+    "saving": "Saving…",
+    "success": "Password changed. You can sign in now.",
+    "toLogin": "Sign in",
+    "noToken": "The link has no reset code. Ask for a new link.",
+    "errShort": "Password must be at least 6 characters",
+    "errLong": "Password must be at most 72 characters",
+    "errMismatch": "Passwords don't match"
+  },
   "authErrors": {
+    "RESET_TOKEN_INVALID": "This link is invalid or has expired. Ask for a new one.",
     "INVALID_CREDENTIALS": "Wrong nickname or password.",
     "RATE_LIMITED": "Too many attempts, try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "USERNAME_TAKEN": "This nickname is already taken. Pick another one.",

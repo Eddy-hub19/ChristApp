@@ -88,6 +88,7 @@ export default function TabBar() {
   const hiddenRoutes = [
     "/",
     "/register",
+    "/reset-password",
     "/choose-nickname",
     "/offline",
     "/privacy",

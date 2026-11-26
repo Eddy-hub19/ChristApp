@@ -84,6 +84,7 @@ export class AuthRateLimiter {
   private readonly loginIdentifier = new AttemptWindow(5, 15 * MINUTE);
   private readonly register = new AttemptWindow(10, 60 * MINUTE);
   private readonly google = new AttemptWindow(30, 15 * MINUTE);
+  private readonly passwordReset = new AttemptWindow(10, 15 * MINUTE);
   private readonly usernameCheck = new AttemptWindow(60, 10 * MINUTE);
 
   private static assertOpen(blockedMs: number) {
@@ -116,6 +117,11 @@ export class AuthRateLimiter {
   countGoogle(ip: string) {
     AuthRateLimiter.assertOpen(this.google.blockedFor(ip));
     this.google.hit(ip);
+  }
+
+  countPasswordReset(ip: string) {
+    AuthRateLimiter.assertOpen(this.passwordReset.blockedFor(ip));
+    this.passwordReset.hit(ip);
   }
 
   countUsernameCheck(ip: string) {

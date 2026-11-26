@@ -33,6 +33,7 @@ export function parseAuthError(responseText: string): AuthErrorInfo {
 /** Коди, для яких є переклад у `authErrors`. */
 const KNOWN_CODES = new Set([
   "INVALID_CREDENTIALS",
+  "RESET_TOKEN_INVALID",
   "RATE_LIMITED",
   "USERNAME_TAKEN",
   "EMAIL_TAKEN",

@@ -34,3 +34,15 @@ export class RegisterDto {
   })
   username: string;
 }
+
+export class ResetPasswordDto {
+  @IsString()
+  @MinLength(20)
+  @MaxLength(128)
+  token: string;
+
+  @IsString({ message: 'Пароль обязателен' })
+  @MinLength(6, { message: 'Пароль должен быть не короче 6 символов' })
+  @MaxLength(72, { message: 'Пароль не должен превышать 72 символа' })
+  password: string;
+}
