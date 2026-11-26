@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from 'src/auth/auth.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { AdminController } from './admin.controller';
 import { ChatModule } from 'src/chat/chat.module';
@@ -12,6 +13,7 @@ import { DbLatencyService } from './db-latency.service';
 @Module({
   imports: [
     PrismaModule,
+    AuthModule,
     ChatModule,
     FlockModule,
     PuzzleUserImagesModule,

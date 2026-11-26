@@ -7,6 +7,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthRateLimiter } from './auth-rate-limiter';
 import { GoogleAuthService } from './google-auth.service';
+import { PasswordResetService } from './password-reset.service';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { GoogleAuthService } from './google-auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, AuthRateLimiter, GoogleAuthService],
-  exports: [JwtModule, AuthService],
+  providers: [AuthService, JwtStrategy, AuthRateLimiter, GoogleAuthService, PasswordResetService],
+  exports: [JwtModule, AuthService, PasswordResetService],
 })
 export class AuthModule {}

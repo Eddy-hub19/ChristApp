@@ -11,7 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { LoginDto, RegisterDto } from './dto/AuthDTO';
+import { LoginDto, RegisterDto, ResetPasswordDto } from './dto/AuthDTO';
+import { PasswordResetService } from './password-reset.service';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { AllowWithoutNickname } from './allow-without-nickname.decorator';
@@ -27,6 +28,7 @@ export class AuthController {
   constructor(
     private authService: AuthService,
     private googleAuth: GoogleAuthService,
+    private passwordReset: PasswordResetService,
   ) {}
 
   @Post('register')
@@ -105,6 +107,13 @@ export class AuthController {
     @Body() dto: SetPasswordDto,
   ) {
     return this.googleAuth.setPassword(req.user.id, dto.password);
+  }
+
+  /** Публично: человек открывает одноразовую ссылку от админа и задаёт новый пароль. */
+  @Post('auth/password-reset')
+  @HttpCode(200)
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.passwordReset.confirm(dto.token, dto.password, req);
   }
 
   @Post('auth/nickname')

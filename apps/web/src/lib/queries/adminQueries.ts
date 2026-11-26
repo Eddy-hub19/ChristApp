@@ -50,6 +50,20 @@ export async function deleteAdminMember(memberId: string): Promise<void> {
   if (!res.ok) throw new AdminHttpError(res.status);
 }
 
+/** Одноразовий токен скидання пароля (діє годину): з нього адмін складає ссилку для людини. */
+export async function issueAdminPasswordReset(
+  memberId: string,
+): Promise<{ token: string; expiresAt: string }> {
+  const token = getAuthToken();
+  if (!token) throw new AdminHttpError(401, "no token");
+  const res = await apiFetch(
+    `${getHttpApiBase()}/admin/members/${memberId}/password-reset`,
+    { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) throw new AdminHttpError(res.status);
+  return (await res.json()) as { token: string; expiresAt: string };
+}
+
 export function adminMembersQueryOptions(enabled: boolean) {
   return {
     queryKey: adminMembersQueryKey(),

@@ -16,6 +16,7 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
+import { PasswordResetService } from 'src/auth/password-reset.service';
 import { authUserCache } from 'src/auth/auth-user-cache';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AdminGuard } from './admin.guard';
@@ -46,6 +47,7 @@ export class AdminController {
     private readonly flockGateway: FlockGateway,
     private readonly puzzleImages: PuzzleUserImagesService,
     private readonly push: PushService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   private lastBroadcastAt = 0;
@@ -330,6 +332,14 @@ export class AdminController {
     const m = typeof body?.minutes === 'number' && Number.isFinite(body.minutes) ? Math.floor(body.minutes) : NaN;
     if (!(m >= 0 && m <= 60 * 24 * 7)) throw new BadRequestException('invalid_minutes');
     return { mutedUntil: this.flockGateway.muteUser(id, m) };
+  }
+
+  /** Одноразовая ссылка сброса пароля (час): админ передаёт её человеку, почты в проекте нет. */
+  @Post('members/:id/password-reset')
+  async issuePasswordReset(@Param('id') id: string, @Req() req: Request) {
+    const actor = req.user as { id?: string } | undefined;
+    if (!id?.trim()) throw new BadRequestException('Member id is required');
+    return this.passwordReset.issue(id, actor?.id ?? 'unknown');
   }
 
   @Delete('members/:id')

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { GoogleAuthService } from './google-auth.service';
+import { PasswordResetService } from './password-reset.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -18,6 +19,7 @@ describe('AuthController', () => {
           },
         },
         { provide: GoogleAuthService, useValue: {} },
+        { provide: PasswordResetService, useValue: {} },
       ],
     }).compile();
 
