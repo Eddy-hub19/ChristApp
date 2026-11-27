@@ -915,3 +915,46 @@ $emerald: #1fb572;
     border-radius: 0;
   }
 }
+
+/* «Усі обліки» в стиле лобби: одна карточка, цветные заголовки секций, плитки 6/5 в ряд, замок и цена поверх плитки. */
+.sheetCard {
+  padding: 16px;
+  border-radius: 26px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 96%, var(--background));
+}
+.sheetCard .sheetSection {
+  gap: 10px;
+  padding-bottom: 18px;
+}
+.sheetCard .sheetSection:last-child {
+  padding-bottom: 0;
+}
+.sheetCard .sheetSectionHead {
+  padding-top: 0;
+}
+.sheetCard .sheetSectionTitle {
+  font-size: 15px;
+  letter-spacing: 0.08em;
+}
+.sheetKind_premium .sheetSectionTitle {
+  color: color-mix(in srgb, #d9a21b 85%, var(--foreground));
+}
+.sheetKind_special .sheetSectionTitle {
+  color: color-mix(in srgb, #7a5cd6 80%, var(--foreground));
+}
+.sheetCard .allGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.sheetKind_premium .allGrid,
+.sheetKind_legendary .allGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.sheetCard .allGrid > button {
+  border-radius: 16px;
+}
+.sheetCard .allGrid > button canvas {
+  width: 100% !important;
+  height: auto !important;
+}

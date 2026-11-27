@@ -987,28 +987,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         aria-checked={grid ? grid.focused : skin === i}
         aria-label={locked ? `${t(`skins.${i}`)}: ${t("rubies.locked")}, ${notForSale(i) ? t("rubies.soon") : t("rubies.price", { price: priceOf(i) })}` : t(`skins.${i}`)}
         title={t(`skins.${i}`)}
-        className={`${styles.skin} ${grid ? lobby.tileGrid : ""} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${(grid ? grid.focused : (previewSkin ?? skin) === i) ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
+        className={`${styles.skin} ${isPremiumSkin(i) ? styles.skinPremium : ""} ${isSpecialSkin(i) ? styles.skinSpecial : ""} ${(grid ? grid.focused : (previewSkin ?? skin) === i) ? styles.skinActive : ""} ${locked ? styles.skinLocked : ""}`}
         onClick={grid ? grid.onPick : () => openSkin(i)}
       >
         <SkinPreview skinId={i} />
         {hasPerk ? <span className={styles.perkBadge} title={t("premiumCollection.perkBadge")} aria-hidden /> : null}
-        {grid ? (
-          <span className={lobby.tileMeta}>
-            {locked ? (
-              <>
-                <Lock size={11} aria-hidden />
-                {notForSale(i) ? (
-                  t("rubies.soon")
-                ) : (
-                  <>
-                    {priceIcon(i, 11)}
-                    {priceOf(i)}
-                  </>
-                )}
-              </>
-            ) : null}
-          </span>
-        ) : locked ? (
+        {locked ? (
           <>
             <span className={styles.lockBadge}>
               <Lock size={12} aria-hidden />
@@ -1870,7 +1854,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
 
       {status === "dead" && death && !circleEnd ? (
         <div className={styles.cardWrap} onClickCapture={lobbyClickSound}>
-          <div className={styles.card} role="alertdialog" aria-label={t("dead.title")}>
+          <div className={`${styles.card} ${styles.deathCard}`} role="alertdialog" aria-label={t("dead.title")}>
+            <div className={styles.deathHero} aria-hidden="true">
+              <span className={styles.deathIcon}>{death.burned ? "🌋" : death.fell ? "☁️" : death.swept ? "🍫" : death.iced ? "🧊" : death.shark ? "🦈" : death.zone ? "⭕" : death.killer ? "🐺" : "💫"}</span>
+            </div>
             <h2>{death.burned ? t("dead.burnedTitle") : death.fell ? t("dead.fellTitle") : death.swept ? t("dead.sweptTitle") : death.iced ? t("dead.icedTitle") : death.shark ? t("dead.sharkTitle") : t("dead.title")}</h2>
             {death.burned ? <p className={styles.sub}>{t("dead.burned")}</p> : null}
             {death.fell ? <p className={styles.sub}>{t("dead.fell")}</p> : null}
@@ -1879,6 +1866,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             {death.shark ? <p className={styles.sub}>{t("dead.shark")}</p> : null}
             {death.zone ? <p className={styles.sub}>{t("dead.zone")}</p> : null}
             {death.killer ? <p className={styles.sub}>{t("dead.by", { name: death.killer })}</p> : null}
+            {death.topMs > 0 ? <p className={styles.leaderBadge}>👑 {t("dead.leaderFor", { time: formatDuration(death.topMs) })}</p> : null}
             <dl className={styles.summary}>
               <div>
                 <dt>{t("dead.maxSize")}</dt>
@@ -1893,7 +1881,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 <dd>{death.kills > 0 ? `${death.kills}` : t("dead.nobody")}</dd>
               </div>
             </dl>
-            {death.killed.length > 0 ? <p className={styles.killed}>{death.killed.join(", ")}</p> : null}
+            {death.killed.length > 0 ? (
+              <ul className={styles.killedList}>
+                {death.killed.slice(0, 8).map((n, i) => (
+                  <li key={`${n}-${i}`}>{n}</li>
+                ))}
+                {death.killed.length > 8 ? <li>+{death.killed.length - 8}</li> : null}
+              </ul>
+            ) : null}
             {clientRef.current?.model?.coliseum && me?.coliseum ? <p className={styles.sub}>{t("coliseum.toSkin", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
             <div className={styles.cardButtons}>
               <button type="button" className={styles.primary} onClick={() => play()} autoFocus>

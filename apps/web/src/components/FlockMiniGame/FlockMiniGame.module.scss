@@ -1503,3 +1503,126 @@
   opacity: 0.8;
   text-align: center;
 }
+
+/* Картка смерті: іконка за причиною, поява з пружиною, плитки статистики по черзі. */
+.deathCard {
+  position: relative;
+  align-items: center;
+  text-align: center;
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, #e5484d 22%, transparent), transparent 70%),
+    color-mix(in srgb, var(--surface-elevated) 96%, var(--background));
+  animation: deathPop 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+
+  h2 {
+    animation: deathFade 0.4s 0.15s both;
+  }
+  .sub {
+    animation: deathFade 0.4s 0.25s both;
+  }
+  .summary {
+    width: 100%;
+    div {
+      animation: deathFade 0.4s both;
+    }
+    div:nth-child(1) {
+      animation-delay: 0.3s;
+    }
+    div:nth-child(2) {
+      animation-delay: 0.4s;
+    }
+    div:nth-child(3) {
+      animation-delay: 0.5s;
+    }
+  }
+  .cardButtons {
+    width: 100%;
+    animation: deathFade 0.4s 0.6s both;
+  }
+}
+
+.deathHero {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.deathIcon {
+  font-size: 46px;
+  line-height: 1;
+  animation: deathWobble 2.4s 0.5s ease-in-out infinite;
+}
+
+.leaderBadge {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: color-mix(in srgb, #f5b82e 22%, transparent);
+  color: color-mix(in srgb, #f5b82e 80%, var(--foreground));
+  animation: deathFade 0.4s 0.35s both;
+}
+
+.killedList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: deathFade 0.4s 0.55s both;
+
+  li {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+}
+
+@keyframes deathPop {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes deathFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes deathWobble {
+  0%, 100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg) translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deathCard,
+  .deathCard h2,
+  .deathCard .sub,
+  .deathCard .summary div,
+  .deathCard .cardButtons,
+  .deathIcon,
+  .leaderBadge,
+  .killedList {
+    animation: none;
+  }
+}
