@@ -947,14 +947,87 @@ $emerald: #1fb572;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
-.sheetKind_premium .allGrid,
-.sheetKind_legendary .allGrid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
 .sheetCard .allGrid > button {
   border-radius: 16px;
 }
 .sheetCard .allGrid > button canvas {
   width: 100% !important;
   height: auto !important;
+}
+
+/* Компактно: ширина как на телефоне, чтобы все скины помещались на один экран без прокрутки. */
+.sheetHead,
+.sheetScroll,
+.sheetFoot {
+  width: min(400px, 100%);
+}
+.sheetScroll {
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+.sheetCard {
+  padding: 12px;
+  border-radius: 22px;
+}
+.sheetCard .sheetSection {
+  gap: 6px;
+  padding-bottom: 10px;
+}
+.sheetCard .sheetSectionTitle {
+  font-size: 12px;
+}
+.sheetCard .allGrid {
+  gap: 5px;
+}
+.sheetCard .allGrid > button {
+  border-radius: 12px;
+}
+.sheetHead {
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+.sheetFoot {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Покупка закрытого скина: отдельной строкой под превью на всю ширину (иначе имя сжимается в столбик). */
+.miniBuy {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+
+  > * {
+    margin-top: 0;
+  }
+}
+
+.miniArt {
+  width: 44px;
+  height: 44px;
+}
+
+/* Выбранный скин - сверху (под заголовком), «Готово» - сразу под сеткой, без пустого провала между ними. */
+.sheetPreview {
+  flex: none;
+  width: min(400px, 100%);
+  margin: 0 auto;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+.sheetPreview .miniPreview {
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+.sheetScroll {
+  flex: 0 1 auto;
+}
+.sheetFoot {
+  border-top: 0;
+  padding-top: 0;
+  background: transparent;
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Sparkles, X } from "lucide-react";
 import { useLocale } from "next-intl";
-import { APP_WHATS_NEW, APP_WHATS_NEW_TEXT, latestAppVersion, type AppWhatsNewLang } from "@/components/AppWhatsNew/appWhatsNewData";
+import { APP_WHATS_NEW, APP_WHATS_NEW_TEXT, DEFAULT_ICON, latestAppVersion, type AppWhatsNewLang } from "@/components/AppWhatsNew/appWhatsNewData";
 import { UPDATES_OPENED_EVENT, getOpenedUpdatesVersion, markUpdatesOpened } from "./appUpdatesState";
 import styles from "./AppUpdates.module.scss";
 
@@ -68,7 +68,12 @@ export default function AppUpdates({ buttonClassName }: { buttonClassName: strin
                       <h3 className={styles.date}>{formatDate(entry.date)}</h3>
                       <ul className={styles.list}>
                         {entry.items.map((item, i) => (
-                          <li key={i}>{item[lang]}</li>
+                          <li key={i}>
+                            <span className={styles.icon} aria-hidden="true">
+                              {item.icon ?? DEFAULT_ICON}
+                            </span>
+                            <span>{item[lang]}</span>
+                          </li>
                         ))}
                       </ul>
                     </section>
