@@ -213,9 +213,9 @@ describe('pickBotName', () => {
 
   it('adds a number once all base names are taken', () => {
     const base = pickBotName(rng, BOT_NAMES);
-    expect(base).toMatch(/ 2$/);
-    expect(BOT_NAMES).toContain(base.replace(/ 2$/, ''));
+    expect(base).toMatch(/2$/);
+    expect(BOT_NAMES).toContain(base.replace(/2$/, ''));
     const third = pickBotName(rng, [...BOT_NAMES, base]);
-    expect(third).toBe(base.replace(/ 2$/, ' 3'));
+    expect(third).toBe(base.replace(/2$/, '3'));
   });
 });
