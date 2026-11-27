@@ -43,7 +43,6 @@ import GameInviteCard from "@/components/FlockMiniGame/GameInviteCard";
 import { parseGameInvite, type PairGameId } from "@/lib/gameInviteMessage";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
-import ChatMessageAudio from "@/components/ChatMessageAudio/ChatMessageAudio";
 import ChatImage from "@/components/ChatImage/ChatImage";
 import FileBubble from "@/components/FileBubble/FileBubble";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
@@ -775,7 +774,6 @@ function MessageBubble({
                   ))}
                 </div>
               ) : null}
-              <ChatMessageAudio text={message.content} />
             </>
           );
         }
