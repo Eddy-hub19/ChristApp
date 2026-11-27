@@ -30,8 +30,6 @@ export interface CastlePos {
 export interface CastleMapGeom {
   /** Вид карти: 'river' - «Ліс і озеро» (діагональна річка), 'terraces' - «Небесні тераси» (острови з мостами). */
   kind: 'river' | 'terraces';
-  /** Оформлення островної карти: 'ruins' - «Затонулі руїни» (ті самі острови й мости, але на воді); без поля - небо. Механіка не залежить від оформлення. */
-  skin?: 'ruins';
   river: RiverGeom;
   /** Лише для kind 'terraces'. */
   terraces?: TerracesGeom;
@@ -75,11 +73,10 @@ function mulberry32(seed: number): Rng {
 const cachedMaps = new Map<string, CastleMapGeom>();
 
 /** Геометрія карти (будується один раз на вид; детермінована за seed). Обидва боки дзеркальні відносно центра світу. */
-export function castleMap(kind: 'river' | 'terraces' | 'ruins' = 'river'): CastleMapGeom {
+export function castleMap(kind: 'river' | 'terraces' = 'river'): CastleMapGeom {
   const hit = cachedMaps.get(kind);
   if (hit) return hit;
-  const made =
-    kind === 'terraces' ? buildTerracesMap() : kind === 'ruins' ? { ...buildTerracesMap(T.terraces.seed + 7), skin: 'ruins' as const } : buildRiverMap();
+  const made = kind === 'terraces' ? buildTerracesMap() : buildRiverMap();
   cachedMaps.set(kind, made);
   return made;
 }
@@ -283,7 +280,7 @@ export class CastleMatch {
   constructor(
     private readonly world: FlockWorld,
     private readonly rng: Rng,
-    kind: 'river' | 'terraces' | 'ruins' = 'river',
+    kind: 'river' | 'terraces' = 'river',
   ) {
     this.geom = castleMap(kind);
   }
@@ -883,8 +880,6 @@ export class CastleMatch {
       world: W,
       /** Вид карти ('river' | 'terraces'); для терас - острови й мости, час до падіння. */
       kind: g.kind,
-      /** Оформлення островної карти ('ruins' - «Затонулі руїни»); undefined - небо. */
-      skin: g.skin,
       terraces: g.terraces,
       fallMs: T.terraces.fallMs,
     };

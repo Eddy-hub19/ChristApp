@@ -19,7 +19,7 @@ export type PublicActivity = {
   userId: string;
   username: string;
   game: string;
-  /** Режим гри (Snake: classic | duel); undefined — ще в лобі. */
+  /** Режим гри (для ігор з режимами); undefined — ще в лобі. */
   mode?: string;
   joinable: boolean;
   sessionId: string;

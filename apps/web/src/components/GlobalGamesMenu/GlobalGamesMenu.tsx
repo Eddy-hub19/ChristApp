@@ -10,20 +10,13 @@ import { ensureAccessToken } from "@/lib/authSession";
 import { GLOBAL_ROOM_ID } from "@/lib/chatRooms";
 import { buildFlockInviteMessage } from "@/lib/flockInviteMessage";
 import GameIcon from "@/lib/games/gameIcons";
-import { PAIR_GAMES, type PairGameId } from "@/lib/gameInviteMessage";
 import { openQuickInvite, type QuickInviteClient } from "@/lib/quickInvite";
-import GameInvitePicker, { type GamePeer } from "./GameInvitePicker";
 import styles from "./GlobalGamesMenu.module.scss";
 
-export type { GamePeer };
-
 type Props = {
-  currentUserId: string | undefined;
-  /** Учасники загального чату (з відміткою «онлайн»). */
-  participants: GamePeer[];
-  /** Список учасників ще вантажиться — у вікні вибору суперника показуємо скелетон. */
-  peopleLoading?: boolean;
-  /** Класи кнопки (як у кнопки-геймпада особистого чату) — щоб шапка лишалась однорідною. */
+  /** Открыть «Угадай персонажа» в одиночном режиме прямо в этом чате. */
+  onOpenGuessSolo: () => void;
+  /** Классы кнопки (как у кнопки-геймпада личного чата) — чтобы шапка оставалась однородной. */
   buttonClassName: string;
   wrapClassName: string;
   menuClassName: string;
@@ -35,12 +28,9 @@ type Props = {
 /**
  * Кнопка-геймпад у шапці загального чату. «Отара» — відкрити спільну арену або покликати всіх карточкою
  * в загальний чат (не частіше разу на хвилину — ліміт на сервері); парні ігри — вибрати суперника зі списку
- * учасників: йому в особистий чат йде запрошення, а в нас відкривається особистий чат із грою.
  */
 export default function GlobalGamesMenu({
-  currentUserId,
-  participants,
-  peopleLoading = false,
+  onOpenGuessSolo,
   buttonClassName,
   wrapClassName,
   menuClassName,
@@ -49,10 +39,8 @@ export default function GlobalGamesMenu({
   onNotice,
 }: Props) {
   const t = useTranslations("globalGames");
-  const tInvite = useTranslations("chatShared.gameInvite");
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pickGame, setPickGame] = useState<PairGameId | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<QuickInviteClient | null>(null);
 
@@ -106,14 +94,9 @@ export default function GlobalGamesMenu({
     }
   };
 
-  const startPick = (game: PairGameId) => {
+  const startGuessSolo = () => {
     setMenuOpen(false);
-    setPickGame(game);
-  };
-
-  const startSolo = (game: "filword" | "puzzle") => {
-    setMenuOpen(false);
-    router.push(`/games?play=${game}`);
+    onOpenGuessSolo();
   };
 
   return (
@@ -143,33 +126,12 @@ export default function GlobalGamesMenu({
             <MegaphoneIcon size={18} className={iconClassName} />
             <span>{t("flockCallAll")}</span>
           </button>
-          <p className={styles.groupTitle}>{t("pairHeader")}</p>
-          {PAIR_GAMES.map((game) => (
-            <button key={game} type="button" className={itemClassName} role="menuitem" onClick={() => startPick(game)}>
-              <GameIcon game={game} className={iconClassName} />
-              <span>{tInvite(`games.${game}`)}</span>
-            </button>
-          ))}
-          <p className={styles.groupTitle}>{t("soloHeader")}</p>
-          <button type="button" className={itemClassName} role="menuitem" onClick={() => startSolo("filword")}>
-            <GameIcon game="filword" className={iconClassName} />
-            <span>{tInvite("games.filword")}</span>
-          </button>
-          <button type="button" className={itemClassName} role="menuitem" onClick={() => startSolo("puzzle")}>
-            <GameIcon game="puzzle" className={iconClassName} />
-            <span>{t("puzzleSolo")}</span>
+          <button type="button" className={itemClassName} role="menuitem" onClick={startGuessSolo}>
+            <GameIcon game="guess" className={iconClassName} />
+            <span>{t("guessSolo")}</span>
           </button>
         </div>
       ) : null}
-
-      <GameInvitePicker
-        game={pickGame}
-        onClose={() => setPickGame(null)}
-        currentUserId={currentUserId}
-        participants={participants}
-        peopleLoading={peopleLoading}
-        onNotice={onNotice}
-      />
     </div>
   );
 }

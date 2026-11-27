@@ -6,8 +6,6 @@
 export const CASTLES_MAP_ID = 4;
 /** «Небесні тераси»: друга карта «Замків». */
 export const TERRACES_MAP_ID = 10;
-/** «Затонулі руїни»: третя карта «Замків» (механіка терас, але на воді). */
-export const RUINS_MAP_ID = 11;
 export type Team = 1 | 2;
 /** Кольори команд: 1 - «Вівці» (синій), 2 - «Вовки» (червоний). */
 export const TEAM_COLOR: Record<Team, { main: string; dark: string; light: string }> = {
@@ -32,8 +30,6 @@ export interface CastleCfg {
   world: number;
   /** Вид карти: 'river' - «Ліс і озеро» (за замовчуванням), 'terraces' - «Небесні тераси» (острови з мостами). */
   kind?: "river" | "terraces";
-  /** Оформлення островної карти: "ruins" - «Затонулі руїни» (вода й кам'яні острови); без поля - небо. */
-  skin?: "ruins";
   terraces?: TerracesCfg;
   /** Скільки мс над порожнечею до падіння («Небесні тераси»). */
   fallMs?: number;

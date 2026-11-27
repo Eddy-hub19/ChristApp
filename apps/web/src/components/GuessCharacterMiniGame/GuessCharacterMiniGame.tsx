@@ -32,6 +32,8 @@ type Props = {
   socket: GuessSocket | null;
   userId: string;
   peerName: string;
+  /** Только одиночная игра (общий чат): переключатель режимов скрыт. */
+  soloOnly?: boolean;
   onClose: () => void;
 };
 
@@ -151,7 +153,7 @@ function CharacterPicker({ characters, lang, excludeIds = NO_IDS, confirmLabel, 
   );
 }
 
-export default function GuessCharacterMiniGame({ open, roomId, socket, userId, peerName, onClose }: Props) {
+export default function GuessCharacterMiniGame({ open, roomId, socket, userId, peerName, soloOnly = false, onClose }: Props) {
   useGameAnalytics("guess", open);
   const t = useTranslations("guessCharacter");
   const locale = useLocale();
@@ -159,8 +161,8 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
 
   // Режим, у якому гравець був востаннє, — щоб після повернення в чат одразу відкрилась його гра.
   const storedMode = useMemo<GuessMode>(
-    () => (open && roomId ? readMode(roomId) : "duel"),
-    [open, roomId],
+    () => (soloOnly ? "solo" : open && roomId ? readMode(roomId) : "duel"),
+    [open, roomId, soloOnly],
   );
   const [modeChoice, setModeChoice] = useState<{ roomId: string; mode: GuessMode } | null>(null);
   const mode = modeChoice && modeChoice.roomId === roomId ? modeChoice.mode : storedMode;
@@ -347,7 +349,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
     const peerReady = peerId && session ? Boolean(session.ready[peerId]) : false;
     return (
       <div className={styles.lobby}>
-        <div className={styles.modeSwitch} role="radiogroup" aria-label={t("modeLabel")}>
+        {soloOnly ? null : <div className={styles.modeSwitch} role="radiogroup" aria-label={t("modeLabel")}>
           {(["duel", "solo"] as const).map((m) => (
             <button
               key={m}
@@ -360,7 +362,7 @@ export default function GuessCharacterMiniGame({ open, roomId, socket, userId, p
               {m === "duel" ? t("modeDuel", { name: peerName }) : t("modeSolo")}
             </button>
           ))}
-        </div>
+        </div>}
         <details className={styles.rules}>
           <summary>{t("rulesTitle")}</summary>
           <p>{t("rules")}</p>

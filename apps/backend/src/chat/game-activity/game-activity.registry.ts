@@ -10,7 +10,7 @@ export type GameActivityDef = {
   joinable: boolean;
   maxPlayers: number;
   /**
-   * Режими гри (наприклад, Snake: «classic» / «duel»). Місця рахуються в межах режиму:
+   * Режими гри (наприклад, «classic» / «duel»). Місця рахуються в межах режиму:
    * «Приєднатися» до Дуелі є, поки друге місце в ній вільне, а до Класики — завжди, коли вона не зайнята обома.
    */
   modes?: readonly string[];
@@ -18,17 +18,10 @@ export type GameActivityDef = {
 
 export const GAME_ACTIVITY_REGISTRY: Record<string, GameActivityDef> = {
   doodle: { id: 'doodle', joinable: true, maxPlayers: 2 },
-  snake: {
-    id: 'snake',
-    joinable: true,
-    maxPlayers: 2,
-    modes: ['classic', 'duel'],
-  },
   guess: { id: 'guess', joinable: true, maxPlayers: 2 },
   puzzle: { id: 'puzzle', joinable: true, maxPlayers: 2 },
   // Спільна арена: у DM «приєднатися» веде на ту саму арену, місця рахує сама арена.
   flock: { id: 'flock', joinable: true, maxPlayers: 2 },
-  filword: { id: 'filword', joinable: false, maxPlayers: 1 },
 };
 
 export function getGameActivityDef(id: unknown): GameActivityDef | undefined {

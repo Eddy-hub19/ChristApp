@@ -57,7 +57,7 @@ export type GameActivityLine = {
   sessionId: string | null;
 };
 
-/** Групує за грою: «Ед і Neko грають у Snake», різні ігри — окремими рядками (до MAX, далі «+N»). */
+/** Групує за грою: «Ед і Neko грають у Doodle», різні ігри — окремими рядками (до MAX, далі «+N»). */
 export function groupGameActivities(activities: GameActivity[]): {
   lines: GameActivityLine[];
   hiddenLines: number;

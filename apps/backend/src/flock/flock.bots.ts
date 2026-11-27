@@ -124,8 +124,8 @@ export function pickBotName(rng: Rng, taken: Iterable<string>): string {
   if (free.length > 0) return free[Math.floor(rng() * free.length)];
   const base = BOT_NAMES[Math.floor(rng() * BOT_NAMES.length)];
   let n = 2;
-  while (used.has(`${base} ${n}`)) n += 1;
-  return `${base} ${n}`;
+  while (used.has(`${base}${n}`)) n += 1;
+  return `${base}${n}`;
 }
 
 export function initBot(p: Player, rng: Rng, personality?: Personality) {

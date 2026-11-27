@@ -1294,16 +1294,16 @@ html[data-theme="light"] .chatListSection {
 /* «Отара»: зелёная лужайка, трава растёт по нижнему и верхнему краю и по бокам-уголкам. */
 :global(html[data-design="v2"]) .promoFlock {
   border-color: rgba(88, 190, 118, 0.55);
-  /* Фон - новая карта «Затонувшие руины» (public/flock/ruins-banner.jpg) под тёмной вуалью, чтобы читался текст. */
+  /* Фон - карта «Конфетная страна» (public/flock/candy-banner.svg) под тёмной вуалью, чтобы читался текст. */
   background:
-    linear-gradient(180deg, rgba(6, 28, 36, 0.62), rgba(6, 28, 36, 0.5) 55%, rgba(6, 28, 36, 0.66)),
-    url("/flock/ruins-banner.jpg") center / cover no-repeat,
+    linear-gradient(180deg, rgba(74, 22, 52, 0.6), rgba(74, 22, 52, 0.48) 55%, rgba(74, 22, 52, 0.62)),
+    url("/flock/candy-banner.svg") center / cover no-repeat,
     var(--v2-glass-bg);
 
   .promoTitle,
   .promoText {
     color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 20, 26, 0.7);
+    text-shadow: 0 1px 3px rgba(40, 8, 28, 0.7);
   }
 
   &::before,
