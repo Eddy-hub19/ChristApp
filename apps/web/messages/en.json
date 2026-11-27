@@ -1650,7 +1650,8 @@
       "maxSize": "Max size",
       "time": "Time",
       "ate": "Eaten",
-      "nobody": "nobody"
+      "nobody": "nobody",
+      "leaderFor": "Was the leader for {time}"
     },
     "events": {
       "zorepad": "Starfall!",

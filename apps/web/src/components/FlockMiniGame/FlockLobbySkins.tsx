@@ -203,6 +203,7 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
         </button>
       </header>
       <div className={styles.sheetScroll}>
+        <div className={styles.sheetCard}>
         {tabs.map((x) => {
           const have = x.ids.filter(isOwned).length;
           return (
@@ -211,7 +212,7 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
               ref={(el) => {
                 sectionRefs.current[x.key] = el;
               }}
-              className={styles.sheetSection}
+              className={`${styles.sheetSection} ${styles[`sheetKind_${x.key}`]}`}
               aria-label={labelOf(t, x.key)}
             >
               <div className={styles.sheetSectionHead}>
@@ -229,6 +230,7 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
             </section>
           );
         })}
+        </div>
       </div>
       <footer className={styles.sheetFoot}>
         <div className={styles.miniPreview}>
