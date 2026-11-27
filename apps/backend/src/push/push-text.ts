@@ -22,11 +22,9 @@ export const PUSH_LABELS = {
 
 /** Назви ігор — власні імена, однакові в усіх мовах (як і в пушах «Отари»). */
 const GAME_PUSH_NAMES: Record<string, string> = {
-  snake: 'Snake',
   doodle: 'Doodle',
   guess: 'Guess the Character',
   puzzle: 'Puzzle',
-  filword: 'Wordsearch',
 };
 
 const STICKER_META_PREFIX = '[[sticker:';

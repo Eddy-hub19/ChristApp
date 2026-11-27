@@ -64,7 +64,7 @@
 | `cinema_room_created` | создана комната | — | `watchRoomsQueries` |
 | `cinema_provider` | источник видео в созданной комнате | `provider`: `youtube`/`vimeo`/`file`/`other` | `watchRoomsQueries` |
 | `cinema_room_joined` | вход по ссылке или принятие приглашения | — | `watchRoomsQueries` |
-| `game_open` / `game_start` | показана мини-игра чата | `game`: `doodle`/`snake`/`guess`/`filword`/`puzzle` | `useGameAnalytics` |
+| `game_open` / `game_start` | показана мини-игра чата | `game`: `doodle`/`guess`/`puzzle` | `useGameAnalytics` |
 | `game_end` | игра закрыта | `game`, `result` (`end`), `duration_s` | `useGameAnalytics` |
 | `puzzle_custom_image_uploaded` | загружена своя картинка пазла | — | `puzzleImages` |
 | `otara_lobby_open` | лобби показано | — | `FlockMiniGame` |

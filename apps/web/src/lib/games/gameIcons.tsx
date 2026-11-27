@@ -1,11 +1,9 @@
 import type { ComponentType } from "react";
-import { DoodleIcon, FilwordIcon, FlockIcon, GuessIcon, PuzzleIcon, SnakeIcon, type ColorIconProps } from "@/components/icons/game";
+import { DoodleIcon, FlockIcon, GuessIcon, PuzzleIcon, type ColorIconProps } from "@/components/icons/game";
 import type { GameId } from "./gameRegistry";
 
 const GAME_ICONS: Record<GameId, ComponentType<ColorIconProps>> = {
   doodle: DoodleIcon,
-  snake: SnakeIcon,
-  filword: FilwordIcon,
   guess: GuessIcon,
   puzzle: PuzzleIcon,
   flock: FlockIcon,

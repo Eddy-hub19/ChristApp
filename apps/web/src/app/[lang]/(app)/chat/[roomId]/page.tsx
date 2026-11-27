@@ -122,7 +122,6 @@ import BubbleStyleSettings from "@/components/BubbleStyleSettings/BubbleStyleSet
 import { chatRoomBackgroundKey } from "@/lib/chatBackgrounds";
 import dynamic from "next/dynamic";
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame";
-import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame";
 import {
   useGameActivityBroadcast,
   useGameActivityFeed,
@@ -132,15 +131,6 @@ import type { GameId } from "@/lib/games/gameRegistry";
 /** Мини-игры тянем только при открытии (и монтируем только пока открыты) — чат без них не парсит их код. */
 const DoodleMiniGame = dynamic(
   () => import("@/components/DoodleMiniGame/DoodleMiniGame"),
-  { ssr: false },
-);
-const SnakeMiniGame = dynamic(
-  () => import("@/components/SnakeMiniGame/SnakeMiniGame"),
-  { ssr: false },
-);
-const ChristianFilwordMiniGame = dynamic(
-  () =>
-    import("@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame"),
   { ssr: false },
 );
 const GuessCharacterMiniGame = dynamic(
@@ -326,22 +316,6 @@ type DoodleStateUpdatedPayload = {
   roomId?: string;
   userId?: string;
   state?: DoodleRuntimeState;
-};
-
-type SnakeScoreUpdatedPayload = {
-  roomId?: string;
-  userId?: string;
-  score?: number;
-};
-
-type SnakeResetPayload = {
-  roomId?: string;
-};
-
-type SnakeStateUpdatedPayload = {
-  roomId?: string;
-  userId?: string;
-  state?: SnakeRuntimeState;
 };
 
 function persistLastSentPreview(
@@ -664,8 +638,6 @@ export default function ChatPageDetails() {
     null,
   );
   const [isDoodleOpen, setIsDoodleOpen] = useState(false);
-  const [isSnakeOpen, setIsSnakeOpen] = useState(false);
-  const [isFilwordOpen, setIsFilwordOpen] = useState(false);
   const [isGuessOpen, setIsGuessOpen] = useState(false);
   const [isPuzzleOpen, setIsPuzzleOpen] = useState(false);
   const [isFlockOpen, setIsFlockOpen] = useState(false);
@@ -676,16 +648,6 @@ export default function ChatPageDetails() {
     useState<DoodleRuntimeState | null>(null);
   /** Реальный RTT до сервера (ack сокета), а не разница часов двух устройств. */
   const [gamePingMs, setGamePingMs] = useState<number | null>(null);
-  // Режим Snake (Класика/Дуель) для статусу «грає у Snake»: від нього залежить, чи показувати «Приєднатися».
-  const [snakeMode, setSnakeMode] = useState<"classic" | "duel" | null>(null);
-  // Snake раніше сам скидав режим при закритті (open=false); тепер компонент розмонтовується, тож скидаємо тут.
-  useEffect(() => {
-    if (!isSnakeOpen) setSnakeMode(null);
-  }, [isSnakeOpen]);
-  const [mySnakeScore, setMySnakeScore] = useState(0);
-  const [peerSnakeScore, setPeerSnakeScore] = useState(0);
-  const [peerSnakeState, setPeerSnakeState] =
-    useState<SnakeRuntimeState | null>(null);
   const [socketAuthEpoch, setSocketAuthEpoch] = useState(0);
   const userIdRef = useRef<string | undefined>(undefined);
   /** Собеседник в личном чате: от его RoomReadState строится отметка «Переглянуто». */
@@ -902,29 +864,24 @@ export default function ChatPageDetails() {
   });
 
   // Пинг игры: круговой путь до сервера через ack сокета; пока измерения нет (или сервер не ответил) — «—».
-  const isGameOpen = isDoodleOpen || isSnakeOpen;
+  const isGameOpen = isDoodleOpen;
 
   // «Грає в …»: свій статус шлемо, поки відкрита гра; чужі приходять з сервера (у загальному чаті — ні).
   const openGameId: GameId | null = isDoodleOpen
     ? "doodle"
-    : isSnakeOpen
-      ? "snake"
-      : isFilwordOpen
-        ? "filword"
-        : isGuessOpen
-          ? "guess"
-          : isPuzzleOpen
-            ? "puzzle"
-            : isFlockOpen
-              ? "flock"
-              : null;
+    : isGuessOpen
+      ? "guess"
+      : isPuzzleOpen
+        ? "puzzle"
+        : isFlockOpen
+          ? "flock"
+          : null;
   // eslint-disable-next-line react-hooks/refs -- як і для ігор нижче: підписуємось на поточний живий сокет кімнати
   const activitySocket = isSocketConnected ? socketRef.current : null;
   useGameActivityBroadcast(
     activitySocket,
     effectiveSocketRoomId,
     openGameId,
-    openGameId === "snake" ? snakeMode : null,
   );
   const gameActivityByRoom = useGameActivityFeed(activitySocket, user?.id);
   useEffect(() => {
@@ -2054,11 +2011,6 @@ export default function ChatPageDetails() {
         }
       }
 
-      if (payload.game === "snake") {
-        setMySnakeScore(mine);
-        setPeerSnakeScore(peer);
-        return;
-      }
       setMyDoodleScore(mine);
       setPeerDoodleScore(peer);
     };
@@ -2133,86 +2085,6 @@ export default function ChatPageDetails() {
     };
     socket.on("doodle-state-updated", onDoodleStateUpdated);
 
-    const onSnakeScoreUpdated = (payload: SnakeScoreUpdatedPayload) => {
-      const joinedId = joinedRoomRef.current;
-      if (!joinedId || payload?.roomId !== joinedId || !payload?.userId) {
-        return;
-      }
-      const nextScore = Number(payload.score);
-      if (!Number.isFinite(nextScore)) {
-        return;
-      }
-      const normalized = Math.max(0, Math.floor(nextScore));
-      if (payload.userId === userIdRef.current) {
-        setMySnakeScore(normalized);
-      } else {
-        setPeerSnakeScore(normalized);
-      }
-    };
-    socket.on("snake-score-updated", onSnakeScoreUpdated);
-
-    const onSnakeReset = (payload: SnakeResetPayload) => {
-      const joinedId = joinedRoomRef.current;
-      if (!joinedId || payload?.roomId !== joinedId) {
-        return;
-      }
-      setMySnakeScore(0);
-      setPeerSnakeScore(0);
-      setPeerSnakeState(null);
-    };
-    socket.on("snake-reset", onSnakeReset);
-
-    const onSnakeStateUpdated = (payload: SnakeStateUpdatedPayload) => {
-      const joinedId = joinedRoomRef.current;
-      if (
-        !joinedId ||
-        payload?.roomId !== joinedId ||
-        !payload?.userId ||
-        !payload.state
-      ) {
-        return;
-      }
-      const state = payload.state;
-      if (
-        !Number.isFinite(state.headX) ||
-        !Number.isFinite(state.headY) ||
-        !Number.isFinite(state.foodX) ||
-        !Number.isFinite(state.foodY) ||
-        !Number.isFinite(state.score)
-      ) {
-        return;
-      }
-
-      if (payload.userId === userIdRef.current) {
-        setMySnakeScore(Math.max(0, Math.floor(state.score)));
-        return;
-      }
-
-
-      const body = Array.isArray(state.body)
-        ? state.body
-            .map((point) => ({ x: Number(point.x), y: Number(point.y) }))
-            .filter(
-              (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
-            )
-        : [];
-
-      setPeerSnakeState({
-        headX: state.headX,
-        headY: state.headY,
-        foodX: state.foodX,
-        foodY: state.foodY,
-        body,
-        score: Math.max(0, Math.floor(state.score)),
-        alive: Boolean(state.alive),
-        emittedAt: Number.isFinite(state.emittedAt)
-          ? Number(state.emittedAt)
-          : undefined,
-      });
-      setPeerSnakeScore(Math.max(0, Math.floor(state.score)));
-    };
-    socket.on("snake-state-updated", onSnakeStateUpdated);
-
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
@@ -2244,9 +2116,6 @@ export default function ChatPageDetails() {
       socket.off("doodle-score-updated", onDoodleScoreUpdated);
       socket.off("doodle-reset", onDoodleReset);
       socket.off("doodle-state-updated", onDoodleStateUpdated);
-      socket.off("snake-score-updated", onSnakeScoreUpdated);
-      socket.off("snake-reset", onSnakeReset);
-      socket.off("snake-state-updated", onSnakeStateUpdated);
       detachCallSocket();
       leaveCurrentRoom(socket);
       detachPresence();
@@ -3313,8 +3182,6 @@ export default function ChatPageDetails() {
     if (!socket?.connected) {
       return;
     }
-    setIsSnakeOpen(false);
-    setIsFilwordOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
     setIsFlockOpen(false);
@@ -3366,56 +3233,18 @@ export default function ChatPageDetails() {
     });
   }, []);
 
-  const handleOpenSnake = useCallback((options?: { join?: boolean }) => {
-    if (!directChatTargetUserId || !effectiveSocketRoomId) {
-      return;
-    }
-    const socket = socketRef.current;
-    if (!socket?.connected) {
-      return;
-    }
-    setIsDoodleOpen(false);
-    setIsFilwordOpen(false);
-    setIsGuessOpen(false);
-    setIsPuzzleOpen(false);
-    setIsFlockOpen(false);
-    setIsGameMenuOpen(false);
-    setIsSnakeOpen(true);
-    setMySnakeScore(0);
-    setPeerSnakeScore(0);
-    setPeerSnakeState(null);
-    if (!options?.join) {
-      socket.emit("snake-reset", { roomId: effectiveSocketRoomId });
-    }
-    socket.emit("gameSync", { roomId: effectiveSocketRoomId, game: "snake" });
-  }, [directChatTargetUserId, effectiveSocketRoomId]);
-
-  const handleOpenFilword = useCallback(() => {
-    if (!directChatTargetUserId || !effectiveSocketRoomId) {
-      return;
-    }
-    setIsDoodleOpen(false);
-    setIsSnakeOpen(false);
-    setIsGuessOpen(false);
-    setIsPuzzleOpen(false);
-    setIsFlockOpen(false);
-    setIsGameMenuOpen(false);
-    setIsFilwordOpen(true);
-  }, [directChatTargetUserId, effectiveSocketRoomId]);
-
   /** Стан гри живе на сервері: відкриття нічого не скидає, а повернення продовжує партію. */
   const handleOpenGuess = useCallback(() => {
-    if (!directChatTargetUserId || !effectiveSocketRoomId) {
+    // В общем чате «Угадай персонажа» доступна только соло, в личном - вдвоём и соло.
+    if (!effectiveSocketRoomId || (!directChatTargetUserId && roomId !== GLOBAL_ROOM_ID)) {
       return;
     }
     setIsDoodleOpen(false);
-    setIsSnakeOpen(false);
-    setIsFilwordOpen(false);
     setIsGameMenuOpen(false);
     setIsPuzzleOpen(false);
     setIsFlockOpen(false);
     setIsGuessOpen(true);
-  }, [directChatTargetUserId, effectiveSocketRoomId]);
+  }, [directChatTargetUserId, effectiveSocketRoomId, roomId]);
 
   /** Стан пазла живе на сервері: відкриття нічого не скидає, а повернення продовжує збірку. */
   const handleOpenPuzzle = useCallback(() => {
@@ -3423,8 +3252,6 @@ export default function ChatPageDetails() {
       return;
     }
     setIsDoodleOpen(false);
-    setIsSnakeOpen(false);
-    setIsFilwordOpen(false);
     setIsGuessOpen(false);
     setIsGameMenuOpen(false);
     setIsPuzzleOpen(true);
@@ -3436,8 +3263,6 @@ export default function ChatPageDetails() {
       return;
     }
     setIsDoodleOpen(false);
-    setIsSnakeOpen(false);
-    setIsFilwordOpen(false);
     setIsGuessOpen(false);
     setIsPuzzleOpen(false);
     setIsGameMenuOpen(false);
@@ -3447,16 +3272,15 @@ export default function ChatPageDetails() {
   const handleJoinGame = useCallback(
     (game: GameId) => {
       if (game === "doodle") handleOpenDoodle({ join: true });
-      else if (game === "snake") handleOpenSnake({ join: true });
       else if (game === "guess") handleOpenGuess();
       else if (game === "puzzle") handleOpenPuzzle();
       else if (game === "flock") handleOpenFlock();
     },
-    [handleOpenDoodle, handleOpenSnake, handleOpenGuess, handleOpenPuzzle, handleOpenFlock],
+    [handleOpenDoodle, handleOpenGuess, handleOpenPuzzle, handleOpenFlock],
   );
 
   /**
-   * Перехід із загального чату («Гра на двох»): `?game=snake` відкриває цю гру в особистому чаті — тим самим
+   * Перехід із загального чату («Гра на двох»): `?game=doodle` відкриває цю гру в особистому чаті — тим самим
    * `handleOpen*`, що й меню ігор DM. Параметр знімаємо одразу, щоб оновлення сторінки не перезапускало гру.
    */
   const autoGameHandledRef = useRef(false);
@@ -3491,7 +3315,6 @@ export default function ChatPageDetails() {
       `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`,
     );
     if (game === "doodle") handleOpenDoodle();
-    else if (game === "snake") handleOpenSnake();
     else if (game === "guess") handleOpenGuess();
     else handleOpenPuzzle();
   }, [
@@ -3499,46 +3322,9 @@ export default function ChatPageDetails() {
     effectiveSocketRoomId,
     isSocketConnected,
     handleOpenDoodle,
-    handleOpenSnake,
     handleOpenGuess,
     handleOpenPuzzle,
   ]);
-
-  const handleSnakeScoreChange = useCallback((score: number) => {
-    setMySnakeScore(score);
-    const socket = socketRef.current;
-    const joinedId = joinedRoomRef.current;
-    if (!socket?.connected || !joinedId) {
-      return;
-    }
-    socket.emit("snake-score", {
-      roomId: joinedId,
-      score,
-    });
-  }, []);
-
-  const snakeStateEmitTsRef = useRef(0);
-  const handleSnakeStateChange = useCallback((state: SnakeRuntimeState) => {
-    const socket = socketRef.current;
-    const joinedId = joinedRoomRef.current;
-    if (!socket?.connected || !joinedId) {
-      return;
-    }
-
-    const now = Date.now();
-    if (now - snakeStateEmitTsRef.current < 70 && state.alive) {
-      return;
-    }
-    snakeStateEmitTsRef.current = now;
-
-    socket.emit("snake-state", {
-      roomId: joinedId,
-      state: {
-        ...state,
-        emittedAt: Date.now(),
-      },
-    });
-  }, []);
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     const targetRoomId = effectiveSocketRoomId;
@@ -4103,9 +3889,7 @@ export default function ChatPageDetails() {
               {roomId === GLOBAL_ROOM_ID ? (
                 <div className={styles.headerActions}>
                   <GlobalGamesMenu
-                    currentUserId={user?.id}
-                    participants={participants}
-                    peopleLoading={loading}
+                    onOpenGuessSolo={handleOpenGuess}
                     wrapClassName={styles.gameMenuWrap}
                     buttonClassName={styles.gameButton}
                     menuClassName={styles.gameMenu}
@@ -4163,24 +3947,6 @@ export default function ChatPageDetails() {
                         >
                           <GameIcon game="doodle" className={styles.gameMenuIcon} />
                           <span>Doodle</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.gameMenuItem}
-                          role="menuitem"
-                          onClick={() => handleOpenSnake()}
-                        >
-                          <GameIcon game="snake" className={styles.gameMenuIcon} />
-                          <span>Snake</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.gameMenuItem}
-                          role="menuitem"
-                          onClick={handleOpenFilword}
-                        >
-                          <GameIcon game="filword" className={styles.gameMenuIcon} />
-                          <span>Филворд</span>
                         </button>
                         <button
                           type="button"
@@ -4537,39 +4303,11 @@ export default function ChatPageDetails() {
             onStateChange={handleDoodleStateChange}
           />
         ) : null}
-        {isSnakeOpen ? (
-          <SnakeMiniGame
-            open
-            roomId={effectiveSocketRoomId}
-            // eslint-disable-next-line react-hooks/refs -- гра підписується на поточний (живий) сокет кімнати; зміна isSocketConnected перерендерює сторінку
-            socket={isSocketConnected ? socketRef.current : null}
-            userId={user?.id ?? ""}
-            myScore={mySnakeScore}
-            peerScore={peerSnakeScore}
-            peerName={
-              directChatTargetUser?.nickname ??
-              directChatTargetUser?.username ??
-              t("peerFallback")
-            }
-            peerState={peerSnakeState}
-            pingMs={gamePingMs}
-            onClose={() => setIsSnakeOpen(false)}
-            onScoreChange={handleSnakeScoreChange}
-            onStateChange={handleSnakeStateChange}
-            onModeChange={setSnakeMode}
-          />
-        ) : null}
-        {isFilwordOpen ? (
-          <ChristianFilwordMiniGame
-            open
-            onClose={() => setIsFilwordOpen(false)}
-          />
-        ) : null}
         {isGuessOpen ? (
           <GuessCharacterMiniGame
             open
             roomId={effectiveSocketRoomId}
-            // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
+            // eslint-disable-next-line react-hooks/refs -- як і Doodle: підписуємось на поточний живий сокет кімнати
             socket={isSocketConnected ? socketRef.current : null}
             userId={user?.id ?? ""}
             peerName={
@@ -4577,6 +4315,7 @@ export default function ChatPageDetails() {
               directChatTargetUser?.username ??
               t("peerFallback")
             }
+            soloOnly={roomId === GLOBAL_ROOM_ID}
             onClose={() => setIsGuessOpen(false)}
           />
         ) : null}
@@ -4584,7 +4323,7 @@ export default function ChatPageDetails() {
           <PuzzleMiniGame
             open
             roomId={effectiveSocketRoomId}
-            // eslint-disable-next-line react-hooks/refs -- як і Snake: підписуємось на поточний живий сокет кімнати
+            // eslint-disable-next-line react-hooks/refs -- як і Doodle: підписуємось на поточний живий сокет кімнати
             socket={isSocketConnected ? socketRef.current : null}
             userId={user?.id ?? ""}
             peerName={

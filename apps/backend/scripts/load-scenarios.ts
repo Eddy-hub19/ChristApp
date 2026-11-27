@@ -1,5 +1,5 @@
 /**
- * Нагрузочні сценарії: скільки запитів до БД і CPU коштує "Отара", Snake-дуель, чат і кінотеатр.
+ * Нагрузочні сценарії: скільки запитів до БД і CPU коштує "Отара", чат і кінотеатр.
  * Клієнти повторюють поведінку фронтенду (heartbeat presence 20 с, activity 15 с, HTTP-опитування 30/45/60 с, ввід "Отари" 10/с).
  *
  * Потрібна ЛОКАЛЬНА (тимчасова) база: скрипт відмовиться працювати з будь-яким хостом, окрім localhost.
@@ -8,7 +8,7 @@
  *   LOAD_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/christ?schema=public \
  *     node -r ts-node/register/transpile-only -r tsconfig-paths/register scripts/load-scenarios.ts <сценарій|all|probe> [секунд=40]
  *
- * Сценарії: idle, flock2, flock6, snake-duel, snake-classic, chat, cinema, mixed (Отара x6 + чат + кінотеатр).
+ * Сценарії: idle, flock2, flock6, chat, cinema, mixed (Отара x6 + чат + кінотеатр).
  * probe - скільки запитів коштує одна подія кожного типу.
  *
  * Емуляція квоти CPU (CFS, як на Render): LOAD_QUOTA_MS=<мс на 100 мс> (50 = 0.5 vCPU; ділите на коефіцієнт повільності
@@ -439,51 +439,6 @@ const scenarios: Record<string, (c: Ctx) => Promise<void>> = {
       await flockClient(u);
     }
   },
-  async 'snake-duel'({ seed }) {
-    const room = seed.dm[0];
-    const dirs = ['up', 'right', 'down', 'left'];
-    for (const [i, u] of seed.users.slice(0, 2).entries()) {
-      const s = await chatClient(u);
-      s.emit('joinRoom', { roomId: room });
-      s.emit('snake-session-sync', { roomId: room });
-      activity(s, room, 'snake', 'duel');
-      await sleep(300);
-      s.emit('snake-level-select', { roomId: room, level: 1 });
-      s.emit('snake-ready', { roomId: room, ready: true });
-      every(250, () =>
-        s.emit('snake-input', {
-          roomId: room,
-          dir: dirs[Math.floor(Math.random() * 4)],
-        }),
-      );
-    }
-  },
-  async 'snake-classic'({ seed }) {
-    const room = seed.dm[0];
-    for (const u of seed.users.slice(0, 2)) {
-      const s = await chatClient(u);
-      s.emit('joinRoom', { roomId: room });
-      s.emit('gameSync', { roomId: room, game: 'snake' });
-      activity(s, room, 'snake', 'classic');
-      let score = 0;
-      every(70, () => {
-        score += Math.random() < 0.05 ? 1 : 0;
-        s.emit('snake-state', {
-          roomId: room,
-          state: {
-            headX: 3,
-            headY: 4,
-            foodX: 8,
-            foodY: 9,
-            score,
-            alive: true,
-            body: [{ x: 2, y: 4 }],
-          },
-        });
-      });
-      every(1000, () => s.emit('snake-score', { roomId: room, score }));
-    }
-  },
   async chat({ seed }) {
     const room = seed.dm[1];
     const pair = seed.users.slice(2, 4);
@@ -611,19 +566,7 @@ async function probe(seed: Seed) {
   );
   await run('markRoomRead', () => s.emit('markRoomRead', { roomId: room }));
   await run('gameSync', () =>
-    s.emit('gameSync', { roomId: room, game: 'snake' }),
-  );
-  await run('snake-state (classic)', () =>
-    s.emit('snake-state', {
-      roomId: room,
-      state: { headX: 1, headY: 1, foodX: 2, foodY: 2, score: 1, alive: true },
-    }),
-  );
-  await run('snake-score (classic)', () =>
-    s.emit('snake-score', { roomId: room, score: 1 }),
-  );
-  await run('snake-input (duel)', () =>
-    s.emit('snake-input', { roomId: room, dir: 'up' }),
+    s.emit('gameSync', { roomId: room, game: 'doodle' }),
   );
   await run('flock input "i"', () =>
     fl.emit('i', encodeInputPacked(1, 1, 0, 1.8)),
@@ -772,8 +715,6 @@ async function main() {
               'idle',
               'flock2',
               'flock6',
-              'snake-duel',
-              'snake-classic',
               'chat',
               'cinema',
             ]

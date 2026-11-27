@@ -14,14 +14,10 @@ import SoloPuzzleHost from "./SoloPuzzleHost";
 import styles from "./games.module.scss";
 
 const DoodleMiniGame = dynamic(() => import("@/components/DoodleMiniGame/DoodleMiniGame"), { ssr: false });
-const ChristianFilwordMiniGame = dynamic(
-  () => import("@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame"),
-  { ssr: false },
-);
 
 /** Ігри, що запускаються одразу з цієї сторінки без співрозмовника. */
-type SoloGame = "doodle" | "filword" | "puzzle";
-const isSoloGame = (v: unknown): v is SoloGame => v === "doodle" || v === "filword" || v === "puzzle";
+type SoloGame = "doodle" | "puzzle";
+const isSoloGame = (v: unknown): v is SoloGame => v === "doodle" || v === "puzzle";
 
 export default function GamesPage() {
   const t = useTranslations("games");
@@ -31,7 +27,7 @@ export default function GamesPage() {
   const [doodleScore, setDoodleScore] = useState(0);
   const [doodleKey] = useState(0);
 
-  // Перехід із меню ігор загального чату: /games?play=filword|puzzle одразу запускає гру.
+  // Перехід із меню ігор загального чату: /games?play=puzzle одразу запускає гру.
   useEffect(() => {
     const play = new URLSearchParams(window.location.search).get("play");
     if (!isSoloGame(play)) return;
@@ -91,7 +87,6 @@ export default function GamesPage() {
           onScoreChange={setDoodleScore}
         />
       ) : null}
-      {soloGame === "filword" ? <ChristianFilwordMiniGame open onClose={closeSolo} /> : null}
       {soloGame === "puzzle" && user ? (
         <SoloPuzzleHost
           userId={user.id}
