@@ -30,50 +30,6 @@ export function DoodleIcon(props: ColorIconProps) {
   );
 }
 
-export function SnakeIcon(props: ColorIconProps) {
-  const head = useGradient("#55e3d2", "#14a899");
-  const path = "M5.6 19c-1.6-4.6 3.2-5.2 6.4-5.8 3.4-.7 3.6-2.6 3.2-4.4";
-  return (
-    <ColorIconSvg {...props}>
-      <defs>{head.def}</defs>
-      <path d={path} stroke={INK} strokeWidth="7" strokeLinecap="round" />
-      <path d={path} stroke="#19b9a8" strokeWidth="5.4" strokeLinecap="round" />
-      <path d="M5.4 17.2c.4-1.2 1.6-1.9 3-2.2" stroke="#9df3e8" strokeOpacity=".75" strokeWidth="1.3" strokeLinecap="round" />
-      <circle cx="15.4" cy="7.6" r="4.7" fill={head.fill} {...stroke} />
-      <circle cx="13.4" cy="6.6" r="1.9" fill="#fff" {...stroke} strokeWidth={0.8} />
-      <circle cx="17.4" cy="6.6" r="1.9" fill="#fff" {...stroke} strokeWidth={0.8} />
-      <circle cx="13.8" cy="6.9" r="0.95" fill={INK} />
-      <circle cx="17.0" cy="6.9" r="0.95" fill={INK} />
-      <path d="M13.8 9.8c.9.6 2.1.6 3 0" stroke={INK} strokeWidth="1" strokeLinecap="round" />
-      <path d="M12.4 4.4c.9-.8 2-1 3-.8" stroke="#fff" strokeOpacity=".7" strokeWidth="1.1" strokeLinecap="round" />
-      <path d="M20 9.6l1.7 1M20 9.6l1.5-1.1" stroke="#ff4d6d" strokeWidth="1.1" strokeLinecap="round" />
-    </ColorIconSvg>
-  );
-}
-
-export function FilwordIcon(props: ColorIconProps) {
-  const card = useGradient("#74b7ff", "#3a7de0");
-  const tile = (x: number, y: number, gold: boolean) => (
-    <rect x={x} y={y} width="7.6" height="7.6" rx="2" fill={gold ? GOLD : "#fff"} stroke={INK} strokeWidth="0.9" />
-  );
-  const letter = { strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
-  return (
-    <ColorIconSvg {...props}>
-      <defs>{card.def}</defs>
-      <rect x="1.8" y="1.8" width="20.4" height="20.4" rx="5.4" fill={card.fill} {...stroke} />
-      {tile(3.9, 3.9, false)}
-      {tile(12.5, 3.9, false)}
-      {tile(3.9, 12.5, true)}
-      {tile(12.5, 12.5, true)}
-      <path d="M5.9 10.4l2-4.8 2 4.8M6.6 8.9h2.6" stroke="#2f6fd0" {...letter} />
-      <path d="M14.6 5.6v4.8M14.6 5.6h1.5a1.3 1.3 0 010 2.4h-1.5m0 0h1.7a1.3 1.3 0 010 2.4h-1.7" stroke="#2f6fd0" {...letter} />
-      <path d="M10.2 14.6A2.5 2.5 0 108.4 18a2.5 2.5 0 001.8-.8" stroke={INK} {...letter} transform="translate(0 0)" />
-      <path d="M14.6 14.3v4.6h1.1a2.3 2.3 0 000-4.6z" stroke={INK} {...letter} />
-      <path d="M4 5.2c.7-1.5 2.2-2 3.6-1.9" stroke="#fff" strokeOpacity=".55" strokeWidth="1.2" strokeLinecap="round" />
-    </ColorIconSvg>
-  );
-}
-
 export function GuessIcon(props: ColorIconProps) {
   const sil = useGradient("#b79cff", "#7a55e6");
   return (

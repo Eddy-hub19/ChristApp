@@ -3,14 +3,15 @@ import { buildGameInviteMessage, isPairGame, parseGameInvite } from "./gameInvit
 
 describe("game invite message", () => {
   it("round-trips pair games", () => {
-    for (const game of ["snake", "doodle", "guess", "puzzle"] as const) {
+    for (const game of ["doodle", "guess", "puzzle"] as const) {
       expect(parseGameInvite(buildGameInviteMessage(game))).toEqual({ game });
     }
   });
-  it("rejects unknown/solo games and plain text", () => {
+  it("rejects unknown/removed/solo games and plain text", () => {
     expect(parseGameInvite("[[game-invite:filword]]")).toBeNull();
+    expect(parseGameInvite("[[game-invite:snake]]")).toBeNull();
     expect(parseGameInvite("[[game-invite:nope]]")).toBeNull();
-    expect(parseGameInvite("hi [[game-invite:snake]]")).toBeNull();
+    expect(parseGameInvite("hi [[game-invite:doodle]]")).toBeNull();
     expect(parseGameInvite(null)).toBeNull();
     expect(isPairGame("flock")).toBe(false);
   });

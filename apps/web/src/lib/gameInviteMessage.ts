@@ -8,8 +8,8 @@ import { isGameId, type GameId } from "@/lib/games/gameRegistry";
 export const GAME_INVITE_PREFIX = "[[game-invite:";
 export const GAME_INVITE_SUFFIX = "]]";
 
-/** Парні ігри, у які можна кликати з загального чату (Філворд — одиночна, «Отара» — спільна арена). */
-export const PAIR_GAMES = ["snake", "doodle", "guess", "puzzle"] as const satisfies readonly GameId[];
+/** Парні ігри, у які можна кликати з загального чату («Отара» — спільна арена). */
+export const PAIR_GAMES = ["doodle", "guess", "puzzle"] as const satisfies readonly GameId[];
 export type PairGameId = (typeof PAIR_GAMES)[number];
 
 export function isPairGame(value: unknown): value is PairGameId {

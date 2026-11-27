@@ -5,7 +5,7 @@ describe("isFullscreenPath", () => {
   it("is true for game routes under /games/<name>", () => {
     expect(isFullscreenPath("/games/flock")).toBe(true);
     expect(isFullscreenPath("/games/flock/")).toBe(true);
-    expect(isFullscreenPath("/games/snake")).toBe(true);
+    expect(isFullscreenPath("/games/guess")).toBe(true);
   });
   it("keeps the game list and other screens as is", () => {
     expect(isFullscreenPath("/games")).toBe(false);

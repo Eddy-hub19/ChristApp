@@ -585,51 +585,6 @@
     "testFailed": "Couldn't send (code {status}).",
     "testNoServer": "The server didn't respond."
   },
-  "snake": {
-    "level1Name": "Level 1: Classic",
-    "level1Desc": "Everyone plays on their own board at their own pace: eat, grow, don't crash. Starts right away, no waiting for the other player.",
-    "level2Name": "Level 2: Duel",
-    "level2Desc": "One shared board and a race to {n} pieces. Each piece: +1 score and +1 length. Crash and you respawn in {s} seconds, the score stays. First to {n} wins.",
-    "chooseLevel": "Choose a level",
-    "ready": "Ready",
-    "cancelReady": "Cancel",
-    "readyState": "ready",
-    "notReady": "not ready",
-    "waitingState": "waiting",
-    "connecting": "Connecting…",
-    "reconnecting": "Reconnecting…",
-    "newRecord": "NEW!",
-    "me": "Me",
-    "versus": "Vs {name}: {wins}–{losses}",
-    "best": "Best score: {n}",
-    "ping": "Ping",
-    "pingValue": "{ms} ms",
-    "hintClassic": "Controls: WASD, arrows or swipe",
-    "hintDuel": "Controls: WASD, arrows or swipe on the board",
-    "classicNoWait": "Classic starts right away — the other player can join any time.",
-    "respawnIn": "Respawning in {s}…",
-    "raceScoreAria": "Race score",
-    "raceScore": "{name} {n}/{target}",
-    "raceTo": "First to {n} wins",
-    "matchWin": "Victory!",
-    "matchLose": "{name} wins",
-    "finalScore": "Final: {me} : {peer} ({name}), race to {n}",
-    "peerDisconnected": "{name} disconnected…",
-    "youDisconnected": "Connection lost…",
-    "waitingSeconds": "Waiting up to {s}s",
-    "winByDisconnect": "{name} left the game",
-    "lossByDisconnect": "You lost connection",
-    "playAgain": "Play again",
-    "changeLevel": "Change level",
-    "gameOver": "Game over",
-    "score": "Score: {n}",
-    "lastResult": "Last result: {n}",
-    "close": "Close",
-    "dirUp": "Up",
-    "dirDown": "Down",
-    "dirLeft": "Left",
-    "dirRight": "Right"
-  },
   "doodle": {
     "title": "Doodle",
     "gameOver": "Game over",
@@ -649,26 +604,13 @@
     "themeNight": "Stars",
     "themeHeaven": "Heavens"
   },
-  "filword": {
-    "title": "Christian word search",
-    "close": "Close",
-    "found": "Found: {found}/{total}",
-    "newGrid": "New grid",
-    "selection": "Selection: {word}",
-    "won": "All words found! 🎉",
-    "playAgain": "Play again",
-    "empty": "Could not build a grid. Please try again.",
-    "resetConfirm": "Reset progress?",
-    "yes": "Yes",
-    "no": "No"
-  },
   "chat": {
     "peerFallback": "Chat partner",
     "promo": {
       "badge": "New",
       "flockTitle": "Play Flock",
       "flockText": "Jump in and get 20 rubies, try the new game",
-      "flockTextReturning": "Come play with your team on the new map",
+      "flockTextReturning": "Come play with your team",
       "flockCta": "Play",
       "cinemaTitle": "Watch together",
       "cinemaText": "Watch videos together, like in one room",
@@ -863,8 +805,6 @@
       "previewPlaying": "🎮 playing {game}",
       "games": {
         "doodle": "Doodle",
-        "snake": "Snake",
-        "filword": "Word Search",
         "guess": "Guess the Character",
         "puzzle": "Puzzles",
         "flock": "Flock"
@@ -1154,11 +1094,9 @@
       "titleOwn": "You invited to play: {game}",
       "play": "Play",
       "games": {
-        "snake": "Snake",
         "doodle": "Doodle",
         "guess": "Guess the Character",
-        "puzzle": "Puzzles",
-        "filword": "Wordsearch"
+        "puzzle": "Puzzles"
       },
       "expired": "Expired"
     },
@@ -1620,8 +1558,7 @@
       "coliseum": "Colosseum",
       "candy": "Candy Land",
       "treasure": "Treasure Island",
-      "terraces": "Sky Terraces",
-      "ruins": "Sunken Ruins"
+      "terraces": "Sky Terraces"
     },
     "hud": {
       "mass": "Mass",
@@ -1939,9 +1876,7 @@
         "lake": "Forest and Lake",
         "lakeHint": "A river and bridges",
         "terraces": "Sky Terraces",
-        "terracesHint": "Islands in the sky: fall and respawn in your castle",
-        "ruins": "Sunken Ruins",
-        "ruinsHint": "Ruin islands on water: fall in and respawn at the castle"
+        "terracesHint": "Islands in the sky: fall and respawn in your castle"
       },
       "fallWarn": "You are falling — get back to the island!"
     },
@@ -2124,16 +2059,6 @@
       "desc": "Jump across platforms and beat your record",
       "cta": "Play"
     },
-    "snake": {
-      "title": "Snake",
-      "desc": "Classic snake or a duel with a friend",
-      "cta": "Invite"
-    },
-    "filword": {
-      "title": "Christian Wordsearch",
-      "desc": "Find Christian words in a letter grid",
-      "cta": "Play"
-    },
     "guess": {
       "title": "Guess the Character",
       "desc": "Guess a Bible hero by asking questions",
@@ -2150,6 +2075,7 @@
     "fail": "Couldn't start the game. Please try again."
   },
   "globalGames": {
+    "guessSolo": "Guess the character (solo)",
     "open": "Games",
     "flock": "Flock",
     "flockCallAll": "Call everyone to the chat",

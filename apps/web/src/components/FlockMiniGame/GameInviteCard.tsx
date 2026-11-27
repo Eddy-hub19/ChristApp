@@ -18,7 +18,7 @@ type Props = {
 
 const INVITE_TTL_MS = 60 * 60 * 1000;
 
-/** Карточка-запрошення в парну гру в особистому чаті: «Ед кличе грати: Snake» + «Грати». */
+/** Карточка-запрошення в парну гру в особистому чаті: «Ед кличе грати: Doodle» + «Грати». */
 export default function GameInviteCard({ game, senderName, isOwn, createdAt, onPlay }: Props) {
   const t = useTranslations("chatShared.gameInvite");
   const gameName = t(`games.${game}`);

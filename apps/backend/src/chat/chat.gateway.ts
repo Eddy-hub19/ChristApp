@@ -1,7 +1,4 @@
-import {
-  FlockInviteLimiter,
-  isFlockInviteContent,
-} from './flock-invite-limit';
+import { FlockInviteLimiter, isFlockInviteContent } from './flock-invite-limit';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -31,7 +28,6 @@ import { CHAT_VIEW_KEY, roomViews } from 'src/push/room-view.registry';
 import { presence, type PresenceChange } from './presence.registry';
 import { LastSeenWriter } from './last-seen-writer';
 import { RoomAccessCache } from './room-access.cache';
-import { SnakeDuelManager } from './snake-duel/snake-duel.manager';
 import {
   GuessCharacterManager,
   guessCatalog,
@@ -64,25 +60,25 @@ interface SocketUser {
 
 /** Збережене повідомлення, яке розсилається кімнаті подією `newMessage`. */
 type NewChatMessageInput = {
-      id: string;
-      type: MessageType;
-      content: string | null;
-      fileUrl: string | null;
-      voiceDuration?: number | null;
-      mediaWidth?: number | null;
-      mediaHeight?: number | null;
-      fileSize?: number | null;
-      createdAt: Date;
-      senderId: string;
-      sender: {
-        username: string;
-        nickname: string | null;
-        bubbleStyle?: string | null;
-      };
-      replyToId?: string | null;
-      replyTo?: MessageReplyPreview | null;
-      clientMessageId?: string | null;
-    };
+  id: string;
+  type: MessageType;
+  content: string | null;
+  fileUrl: string | null;
+  voiceDuration?: number | null;
+  mediaWidth?: number | null;
+  mediaHeight?: number | null;
+  fileSize?: number | null;
+  createdAt: Date;
+  senderId: string;
+  sender: {
+    username: string;
+    nickname: string | null;
+    bubbleStyle?: string | null;
+  };
+  replyToId?: string | null;
+  replyTo?: MessageReplyPreview | null;
+  clientMessageId?: string | null;
+};
 
 interface SocketWithUser extends Socket {
   data: {
@@ -149,31 +145,8 @@ type DoodleStatePayload = {
   };
 };
 
-type SnakeScorePayload = {
-  roomId?: string;
-  score?: number;
-};
-
-type SnakeResetPayload = {
-  roomId?: string;
-};
-
-type SnakeStatePayload = {
-  roomId?: string;
-  state?: {
-    headX?: number;
-    headY?: number;
-    foodX?: number;
-    foodY?: number;
-    score?: number;
-    alive?: boolean;
-    emittedAt?: number;
-    body?: Array<{ x?: number; y?: number }>;
-  };
-};
-
 /** Ігри в особистих чатах. Рахунок і сесію тримає сервер — це єдине джерело правди. */
-type GameKind = 'doodle' | 'snake';
+type GameKind = 'doodle';
 
 type RoomGameSession = {
   kind: GameKind;
@@ -246,13 +219,6 @@ export class ChatGateway
   /** `${roomId}:${kind}` → ігрова сесія кімнати (у пам'яті WS; партія живе, поки живе кімната). */
   private readonly gameSessions = new Map<string, RoomGameSession>();
 
-  /** Серверна дуель Snake (рівень 2): лобі, відлік, тіки, зіткнення. */
-  private readonly snakeDuel = new SnakeDuelManager(
-    (roomId, event, payload) => {
-      this.server?.to(roomId).emit(event, payload);
-    },
-  );
-
   /** «Вгадай персонажа»: сесія живе в пам'яті сервера й переживає вихід гравців із гри. Знімки йдуть кожному гравцеві окремо (`user:<id>`), бо в них є таємниця загадувача. */
   private readonly guessCharacter = new GuessCharacterManager(
     (userId, event, payload) => {
@@ -281,7 +247,6 @@ export class ChatGateway
   private readonly gameActivity = new GameActivityService();
   private gameActivitySweeper: ReturnType<typeof setInterval> | null = null;
 
-
   /**
    * `${userId}:${roomId}` → коли востаннє слали read-sync.
    * Клієнт позначає кімнату прочитаною на кожне нове повідомлення, а службовий пуш дорогий
@@ -290,7 +255,10 @@ export class ChatGateway
   private readonly lastReadSyncAt = new Map<string, number>();
 
   private static readonly READ_SYNC_THROTTLE_MS = 2_000;
-  private readonly pendingReadSync = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly pendingReadSync = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
 
   private static readonly ALLOWED_REACTIONS = ACCEPTED_CHAT_REACTIONS;
   private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
@@ -365,7 +333,6 @@ export class ChatGateway
     this.lastSeen.dispose();
     for (const timer of this.pendingReadSync.values()) clearTimeout(timer);
     this.pendingReadSync.clear();
-    this.snakeDuel.disposeAll();
     this.guessCharacter.disposeAll();
     this.puzzle.disposeAll();
     if (this.gameActivitySweeper) clearInterval(this.gameActivitySweeper);
@@ -403,7 +370,10 @@ export class ChatGateway
     return { userIds, count: userIds.length };
   }
 
-  private emitOnlinePresence(target: { emit: (event: string, ...args: unknown[]) => unknown } = this.server) {
+  private emitOnlinePresence(
+    target: { emit: (event: string, ...args: unknown[]) => unknown } = this
+      .server,
+  ) {
     const payload = this.onlinePresencePayload();
     target.emit('onlineCount', payload.count);
     target.emit('onlineUsers', payload);
@@ -659,9 +629,8 @@ export class ChatGateway
 
     const userId = user.id;
     presence.disconnect(client.id);
-    // Остання вкладка користувача закрилась: гра Snake ставиться на паузу (5 с на повернення).
+    // Остання вкладка користувача закрилась: ігри ставляться на паузу (5 с на повернення).
     if (presence.socketCount(userId) === 0) {
-      this.snakeDuel.userDisconnected(userId);
       this.guessCharacter.userDisconnected(userId);
       this.puzzle.userDisconnected(userId);
       this.calls.onUserDisconnected(userId);
@@ -744,9 +713,11 @@ export class ChatGateway
         userId: user.id,
         lastReadAt: readAt.toISOString(),
       });
-      void this.notifyReadToMembers(roomId, user.id, readAt.toISOString()).catch(
-        () => undefined,
-      );
+      void this.notifyReadToMembers(
+        roomId,
+        user.id,
+        readAt.toISOString(),
+      ).catch(() => undefined);
 
       const readStatesPayload = {
         roomId,
@@ -834,7 +805,11 @@ export class ChatGateway
       return;
     }
 
-    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(
+      this.prisma,
+      user.id,
+      roomId,
+    );
     if (!hasAccess) {
       client.emit('error', 'Нет доступа');
       return;
@@ -878,7 +853,11 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(
+      this.prisma,
+      user.id,
+      roomId,
+    );
     if (!hasAccess) return;
 
     client.to(roomId).emit('userTyping', {
@@ -1063,7 +1042,11 @@ export class ChatGateway
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(
+      this.prisma,
+      user.id,
+      roomId,
+    );
     if (!hasAccess) return;
 
     const viewed = (client.data.viewedRooms ??= new Set<string>());
@@ -1158,7 +1141,7 @@ export class ChatGateway
   }
 
   private clearGameSessionsForRoom(roomId: string) {
-    for (const kind of ['doodle', 'snake'] as const) {
+    for (const kind of ['doodle'] as const) {
       this.gameSessions.delete(this.gameSessionKey(roomId, kind));
     }
   }
@@ -1173,10 +1156,14 @@ export class ChatGateway
     if (!user) return;
 
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    const kind: GameKind = body?.game === 'snake' ? 'snake' : 'doodle';
+    const kind: GameKind = 'doodle';
     if (!roomId) return;
 
-    const hasAccess = await this.roomAccess.resolve(this.prisma, user.id, roomId);
+    const hasAccess = await this.roomAccess.resolve(
+      this.prisma,
+      user.id,
+      roomId,
+    );
     if (!hasAccess) return;
 
     const session = this.getOrCreateGameSession(roomId, kind);
@@ -1292,60 +1279,14 @@ export class ChatGateway
     }
   }
 
-  @SubscribeMessage('snake-score')
-  async handleSnakeScore(
-    @MessageBody() body: SnakeScorePayload,
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const user = await this.resolveSocketUser(client);
-    if (!user) return;
-
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    if (!roomId) return;
-
-    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
-    if (!access?.title?.startsWith('dm:')) return;
-
-    const rawScore = Number(body?.score);
-    if (!Number.isFinite(rawScore)) return;
-    const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
-
-    const session = this.recordGameScore(roomId, 'snake', user.id, score);
-    this.server.to(roomId).emit('snake-score-updated', {
-      roomId,
-      userId: user.id,
-      score,
-    });
-    if (session) {
-      this.broadcastGameSession(session);
-    }
-  }
-
-  @SubscribeMessage('snake-reset')
-  async handleSnakeReset(
-    @MessageBody() body: SnakeResetPayload,
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const user = await this.resolveSocketUser(client);
-    if (!user) return;
-
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    if (!roomId) return;
-
-    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
-    if (!access?.title?.startsWith('dm:')) return;
-
-    const session = this.resetGameSession(roomId, 'snake');
-    this.server.to(roomId).emit('snake-reset', {
-      roomId,
-    });
-    this.broadcastGameSession(session);
-  }
-
-  /** Учасники приватного чату dm:a:b — лише вони можуть грати в дуель / «Вгадай персонажа»; null для інших кімнат. */
-  private async snakeDuelContext(
+  /**
+   * Учасники приватного чату dm:a:b — лише вони можуть грати вдвох у «Вгадай персонажа» / «Пазли».
+   * З `solo` будь-яка кімната, до якої є доступ, годиться як контейнер одиночної гри (сесія ключується `<room>:solo:<user>`).
+   */
+  private async pairGameContext(
     client: SocketWithUser,
     rawRoomId: unknown,
+    solo = false,
   ): Promise<{
     userId: string;
     roomId: string;
@@ -1358,86 +1299,11 @@ export class ChatGateway
     const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
     if (!access) return null;
     const parts = access.title?.split(':') ?? [];
-    if (parts.length !== 3 || parts[0] !== 'dm') return null;
-    return { userId: user.id, roomId, players: [parts[1], parts[2]] };
-  }
-
-  /** Відкрили гру / реконект: позначаємо присутність і віддаємо актуальний стан сесії. */
-  @SubscribeMessage('snake-session-sync')
-  async handleSnakeSessionSync(
-    @MessageBody() body: { roomId?: string },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
-    if (!ctx) return;
-    await client.join(ctx.roomId);
-    this.snakeDuel.setPresence(ctx.roomId, ctx.players, ctx.userId, true);
-    client.emit(
-      'snake-session',
-      this.snakeDuel.snapshot(ctx.roomId, ctx.players),
-    );
-  }
-
-  @SubscribeMessage('snake-presence')
-  async handleSnakePresence(
-    @MessageBody() body: { roomId?: string; present?: boolean },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
-    if (!ctx) return;
-    this.snakeDuel.setPresence(
-      ctx.roomId,
-      ctx.players,
-      ctx.userId,
-      Boolean(body?.present),
-    );
-  }
-
-  @SubscribeMessage('snake-level-select')
-  async handleSnakeLevelSelect(
-    @MessageBody() body: { roomId?: string; level?: number },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
-    if (!ctx) return;
-    this.snakeDuel.selectLevel(
-      ctx.roomId,
-      ctx.players,
-      ctx.userId,
-      Number(body?.level),
-    );
-  }
-
-  @SubscribeMessage('snake-ready')
-  async handleSnakeReady(
-    @MessageBody() body: { roomId?: string; ready?: boolean },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
-    if (!ctx) return;
-    this.snakeDuel.setReady(
-      ctx.roomId,
-      ctx.players,
-      ctx.userId,
-      body?.ready !== false,
-    );
-  }
-
-  /** Лише напрямок: рух, зіткнення й їжу вирішує сервер. */
-  @SubscribeMessage('snake-input')
-  async handleSnakeInput(
-    @MessageBody() body: { roomId?: string; dir?: string },
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const userId = client.data.user?.id;
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    if (!userId || !roomId) return;
-    // Нажатия идут часто: если сессия уже известна, обходимся без запросов к БД.
-    const players =
-      this.snakeDuel.playersIfParticipant(roomId, userId) ??
-      (await this.snakeDuelContext(client, roomId))?.players;
-    if (!players) return;
-    this.snakeDuel.input(roomId, players, userId, body?.dir);
+    if (parts.length === 3 && parts[0] === 'dm') {
+      return { userId: user.id, roomId, players: [parts[1], parts[2]] };
+    }
+    if (solo) return { userId: user.id, roomId, players: [user.id, user.id] };
+    return null;
   }
 
   // ───────────── «Вгадай персонажа» ─────────────
@@ -1448,7 +1314,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     await client.join(ctx.roomId);
     client.emit('guess-catalog', guessCatalog());
@@ -1465,7 +1335,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean; present?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.setPresence(
       ctx.roomId,
@@ -1481,7 +1355,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean; level?: number },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.selectLevel(
       ctx.roomId,
@@ -1497,7 +1375,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean; ready?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.setReady(
       ctx.roomId,
@@ -1514,7 +1396,11 @@ export class ChatGateway
     body: { roomId?: string; solo?: boolean; character?: string },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.pick(
       ctx.roomId,
@@ -1530,7 +1416,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean; trait?: string },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.ask(
       ctx.roomId,
@@ -1547,7 +1437,11 @@ export class ChatGateway
     body: { roomId?: string; solo?: boolean; character?: string },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.guess(
       ctx.roomId,
@@ -1563,7 +1457,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.next(
       ctx.roomId,
@@ -1578,7 +1476,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.abort(
       ctx.roomId,
@@ -1594,7 +1496,11 @@ export class ChatGateway
     @MessageBody() body: { roomId?: string; solo?: boolean; accept?: boolean },
     @ConnectedSocket() client: SocketWithUser,
   ) {
-    const ctx = await this.snakeDuelContext(client, body?.roomId);
+    const ctx = await this.pairGameContext(
+      client,
+      body?.roomId,
+      body?.solo === true,
+    );
     if (!ctx) return;
     this.guessCharacter.respond(
       ctx.roomId,
@@ -1613,7 +1519,7 @@ export class ChatGateway
     const cached = client.data.puzzleCtx;
     if (cached && cached.roomId === roomId) return cached;
     const ctx =
-      (await this.snakeDuelContext(client, roomId)) ??
+      (await this.pairGameContext(client, roomId)) ??
       (await this.selfRoomContext(client, roomId));
     if (ctx) client.data.puzzleCtx = ctx;
     return ctx;
@@ -1670,7 +1576,12 @@ export class ChatGateway
   @SubscribeMessage('puzzle-select')
   async handlePuzzleSelect(
     @MessageBody()
-    body: { roomId?: string; solo?: boolean; mode?: unknown; character?: unknown },
+    body: {
+      roomId?: string;
+      solo?: boolean;
+      mode?: unknown;
+      character?: unknown;
+    },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
@@ -1689,7 +1600,12 @@ export class ChatGateway
   @SubscribeMessage('puzzle-play-image')
   async handlePuzzlePlayImage(
     @MessageBody()
-    body: { roomId?: string; solo?: boolean; imageId?: unknown; count?: unknown },
+    body: {
+      roomId?: string;
+      solo?: boolean;
+      imageId?: unknown;
+      count?: unknown;
+    },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
@@ -1749,7 +1665,12 @@ export class ChatGateway
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
     if (!ctx) return;
-    this.puzzle.toLobby(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
+    this.puzzle.toLobby(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+    );
   }
 
   @SubscribeMessage('puzzle-grab')
@@ -1771,7 +1692,13 @@ export class ChatGateway
   @SubscribeMessage('puzzle-move')
   async handlePuzzleMove(
     @MessageBody()
-    body: { roomId?: string; solo?: boolean; group?: unknown; x?: unknown; y?: unknown },
+    body: {
+      roomId?: string;
+      solo?: boolean;
+      group?: unknown;
+      x?: unknown;
+      y?: unknown;
+    },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
@@ -1790,7 +1717,13 @@ export class ChatGateway
   @SubscribeMessage('puzzle-drop')
   async handlePuzzleDrop(
     @MessageBody()
-    body: { roomId?: string; solo?: boolean; group?: unknown; x?: unknown; y?: unknown },
+    body: {
+      roomId?: string;
+      solo?: boolean;
+      group?: unknown;
+      x?: unknown;
+      y?: unknown;
+    },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
@@ -1831,76 +1764,12 @@ export class ChatGateway
   ) {
     const ctx = await this.puzzleContext(client, body?.roomId);
     if (!ctx) return;
-    this.puzzle.gather(ctx.roomId, ctx.players, ctx.userId, body?.solo === true);
-  }
-
-  @SubscribeMessage('snake-state')
-  async handleSnakeState(
-    @MessageBody() body: SnakeStatePayload,
-    @ConnectedSocket() client: SocketWithUser,
-  ) {
-    const user = await this.resolveSocketUser(client);
-    if (!user) return;
-
-    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
-    if (!roomId) return;
-
-    const access = await this.roomAccess.resolve(this.prisma, user.id, roomId);
-    if (!access?.title?.startsWith('dm:')) return;
-
-    const state = body?.state;
-    if (!state) return;
-
-    const headX = Number(state.headX);
-    const headY = Number(state.headY);
-    const foodX = Number(state.foodX);
-    const foodY = Number(state.foodY);
-    const score = Number(state.score);
-    const emittedAt = Number(state.emittedAt);
-    if (
-      !Number.isFinite(headX) ||
-      !Number.isFinite(headY) ||
-      !Number.isFinite(foodX) ||
-      !Number.isFinite(foodY) ||
-      !Number.isFinite(score)
-    ) {
-      return;
-    }
-
-    const bodyPoints = Array.isArray(state.body)
-      ? state.body
-          .map((point) => ({
-            x: Number(point?.x),
-            y: Number(point?.y),
-          }))
-          .filter(
-            (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
-          )
-          .slice(0, 180)
-      : [];
-
-    const scoreSession = this.recordGameScore(roomId, 'snake', user.id, score);
-
-    this.server.to(roomId).emit('snake-state-updated', {
-      roomId,
-      userId: user.id,
-      state: {
-        headX,
-        headY,
-        foodX,
-        foodY,
-        score: Math.max(0, Math.min(999999, Math.floor(score))),
-        alive: Boolean(state.alive),
-        emittedAt: Number.isFinite(emittedAt)
-          ? Math.floor(emittedAt)
-          : Date.now(),
-        body: bodyPoints,
-      },
-    });
-
-    if (scoreSession) {
-      this.broadcastGameSession(scoreSession);
-    }
+    this.puzzle.gather(
+      ctx.roomId,
+      ctx.players,
+      ctx.userId,
+      body?.solo === true,
+    );
   }
 
   // ================= ВИХІД ІЗ КІМНАТИ =================
@@ -2186,10 +2055,15 @@ export class ChatGateway
   ) {
     const caller = await this.resolveSocketUser(client);
     if (!caller) {
-      client.emit('call-error', { error: 'Не авторизован', code: 'unauthorized' });
+      client.emit('call-error', {
+        error: 'Не авторизован',
+        code: 'unauthorized',
+      });
       return;
     }
-    await this.calls.callUser(caller, body, (event, payload) => client.emit(event, payload));
+    await this.calls.callUser(caller, body, (event, payload) =>
+      client.emit(event, payload),
+    );
   }
 
   @SubscribeMessage('call-response')
@@ -2199,10 +2073,18 @@ export class ChatGateway
   ) {
     const receiver = await this.resolveSocketUser(client);
     if (!receiver) {
-      client.emit('call-error', { error: 'Не авторизован', code: 'unauthorized' });
+      client.emit('call-error', {
+        error: 'Не авторизован',
+        code: 'unauthorized',
+      });
       return;
     }
-    await this.calls.callResponse(receiver, body, (event, payload) => client.emit(event, payload), client.id);
+    await this.calls.callResponse(
+      receiver,
+      body,
+      (event, payload) => client.emit(event, payload),
+      client.id,
+    );
   }
 
   @SubscribeMessage('call-cancel')
@@ -2212,7 +2094,9 @@ export class ChatGateway
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    await this.calls.callCancel(user, body, (event, payload) => client.emit(event, payload));
+    await this.calls.callCancel(user, body, (event, payload) =>
+      client.emit(event, payload),
+    );
   }
 
   @SubscribeMessage('call-end')
@@ -2232,14 +2116,20 @@ export class ChatGateway
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
-    await this.calls.callSync(user, body, (event, payload) => client.emit(event, payload));
+    await this.calls.callSync(user, body, (event, payload) =>
+      client.emit(event, payload),
+    );
   }
 
   /**
    * Системная запись «Пропущенный звонок» в личном чате: от имени звонящего (FK), без пуша и без read-receipt.
    * Тип SYSTEM не считается непрочитанным (см. запросы в messages.service). Только для звонков нового образца.
    */
-  private async postMissedCallMessage(input: { roomId: string; callerId: string; callId: string }) {
+  private async postMissedCallMessage(input: {
+    roomId: string;
+    callerId: string;
+    callId: string;
+  }) {
     const caller = await this.prisma.user.findUnique({
       where: { id: input.callerId },
       select: { username: true, nickname: true, bubbleStyle: true },
@@ -2249,11 +2139,17 @@ export class ChatGateway
       type: 'SYSTEM',
       content: 'call:missed',
       senderId: input.callerId,
-      sender: { username: caller.username, nickname: caller.nickname, bubbleStyle: caller.bubbleStyle },
+      sender: {
+        username: caller.username,
+        nickname: caller.nickname,
+        bubbleStyle: caller.bubbleStyle,
+      },
       roomId: input.roomId,
       clientMessageId: `call-missed-${input.callId}`,
     });
-    this.server.to(input.roomId).emit('newMessage', this.buildNewMessagePayload(input.roomId, message));
+    this.server
+      .to(input.roomId)
+      .emit('newMessage', this.buildNewMessagePayload(input.roomId, message));
   }
 
   // ================= ЗАПРОШЕННЯ КОРИСТУВАЧА ДО КІМНАТИ =================
@@ -2471,7 +2367,9 @@ export class ChatGateway
 
     try {
       // Усе, що потрібно ДО збереження, читаємо паралельно: до `emit` лишається один RTT до БД + insert.
-      const clientMessageId = this.normalizeClientMessageId(body?.clientMessageId);
+      const clientMessageId = this.normalizeClientMessageId(
+        body?.clientMessageId,
+      );
       const [hasAccess, existing, replyTarget] = await Promise.all([
         canUserPostToRoom(this.prisma, user.id, roomId),
         // Ідемпотентність: повтор з уже збереженим clientMessageId лише повертає ехо відправнику (решта вже отримала).

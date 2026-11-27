@@ -7,8 +7,6 @@
  */
 export const GAME_REGISTRY = {
   doodle: { id: "doodle", emoji: "🦘" },
-  snake: { id: "snake", emoji: "🐍" },
-  filword: { id: "filword", emoji: "🔤" },
   guess: { id: "guess", emoji: "🕵️" },
   puzzle: { id: "puzzle", emoji: "🧩" },
   flock: { id: "flock", emoji: "🐑" },

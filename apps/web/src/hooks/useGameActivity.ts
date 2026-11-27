@@ -20,7 +20,7 @@ export function useGameActivityBroadcast(
   socket: ActivitySocket | null,
   roomId: string | null | undefined,
   game: GameId | null,
-  /** Режим гри (Snake: classic | duel): від нього залежить, чи є місце для «Приєднатися». */
+  /** Режим гри (для ігор з режимами): від нього залежить, чи є місце для «Приєднатися». */
   mode: string | null = null,
 ) {
   // Режим змінюється посеред гри (Класика → Дуель): шлемо одразу, не перезапускаючи heartbeat і не блимаючи статусом.

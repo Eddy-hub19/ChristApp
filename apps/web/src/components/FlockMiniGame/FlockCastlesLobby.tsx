@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import FlockSheet from "./FlockSheet";
 import { fetchCastlesLobby } from "./flockApi";
-import { CASTLES_MAP_ID, RUINS_MAP_ID, TERRACES_MAP_ID, sideSkins, type CastlesLobby, type Team } from "./flockCastles";
+import { CASTLES_MAP_ID, TERRACES_MAP_ID, sideSkins, type CastlesLobby, type Team } from "./flockCastles";
 import { drawCreature } from "./flockRender";
 import { skinOf } from "./flockSkins";
 import styles from "./FlockInfo.module.scss";
@@ -68,7 +68,7 @@ export default function FlockCastlesLobby({ canPlay, error, onJoin, onClose }: P
   /** Карта, яку обирає гравець, поки матчу нема (інакше грають на карті матчу). */
   const [castleMap, setCastleMap] = useState<number>(() => {
     const v = loadNum(MAP_KEY);
-    return v === TERRACES_MAP_ID || v === CASTLES_MAP_ID || v === RUINS_MAP_ID ? v : CASTLES_MAP_ID;
+    return v === TERRACES_MAP_ID || v === CASTLES_MAP_ID ? v : CASTLES_MAP_ID;
   });
 
   useEffect(() => {
@@ -105,8 +105,8 @@ export default function FlockCastlesLobby({ canPlay, error, onJoin, onClose }: P
 
   const sideName = (tm: Team) => t(tm === 1 ? "sheep" : "wolves");
   const liveMap = lobby?.map ?? null;
-  const maps = lobby?.maps?.length ? lobby.maps : [CASTLES_MAP_ID, TERRACES_MAP_ID, RUINS_MAP_ID];
-  const mapKey = (id: number) => (id === RUINS_MAP_ID ? "ruins" : id === TERRACES_MAP_ID ? "terraces" : "lake");
+  const maps = lobby?.maps?.length ? lobby.maps : [CASTLES_MAP_ID, TERRACES_MAP_ID];
+  const mapKey = (id: number) => (id === TERRACES_MAP_ID ? "terraces" : "lake");
   const mapChosen = liveMap ?? castleMap;
   const disabled = !canPlay || !team || blocked(team) || lobby?.enabled === false;
 

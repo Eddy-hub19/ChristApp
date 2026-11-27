@@ -68,5 +68,5 @@ export type GuessSessionState = {
   serverTime: number;
 };
 
-/** Той самий тип, що створює `io()` у socket.io-client (так само задано SnakeSocket). */
+/** Той самий тип, що створює `io()` у socket.io-client. */
 export type GuessSocket = ReturnType<typeof createSocket>;

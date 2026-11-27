@@ -468,12 +468,10 @@ export function terraceDecor(cfg: CastleCfg, thorns: { x: number; y: number; mas
       left--;
     }
   };
-  // «Затонулі руїни»: менше дерев, більше каміння й квітів лілій
-  const ruins = cfg.skin === "ruins";
-  place("tree", ruins ? 12 : 34, 40, 64);
-  place("rock", ruins ? 30 : 22, 20, 38);
-  place("flower", ruins ? 80 : 60, 8, 12);
-  place("tuft", ruins ? 40 : 50, 10, 16);
+  place("tree", 34, 40, 64);
+  place("rock", 22, 20, 38);
+  place("flower", 60, 8, 12);
+  place("tuft", 50, 10, 16);
   decorCache.set(key, out);
   return out;
 }
@@ -492,254 +490,10 @@ function landmarks(g: TerracesCfg): { kind: "windmill" | "ruin"; x: number; y: n
   return out;
 }
 
-// ---------- «Затонулі руїни»: вода, кам'яні острови й мости ----------
-let waterCv: HTMLCanvasElement | null = null;
-let lilyCv: HTMLCanvasElement | null = null;
-function waterGradient() {
-  if (waterCv) return waterCv;
-  waterCv = canvas(8, 512);
-  const c = waterCv.getContext("2d");
-  if (c) {
-    const g = c.createLinearGradient(0, 0, 0, 512);
-    g.addColorStop(0, "#3fb9b4");
-    g.addColorStop(0.5, "#56cdc4");
-    g.addColorStop(1, "#7ddfd6");
-    c.fillStyle = g;
-    c.fillRect(0, 0, 8, 512);
-  }
-  return waterCv;
-}
-function lilySprite() {
-  if (lilyCv) return lilyCv;
-  lilyCv = canvas(80, 64);
-  const c = lilyCv.getContext("2d");
-  if (c) {
-    c.translate(40, 34);
-    c.fillStyle = "rgba(10,80,90,0.22)";
-    c.beginPath();
-    c.ellipse(3, 6, 30, 18, 0, 0, TAU);
-    c.fill();
-    c.fillStyle = "#5fbf5a";
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.arc(0, 0, 26, 0.35, TAU - 0.2);
-    c.closePath();
-    c.fill();
-    c.strokeStyle = "#3c8f3e";
-    c.lineWidth = 1.6;
-    c.stroke();
-    c.fillStyle = "#ff9cc4";
-    c.beginPath();
-    c.arc(-4, -4, 7, 0, TAU);
-    c.fill();
-    c.fillStyle = "#ffd86b";
-    c.beginPath();
-    c.arc(-4, -4, 2.6, 0, TAU);
-    c.fill();
-  }
-  return lilyCv;
-}
-
-/** Бірюзова вода на всю видиму область, світлі брижі й латаття, що погойдується. */
-function drawWater(ctx: CanvasRenderingContext2D, world: number, x0: number, x1: number, y0: number, y1: number, time: number) {
-  const lo = Math.max(-1200, x0);
-  const hi = Math.min(world + 1200, x1);
-  const top = Math.max(-1200, y0);
-  const bot = Math.min(world + 1200, y1);
-  ctx.drawImage(waterGradient(), lo, top, hi - lo, bot - top);
-  const r = rng(11);
-  ctx.strokeStyle = "rgba(255,255,255,0.35)";
-  ctx.lineWidth = 5;
-  ctx.lineCap = "round";
-  for (let i = 0; i < 120; i++) {
-    const x = r() * (world + 1200) - 600;
-    const y = r() * (world + 1200) - 600;
-    const w = 70 + r() * 110;
-    const ph = r() * TAU;
-    if (x + w < x0 || x - w > x1 || y + 40 < y0 || y - 40 > y1) continue;
-    ctx.globalAlpha = 0.25 + 0.2 * Math.sin(time * 1.6 + ph);
-    ctx.beginPath();
-    ctx.moveTo(x - w / 2, y);
-    ctx.quadraticCurveTo(x, y - 14 + Math.sin(time * 1.3 + ph) * 4, x + w / 2, y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  const spr = lilySprite();
-  const lr = rng(23);
-  for (let i = 0; i < 40; i++) {
-    const x = lr() * (world + 800) - 400;
-    const y = lr() * (world + 800) - 400;
-    const s = 0.8 + lr() * 0.7;
-    const ph = lr() * TAU;
-    if (x + 90 < x0 || x - 90 > x1 || y + 90 < y0 || y - 90 > y1) continue;
-    ctx.drawImage(spr, x - 40 * s, y - 34 * s + Math.sin(time * 1.2 + ph) * 3, 80 * s, 64 * s);
-  }
-}
-
-/** Кам'яний острів із мохом, піною по краю й тінню на воді; той самий контур (кола), що й у серверної геометрії. */
-function ruinIslandSprite(g: TerracesCfg, idx: number, seed: number) {
-  const key = `ruin|${seed}|${idx}`;
-  const hit = islandCache.get(key);
-  if (hit) return hit;
-  const circles = g.islands[idx];
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const [cx, cy, r] of circles) {
-    x0 = Math.min(x0, cx - r - 40);
-    y0 = Math.min(y0, cy - r - 40);
-    x1 = Math.max(x1, cx + r + 40);
-    y1 = Math.max(y1, cy + r + 60);
-  }
-  const k = 0.7;
-  const cv = canvas((x1 - x0) * k, (y1 - y0) * k);
-  const c = cv.getContext("2d");
-  if (c) {
-    c.scale(k, k);
-    c.translate(-x0, -y0);
-    const fillUnion = (fill: string | CanvasGradient, dy: number, grow = 0) => {
-      c.fillStyle = fill;
-      for (const [cx, cy, r] of circles) {
-        c.beginPath();
-        c.arc(cx, cy + dy, r + grow, 0, TAU);
-        c.fill();
-      }
-    };
-    fillUnion("rgba(10,80,90,0.28)", 26, 12); // тінь у воді
-    fillUnion("rgba(255,255,255,0.55)", 4, 20); // піна
-    fillUnion("rgba(120,225,215,0.7)", 4, 10); // мілководдя
-    fillUnion("#8f8872", 12, 2); // кам'яний край
-    fillUnion("#bdb48f", 0, 0);
-    const gg = c.createRadialGradient(circles[0][0], circles[0][1], 10, circles[0][0], circles[0][1], circles[0][2] * 1.3);
-    gg.addColorStop(0, "#dcd5b4");
-    gg.addColorStop(1, "#b3aa86");
-    fillUnion(gg, 0, -8);
-    const r2 = rng(idx * 91 + seed);
-    for (let i = 0; i < 200; i++) {
-      const [cx, cy, rad] = circles[Math.floor(r2() * circles.length)];
-      const a = r2() * TAU;
-      const d = Math.sqrt(r2()) * (rad - 24);
-      const x = cx + Math.cos(a) * d;
-      const y = cy + Math.sin(a) * d;
-      if (i % 4 === 0) {
-        // мох
-        c.fillStyle = "rgba(96,150,70,0.5)";
-        c.beginPath();
-        c.ellipse(x, y, 16 + r2() * 14, 8 + r2() * 6, r2() * 3, 0, TAU);
-        c.fill();
-      } else if (i % 4 === 1) {
-        // тріщини плит
-        c.strokeStyle = "rgba(110,100,78,0.5)";
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(x, y);
-        c.lineTo(x + (r2() - 0.5) * 40, y + (r2() - 0.5) * 24);
-        c.stroke();
-      } else if (i % 4 === 2) {
-        c.fillStyle = ["#ffffff", "#ffd8e6", "#ffe98a"][i % 3] ?? "#fff";
-        c.beginPath();
-        c.arc(x, y, 3.2, 0, TAU);
-        c.fill();
-      }
-    }
-  }
-  const out = { cv, ox: x0, oy: y0, k };
-  islandCache.set(key, out);
-  return out;
-}
-
-/** Кам'яний міст (плити з мохом і низькими бортиками). */
-function stoneBridgeSprite(len: number, bw: number) {
-  const key = `ruin|${Math.round(len)}|${Math.round(bw)}`;
-  let cv = bridgeCache.get(key);
-  if (cv) return cv;
-  const k = 0.8;
-  cv = canvas((len + 40) * k, (bw + 40) * k);
-  const c = cv.getContext("2d");
-  if (c) {
-    c.scale(k, k);
-    c.translate(20, 20);
-    c.fillStyle = "rgba(10,80,90,0.28)";
-    c.fillRect(8, 16, len, bw);
-    const n = Math.max(5, Math.round(len / 46));
-    for (let i = 0; i < n; i++) {
-      const x = (i / n) * len;
-      c.fillStyle = i % 2 ? "#c2baa0" : "#d1c9ae";
-      c.fillRect(x, 0, len / n + 1, bw);
-      c.strokeStyle = "#8f8872";
-      c.lineWidth = 2;
-      c.strokeRect(x, 0, len / n + 1, bw);
-      if (i % 3 === 1) {
-        c.fillStyle = "rgba(96,150,70,0.45)";
-        c.beginPath();
-        c.ellipse(x + len / n / 2, bw * 0.8, len / n / 2.4, 9, 0, 0, TAU);
-        c.fill();
-      }
-    }
-    for (const y of [-6, bw + 6]) {
-      c.fillStyle = "#a9a187";
-      c.fillRect(0, y - 6, len, 12);
-      c.strokeStyle = "#7f786a";
-      c.lineWidth = 1.6;
-      c.strokeRect(0, y - 6, len, 12);
-    }
-  }
-  bridgeCache.set(key, cv);
-  return cv;
-}
-
-/** Руїни на островах «Затонулих руїн»: арки на бічних і середніх островах, дві великі на центральному. */
-function ruinLandmarks(g: TerracesCfg): { x: number; y: number; s: number }[] {
-  const out: { x: number; y: number; s: number }[] = [];
-  const half = (g.islands.length - 1) / 2;
-  const mirror = half + 1;
-  for (const i of [1, 2, 3, 4, 5, mirror + 1, mirror + 2, mirror + 3, mirror + 4, mirror + 5]) {
-    const [cx, cy, r] = g.islands[i][0];
-    out.push({ x: cx, y: cy - r * 0.05, s: 250 });
-  }
-  const [cx, cy] = g.islands[half][0];
-  out.push({ x: cx - 10, y: cy - 190, s: 330 }, { x: cx + 120, y: cy + 190, s: 300 });
-  return out;
-}
-
-/** Вода, кам'яні острови, мости й руїни (під замками, кущами й клітинами). */
-function drawRuinsWorld(ctx: CanvasRenderingContext2D, cfg: CastleCfg, x0: number, x1: number, y0: number, y1: number, time: number) {
-  const g = cfg.terraces;
-  if (!g) return;
-  drawWater(ctx, cfg.world, x0, x1, y0, y1, time);
-  for (let i = 0; i < g.islands.length; i++) {
-    const sp = ruinIslandSprite(g, i, cfg.seed);
-    const w = sp.cv.width / sp.k;
-    const h = sp.cv.height / sp.k;
-    if (sp.ox + w < x0 || sp.ox > x1 || sp.oy + h < y0 || sp.oy > y1) continue;
-    ctx.drawImage(sp.cv, sp.ox, sp.oy, w, h);
-  }
-  for (const b of g.bridges) {
-    const len = Math.hypot(b.x2 - b.x1, b.y2 - b.y1);
-    const ang = Math.atan2(b.y2 - b.y1, b.x2 - b.x1);
-    const cx = (b.x1 + b.x2) / 2;
-    const cy = (b.y1 + b.y2) / 2;
-    if (cx + len < x0 || cx - len > x1 || cy + len < y0 || cy - len > y1) continue;
-    ctx.save();
-    ctx.translate(b.x1, b.y1);
-    ctx.rotate(ang);
-    ctx.drawImage(stoneBridgeSprite(len, g.bw), -20, -g.bw / 2 - 20, len + 40, g.bw + 40);
-    ctx.restore();
-  }
-  const spr = ruinSprite();
-  for (const m of ruinLandmarks(g)) {
-    if (m.x + m.s < x0 || m.x - m.s > x1 || m.y + m.s < y0 || m.y - m.s > y1) continue;
-    const h = (m.s * spr.height) / spr.width;
-    ctx.drawImage(spr, m.x - m.s / 2, m.y - h * 0.7, m.s, h);
-  }
-}
-
 /** Небо, хмари, острови, мости, водоспади, вітряки й руїни (під замками, кущами й клітинами). */
 export function drawTerracesWorld(ctx: CanvasRenderingContext2D, cfg: CastleCfg, x0: number, x1: number, y0: number, y1: number, time: number) {
   const g = cfg.terraces;
   if (!g) return;
-  if (cfg.skin === "ruins") {
-    drawRuinsWorld(ctx, cfg, x0, x1, y0, y1, time);
-    return;
-  }
   drawSky(ctx, cfg.world, x0, x1, y0, y1, time);
   const seed = cfg.seed;
   // острови (разом з обривом); водоспади під ними
@@ -789,10 +543,9 @@ export function drawTerracesMinimap(ctx: CanvasRenderingContext2D, cfg: CastleCf
   const g = cfg.terraces;
   if (!g) return;
   const k = size / cfg.world;
-  const ruins = cfg.skin === "ruins";
-  ctx.fillStyle = ruins ? "#4fc3bd" : "#9fd0f5";
+  ctx.fillStyle = "#9fd0f5";
   ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = ruins ? "#cfc7a8" : "#b88a50";
+  ctx.strokeStyle = "#b88a50";
   ctx.lineWidth = Math.max(2, g.bw * k);
   ctx.lineCap = "butt";
   for (const b of g.bridges) {
@@ -801,7 +554,7 @@ export function drawTerracesMinimap(ctx: CanvasRenderingContext2D, cfg: CastleCf
     ctx.lineTo(b.x2 * k, b.y2 * k);
     ctx.stroke();
   }
-  ctx.fillStyle = ruins ? "#b9b08c" : "#7cc443";
+  ctx.fillStyle = "#7cc443";
   for (const isl of g.islands) {
     for (const [x, y, r] of isl) {
       ctx.beginPath();
@@ -817,7 +570,6 @@ export function resetTerracesCache() {
   decorCache.clear();
   cloudCache.clear();
   skyCv = fallCv = windmillCv = ruinCv = null;
-  waterCv = lilyCv = null;
 }
 
 export { terraceOnLand, terraceBridgeAt };
