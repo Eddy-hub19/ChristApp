@@ -3770,6 +3770,7 @@ export default function ChatPageDetails() {
   const messagingPane = (
     <ChatWindow
       messages={messages}
+      audioRoomId={effectiveSocketRoomId ?? undefined}
       onLoadOlder={handleLoadOlder}
       hasMoreOlder={hasMoreOlder}
       loadingOlder={loadingOlder}

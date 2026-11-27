@@ -34,9 +34,13 @@ import {
 } from "@/lib/bubbleStyles";
 import styles from "@/components/ChatWindow/ChatWindow.module.scss";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
+import { audioTrackFromMessage } from "@/lib/audioFileTrack";
+import { type AudioTrack, usePlayer } from "@/providers/PlayerProvider";
 
 type ChatWindowProps = {
   messages: Message[];
+  /** Комната, чьи аудиофайлы складываются в очередь плеера; без поля очередь не регистрируется. */
+  audioRoomId?: string;
   /** Постраничная подгрузка вверх: вызывается, когда список прокручен почти к началу и есть более старые сообщения. */
   onLoadOlder?: () => void;
   hasMoreOlder?: boolean;
@@ -110,6 +114,7 @@ const LOAD_OLDER_TRIGGER_PX = 400;
 
 function ChatWindow({
   messages,
+  audioRoomId,
   onLoadOlder,
   hasMoreOlder = false,
   loadingOlder = false,
@@ -152,6 +157,26 @@ function ChatWindow({
   onRetryUpload,
   revealOnMount = false,
 }: ChatWindowProps) {
+  const { setRoomQueue } = usePlayer();
+  const audioTracks = useMemo(() => {
+    if (!audioRoomId) return null;
+    const list: AudioTrack[] = [];
+    for (const message of messages) {
+      const track = audioTrackFromMessage(message, audioRoomId);
+      if (track) list.push(track);
+    }
+    return list;
+  }, [messages, audioRoomId]);
+  useEffect(() => {
+    if (audioRoomId && audioTracks) setRoomQueue(audioRoomId, audioTracks);
+  }, [audioRoomId, audioTracks, setRoomQueue]);
+  useEffect(
+    () => () => {
+      if (audioRoomId) setRoomQueue(audioRoomId, null);
+    },
+    [audioRoomId, setRoomQueue],
+  );
+
   const t = useTranslations("chat");
   const tCalls = useTranslations("calls");
   const lang = useLocale();

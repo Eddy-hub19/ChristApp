@@ -9,6 +9,8 @@
  *  - Media Session API: керування з екрана блокування та фонове відтворення.
  */
 
+import { requestAudioFocus, subscribeAudioFocus } from "@/lib/audioFocus";
+
 export type VoicePlaybackState = {
   activeId: string | null;
   playing: boolean;
@@ -104,6 +106,10 @@ function getAudio(): HTMLAudioElement {
   element.addEventListener("ended", handleEnded);
   element.addEventListener("error", handleError);
   audio = element;
+  // Трек плеєра починає грати - голосове замовкає (і навпаки: playVoice просить фокус).
+  subscribeAudioFocus((owner) => {
+    if (owner !== "voice") element.pause();
+  });
   return element;
 }
 
@@ -182,6 +188,7 @@ function updateMediaSession(source: VoiceSource) {
 
 export async function playVoice(source: VoiceSource, startAt?: number) {
   const element = getAudio();
+  requestAudioFocus("voice");
   registry.set(source.id, source);
   const switching = state.activeId !== source.id;
   if (switching) {

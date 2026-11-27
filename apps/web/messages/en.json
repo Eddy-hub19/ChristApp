@@ -2393,5 +2393,28 @@
     "endedShort": "We talked for less than a minute with God's help 🙏",
     "missedRecord": "Missed call",
     "endedMinutes": "We talked for {minutes} min. with God's help 🙏"
+  },
+  "player": {
+    "region": "Player",
+    "miniRegion": "Mini player",
+    "sheetTitle": "Player",
+    "play": "Play",
+    "pause": "Pause",
+    "prev": "Previous track",
+    "next": "Next track",
+    "close": "Close player",
+    "collapse": "Collapse player",
+    "expand": "Expand player",
+    "open": "Open player",
+    "progress": "Playback progress",
+    "volume": "Volume",
+    "queue": "Queue",
+    "queueItem": "Play: {title}",
+    "nowPlaying": "Now playing",
+    "loading": "Loading…",
+    "error": "Couldn't play this track",
+    "retry": "Retry",
+    "unknownArtist": "Unknown artist",
+    "sheepAlt": "Sheep player"
   }
 }
