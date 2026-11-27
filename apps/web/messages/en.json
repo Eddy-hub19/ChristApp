@@ -1591,6 +1591,7 @@
       "hintItem": "day {day} = {reward}"
     },
     "stats": {
+      "title": "Personal stats",
       "best": "Biggest size",
       "eaten": "Eaten",
       "top1": "Time at #1"

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { suspendAppBackground } from "@/lib/appBackgroundStore";
 import { useFullscreenMode } from "@/contexts/TabBarOverlayContext";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronDown, Crown, Info, Lock, MoreVertical, Play, Swords, Volume2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Crown, Info, Lock, MoreVertical, Play, Swords, Volume2, X } from "lucide-react";
 import RubyIcon from "@/components/RubyIcon/RubyIcon";
 import { EmeraldIcon, QuestScrollIcon } from "@/components/icons/game";
 import { BONUS_ICON_COMPONENTS, BonusIcon, EagleEyeIcon, FirefliesJarIcon, LanternIcon, PipeIcon, StarfallIcon, WindIcon, WingsIcon } from "@/components/icons/game";
@@ -2094,6 +2094,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               </div>
               <p className={lobby.tagline}>{t("tagline")}</p>
 
+              <div className={lobby.colSkins}>
               <FlockLobbySkins
                 shownSkin={previewSkin ?? skin}
                 previewing={previewSkin !== null}
@@ -2126,14 +2127,14 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                   ) : null
                 }
               />
-              {collectionAward?.fromBuy ? (
-                <p className={styles.notice} role="status">
-                  {t("premiumCollection.collectDone", { count: collectionAward.amount })}
-                </p>
-              ) : null}
+              </div>
 
-              <FlockLobbyQuests active={!questsOpen} onChanged={onQuestsChanged} />
+              <div className={lobby.colQuests}>
+                <FlockLobbyQuests active={!questsOpen} onChanged={onQuestsChanged} />
+              </div>
 
+              <div className={lobby.colStats}>
+                <h3 className={lobby.statsTitle}>{t("stats.title")}</h3>
               <button type="button" className={lobby.statsToggle} onClick={() => setStatsOpen((v) => !v)} aria-expanded={statsOpen} aria-label={t("lobby.statsToggle")}>
                 <span className={lobby.statCell}>
                   <span className={lobby.statLabel}>{t("lobby.statBest")}</span>
@@ -2166,9 +2167,28 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
                 </dl>
               ) : null}
 
-              {me?.coliseum ? <p className={styles.sub}>{t("coliseum.progress", { n: me.coliseum.toSkin, per: me.coliseum.perSkin })}</p> : null}
+              </div>
 
-              <FlockDailyBoard initial={me?.daily} />
+              <button type="button" className={lobby.colArtifacts} onClick={() => setArtifactsOpen(true)} aria-haspopup="dialog" aria-label={t("artifacts.open")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={artifactIconSrc(artifact > 0 ? artifact : LOBBY_ARTIFACT_IDS[0]) ?? ""} alt="" width={40} height={40} decoding="async" />
+                <span className={lobby.artifactsText}>
+                  <strong>{t("artifacts.title")}</strong>
+                  <span>{artifact > 0 ? t(`artifacts.items.${artifact}.name`) : t("artifacts.none")}</span>
+                </span>
+                <ChevronRight size={18} aria-hidden />
+              </button>
+
+              <div className={lobby.colBoard}>
+                <FlockDailyBoard initial={me?.daily} />
+              </div>
+
+              <div className={lobby.notices}>
+                {collectionAward?.fromBuy ? (
+                  <p className={styles.notice} role="status">
+                    {t("premiumCollection.collectDone", { count: collectionAward.amount })}
+                  </p>
+                ) : null}
 
               {streakAward > 0 ? <p className={styles.notice}>{streakAwardDay > 0 ? t("status.streakAward", { days: streakAwardDay, count: streakAward }) : t("status.streakAwardSum", { count: streakAward })}</p> : null}
               {collectionAward && !collectionAward.fromBuy ? <p className={styles.notice}>{t("premiumCollection.collectDone", { count: collectionAward.amount })}</p> : null}
@@ -2188,6 +2208,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               {status === "afk" ? <p className={styles.error}>{t("status.afk")}</p> : null}
               {status === "taken" ? <p className={styles.error}>{t("status.taken")}</p> : null}
               {status === "error" ? <p className={styles.error}>{t("status.error")}</p> : null}
+              </div>
             </div>
 
             <div className={lobby.dock}>
