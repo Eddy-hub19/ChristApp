@@ -48,7 +48,7 @@
   display: flex;
   /* По ширине контенту (короткий текст — вузький пузир), довгі — до max */
   width: fit-content;
-  max-width: min(520px, 100%);
+  max-width: min(520px, 70%);
   min-width: 0;
   height: auto;
   padding: 9px 14px 4px;
