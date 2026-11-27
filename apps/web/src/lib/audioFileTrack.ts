@@ -1,6 +1,6 @@
 import { repairMojibakeName } from "@/lib/chatMedia";
 import type { Message } from "@/types/message";
-import type { AudioTrack } from "@/providers/PlayerProvider";
+import type { AudioTrack } from "@/providers/playerContext";
 
 export function isAudioFileName(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase();

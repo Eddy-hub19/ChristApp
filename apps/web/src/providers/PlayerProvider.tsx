@@ -1,63 +1,23 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { useTranslations } from "next-intl";
-import { Pause, Play } from "lucide-react";
 import { requestAudioFocus, subscribeAudioFocus } from "@/lib/audioFocus";
-import styles from "@/providers/PlayerProvider.module.scss";
-
-export interface AudioTrack {
-  /** Стабільний id (id повідомлення з файлом) - за ним трек впізнається в черзі й у бульбашці. */
-  id: string;
-  audioUrl: string;
-  title: string;
-  artist?: string;
-  cover?: string;
-  /** Кімната, з якої трек: її аудіофайли складають чергу. */
-  roomId?: string;
-}
+import MiniPlayerBar from "@/components/SheepPlayer/MiniPlayerBar";
+import {
+  PlayerContext,
+  PlayerTimeContext,
+  type AudioTrack,
+  type PlayerContextValue,
+} from "@/providers/playerContext";
 
 type RoomQueue = { roomId: string; tracks: AudioTrack[] };
-
-interface PlayerContextValue {
-  currentTrack: AudioTrack | null;
-  isPlaying: boolean;
-  /** Трек вантажиться або буферизується. */
-  isLoading: boolean;
-  error: boolean;
-  queue: AudioTrack[];
-  volume: number;
-  /** false на iPhone: Safari ігнорує audio.volume (гучність - кнопками пристрою). */
-  canSetVolume: boolean;
-  toggleTrack: (track: AudioTrack) => void;
-  pause: () => void;
-  resume: () => void;
-  next: () => void;
-  prev: () => void;
-  seek: (seconds: number) => void;
-  setVolume: (volume: number) => void;
-  close: () => void;
-  retry: () => void;
-  /** Чат реєструє свої аудіофайли як чергу; `null` знімає чергу цієї кімнати. */
-  setRoomQueue: (roomId: string, tracks: AudioTrack[] | null) => void;
-}
-
-interface PlayerTimeValue {
-  currentTime: number;
-  duration: number;
-}
-
-const PlayerContext = createContext<PlayerContextValue | null>(null);
-const PlayerTimeContext = createContext<PlayerTimeValue>({ currentTime: 0, duration: 0 });
 
 const ARTWORK = [
   { src: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
@@ -73,7 +33,6 @@ function sameIds(a: AudioTrack[], b: AudioTrack[]) {
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const t = useTranslations("player");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const trackRef = useRef<AudioTrack | null>(null);
   const lastPositionStateRef = useRef(0);
@@ -435,34 +394,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       <PlayerTimeContext.Provider value={timeValue}>
         {children}
 
-        {currentTrack ? (
-          <div className={styles.bar} role="region" aria-label={t("region")}>
-            <div className={styles.info}>
-              <p className={styles.title}>{currentTrack.title}</p>
-              {currentTrack.artist ? <p className={styles.artist}>{currentTrack.artist}</p> : null}
-            </div>
-            <button
-              type="button"
-              className={styles.button}
-              onClick={() => (isPlaying ? pause() : resume())}
-              aria-label={isPlaying ? t("pause") : t("play")}
-            >
-              {isPlaying ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
-            </button>
-          </div>
-        ) : null}
+        <MiniPlayerBar />
       </PlayerTimeContext.Provider>
     </PlayerContext.Provider>
   );
 }
 
-export function usePlayer() {
-  const ctx = useContext(PlayerContext);
-  if (!ctx) throw new Error("usePlayer must be used inside PlayerProvider");
-  return ctx;
-}
-
-/** Время и длительность - отдельно, чтобы тики timeupdate не перерисовывали все пузыри чата. */
-export function usePlayerTime() {
-  return useContext(PlayerTimeContext);
-}
+export { usePlayer, usePlayerTime, type AudioTrack, type PlayerContextValue } from "@/providers/playerContext";

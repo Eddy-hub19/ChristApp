@@ -47,7 +47,7 @@ import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
 import BookMessageBubble from "@/components/BookMessageBubble/BookMessageBubble";
 import { getFileDisplayName, isAudioFileName } from "@/lib/audioFileTrack";
-import { type AudioTrack, usePlayer, usePlayerTime } from "@/providers/PlayerProvider";
+import { type AudioTrack, usePlayer, usePlayerTime } from "@/providers/playerContext";
 import { bookFormatFromName, isBookFileName, toRawCloudinaryUrl } from "@/lib/book/bookFile";
 import { fetchBookFile, shareOrDownloadBook, canShareFiles } from "@/lib/book/shareFile";
 

@@ -5,7 +5,7 @@ import { useCalls } from "@/components/calls/CallProvider";
 import { useCinema } from "@/components/Cinema/CinemaProvider";
 import { usePathname } from "@/i18n/navigation";
 import { isFullscreenPath } from "@/lib/fullscreenRoutes";
-import { usePlayer } from "@/providers/PlayerProvider";
+import { usePlayer } from "@/providers/playerContext";
 
 /**
  * Ставит плеер на паузу, когда звук нужен другому: звонок (входящий, исходящий, идущий), игра на весь экран

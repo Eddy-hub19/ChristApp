@@ -35,7 +35,7 @@ import {
 import styles from "@/components/ChatWindow/ChatWindow.module.scss";
 import MessageBubble from "@/components/MessageBubble/MessageBubble";
 import { audioTrackFromMessage } from "@/lib/audioFileTrack";
-import { type AudioTrack, usePlayer } from "@/providers/PlayerProvider";
+import { type AudioTrack, usePlayer } from "@/providers/playerContext";
 
 type ChatWindowProps = {
   messages: Message[];
