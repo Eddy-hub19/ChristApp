@@ -2396,6 +2396,8 @@
     "endedMinutes": "We talked for {minutes} min. with God's help 🙏"
   },
   "player": {
+    "live": "LIVE",
+    "liveSubtitle": "Live broadcast",
     "region": "Player",
     "miniRegion": "Mini player",
     "sheetTitle": "Player",

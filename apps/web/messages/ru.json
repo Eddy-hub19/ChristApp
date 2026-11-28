@@ -2396,6 +2396,8 @@
     "endedMinutes": "Мы поговорили {minutes} мин. с Божьей помощью 🙏"
   },
   "player": {
+    "live": "LIVE",
+    "liveSubtitle": "Прямой эфир",
     "region": "Плеер",
     "miniRegion": "Мини-плеер",
     "sheetTitle": "Плеер",

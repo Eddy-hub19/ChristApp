@@ -55,7 +55,7 @@ export default function SheepPlayerSheet({ open, onClose }: { open: boolean; onC
         <div className={styles.sheetHero}>
           <SheepFigure state={sheepStateOf(p.isPlaying, p.isLoading)} size={88} />
           <p className={styles.sheetTitle}>{track.title}</p>
-          <p className={styles.sheetArtist}>{track.artist ?? t("unknownArtist")}</p>
+          <p className={styles.sheetArtist}>{track.live ? `${t("live")} · ${track.artist || t("liveSubtitle")}` : (track.artist ?? t("unknownArtist"))}</p>
           {p.isLoading ? <p className={styles.status}>{t("loading")}</p> : null}
           {p.error ? (
             <p className={styles.statusError} role="alert">
@@ -67,12 +67,14 @@ export default function SheepPlayerSheet({ open, onClose }: { open: boolean; onC
           ) : null}
         </div>
 
-        <SeekBar />
+        {track.live ? null : <SeekBar />}
 
         <div className={styles.sheetControls}>
-          <button type="button" className={styles.iconBtn} onClick={p.prev} aria-label={t("prev")}>
-            <SkipBack size={20} aria-hidden />
-          </button>
+          {track.live ? null : (
+            <button type="button" className={styles.iconBtn} onClick={p.prev} aria-label={t("prev")}>
+              <SkipBack size={20} aria-hidden />
+            </button>
+          )}
           <button
             type="button"
             className={`${styles.iconBtn} ${styles.playBig}`}
@@ -81,9 +83,11 @@ export default function SheepPlayerSheet({ open, onClose }: { open: boolean; onC
           >
             {p.isPlaying ? <Pause size={24} aria-hidden /> : <Play size={24} aria-hidden />}
           </button>
-          <button type="button" className={styles.iconBtn} onClick={p.next} aria-label={t("next")}>
-            <SkipForward size={20} aria-hidden />
-          </button>
+          {track.live ? null : (
+            <button type="button" className={styles.iconBtn} onClick={p.next} aria-label={t("next")}>
+              <SkipForward size={20} aria-hidden />
+            </button>
+          )}
         </div>
 
         {p.canSetVolume ? (
@@ -103,7 +107,7 @@ export default function SheepPlayerSheet({ open, onClose }: { open: boolean; onC
           </label>
         ) : null}
 
-        {p.queue.length > 1 ? (
+        {!track.live && p.queue.length > 1 ? (
           <section className={styles.queue} aria-label={t("queue")}>
             <h3 className={styles.queueTitle}>{t("queue")}</h3>
             <ul className={styles.queueList}>
