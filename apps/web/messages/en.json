@@ -1854,6 +1854,9 @@
       "close": "Close",
       "tabAbout": "About",
       "tabUpdates": "Updates",
+      "back": "Back",
+      "search": "Search the game",
+      "empty": "Nothing found",
       "new": "New"
     },
     "whatsNew": {

@@ -898,3 +898,47 @@ export function fillInfoText(text: string, params: Record<string, InfoParam> | u
     return v === undefined ? "…" : format(v, spec.as);
   });
 }
+
+/** Плитка темы на главном экране «Про гру»: иконка и короткая подсказка (что внутри). Новая секция без записи здесь получает иконку по умолчанию и пустую подсказку. */
+export const INFO_SECTION_META: Record<string, { icon: WhatsNewIcon; hint: L }> = {
+  how: {
+    icon: "boost",
+    hint: { ua: "Ріст, керування, прискорення", ru: "Рост, управление, ускорение", en: "Growing, controls, sprint" },
+  },
+  rubies: {
+    icon: "ruby",
+    hint: { ua: "Як отримати й на що витратити", ru: "Как получить и на что потратить", en: "How to earn and spend" },
+  },
+  boss: {
+    icon: "alpha",
+    hint: { ua: "Хто це і як його перемогти", ru: "Кто это и как его победить", en: "Who it is and how to beat it" },
+  },
+  bonuses: {
+    icon: "star",
+    hint: { ua: "Що підбирати на карті", ru: "Что подбирать на карте", en: "What to pick up on the map" },
+  },
+  events: {
+    icon: "wind",
+    hint: { ua: "Дощ, вітер, режими", ru: "Дождь, ветер, режимы", en: "Rain, wind, modes" },
+  },
+  food: {
+    icon: "leaf",
+    hint: { ua: "Трава, листя, зорі", ru: "Трава, листья, звёзды", en: "Grass, leaves, stars" },
+  },
+  emeralds: {
+    icon: "emerald",
+    hint: { ua: "Нагороди й щоденні цілі", ru: "Награды и ежедневные цели", en: "Rewards and daily goals" },
+  },
+  artifacts: {
+    icon: "artifactShield",
+    hint: { ua: "Особливі предмети", ru: "Особые предметы", en: "Special items" },
+  },
+  maps: {
+    icon: "lava",
+    hint: { ua: "Усі карти арени та кущі", ru: "Все карты арены и кусты", en: "All arena maps and bushes" },
+  },
+  newbies: {
+    icon: "eye",
+    hint: { ua: "Поради для першої гри", ru: "Советы для первой игры", en: "Tips for your first game" },
+  },
+};
