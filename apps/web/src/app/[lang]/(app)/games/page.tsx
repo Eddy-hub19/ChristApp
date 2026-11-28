@@ -6,10 +6,9 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { SKINS } from "@/components/FlockMiniGame/flockSkins";
+import SkinPreview from "@/components/FlockMiniGame/FlockSkinPreview";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
-import GameIcon from "@/lib/games/gameIcons";
 import SoloPuzzleHost from "./SoloPuzzleHost";
 import styles from "./games.module.scss";
 
@@ -61,13 +60,11 @@ export default function GamesPage() {
         <FlockResumeBanner />
         <Link href="/games/flock" className={styles.card} prefetch={false}>
           <span className={styles.art} aria-hidden>
-            {SKINS.slice(0, 3).map((s, i) => (
-              <span key={i} className={styles.blob} style={{ background: s.fur, left: `${i * 26}px`, zIndex: 3 - i }} />
-            ))}
+            <SkinPreview skinId={0} size={104} />
           </span>
           <span className={styles.cardBody}>
             <span className={styles.cardTitle}>
-              <GameIcon game="flock" size={20} className={styles.cardIcon} /> {t("flock.title")}
+              {t("flock.title")}
             </span>
             <span className={styles.cardDesc}>{t("flock.desc")}</span>
           </span>
