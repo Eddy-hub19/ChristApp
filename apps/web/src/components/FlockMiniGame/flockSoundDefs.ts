@@ -224,6 +224,9 @@ export type SoundId =
   | "coins"
   | "melody"
   | "skyMelody"
+  | "meadowMelody"
+  | "treasureMelody"
+  | "mazeMelody"
   // карта «Небо» (синтез у рушії, файлів нема: нічого не вантажиться)
   | "skyAmbient"
   | "skyEnter"
@@ -574,6 +577,10 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
     lazy: true,
     synth: () => 0,
   },
+  // музыка карт (CC0, OpenGameArt; источники в public/sounds/flock/CREDITS.md): ленивая загрузка при входе на карту
+  meadowMelody: { file: "/sounds/flock/map-meadow", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  treasureMelody: { file: "/sounds/flock/map-treasure", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  mazeMelody: { file: "/sounds/flock/map-maze", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   melody: {
     file: "/sounds/flock/melody",
     gain: 0.5,

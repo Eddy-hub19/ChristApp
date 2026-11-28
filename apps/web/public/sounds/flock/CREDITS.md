@@ -12,6 +12,9 @@ All files are CC0 (public domain dedication) from OpenGameArt unless noted. Deta
 | sheep | phrase | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 20.4 KB | 2026-10-31 |
 | melody | melody (lobby music) | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 485.7 KB | 2026-10-31 |
 | melody2 | skyMelody ("Sky" map music, lazy-loaded on entering the map) | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only) | 376 KB | 2026-11-06 |
+| map-meadow | meadowMelody ("Meadow" map music, lazy-loaded) | Lost in the meadows | Augmentality | https://opengameart.org/content/lost-in-the-meadows | CC0 | lost in the meadows_0.flac -> mp3 96k stereo | 1.3 MB | 2026-11-28 |
+| map-treasure | treasureMelody ("Treasure Island" map music, lazy-loaded) | Exploration Theme | CleytonKauffman | https://opengameart.org/content/exploration-theme | CC0 | exploration_theme.ogg -> mp3 96k stereo | 1.6 MB | 2026-11-28 |
+| map-maze | mazeMelody ("Maze" mode music, lazy-loaded) | Sirens in Darkness | cynicmusic | https://opengameart.org/content/sirens-in-darkness | CC0 | 012_Sirens_in_Darkness_0.mp3 -> mp3 96k stereo | 2.8 MB | 2026-11-28 |
 | bonus | bonus | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 12.5 KB | 2026-10-31 |
 | star-warn | starWarn | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 14.7 KB | 2026-10-31 |
 | star-pick | starPick | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 9.0 KB | 2026-10-31 |

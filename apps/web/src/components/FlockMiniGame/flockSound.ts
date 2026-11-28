@@ -208,7 +208,7 @@ async function loadFiles() {
   if (!ctx || filesLoading || !getFlockSoundSettings().enabled) return;
   const c = ctx;
   // «ленивые» файлы (музыка «Неба») грузим только когда они реально нужны
-  const todo = (Object.keys(SOUNDS) as SoundId[]).filter((id) => SOUNDS[id].file && !buffers.has(id) && !failed.has(id) && (!SOUNDS[id].lazy || (id === "skyMelody" && skyWanted)));
+  const todo = (Object.keys(SOUNDS) as SoundId[]).filter((id) => SOUNDS[id].file && !buffers.has(id) && !failed.has(id) && (!SOUNDS[id].lazy || (id === "skyMelody" && skyWanted) || id === mapMusicWanted));
   if (!todo.length) return;
   filesLoading = true;
   try {
@@ -236,6 +236,27 @@ function syncMusic() {
   if (musicWanted && audible() && getFlockSoundSettings().music && buffers.has("melody")) startFlockLoop("melody");
   else stopFlockLoop("melody");
   syncSkyMusic();
+  syncMapMusic();
+}
+
+/** Музыка обычных карт (луг, остров сокровищ, лабиринт): файл грузится лениво; играет, если включены звук и «Музыка». */
+export type MapMusicId = "meadowMelody" | "treasureMelody" | "mazeMelody";
+const MAP_MUSIC: MapMusicId[] = ["meadowMelody", "treasureMelody", "mazeMelody"];
+let mapMusicWanted: MapMusicId | null = null;
+
+export function setFlockMapMusic(id: MapMusicId | null) {
+  if (mapMusicWanted === id) return;
+  mapMusicWanted = id;
+  if (id) void loadFiles().then(syncMusic);
+  syncMusic();
+}
+
+function syncMapMusic() {
+  const st = getFlockSoundSettings();
+  for (const id of MAP_MUSIC) {
+    if (id === mapMusicWanted && audible() && st.music && buffers.has(id)) startFlockLoop(id);
+    else stopFlockLoop(id);
+  }
 }
 
 let skyWanted = false;

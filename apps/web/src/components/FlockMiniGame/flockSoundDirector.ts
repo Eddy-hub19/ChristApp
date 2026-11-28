@@ -3,7 +3,7 @@
  * Вся логика «какой звук на какое событие» - здесь; сами синтезаторы - в flockSoundDefs.ts.
  */
 import type { FlockModel, ModelSoundSink } from "./flockModel";
-import { playFlockSound, setFlockSkyMusic, setFlockSoundListener, startFlockLoop, stopFlockLoop } from "./flockSound";
+import { playFlockSound, setFlockMapMusic, setFlockSkyMusic, setFlockSoundListener, startFlockLoop, stopFlockLoop } from "./flockSound";
 
 const FOOD_SOUND = ["eatGrass", "eatFlower", "eatFlower", "eatFlower", "rainbow"] as const;
 
@@ -76,6 +76,9 @@ export function tickFlockSound(model: FlockModel, now: number) {
     playFlockSound("wingsFlap", { self: true });
   }
 
+  // музыка обычных карт: лабиринт, остров сокровищ, луг (castles и остальные карты - без файла)
+  setFlockMapMusic(model.race ? "mazeMelody" : model.cfg.treasure ? "treasureMelody" : model.sky === null && !model.cfg.castle && (model.cfg.map ?? 0) === 0 ? "meadowMelody" : null);
+
   const rain = Math.round(model.rainStrength(now) * 5) / 5;
   if (rain !== rainLevel) {
     rainLevel = rain;
@@ -90,6 +93,7 @@ export function resetFlockSoundLoops() {
   rainLevel = 0;
   skyOn = false;
   setFlockSkyMusic(false);
+  setFlockMapMusic(null);
   stopFlockLoop("wind");
   stopFlockLoop("rain");
 }
