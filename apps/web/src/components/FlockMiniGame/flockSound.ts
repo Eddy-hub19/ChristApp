@@ -239,9 +239,9 @@ function syncMusic() {
   syncMapMusic();
 }
 
-/** Музыка обычных карт (луг, остров сокровищ, лабиринт): файл грузится лениво; играет, если включены звук и «Музыка». */
-export type MapMusicId = "meadowMelody" | "treasureMelody" | "mazeMelody";
-const MAP_MUSIC: MapMusicId[] = ["meadowMelody", "treasureMelody", "mazeMelody"];
+/** Музыка обычных карт (луг, роща, мороз, конфетная страна, остров сокровищ, лабиринт): файл грузится лениво; играет, если включены звук и «Музыка». */
+export type MapMusicId = "meadowMelody" | "treasureMelody" | "mazeMelody" | "candyMelody" | "groveMelody" | "frostMelody";
+const MAP_MUSIC: MapMusicId[] = ["meadowMelody", "treasureMelody", "mazeMelody", "candyMelody", "groveMelody", "frostMelody"];
 let mapMusicWanted: MapMusicId | null = null;
 
 export function setFlockMapMusic(id: MapMusicId | null) {

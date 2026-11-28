@@ -227,6 +227,9 @@ export type SoundId =
   | "meadowMelody"
   | "treasureMelody"
   | "mazeMelody"
+  | "candyMelody"
+  | "groveMelody"
+  | "frostMelody"
   // карта «Небо» (синтез у рушії, файлів нема: нічого не вантажиться)
   | "skyAmbient"
   | "skyEnter"
@@ -581,6 +584,9 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   meadowMelody: { file: "/sounds/flock/map-meadow", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   treasureMelody: { file: "/sounds/flock/map-treasure", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   mazeMelody: { file: "/sounds/flock/map-maze", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  candyMelody: { file: "/sounds/flock/map-candy", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  groveMelody: { file: "/sounds/flock/map-grove", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  frostMelody: { file: "/sounds/flock/map-frost", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   melody: {
     file: "/sounds/flock/melody",
     gain: 0.5,
