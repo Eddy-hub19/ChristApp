@@ -14,6 +14,7 @@ import { PuzzleUserImagesModule } from './chat/puzzle/user-images/puzzle-user-im
 import { CallsModule } from './calls/calls.module';
 import { WatchPartyModule } from './watch-party/watch-party.module';
 import { FlockModule } from './flock/flock.module';
+import { RadioModule } from './radio/radio.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { FlockModule } from './flock/flock.module';
     CallsModule,
     WatchPartyModule,
     FlockModule,
+    RadioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

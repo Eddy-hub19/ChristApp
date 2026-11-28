@@ -641,3 +641,37 @@ model FlockColiseumLog {
 
   @@index([userId, createdAt])
 }
+
+/// «Christ Radio»: трек очереди эфира (загружает только админ). `position` - порядок воспроизведения 0..n-1 по кругу.
+model RadioTrack {
+  id          String   @id @default(uuid())
+  title       String   @db.VarChar(120)
+  artist      String   @default("") @db.VarChar(120)
+  audioUrl    String
+  coverUrl    String?
+  durationSec Int
+  position    Int
+  createdAt   DateTime @default(now())
+
+  @@index([position])
+}
+
+/// «Christ Radio»: единственная строка (id = 'main') - что играет сейчас и когда началось (источник истины для всех слушателей).
+model RadioState {
+  id             String    @id
+  currentTrackId String?
+  startedAt      DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+/// «Christ Radio»: журнал эфира для «Недавно в эфире». Название и обложка копируются, чтобы запись пережила удаление трека.
+model RadioPlay {
+  id        String   @id @default(uuid())
+  trackId   String?
+  title     String   @db.VarChar(120)
+  artist    String   @default("") @db.VarChar(120)
+  coverUrl  String?
+  startedAt DateTime @default(now())
+
+  @@index([startedAt])
+}
