@@ -547,3 +547,36 @@ button.listeners {
     transition: none;
   }
 }
+
+/* Главная кнопка по центру; у админа справа «следующий трек». */
+.controlsRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.controlsRow > .mainBtn {
+  grid-column: 2;
+}
+
+.skipBtn {
+  grid-column: 3;
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-left: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}

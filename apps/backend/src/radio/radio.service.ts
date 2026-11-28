@@ -127,6 +127,20 @@ export class RadioService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /**
+   * Переключает эфир сразу: на `id` или (без него) на следующий по кругу трек; новый трек стартует с начала.
+   * В очереди из одного трека «следующий» - он же, играет заново. false - такого трека нет или эфир офлайн.
+   */
+  async switchTo(id?: string): Promise<boolean> {
+    return this.serial(async () => {
+      if (this.queue.length === 0) return false;
+      const target = id ?? nextTrackId(this.asQueue(), this.position?.trackId ?? null);
+      if (!target || !this.queue.some((t) => t.id === target)) return false;
+      await this.sync({ forceStartFrom: target, restart: true });
+      return true;
+    });
+  }
+
   /** «Играть следующим»: трек встаёт сразу за текущим. */
   async playNext(id: string): Promise<boolean> {
     return this.serial(async () => {

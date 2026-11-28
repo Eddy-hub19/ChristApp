@@ -55,7 +55,9 @@
     "cancel": "Отмена",
     "listenersTitle": "Сейчас слушают",
     "noListeners": "Пока никто не слушает",
-    "you": "вы"
+    "you": "вы",
+    "skip": "Следующий трек",
+    "playNow": "Включить «{title}» сейчас"
   },
   "login": {
     "title": "Christ App",

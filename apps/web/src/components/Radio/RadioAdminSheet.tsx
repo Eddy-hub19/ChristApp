@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Trash2, Upload } from "lucide-react";
+import { Play, Trash2, Upload } from "lucide-react";
 import Sheet from "@/components/Cinema/Sheet";
 import {
   RadioApiError,
   deleteRadioTrack,
   fetchRadioTracks,
+  playRadioTrackNow,
   uploadRadioTrack,
   type RadioAdminTrack,
 } from "@/lib/radioApi";
+import { readAudioTags, tagsFromFileName } from "@/lib/audioTags";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useRadio } from "@/providers/radioContext";
@@ -34,8 +36,6 @@ function measureDuration(file: File): Promise<number> {
     audio.src = url;
   });
 }
-
-const stripExt = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
 
 /** «Добавить трек»: загрузка доступна всем; очередь эфира с удалением треков видит только админ. */
 export default function RadioAdminSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -85,10 +85,22 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
     }
   };
 
+  /** Выбрали файл: название и исполнитель берутся из тегов, без тегов - из имени файла («Исполнитель - Название»). */
+  const pickedRef = useRef<File | null>(null);
   const onPickFile = (picked: File | null) => {
+    pickedRef.current = picked;
     setFile(picked);
     setMessage(null);
-    if (picked && !title.trim()) setTitle(stripExt(picked.name).slice(0, 120));
+    if (!picked) return;
+    const fromName = tagsFromFileName(picked.name);
+    setTitle(fromName.title ?? "");
+    setArtist(fromName.artist ?? "");
+    void readAudioTags(picked).then((tags) => {
+      // за время чтения выбрали другой файл - не затираем
+      if (pickedRef.current !== picked) return;
+      if (tags.title) setTitle(tags.title);
+      if (tags.artist) setArtist(tags.artist);
+    });
   };
 
   const submit = async (e: FormEvent) => {
@@ -195,6 +207,11 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
                     </span>
                   ) : (
                     <span className={styles.rowActions}>
+                      {!current ? (
+                        <button type="button" className={styles.iconBtn} disabled={busy} onClick={() => void run(row.id, () => playRadioTrackNow(row.id))} aria-label={t("playNow", { title: row.title })} title={t("playNow", { title: row.title })}>
+                          <Play size={16} aria-hidden />
+                        </button>
+                      ) : null}
                       <button type="button" className={styles.iconBtn} disabled={busy} onClick={() => setConfirmId(row.id)} aria-label={t("delete", { title: row.title })}>
                         <Trash2 size={16} aria-hidden />
                       </button>

@@ -134,6 +134,24 @@ export class RadioController {
     return { ok: true };
   }
 
+  /** Админ: перейти к следующему треку прямо сейчас. */
+  @Post('skip')
+  @UseGuards(AdminGuard)
+  @HttpCode(200)
+  async skip() {
+    if (!(await this.radio.switchTo())) throw new NotFoundException('Эфир офлайн: в очереди нет треков');
+    return { ok: true };
+  }
+
+  /** Админ: включить выбранный трек сразу, с начала. */
+  @Post('tracks/:id/play-now')
+  @UseGuards(AdminGuard)
+  @HttpCode(200)
+  async playNow(@Param('id') id: string) {
+    if (!(await this.radio.switchTo(id))) throw new NotFoundException('Трек не найден');
+    return { ok: true };
+  }
+
   @Post('tracks/:id/play-next')
   @UseGuards(AdminGuard)
   @HttpCode(200)

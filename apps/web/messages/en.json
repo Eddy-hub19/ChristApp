@@ -55,7 +55,9 @@
     "cancel": "Cancel",
     "listenersTitle": "Listening now",
     "noListeners": "Nobody is listening yet",
-    "you": "you"
+    "you": "you",
+    "skip": "Next track",
+    "playNow": "Play “{title}” now"
   },
   "login": {
     "title": "Christ App",

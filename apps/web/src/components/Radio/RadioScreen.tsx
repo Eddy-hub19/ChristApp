@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Headphones, Pause, Play, Plus, Users, Volume2 } from "lucide-react";
+import { Headphones, Pause, Play, Plus, SkipForward, Users, Volume2 } from "lucide-react";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
+import { skipRadioTrack } from "@/lib/radioApi";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
 import { usePlayer } from "@/providers/playerContext";
 import { useRadio } from "@/providers/radioContext";
@@ -32,6 +34,8 @@ export default function RadioScreen() {
   const radio = useRadio();
   const player = usePlayer();
   const { user } = useAuth();
+  const isAdmin = useIsAdmin() === true;
+  const [skipping, setSkipping] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const peopleRef = useRef<HTMLDivElement | null>(null);
@@ -89,6 +93,18 @@ export default function RadioScreen() {
   const onMainButton = () => {
     if (tunedIn && status !== "blocked") radio.leave();
     else radio.tuneIn();
+  };
+  /** Админ: переключить эфир на следующий трек для всех слушателей. */
+  const onSkip = async () => {
+    if (skipping) return;
+    setSkipping(true);
+    try {
+      await skipRadioTrack();
+    } catch {
+      // ошибка сети: кнопку можно нажать снова
+    } finally {
+      setSkipping(false);
+    }
   };
   const mainLabel = tunedIn && status !== "blocked" ? t("leave") : t("tuneIn");
 
@@ -163,16 +179,23 @@ export default function RadioScreen() {
             <h2 className={styles.trackTitle}>{track?.title ?? t("offlineTitle")}</h2>
             <p className={styles.trackArtist}>{track ? track.artist || t("unknownArtist") : t("offlineText")}</p>
 
-            <button
-              type="button"
-              className={styles.mainBtn}
-              onClick={onMainButton}
-              disabled={!online}
-              aria-label={mainLabel}
-              aria-pressed={tunedIn && status !== "blocked"}
-            >
-              {listening || (tunedIn && status !== "blocked") ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden />}
-            </button>
+            <div className={styles.controlsRow}>
+              <button
+                type="button"
+                className={styles.mainBtn}
+                onClick={onMainButton}
+                disabled={!online}
+                aria-label={mainLabel}
+                aria-pressed={tunedIn && status !== "blocked"}
+              >
+                {listening || (tunedIn && status !== "blocked") ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden />}
+              </button>
+              {isAdmin ? (
+                <button type="button" className={styles.skipBtn} onClick={() => void onSkip()} disabled={!online || skipping} aria-label={t("skip")} title={t("skip")}>
+                  <SkipForward size={22} aria-hidden />
+                </button>
+              ) : null}
+            </div>
 
             <div className={styles.wave} data-playing={listening ? "true" : "false"} aria-hidden>
               {WAVE.map((h, i) => (
