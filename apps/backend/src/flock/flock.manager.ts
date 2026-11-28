@@ -1748,7 +1748,8 @@ export class FlockManager {
       arenaId: s.arena.id,
       humans: s.arena.humans,
       token: s.token,
-      thorns: s.arena.thornList,
+      // у гонці кущів нема (лабіринт малює свої стіни): інакше клієнт намалював би пасовищні кущі всередині печери
+      thorns: s.arena.race ? [] : s.arena.thornList,
       mapId: s.arena.mapId,
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       lava: s.arena.world.lava ?? undefined,
