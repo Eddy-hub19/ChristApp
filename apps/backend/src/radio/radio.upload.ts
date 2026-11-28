@@ -1,8 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { normalizeMime } from 'src/messages/upload-policy';
 
-/** «Christ Radio»: что принимает загрузка треков (только админ). Один файл аудио + необязательная обложка. */
-export const RADIO_AUDIO_MAX_BYTES = 25 * 1024 * 1024;
+/** «Christ Radio»: что принимает загрузка треков (любой пользователь; удаляет админ). Один файл аудио + необязательная обложка. */
+export const RADIO_AUDIO_MAX_BYTES = 40 * 1024 * 1024;
 export const RADIO_COVER_MAX_BYTES = 5 * 1024 * 1024;
 export const RADIO_MIN_SEC = 5;
 export const RADIO_MAX_SEC = 30 * 60;
@@ -31,7 +31,7 @@ export function sniffCover(buf: Buffer): boolean {
 
 export function validateRadioAudio(file: Express.Multer.File | undefined): Express.Multer.File {
   if (!file?.buffer?.length) throw new BadRequestException('Нужен аудиофайл в поле file');
-  if (file.size > RADIO_AUDIO_MAX_BYTES) throw new BadRequestException('Файл слишком большой (максимум 25 МБ)');
+  if (file.size > RADIO_AUDIO_MAX_BYTES) throw new BadRequestException('Файл слишком большой (максимум 40 МБ)');
   if (!AUDIO_MIMES.has(normalizeMime(file.mimetype)) || !AUDIO_EXTS.has(extOf(file.originalname))) {
     throw new BadRequestException('Допустимы mp3, m4a, aac и ogg');
   }
@@ -48,7 +48,7 @@ export function validateRadioCover(file: Express.Multer.File | undefined): Expre
   return file;
 }
 
-/** Название, исполнитель и длительность (её меряет браузер админа; сервер лишь ограничивает диапазон). */
+/** Название, исполнитель и длительность (её меряет браузер загружающего; сервер лишь ограничивает диапазон). */
 export function parseRadioMeta(body: { title?: unknown; artist?: unknown; durationSec?: unknown }) {
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   const artist = typeof body.artist === 'string' ? body.artist.trim() : '';

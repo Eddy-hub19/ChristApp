@@ -1,21 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Trash2, Upload } from "lucide-react";
+import { Headphones, Music, Play, Trash2, Upload } from "lucide-react";
 import Sheet from "@/components/Cinema/Sheet";
 import {
   RadioApiError,
   deleteRadioTrack,
   fetchRadioTracks,
+  playRadioTrackNow,
   uploadRadioTrack,
   type RadioAdminTrack,
 } from "@/lib/radioApi";
+import { MAX_COVER_BYTES, readAudioTags, tagsFromFileName } from "@/lib/audioTags";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useRadio } from "@/providers/radioContext";
 import styles from "./Radio.module.scss";
 
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 40 * 1024 * 1024;
 
 /** Длительность аудиофайла меряет браузер админа (сервер лишь проверяет диапазон 5 с .. 30 мин). */
 function measureDuration(file: File): Promise<number> {
@@ -34,12 +37,11 @@ function measureDuration(file: File): Promise<number> {
   });
 }
 
-const stripExt = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
-
-/** Управление эфиром (только админ): загрузка и удаление треков, порядок очереди, «играть следующим». */
+/** «Добавить трек»: загрузка доступна всем; очередь эфира с удалением треков видит только админ. */
 export default function RadioAdminSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("radio");
   const radio = useRadio();
+  const isAdmin = useIsAdmin() === true;
   const currentId = radio.state?.track?.id ?? null;
 
   const [tracks, setTracks] = useState<RadioAdminTrack[] | null>(null);
@@ -51,17 +53,26 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  /** Обложка: выбранная вручную важнее встроенной в файл; без обеих на эфире остаётся стандартный фон. */
+  const [embeddedCover, setEmbeddedCover] = useState<File | null>(null);
+  const [customCover, setCustomCover] = useState<File | null>(null);
+  const cover = customCover ?? embeddedCover;
+  const coverUrl = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
+  useEffect(() => () => {
+    if (coverUrl) URL.revokeObjectURL(coverUrl);
+  }, [coverUrl]);
   const [uploading, setUploading] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const load = useCallback(() => {
+    if (!isAdmin) return;
     fetchRadioTracks()
       .then((rows) => {
         setTracks(rows);
         setLoadError(false);
       })
       .catch(() => setLoadError(true));
-  }, []);
+  }, [isAdmin]);
 
   // Открыли шторку или эфир переключился (текущий трек поменялся): перечитываем очередь.
   useEffect(() => {
@@ -82,10 +93,41 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
     }
   };
 
+  /** Выбрали файл: название и исполнитель берутся из тегов, без тегов - из имени файла («Исполнитель - Название»). */
+  const pickedRef = useRef<File | null>(null);
   const onPickFile = (picked: File | null) => {
+    pickedRef.current = picked;
     setFile(picked);
+    setEmbeddedCover(null);
     setMessage(null);
-    if (picked && !title.trim()) setTitle(stripExt(picked.name).slice(0, 120));
+    if (!picked) return;
+    const fromName = tagsFromFileName(picked.name);
+    setTitle(fromName.title ?? "");
+    setArtist(fromName.artist ?? "");
+    void readAudioTags(picked).then((tags) => {
+      // за время чтения выбрали другой файл - не затираем
+      if (pickedRef.current !== picked) return;
+      if (tags.title) setTitle(tags.title);
+      if (tags.artist) setArtist(tags.artist);
+      if (tags.cover) {
+        const ext = tags.cover.mime === "image/png" ? "png" : tags.cover.mime === "image/webp" ? "webp" : "jpg";
+        setEmbeddedCover(new File([tags.cover.data as BlobPart], `cover.${ext}`, { type: tags.cover.mime }));
+      }
+    });
+  };
+
+  const onPickCover = (picked: File | null) => {
+    setMessage(null);
+    if (!picked) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(picked.type)) {
+      setMessage({ kind: "error", text: t("coverBad") });
+      return;
+    }
+    if (picked.size > MAX_COVER_BYTES) {
+      setMessage({ kind: "error", text: t("coverTooBig") });
+      return;
+    }
+    setCustomCover(picked);
   };
 
   const submit = async (e: FormEvent) => {
@@ -108,11 +150,15 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
       form.append("title", title.trim());
       form.append("artist", artist.trim());
       form.append("durationSec", String(durationSec));
+      if (cover) form.append("cover", cover);
       await uploadRadioTrack(form);
       setMessage({ kind: "ok", text: t("uploaded") });
       setFile(null);
       setTitle("");
       setArtist("");
+      setEmbeddedCover(null);
+      setCustomCover(null);
+      pickedRef.current = null;
       formRef.current?.reset();
       load();
       radio.refresh();
@@ -130,10 +176,23 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
 
         <form ref={formRef} className={styles.form} onSubmit={submit}>
           <h3 className={styles.sectionTitle}>{t("uploadTitle")}</h3>
-          <label className={styles.field}>
+          <div className={styles.field}>
             <span>{t("fileLabel")}</span>
-            <input type="file" accept=".mp3,.m4a,.aac,.ogg,audio/mpeg,audio/mp4,audio/aac,audio/ogg" onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} required />
-          </label>
+            <div className={styles.coverPick}>
+              <span className={`${styles.coverThumb} ${styles.coverFallback} ${file ? styles.fileThumbOn : ""}`} aria-hidden>
+                <Music size={22} />
+              </span>
+              <span className={styles.coverInfo}>
+                <span className={styles.coverNote}>{file ? file.name : t("fileNone")}</span>
+                <span className={styles.coverActions}>
+                  <label className={styles.ghostBtn}>
+                    {file ? t("fileChange") : t("coverPick")}
+                    <input type="file" accept=".mp3,.m4a,.aac,.ogg,audio/mpeg,audio/mp4,audio/aac,audio/ogg" hidden onChange={(e) => { onPickFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                  </label>
+                </span>
+              </span>
+            </div>
+          </div>
           <label className={styles.field}>
             <span>{t("titleLabel")}</span>
             <input type="text" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} required />
@@ -142,6 +201,33 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
             <span>{t("artistLabel")}</span>
             <input type="text" value={artist} maxLength={120} onChange={(e) => setArtist(e.target.value)} />
           </label>
+          <div className={styles.field}>
+            <span>{t("coverLabel")}</span>
+            <div className={styles.coverPick}>
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverUrl} alt="" className={styles.coverThumb} />
+              ) : (
+                <span className={`${styles.coverThumb} ${styles.coverFallback}`} aria-hidden>
+                  <Headphones size={22} />
+                </span>
+              )}
+              <span className={styles.coverInfo}>
+                <span className={styles.coverNote}>{customCover ? customCover.name : embeddedCover ? t("coverFromFile") : t("coverDefault")}</span>
+                <span className={styles.coverActions}>
+                  <label className={styles.ghostBtn}>
+                    {t("coverPick")}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { onPickCover(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                  </label>
+                  {cover ? (
+                    <button type="button" className={styles.ghostBtn} onClick={() => { setCustomCover(null); setEmbeddedCover(null); }}>
+                      {t("coverRemove")}
+                    </button>
+                  ) : null}
+                </span>
+              </span>
+            </div>
+          </div>
           <button type="submit" className={styles.primaryBtn} disabled={!file || !title.trim() || uploading}>
             <Upload size={16} aria-hidden />
             {uploading ? t("uploading") : t("upload")}
@@ -153,8 +239,8 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
           ) : null}
         </form>
 
-        <h3 className={styles.sectionTitle}>{t("queueTitle")}</h3>
-        {loadError ? (
+        {isAdmin ? <h3 className={styles.sectionTitle}>{t("queueTitle")}</h3> : null}
+        {!isAdmin ? null : loadError ? (
           <p className={styles.msgError} role="alert">
             {t("loadFailed")}{" "}
             <button type="button" className={styles.linkBtn} onClick={load}>
@@ -192,6 +278,11 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
                     </span>
                   ) : (
                     <span className={styles.rowActions}>
+                      {!current ? (
+                        <button type="button" className={styles.iconBtn} disabled={busy} onClick={() => void run(row.id, () => playRadioTrackNow(row.id))} aria-label={t("playNow", { title: row.title })} title={t("playNow", { title: row.title })}>
+                          <Play size={16} aria-hidden />
+                        </button>
+                      ) : null}
                       <button type="button" className={styles.iconBtn} disabled={busy} onClick={() => setConfirmId(row.id)} aria-label={t("delete", { title: row.title })}>
                         <Trash2 size={16} aria-hidden />
                       </button>

@@ -5,7 +5,7 @@ import createSocket from "socket.io-client";
 import { getDirectApiOrigin, getSocketPath } from "@/lib/apiBase";
 import { getAuthToken } from "@/lib/auth";
 import { ensureAccessToken } from "@/lib/authSession";
-import { fetchRadioState, type RadioState, type RadioTrack } from "@/lib/radioApi";
+import { fetchRadioState, type RadioListener, type RadioState, type RadioTrack } from "@/lib/radioApi";
 import { usePlayer, usePlayerTime, type AudioTrack } from "@/providers/playerContext";
 import { RadioContext, useRadio, type RadioContextValue, type RadioStatus } from "@/providers/radioContext";
 
@@ -42,6 +42,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
 
   const [state, setState] = useState<RadioState | null>(null);
   const [listeners, setListeners] = useState(0);
+  const [listenerUsers, setListenerUsers] = useState<RadioListener[]>([]);
   const [tunedIn, setTunedInState] = useState(false);
   const [status, setStatus] = useState<RadioStatus>("idle");
   const [connected, setConnected] = useState(false);
@@ -115,9 +116,10 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   }, [acceptState]);
 
   const join = useCallback(() => {
-    socketRef.current?.emit("radio:join", (ack?: { ok?: boolean; state?: RadioState; count?: number }) => {
+    socketRef.current?.emit("radio:join", (ack?: { ok?: boolean; state?: RadioState; count?: number; users?: RadioListener[] }) => {
       if (ack?.state) acceptRef.current(ack.state);
       if (typeof ack?.count === "number") setListeners(ack.count);
+      if (Array.isArray(ack?.users)) setListenerUsers(ack.users);
     });
   }, []);
 
@@ -149,8 +151,9 @@ export function RadioProvider({ children }: { children: ReactNode }) {
         if (tunedInRef.current) setStatus("error");
       });
       socket.on("radio:state", (s: RadioState) => acceptRef.current(s));
-      socket.on("radio:listeners", (p: { count?: number }) => {
+      socket.on("radio:listeners", (p: { count?: number; users?: RadioListener[] }) => {
         if (typeof p?.count === "number") setListeners(p.count);
+        if (Array.isArray(p?.users)) setListenerUsers(p.users);
       });
     } finally {
       connectingRef.current = false;
@@ -275,8 +278,8 @@ export function RadioProvider({ children }: { children: ReactNode }) {
   const positionSec = useCallback(() => positionOf(stateRef.current), [positionOf]);
 
   const value = useMemo<RadioContextValue>(
-    () => ({ state, listeners, tunedIn, status, connected, watch, tuneIn, leave, refresh, positionSec }),
-    [state, listeners, tunedIn, status, connected, watch, tuneIn, leave, refresh, positionSec],
+    () => ({ state, listeners, listenerUsers, tunedIn, status, connected, watch, tuneIn, leave, refresh, positionSec }),
+    [state, listeners, listenerUsers, tunedIn, status, connected, watch, tuneIn, leave, refresh, positionSec],
   );
 
   return (

@@ -19,6 +19,12 @@ export interface RadioState {
   serverNow: number;
 }
 
+export interface RadioListener {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface RadioRecent {
   id: string;
   title: string;
@@ -62,3 +68,5 @@ export const deleteRadioTrack = (id: string) => call<{ ok: true }>(`/tracks/${en
 export const moveRadioTrack = (id: string, direction: "up" | "down") =>
   call<{ ok: true }>(`/tracks/${encodeURIComponent(id)}/move`, { method: "PATCH", body: JSON.stringify({ direction }) });
 export const playRadioTrackNext = (id: string) => call<{ ok: true }>(`/tracks/${encodeURIComponent(id)}/play-next`, { method: "POST" });
+export const skipRadioTrack = () => call<{ ok: true }>("/skip", { method: "POST" });
+export const playRadioTrackNow = (id: string) => call<{ ok: true }>(`/tracks/${encodeURIComponent(id)}/play-now`, { method: "POST" });

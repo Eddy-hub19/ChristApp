@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Headphones, Pause, Play, Settings2, Users, Volume2 } from "lucide-react";
+import { Headphones, Pause, Play, Plus, SkipForward, Users, Volume2 } from "lucide-react";
+import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
+import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
+import { skipRadioTrack } from "@/lib/radioApi";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
 import { usePlayer } from "@/providers/playerContext";
 import { useRadio } from "@/providers/radioContext";
@@ -29,16 +33,37 @@ export default function RadioScreen() {
   const t = useTranslations("radio");
   const radio = useRadio();
   const player = usePlayer();
-  const isAdmin = useIsAdmin();
+  const { user } = useAuth();
+  const isAdmin = useIsAdmin() === true;
+  const [skipping, setSkipping] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const peopleRef = useRef<HTMLDivElement | null>(null);
   const [, setTick] = useState(0);
 
-  const { state, listeners, tunedIn, status, watch } = radio;
+  const { state, listeners, listenerUsers, tunedIn, status, watch } = radio;
   const track = state?.track ?? null;
   const online = Boolean(state?.online && track);
 
   // Пока экран открыт - сокет жив: приходят смена трека и счётчик слушателей.
   useEffect(() => watch(), [watch]);
+
+  // Список слушателей закрывается кликом/касанием вне его и по Escape.
+  useEffect(() => {
+    if (!peopleOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!peopleRef.current?.contains(e.target as Node)) setPeopleOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPeopleOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [peopleOpen]);
 
   // Секундный тик для полоски прогресса (позиция считается по часам сервера, звук для этого не нужен).
   useEffect(() => {
@@ -69,6 +94,18 @@ export default function RadioScreen() {
     if (tunedIn && status !== "blocked") radio.leave();
     else radio.tuneIn();
   };
+  /** Админ: переключить эфир на следующий трек для всех слушателей. */
+  const onSkip = async () => {
+    if (skipping) return;
+    setSkipping(true);
+    try {
+      await skipRadioTrack();
+    } catch {
+      // ошибка сети: кнопку можно нажать снова
+    } finally {
+      setSkipping(false);
+    }
+  };
   const mainLabel = tunedIn && status !== "blocked" ? t("leave") : t("tuneIn");
 
   return (
@@ -81,11 +118,9 @@ export default function RadioScreen() {
           <h1>{t("title")}</h1>
           <p>{t("subtitle")}</p>
         </div>
-        {isAdmin ? (
-          <button type="button" className={styles.adminBtn} onClick={() => setAdminOpen(true)} aria-label={t("manage")} title={t("manage")}>
-            <Settings2 size={18} aria-hidden />
-          </button>
-        ) : null}
+        <button type="button" className={styles.adminBtn} onClick={() => setAdminOpen(true)} aria-label={t("manage")} title={t("manage")}>
+          <Plus size={20} aria-hidden />
+        </button>
       </header>
 
       <div className={styles.scroll}>
@@ -95,10 +130,47 @@ export default function RadioScreen() {
             <span className={styles.coverShade} aria-hidden />
             <div className={styles.badges}>
               {online ? <span className={styles.livePill}>{t("live")}</span> : <span />}
-              <span className={styles.listeners} aria-label={t("listeners", { count: listeners })}>
-                <Users size={14} aria-hidden />
-                {listeners}
-              </span>
+              <div className={styles.peopleWrap} ref={peopleRef}>
+                <button
+                  type="button"
+                  className={styles.listeners}
+                  onClick={() => setPeopleOpen((v) => !v)}
+                  aria-label={t("listeners", { count: listeners })}
+                  aria-haspopup="dialog"
+                  aria-expanded={peopleOpen}
+                >
+                  <Users size={14} aria-hidden />
+                  {listeners}
+                </button>
+                {peopleOpen ? (
+                  <div className={styles.people} role="dialog" aria-label={t("listenersTitle")}>
+                    <p className={styles.peopleTitle}>{t("listenersTitle")}</p>
+                    {listenerUsers.length === 0 ? (
+                      <p className={styles.peopleEmpty}>{t("noListeners")}</p>
+                    ) : (
+                      <ul className={styles.peopleList}>
+                        {listenerUsers.map((u) => (
+                          <li key={u.id} className={styles.person}>
+                            <AvatarWithFallback
+                              src={resolvePublicAvatarUrl(u.avatarUrl)}
+                              initials={(u.name.trim()[0] ?? "?").toUpperCase()}
+                              colorSeed={u.id}
+                              width={28}
+                              height={28}
+                              imageClassName={styles.personAvatar}
+                              fallbackClassName={`${styles.personAvatar} ${styles.personInitials}`}
+                              fallbackTag="span"
+                              fallbackTint="always"
+                            />
+                            <span className={styles.personName}>{u.name}</span>
+                            {u.id === user?.id ? <span className={styles.personYou}>{t("you")}</span> : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -107,16 +179,23 @@ export default function RadioScreen() {
             <h2 className={styles.trackTitle}>{track?.title ?? t("offlineTitle")}</h2>
             <p className={styles.trackArtist}>{track ? track.artist || t("unknownArtist") : t("offlineText")}</p>
 
-            <button
-              type="button"
-              className={styles.mainBtn}
-              onClick={onMainButton}
-              disabled={!online}
-              aria-label={mainLabel}
-              aria-pressed={tunedIn && status !== "blocked"}
-            >
-              {listening || (tunedIn && status !== "blocked") ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden />}
-            </button>
+            <div className={styles.controlsRow}>
+              <button
+                type="button"
+                className={styles.mainBtn}
+                onClick={onMainButton}
+                disabled={!online}
+                aria-label={mainLabel}
+                aria-pressed={tunedIn && status !== "blocked"}
+              >
+                {listening || (tunedIn && status !== "blocked") ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden />}
+              </button>
+              {isAdmin ? (
+                <button type="button" className={styles.skipBtn} onClick={() => void onSkip()} disabled={!online || skipping} aria-label={t("skip")} title={t("skip")}>
+                  <SkipForward size={22} aria-hidden />
+                </button>
+              ) : null}
+            </div>
 
             <div className={styles.wave} data-playing={listening ? "true" : "false"} aria-hidden>
               {WAVE.map((h, i) => (
@@ -170,7 +249,7 @@ export default function RadioScreen() {
         </article>
       </div>
 
-      {isAdmin ? <RadioAdminSheet open={adminOpen} onClose={() => setAdminOpen(false)} /> : null}
+      <RadioAdminSheet open={adminOpen} onClose={() => setAdminOpen(false)} />
     </section>
   );
 }

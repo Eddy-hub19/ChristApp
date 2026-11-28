@@ -272,10 +272,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.setAttribute("playsinline", "");
     audioRef.current = audio;
 
-    // iOS игнорирует audio.volume: проверяем, держится ли значение.
+    // iOS (в т.ч. iPad в режиме «как Mac») игнорирует audio.volume, хотя свойство «принимает» значение: проверка по значению
+    // там обманывает, поэтому определяем платформу явно. На iOS громкость - кнопками устройства, ползунок скрыт.
+    const isIOS =
+      /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const probe = new Audio();
     probe.volume = 0.5;
-    setCanSetVolume(probe.volume === 0.5);
+    setCanSetVolume(!isIOS && probe.volume === 0.5);
 
     const onLoading = () => {
       if (trackRef.current) setIsLoading(true);

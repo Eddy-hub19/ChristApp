@@ -126,6 +126,86 @@
   justify-content: space-between;
 }
 
+.peopleWrap {
+  position: relative;
+}
+
+.people {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 3;
+  width: min(240px, calc(100vw - 56px));
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.45);
+}
+
+.peopleTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.65;
+}
+
+.peopleEmpty {
+  margin: 4px 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.peopleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.personAvatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.personInitials {
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.personName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.personYou {
+  flex: none;
+  font-size: 11px;
+  opacity: 0.6;
+}
+
 .livePill,
 .listeners {
   display: inline-flex;
@@ -138,6 +218,14 @@
   font-weight: 700;
   background: color-mix(in srgb, var(--background) 72%, transparent);
   color: var(--foreground);
+}
+
+button.listeners {
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .livePill::before {
@@ -458,4 +546,86 @@
   .mainBtn {
     transition: none;
   }
+}
+
+/* Главная кнопка по центру; у админа справа «следующий трек». */
+.controlsRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+.controlsRow > .mainBtn {
+  grid-column: 2;
+}
+
+.skipBtn {
+  grid-column: 3;
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-left: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+/* Выбор обложки в форме «Добавить трек». */
+.coverPick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.coverThumb {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.coverInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.coverNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.coverActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Стандартный фон без обложки: тот же градиент, что на карточке эфира. */
+.coverThumb.coverFallback {
+  opacity: 1;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 38%, var(--background)), color-mix(in srgb, var(--accent-soft, var(--accent)) 30%, var(--background)));
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}
+
+/* Файл выбран: плитка аудио подсвечивается акцентом. */
+.coverThumb.coverFallback.fileThumbOn {
+  color: #fff;
+  background: var(--accent);
 }
