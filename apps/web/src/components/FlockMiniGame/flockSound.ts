@@ -232,9 +232,25 @@ export function setFlockMusic(on: boolean) {
   syncMusic();
 }
 
+/** Вступление лобби уже отыграло (до выхода из лобби): дальше петля melody. */
+let lobbyIntroDone = false;
+
 function syncMusic() {
-  if (musicWanted && audible() && getFlockSoundSettings().music && buffers.has("melody")) startFlockLoop("melody");
-  else stopFlockLoop("melody");
+  const lobbyOn = musicWanted && audible() && getFlockSoundSettings().music;
+  if (!musicWanted) lobbyIntroDone = false;
+  const introPending = !lobbyIntroDone && !failed.has("lobbyIntro");
+  if (lobbyOn && introPending && buffers.has("lobbyIntro")) {
+    stopFlockLoop("melody");
+    startFlockLoop("lobbyIntro");
+  } else if (lobbyOn && introPending) {
+    // файл вступления ещё грузится: ждём, чтобы не включить две мелодии подряд
+    stopFlockLoop("lobbyIntro");
+    stopFlockLoop("melody");
+  } else {
+    stopFlockLoop("lobbyIntro");
+    if (lobbyOn && buffers.has("melody")) startFlockLoop("melody");
+    else stopFlockLoop("melody");
+  }
   syncSkyMusic();
   syncMapMusic();
 }
@@ -382,15 +398,24 @@ export function startFlockLoop(id: SoundId, level = 1) {
   if (buf) {
     const src = c.createBufferSource();
     src.buffer = buf;
-    src.loop = true;
+    // «вступление» лобби играет один раз, по окончании включается основная мелодия
+    src.loop = id !== "lobbyIntro";
     src.connect(g);
     src.start();
     nodes.push(src);
+    if (id === "lobbyIntro") {
+      src.onended = () => {
+        if (loops.get(id) !== handle) return;
+        lobbyIntroDone = true;
+        stopFlockLoop(id);
+        syncMusic();
+      };
+    }
   } else if (def.loop) {
     const handle = def.loop({ ctx: c, out: g, t: c.currentTime, pitch: 1, noise: getNoise() });
     nodes.push(...handle);
   }
-  loops.set(id, {
+  const handle: LoopHandle = {
     gain: g,
     stop: () => {
       const now = c.currentTime;
@@ -411,7 +436,8 @@ export function startFlockLoop(id: SoundId, level = 1) {
         }
       }, 700);
     },
-  });
+  };
+  loops.set(id, handle);
 }
 
 export function stopFlockLoop(id: SoundId) {

@@ -229,6 +229,7 @@ export type SoundId =
   | "mazeMelody"
   | "candyMelody"
   | "groveMelody"
+  | "lobbyIntro"
   | "frostMelody"
   // карта «Небо» (синтез у рушії, файлів нема: нічого не вантажиться)
   | "skyAmbient"
@@ -587,6 +588,8 @@ export const SOUNDS: Record<SoundId, SoundDef> = {
   candyMelody: { file: "/sounds/flock/map-candy", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   groveMelody: { file: "/sounds/flock/map-grove", gain: 0.45, music: true, lazy: true, synth: () => 0 },
   frostMelody: { file: "/sounds/flock/map-frost", gain: 0.45, music: true, lazy: true, synth: () => 0 },
+  // музыка лобби: сначала один раз «Core Theme» (Yoiyami, CC0), затем петлёй прежняя melody
+  lobbyIntro: { file: "/sounds/flock/lobby-intro", gain: 0.5, music: true, synth: () => 0 },
   melody: {
     file: "/sounds/flock/melody",
     gain: 0.5,
