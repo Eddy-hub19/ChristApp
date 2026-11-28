@@ -3,6 +3,7 @@
 import "@/i18n/uaPluralAlias";
 
 import { PlayerProvider } from "@/providers/PlayerProvider";
+import { RadioProvider } from "@/providers/RadioProvider";
 import { TabBarOverlayProvider } from "@/contexts/TabBarOverlayContext";
 import { createIdbPersister } from "@/lib/queryPersister";
 import {
@@ -94,7 +95,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       }}
     >
       <TabBarOverlayProvider>
-        <PlayerProvider>{children}</PlayerProvider>
+        <PlayerProvider>
+          <RadioProvider>{children}</RadioProvider>
+        </PlayerProvider>
       </TabBarOverlayProvider>
       {process.env.NODE_ENV === "development" ? (
         <ReactQueryDevtools buttonPosition="bottom-left" />

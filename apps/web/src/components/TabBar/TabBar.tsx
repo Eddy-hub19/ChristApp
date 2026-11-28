@@ -263,6 +263,24 @@ export default function TabBar() {
       </Link>
       <Link
         className={styles.tabLink}
+        href="/music"
+        prefetch={false}
+        aria-label={t("music")}
+        title={t("music")}
+      >
+        <span
+          className={`${styles.iconWrap} ${isRouteActive("/music") ? styles.activeIcon : ""}`}
+        >
+          <Image
+            src="/icon-music.svg"
+            alt={t("music")}
+            width={24}
+            height={24}
+          />
+        </span>
+      </Link>
+      <Link
+        className={styles.tabLink}
         href="/profile"
         prefetch
         onPointerEnter={() => prefetchTabProfileData(queryClient)}

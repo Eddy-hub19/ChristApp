@@ -89,17 +89,21 @@ export default function SheepPlayer() {
         <SheepFigure state={state} size={36} />
         <span className={styles.text}>
           <span className={styles.title}>{track.title}</span>
-          <span className={styles.artist}>{p.error ? t("error") : track.artist ?? t("unknownArtist")}</span>
+          <span className={styles.artist}>{p.error ? t("error") : track.live ? `${t("live")} · ${track.artist || t("liveSubtitle")}` : (track.artist ?? t("unknownArtist"))}</span>
         </span>
       </button>
       <span className={styles.controls}>
-        <button type="button" className={`${styles.iconBtn} ${styles.skipBtn}`} onClick={p.prev} aria-label={t("prev")}>
-          <SkipBack size={16} aria-hidden />
-        </button>
+        {track.live ? null : (
+          <button type="button" className={`${styles.iconBtn} ${styles.skipBtn}`} onClick={p.prev} aria-label={t("prev")}>
+            <SkipBack size={16} aria-hidden />
+          </button>
+        )}
         {playButton}
-        <button type="button" className={`${styles.iconBtn} ${styles.skipBtn}`} onClick={p.next} aria-label={t("next")}>
-          <SkipForward size={16} aria-hidden />
-        </button>
+        {track.live ? null : (
+          <button type="button" className={`${styles.iconBtn} ${styles.skipBtn}`} onClick={p.next} aria-label={t("next")}>
+            <SkipForward size={16} aria-hidden />
+          </button>
+        )}
         <button type="button" className={styles.iconBtn} onClick={toggleCollapsed} aria-label={t("collapse")} aria-expanded>
           <ChevronUp size={16} aria-hidden />
         </button>
@@ -107,7 +111,7 @@ export default function SheepPlayer() {
           <X size={16} aria-hidden />
         </button>
       </span>
-      <ThinProgress />
+      {track.live ? null : <ThinProgress />}
       <SheepPlayerSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     </div>
   );

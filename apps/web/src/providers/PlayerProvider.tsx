@@ -14,6 +14,7 @@ import {
   PlayerContext,
   PlayerTimeContext,
   type AudioTrack,
+  type LiveController,
   type PlayerContextValue,
 } from "@/providers/playerContext";
 
@@ -25,6 +26,10 @@ const ARTWORK = [
 ];
 const POSITION_STATE_EVERY_MS = 1000;
 const SEEK_STEP_SEC = 10;
+/** Расхождение с эфиром, при котором плеер подтягивается к серверной позиции. */
+const LIVE_DRIFT_SEC = 1.5;
+/** Сразу после смены src событие pause не означает «ушёл из эфира». */
+const LIVE_SWITCH_GRACE_MS = 600;
 
 const finite = (value: number) => (Number.isFinite(value) && value > 0 ? value : 0);
 
@@ -36,6 +41,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const trackRef = useRef<AudioTrack | null>(null);
   const lastPositionStateRef = useRef(0);
+  const liveRef = useRef<LiveController | null>(null);
+  const switchingUntilRef = useRef(0);
 
   const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -74,6 +81,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!audio) return;
     requestAudioFocus("player");
     setError(false);
+    if (trackRef.current?.live) switchingUntilRef.current = Date.now() + LIVE_SWITCH_GRACE_MS;
     if (trackRef.current?.id !== track.id || trackRef.current.audioUrl !== track.audioUrl) {
       trackRef.current = track;
       setCurrentTrack(track);
@@ -89,8 +97,56 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const playLive = useCallback(async (track: AudioTrack, positionSec: number): Promise<"ok" | "blocked"> => {
+    const audio = audioRef.current;
+    if (!audio) return "blocked";
+    requestAudioFocus("player");
+    setError(false);
+    const live = { ...track, live: true };
+    const same = trackRef.current?.id === live.id && trackRef.current.audioUrl === live.audioUrl && Boolean(audio.getAttribute("src"));
+    if (same) {
+      if (Math.abs(audio.currentTime - positionSec) > LIVE_DRIFT_SEC || audio.ended) {
+        audio.currentTime = Math.max(0, positionSec);
+      }
+    } else {
+      switchingUntilRef.current = Date.now() + LIVE_SWITCH_GRACE_MS;
+      trackRef.current = live;
+      setCurrentTrack(live);
+      setCurrentTime(0);
+      setDuration(0);
+      setIsLoading(true);
+      audio.src = live.audioUrl;
+      // позицию можно выставить только когда известны метаданные
+      audio.addEventListener(
+        "loadedmetadata",
+        () => {
+          try {
+            audio.currentTime = Math.max(0, positionSec);
+          } catch {
+            // источник без перемотки: играем с начала
+          }
+        },
+        { once: true },
+      );
+    }
+    try {
+      await audio.play();
+      return "ok";
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return "ok";
+      setIsLoading(false);
+      return "blocked";
+    }
+  }, []);
+
+  const registerLiveController = useCallback((controller: LiveController | null) => {
+    liveRef.current = controller;
+  }, []);
+
   const stopPlayer = useCallback(() => {
     const audio = audioRef.current;
+    // закрыли карточку эфира: радио должно отключиться (иначе слушатель так и «висел» бы в счётчике)
+    if (trackRef.current?.live) liveRef.current?.onPause();
     trackRef.current = null;
     if (audio) {
       audio.pause();
@@ -109,7 +165,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const step = useCallback(
     (delta: number) => {
       const current = trackRef.current;
-      if (!current) return false;
+      if (!current || current.live) return false;
       const list = queueRef.current;
       const index = list.findIndex((track) => track.id === current.id);
       const target = list[index + delta];
@@ -128,6 +184,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     const track = trackRef.current;
     if (!audio || !track) return;
+    if (track.live) {
+      liveRef.current?.retry();
+      return;
+    }
     requestAudioFocus("player");
     const resumeAt = audio.currentTime;
     setError(false);
@@ -140,6 +200,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const resume = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !trackRef.current) return;
+    if (trackRef.current.live) {
+      // эфир не «ставится на паузу»: возвращаемся к текущей серверной позиции
+      liveRef.current?.resume();
+      return;
+    }
     if (!audio.getAttribute("src") || audio.error) {
       retry();
       return;
@@ -170,7 +235,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const prev = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || trackRef.current?.live) return;
     // Как в обычных плеерах: через 3 с вернуться к началу, иначе - к предыдущему.
     if (audio.currentTime > 3 || !step(-1)) {
       audio.currentTime = 0;
@@ -180,7 +245,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const seek = useCallback((seconds: number) => {
     const audio = audioRef.current;
-    if (!audio || !Number.isFinite(seconds)) return;
+    if (!audio || !Number.isFinite(seconds) || trackRef.current?.live) return;
     const max = finite(audio.duration) || seconds;
     audio.currentTime = Math.min(Math.max(0, seconds), max);
     setCurrentTime(audio.currentTime);
@@ -217,13 +282,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onReady = () => setIsLoading(false);
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      setIsPlaying(false);
+      if (trackRef.current?.live && Date.now() > switchingUntilRef.current) liveRef.current?.onPause();
+    };
     const onTime = () => {
       setCurrentTime(audio.currentTime);
       const now = Date.now();
       if (now - lastPositionStateRef.current < POSITION_STATE_EVERY_MS) return;
       lastPositionStateRef.current = now;
       const total = finite(audio.duration);
+      if (trackRef.current?.live) return;
       if (!total || !("mediaSession" in navigator) || !navigator.mediaSession.setPositionState) return;
       try {
         navigator.mediaSession.setPositionState({
@@ -239,6 +308,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const onEnded = () => {
       setIsPlaying(false);
       const current = trackRef.current;
+      // эфир: следующий трек приходит с сервера (радио следит за концом и подтягивает состояние)
+      if (current?.live) return;
       const list = queueRef.current;
       const index = current ? list.findIndex((track) => track.id === current.id) : -1;
       const following = index >= 0 ? list[index + 1] : undefined;
@@ -313,7 +384,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentTrack.title,
-        artist: currentTrack.artist ?? "Christ App",
+        artist: currentTrack.live ? `LIVE · ${currentTrack.artist || "Christ Radio"}` : (currentTrack.artist ?? "Christ App"),
         artwork: currentTrack.cover ? [{ src: currentTrack.cover }] : ARTWORK,
       });
     } catch {
@@ -330,22 +401,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTrack, isPlaying]);
 
+  const isLive = Boolean(currentTrack?.live);
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     const session = navigator.mediaSession;
     const handlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
       ["play", () => resume()],
       ["pause", () => pause()],
-      ["previoustrack", () => prev()],
-      ["nexttrack", () => next()],
+      ["previoustrack", isLive ? null : () => prev()],
+      ["nexttrack", isLive ? null : () => next()],
       [
         "seekto",
-        (details) => {
-          if (typeof details.seekTime === "number") seek(details.seekTime);
-        },
+        isLive
+          ? null
+          : (details) => {
+              if (typeof details.seekTime === "number") seek(details.seekTime);
+            },
       ],
-      ["seekbackward", () => seek((audioRef.current?.currentTime ?? 0) - SEEK_STEP_SEC)],
-      ["seekforward", () => seek((audioRef.current?.currentTime ?? 0) + SEEK_STEP_SEC)],
+      ["seekbackward", isLive ? null : () => seek((audioRef.current?.currentTime ?? 0) - SEEK_STEP_SEC)],
+      ["seekforward", isLive ? null : () => seek((audioRef.current?.currentTime ?? 0) + SEEK_STEP_SEC)],
     ];
     for (const [action, handler] of handlers) {
       try {
@@ -363,7 +437,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-  }, [resume, pause, prev, next, seek]);
+  }, [resume, pause, prev, next, seek, isLive]);
 
   const value = useMemo<PlayerContextValue>(
     () => ({
@@ -383,9 +457,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setVolume,
       close: stopPlayer,
       retry,
+      playLive,
+      registerLiveController,
       setRoomQueue,
     }),
-    [currentTrack, isPlaying, isLoading, error, queue, volume, canSetVolume, toggleTrack, pause, resume, next, prev, seek, setVolume, stopPlayer, retry, setRoomQueue],
+    [currentTrack, isPlaying, isLoading, error, queue, volume, canSetVolume, toggleTrack, pause, resume, next, prev, seek, setVolume, stopPlayer, retry, playLive, registerLiveController, setRoomQueue],
   );
   const timeValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration]);
 

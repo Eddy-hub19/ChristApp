@@ -174,6 +174,66 @@ export class CloudinaryService {
     });
   }
 
+  /** Трек «Christ Radio» (папка `christapp/radio`): аудио в Cloudinary живёт как `video`, так CDN отдаёт его с Range (нужна перемотка к позиции эфира). */
+  async uploadRadioAudio(buffer: Buffer, originalFilename?: string): Promise<string> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/radio',
+          resource_type: 'video',
+          use_filename: true,
+          unique_filename: true,
+          filename_override: originalFilename,
+        },
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const url = result?.secure_url;
+          if (!url) {
+            reject(new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve(url);
+        },
+      );
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
+  /** Обложка трека «Christ Radio» (папка `christapp/radio-covers`): не больше 800px по длинной стороне. */
+  async uploadRadioCover(buffer: Buffer): Promise<string> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/radio-covers',
+          resource_type: 'image',
+          transformation: [{ width: 800, height: 800, crop: 'limit' }, { quality: 'auto' }],
+        },
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const url = result?.secure_url;
+          if (!url) {
+            reject(new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve(url);
+        },
+      );
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
   /**
    * Аватар: один ресурс на користувача (public_id = userId), перезапис при новому завантаженні.
    * У БД зберігається лише secure_url.

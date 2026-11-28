@@ -11,6 +11,18 @@ export interface AudioTrack {
   cover?: string;
   /** Комната, из которой трек: её аудиофайлы складываются в очередь. */
   roomId?: string;
+  /** Прямой эфир («Christ Radio»): нельзя перематывать, нет «дальше/назад», позицию задаёт сервер. */
+  live?: boolean;
+}
+
+/** Хуки живого эфира: радио знает, как «подключиться заново», а плеер лишь зовёт их вместо обычного play/pause/retry. */
+export interface LiveController {
+  /** Нажали play на живом треке: подключиться к эфиру с текущей позиции. */
+  resume: () => void;
+  /** Живой трек поставили на паузу (кнопкой, звонком, игрой): отключиться от эфира. */
+  onPause: () => void;
+  /** Сбой загрузки живого трека: перечитать состояние эфира. */
+  retry: () => void;
 }
 
 export interface PlayerContextValue {
@@ -32,6 +44,10 @@ export interface PlayerContextValue {
   setVolume: (volume: number) => void;
   close: () => void;
   retry: () => void;
+  /** Запускает трек прямого эфира с позиции `positionSec` (или подправляет позицию, если он уже играет). */
+  playLive: (track: AudioTrack, positionSec: number) => Promise<"ok" | "blocked">;
+  /** Радио регистрирует свои обработчики; `null` снимает. */
+  registerLiveController: (controller: LiveController | null) => void;
   /** Чат регистрирует свои аудиофайлы как очередь; `null` снимает очередь этой комнаты. */
   setRoomQueue: (roomId: string, tracks: AudioTrack[] | null) => void;
 }

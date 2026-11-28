@@ -27,7 +27,8 @@ export default function MiniPlayerBar() {
   const track = p.currentTrack;
   if (!track) return null;
   // Нет навбара (игра на весь экран) или мы в чате - полоска не нужна.
-  if (isChatRoomPath(pathname) || isFullscreenPath(pathname) || overlay?.fullscreenActive) return null;
+  // На экране «Музыка» плеером служит сама карточка эфира.
+  if (isChatRoomPath(pathname) || pathname.startsWith("/music") || isFullscreenPath(pathname) || overlay?.fullscreenActive) return null;
 
   return (
     <>
