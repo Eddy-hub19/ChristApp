@@ -200,7 +200,7 @@ export async function readAudioTags(file: File): Promise<AudioTags> {
       return parseOgg(new Uint8Array(await file.slice(0, OGG_HEAD_BYTES).arrayBuffer()));
     }
     if (/\.(m4a|mp4|aac)$/i.test(file.name) || latin(head.subarray(4, 8)) === "ftyp") {
-      // moov бывает и в конце файла: читаем целиком (загрузка и так ограничена 25 МБ)
+      // moov бывает и в конце файла: читаем целиком (загрузка и так ограничена 40 МБ)
       return parseMp4(new Uint8Array(await file.arrayBuffer()));
     }
   } catch {

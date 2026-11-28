@@ -18,7 +18,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useRadio } from "@/providers/radioContext";
 import styles from "./Radio.module.scss";
 
-const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 40 * 1024 * 1024;
 
 /** Длительность аудиофайла меряет браузер админа (сервер лишь проверяет диапазон 5 с .. 30 мин). */
 function measureDuration(file: File): Promise<number> {
