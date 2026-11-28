@@ -29,6 +29,8 @@ import type { ColiseumHud } from "./flockColiseum";
 import type { TigerResult } from "./flockClient";
 import FlockQuests from "./FlockQuests";
 import FlockModes from "./FlockModes";
+import FlockMazeLobby from "./FlockMazeLobby";
+import { MAZE_MODE_READY, mazeAdapter } from "./flockMazeAdapter";
 import FlockCastlesLobby from "./FlockCastlesLobby";
 import FlockChatFeed, { FEED_MAX, type FeedItem } from "./FlockChatFeed";
 import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastleHud";
@@ -235,6 +237,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [circleEnd, setCircleEnd] = useState<(CircleEndInfo & { at: number }) | null>(null);
   /** «Замки»: лобі режиму, підсумок матчу, нагорода, напис події, помилка входу. */
   const [castlesOpen, setCastlesOpen] = useState(false);
+  const [mazeOpen, setMazeOpen] = useState(false);
   const [castleEnd, setCastleEnd] = useState<CastleEndInfo | null>(null);
   const [castleReward, setCastleReward] = useState<CastleRewardInfo | null>(null);
   const [castleToast, setCastleToast] = useState<{ id: number; text: string; good: boolean } | null>(null);
@@ -655,6 +658,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setCastleReward(null);
     setModesOpen(false);
     setCastlesOpen(false);
+    setMazeOpen(false);
     clientRef.current?.join(skinId, 0, "castles", {}, team, castleMap);
   }, []);
 
@@ -2021,7 +2025,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlayCastles={() => {
           track("otara_mode_selected", { mode: "castles" });
           setCastlesOpen(true);
-        }} onClose={() => setModesOpen(false)} />
+        }} onPlayMaze={MAZE_MODE_READY ? () => {
+          track("otara_mode_selected", { mode: "maze" });
+          setMazeOpen(true);
+        } : undefined} onClose={() => setModesOpen(false)} />
+      ) : null}
+      {mazeOpen && showLobby ? (
+        <FlockMazeLobby
+          canPlay={status === "ready"}
+          onPlay={() => mazeAdapter.join?.()}
+          onClose={() => setMazeOpen(false)}
+        />
       ) : null}
       {castlesOpen && showLobby ? (
         <FlockCastlesLobby

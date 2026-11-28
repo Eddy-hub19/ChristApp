@@ -519,6 +519,17 @@ export const INFO_SECTIONS: InfoSection[] = [
           botLimit: num("castles.botOnlyRewardLimit"),
         },
       },
+      {
+        id: "maze",
+        icon: "trophy",
+        title: { ua: "Режим «Лабіринт»", ru: "Режим «Лабиринт»", en: "“Maze” mode" },
+        text: {
+          ua: "Гонка на окремій арені (лобі → «Режими»): до {max} гравців, раунди йдуть підряд (раунд до {sec} с). Знайди вихід: пройди три факели по порядку й першим торкнись кристала. Збирай їжу в тупиках, щоб стати більшим, але повільнішим; більшого за себе можна зʼїсти, тебе теж. Зʼїдений відроджується на старті, а чекпоінти скидаються. Ривок (пробіл) прискорює на мить, перезарядка {dash} с. Бонуси й артефакти вимкнені, скіни будь-які. Переможець — {reward} рубінів (не більше {limit} перемог на добу в усіх гонках разом; потрібно щонайменше 2 живих гравці); боти рубінів не отримують.",
+          ru: "Гонка на отдельной арене (лобби → «Режимы»): до {max} игроков, раунды идут подряд (раунд до {sec} с). Найди выход: пройди три факела по порядку и первым коснись кристалла. Собирай еду в тупиках, чтобы стать больше, но медленнее; тех, кто меньше, можно съесть, тебя тоже. Съеденный возрождается на старте, а чекпоинты сбрасываются. Рывок (пробел) на миг ускоряет, перезарядка {dash} с. Бонусы и артефакты отключены, скины любые. Победитель — {reward} рубинов (не больше {limit} побед в сутки во всех гонках вместе; нужно минимум 2 живых игрока); боты рубины не получают.",
+          en: "A race on a separate arena (lobby → “Modes”): up to {max} players, rounds run back to back (up to {sec} s). Find the exit: pass three torches in order and be the first to touch the crystal. Collect food in dead ends to grow bigger but slower; smaller cells can be eaten, and so can you. An eaten cell respawns at the start and checkpoints reset. Dash (Space) gives a short burst, cooldown {dash} s. Bonuses and artifacts are disabled, any skin works. The winner earns {reward} rubies (at most {limit} wins a day across all race modes together; at least 2 live players are needed); bots get no rubies.",
+        },
+        params: { max: num("maze.maxPlayers"), sec: sec("maze.roundMs"), dash: sec("maze.dashCdMs"), reward: num("race.reward"), limit: num("race.dailyWinLimit") },
+      },
     ],
   },
   {

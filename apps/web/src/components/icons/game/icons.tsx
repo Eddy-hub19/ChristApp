@@ -590,3 +590,22 @@ export function QuestScrollIcon(props: ColorIconProps) {
     </ColorIconSvg>
   );
 }
+
+/** Режим «Лабіринт»: кам'яний квадрат зі стежкою й кристалом у кінці. */
+export function MazeIcon(props: ColorIconProps) {
+  const g = useGradient("#8d93c0", "#4f557d");
+  const crystal = useGradient("#bff6ff", "#4fc3f7");
+  return (
+    <ColorIconSvg {...props}>
+      <defs>
+        {g.def}
+        {crystal.def}
+      </defs>
+      <rect x="2.6" y="2.6" width="18.8" height="18.8" rx="3" fill={g.fill} {...stroke} />
+      <path d="M2.6 8.4h9.2M8.6 8.4v7M14.6 2.6v9.6h6.8M14.6 15.4v6M8.6 15.4h6" fill="none" stroke="#22243a" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M5.6 5.4h5M5.6 11.6V8.4" fill="none" stroke="#ffd978" strokeOpacity=".0" />
+      <path d="M17.4 12.8l2.1 1.9-2.1 4.2-2.1-4.2z" fill={crystal.fill} {...stroke} strokeWidth="0.9" />
+      <circle cx="5.9" cy="5.6" r="1.3" fill="#ffd24a" stroke={INK} strokeWidth="0.7" />
+    </ColorIconSvg>
+  );
+}
