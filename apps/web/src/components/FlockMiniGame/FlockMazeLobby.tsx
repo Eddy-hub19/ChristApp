@@ -7,6 +7,8 @@ import styles from "./FlockInfo.module.scss";
 
 type Props = {
   canPlay: boolean;
+  /** Помилка входу (режим вимкнено). */
+  error?: string;
   /** Числа з конфіга сервера (welcome/me), якщо вже є; інакше типові з flockMaze.MAZE_DEFAULTS. */
   nums?: { max?: number; roundSec?: number; reward?: number; limit?: number };
   onPlay: () => void;
@@ -14,7 +16,7 @@ type Props = {
 };
 
 /** Шторка режиму «Лабіринт»: правила й кнопка «Грати». Скін береться той, що вибрано в лобі (скіни будь-які, лише вигляд). */
-export default function FlockMazeLobby({ canPlay, nums, onPlay, onClose }: Props) {
+export default function FlockMazeLobby({ canPlay, error, nums, onPlay, onClose }: Props) {
   const t = useTranslations("flock.maze");
   const params = {
     max: nums?.max ?? MAZE_UI.maxPlayers,
@@ -33,6 +35,7 @@ export default function FlockMazeLobby({ canPlay, nums, onPlay, onClose }: Props
           <p className={styles.modeText}>{t("rule5", params)}</p>
           <p className={styles.modeText}>{t("rule6", params)}</p>
           <p className={styles.modeHint}>{t("hint")}</p>
+          {error ? <p className={styles.modeText} role="alert">{error}</p> : null}
           <div className={styles.modeFooter}>
             <button type="button" className={styles.modePlay} disabled={!canPlay} onClick={onPlay}>
               {canPlay ? t("play") : t("connecting")}

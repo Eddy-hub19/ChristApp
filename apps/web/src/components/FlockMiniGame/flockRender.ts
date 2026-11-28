@@ -596,12 +596,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   const terraces = m.cfg.castle?.kind === "terraces";
   // «Лабіринт»: печера замість пасовища, загорожі й межі світу (малює drawMazeWorld)
   const maze = m.maze;
-  if (!sky && !col && !terraces && !maze) {
+  // набір гравців ще без сітки (seed з'являється з відліком): темна печера замість зеленого пасовища
+  const raceWait = m.race !== null && maze === null;
+  if (raceWait) {
+    ctx.fillStyle = "#0c0f1e";
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  }
+  if (!sky && !col && !terraces && !maze && !raceWait) {
     ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
     ctx.fillRect(0, 0, world, world);
   }
   // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
-  if (!sky && !col && !terraces && !maze && groundOf(m.cfg.map) === "meadow") {
+  if (!sky && !col && !terraces && !maze && !raceWait && groundOf(m.cfg.map) === "meadow") {
     const sun = sunlightPattern(ctx, scale * dpr);
     if (sun) {
       ctx.globalAlpha = theme.dark ? 0.55 : 1;
@@ -613,7 +619,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // межа світу (на «Небі» - хмарний бордюр)
   if (!sky && !col) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  if (!sky && !col && !m.cfg.treasure && !terraces && !maze) ctx.strokeRect(0, 0, world, world);
+  if (!sky && !col && !m.cfg.treasure && !terraces && !maze && !raceWait) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
@@ -622,7 +628,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   if (maze) drawMazeWorld(ctx, maze, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else if (!col && !m.cfg.treasure && !terraces && !maze) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
+  else if (!col && !m.cfg.treasure && !terraces && !maze && !raceWait) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
   // «Острів скарбів»: вода, береги, річка, мости й декор на піску (загорожі нема: межу задає вода)
   if (m.cfg.treasure) {

@@ -1493,6 +1493,8 @@
     "special": "Special",
     "legendary": "Legendary",
     "maze": {
+      "off": "The “Maze” mode is temporarily off",
+      "gridError": "The maze grid does not match the server. Please reload the page.",
       "title": "Maze",
       "rule1": "Find the exit.",
       "rule2": "Collect food to grow bigger, but slower.",

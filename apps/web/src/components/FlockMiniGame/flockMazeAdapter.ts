@@ -4,6 +4,6 @@
  * 2) кладе `createMazeView(cfg з welcome)` у `model.maze`, 3) оновлює `RaceHudData` / `RaceResults` із пакетів,
  * 4) перемикає MAZE_MODE_READY у true - тоді карточка режиму зʼявляється в окні «Режими».
  */
-export const MAZE_MODE_READY = false;
+export const MAZE_MODE_READY = true;
 
 export const mazeAdapter: { join: (() => void) | null } = { join: null };

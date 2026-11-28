@@ -1,4 +1,19 @@
 import type { MazeView } from "./flockMaze";
+import { moveInMaze, pushOut } from "./flockMazeGrid";
+import { radiusOfMass, raceSpeed, stepDash } from "./flockRaceShared";
+import {
+  RACE_RACING,
+  ST_RACING,
+  buildRoundView,
+  createRaceState,
+  rosterOf,
+  type RaceClientState,
+  type RaceEventMsg,
+  type RaceFrameMsg,
+  type RaceRoundMsg,
+  type RaceRosterMsg,
+  type RaceWelcomeMsg,
+} from "./flockRaceNet";
 import { iceStep, type IceCfg } from "./flockIce";
 import { twBridgeAdjust, type TreasureCfg } from "./flockTreasure";
 import { candyFactorOf, riverDriftAt, riverExitDepthAt, type CandyCfg } from "./flockCandy";
@@ -70,7 +85,9 @@ export interface FlockCfg {
   /** Зірки «Зорепаду», що вже падають або лежать на момент входу (fall - мс до приземлення). */
   stars?: { id: number; x: number; y: number; fall: number }[];
   /** Режим арени (без поля - звичайна) і коло «Звужуване коло» на момент входу. */
-  mode?: "normal" | "circle" | "castles";
+  mode?: "normal" | "circle" | "castles" | "maze";
+  /** «Лабіринт»: усе про раунд і формули (docs/flock-maze.md); без поля - інший режим. */
+  race?: RaceWelcomeMsg;
   circle?: CircleMsgIn;
   /** Режим «Замки»: геометрія карти, команда гравця, швидкість і масa (welcome). */
   castle?: CastleCfg;
@@ -308,6 +325,8 @@ export class FlockModel {
   sky: SkyState | null = null;
   /** «Лабіринт»: сітка й стан раунду (null - інший режим). Наповнюється склейкою з welcome (див. flockMaze.createMazeView). */
   maze: MazeView | null = null;
+  /** «Лабіринт» (гоночна основа): стан раунду, передбачення ривка, HUD; null - інший режим. */
+  race: RaceClientState | null = null;
   readonly falls: SkyFall[] = [];
   selfVoidMs = 0;
   /** Остання клітина власного гравця (для анімації смерті) і сама анімація (null - гравець живий). */
@@ -942,6 +961,208 @@ export class FlockModel {
     }
   }
 
+  // ------------------------------------------------------------------ «Лабіринт» (гоночна основа)
+
+  /** Остання серверна мітка часу кадру `rz` (щоб tick зростав монотонно). */
+  private raceTick = 0;
+
+  /** Welcome режиму: стан раунду, сітка (якщо seed уже є) і відвідані клітини. Повертає false, якщо сервер не прислав потрібних полів. */
+  initRace(w: RaceWelcomeMsg | undefined, recvMs: number): boolean {
+    const st = createRaceState(w, recvMs);
+    if (!st || !w) return false;
+    this.race = st;
+    this.raceTick = 0;
+    // їжа лабіринту дрібна за замовчуванням (foodRadius звичайної арени): збільшуємо її відмальовку
+    this.cfg.foodRadius = Math.max(this.cfg.foodRadius ?? 8.5, 15);
+    this.maze = buildRoundView(st, st.seed, w.maze, w.vis);
+    this.syncLit(st.mine.cp);
+    return true;
+  }
+
+  /** Лампи-факели: перші `cp` запалені. */
+  private syncLit(cp: number) {
+    const m = this.maze;
+    if (!m) return;
+    for (let i = 0; i < m.lit.length; i++) m.lit[i] = i < cp;
+  }
+
+  /** Склад учасників (`rp`): імена й скіни для малювання. */
+  applyRaceRoster(list: RaceRosterMsg[] | undefined) {
+    const r = this.race;
+    if (!r || !Array.isArray(list)) return;
+    r.roster = rosterOf(list, r.roster);
+    const me = r.roster.get(this.cfg.pid);
+    if (me) r.status = me.st;
+  }
+
+  /** Початок відліку (`rr`): новий seed - нова сітка, нові клітини й їжа. Повертає false при розбіжності хешу сітки. */
+  applyRaceRound(msg: RaceRoundMsg, recvMs: number): boolean {
+    const r = this.race;
+    if (!r) return true;
+    r.round = msg.id ?? r.round;
+    if (msg.roster) r.roster = rosterOf(msg.roster, r.roster);
+    this.maze = buildRoundView(r, typeof msg.seed === "number" ? msg.seed : null, msg.maze, undefined);
+    r.dash.leftMs = 0;
+    r.dash.cdMs = 0;
+    r.dash.held = false;
+    r.mine = { ...r.mine, cp: 0, dashLeftMs: 0, dashCdMs: 0, protectLeftMs: 0, dissolveLeftMs: 0, at: recvMs };
+    r.hint = null;
+    this.resetRaceWorld();
+    return r.hashOk !== false;
+  }
+
+  /** Нова гонка: прибираємо клітини й їжу попереднього раунду, камера стрибає на старт. */
+  resetRaceWorld() {
+    this.cells.clear();
+    this.foods.clear();
+    this.dying.length = 0;
+    this.haveCam = false;
+    this.raceTick = 0;
+    this.clockBase = null;
+    this.lastSrvT = -1;
+    const m = this.maze;
+    if (m) {
+      m.dissolving.clear();
+      m.protectedUntil.clear();
+      m.roundMs = 0;
+    }
+  }
+
+  /** Подія `rv` (чекпойнт, ривок, відродження тощо): оновлює стан; решту (тости, підсумки) бере інтерфейс. */
+  applyRaceEvent(e: RaceEventMsg, recvMs: number) {
+    const r = this.race;
+    if (!r) return;
+    switch (e.k) {
+      case "go":
+        r.hint = { kind: "go", at: recvMs };
+        break;
+      case "cp":
+        r.mine.cp = e.i;
+        this.syncLit(e.i);
+        r.hint = { kind: "checkpoint", at: recvMs };
+        break;
+      case "respawn":
+        r.mine.cp = typeof e.cp === "number" ? e.cp : 0;
+        this.syncLit(r.mine.cp);
+        r.dash.leftMs = 0;
+        break;
+      case "lobby":
+        r.mine.cp = 0;
+        this.syncLit(0);
+        this.resetRaceWorld();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Кадр `rz`: ПЕРЕТВОРЮЄМО на звичайний знімок стану (клітини) і лишаємо інтерполяцію/звуки/камеру існуючій моделі. */
+  applyRaceFrame(f: RaceFrameMsg, recvMs: number) {
+    const r = this.race;
+    if (!r || !f || !Array.isArray(f.m)) return;
+    const prevPhase = r.phase;
+    r.phase = f.p;
+    r.phaseLeftMs = f.l;
+    r.phaseAt = recvMs;
+    r.elapsedMs = f.e;
+    r.status = f.st;
+    r.place = f.pl;
+    r.racers = f.n;
+    r.specPid = f.sp ?? 0;
+    r.lastFrameAt = recvMs;
+    const maze = this.maze;
+    const focusPid = f.sp ?? this.cfg.pid;
+    const [mx, my, mass, dashLeft, dashCd, protectLeft, cp, dissolveLeft] = f.m;
+    if (!f.sp) {
+      r.mine = { x: mx, y: my, mass, dashLeftMs: dashLeft, dashCdMs: dashCd, protectLeftMs: protectLeft, cp, dissolveLeftMs: dissolveLeft, at: recvMs };
+      // ривок: підтягуємо локальне передбачення до серверного, якщо розбіглись
+      if (Math.abs(r.dash.cdMs - dashCd) > 250 || Math.abs(r.dash.leftMs - dashLeft) > 250) {
+        r.dash.cdMs = dashCd;
+        r.dash.leftMs = dashLeft;
+      }
+      if (maze && cp !== maze.lit.filter(Boolean).length) this.syncLit(cp);
+    }
+    if (maze) {
+      maze.roundMs = f.p === RACE_RACING ? f.e : 0;
+      if (f.nv) for (const i of f.nv) if (i >= 0 && i < maze.visited.length) maze.visited[i] = 1;
+    }
+    const cells: DecodedState["cells"] = [];
+    const flags = new Map<number, number>();
+    if (maze) {
+      // m = моя клітина (або лідера, якщо я глядач), c = решта в радіусі огляду
+      cells.push({ id: focusPid, pid: focusPid, x: mx, y: my, mass, fx: 0 });
+      flags.set(focusPid, (protectLeft > 0 ? 1 : 0) | (dissolveLeft > 0 ? 2 : 0));
+      for (const c of f.c ?? []) {
+        if (!Array.isArray(c) || c.length < 5) continue;
+        cells.push({ id: c[0], pid: c[0], x: c[1], y: c[2], mass: c[3], fx: 0 });
+        flags.set(c[0], c[4]);
+      }
+    }
+    const players: DecodedState["players"] = [];
+    for (const [pid, meta] of r.roster) players.push({ pid, skin: meta.skin, bot: false, name: meta.name });
+    const tick = Math.max(this.raceTick + 1, Math.round(recvMs));
+    this.raceTick = tick;
+    this.applyState(
+      {
+        tick,
+        alive: f.st === ST_RACING || f.st === 2,
+        total: mass,
+        selfPid: this.cfg.pid,
+        effects: [],
+        forgetChunks: [],
+        chunks: [],
+        foodEvents: [],
+        players,
+        cells,
+        thorns: [],
+        blobs: [],
+        bonuses: [],
+        paused: [],
+      },
+      recvMs,
+    );
+    // їжа: сервер шле лише ту, що лежить у радіусі огляду (повний список кожного кадру)
+    const next = new Set<number>();
+    for (const fd of f.f ?? []) {
+      if (!Array.isArray(fd) || fd.length < 3) continue;
+      next.add(fd[0]);
+      if (!this.foods.has(fd[0])) this.foods.set(fd[0], { id: fd[0], x: fd[1], y: fd[2], kind: 0 });
+    }
+    const focus = this.cells.get(focusPid);
+    for (const fd of [...this.foods.values()]) {
+      if (next.has(fd.id)) continue;
+      this.foods.delete(fd.id);
+      if (this.sound && focus && prevPhase === f.p && Math.hypot(fd.x - focus.x, fd.y - focus.y) < this.radiusOf(focus.mass) * 1.6 + 60) this.sound("food", fd.x, fd.y, focusPid === this.cfg.pid, 0);
+    }
+    // захист і розчинення: прапорці клітин -> стан для малювання
+    if (maze) {
+      for (const [pid, fl] of flags) {
+        if (fl & 1) maze.protectedUntil.set(pid, recvMs + 400);
+        else maze.protectedUntil.delete(pid);
+        if (fl & 2) {
+          if (!maze.dissolving.has(pid)) maze.dissolving.set(pid, recvMs);
+        } else maze.dissolving.delete(pid);
+      }
+      if (protectLeft > 0 && !f.sp) maze.protectedUntil.set(this.cfg.pid, recvMs + protectLeft);
+    }
+  }
+
+  /** Прогнозований крок моєї клітини в лабіринті: та сама формула, що на сервері (moveInMaze + raceSpeed + stepDash). */
+  private stepRaceOwn(c: RCell, dt: number, input: { angle: number; power: number; sprint?: boolean }) {
+    const r = this.race!;
+    const g = this.maze!.grid;
+    const dtMs = dt * 1000;
+    const canMove = r.phase === RACE_RACING && r.status === ST_RACING && r.mine.dissolveLeftMs - (this.localNow - r.mine.at) <= 0;
+    const mult = stepDash(r.dash, canMove && Boolean(input.sprint), dtMs, r.move);
+    if (!canMove) return;
+    const mass = c.tmass;
+    const rad = radiusOfMass(mass, r.move.radiusK);
+    const speed = raceSpeed(mass, r.move) * mult * input.power;
+    const mxv = Math.cos(input.angle) * speed * dt;
+    const myv = Math.sin(input.angle) * speed * dt;
+    [c.x, c.y] = moveInMaze(g, c.x, c.y, mxv, myv, rad);
+  }
+
   applyBoard(pkt: ArrayBuffer | Uint8Array) {
     this.board = decodeBoard(pkt);
   }
@@ -982,14 +1203,17 @@ export class FlockModel {
     const wdx = this.wind ? Math.cos(this.wind.angle) : 0;
     const wdy = this.wind ? Math.sin(this.wind.angle) : 0;
     const castle = this.cfg.castle;
+    const raceMode = this.race !== null && this.maze !== null;
     const carry = castle ? this.carryingStone() : false;
-    const sprinting = !castle && Boolean(input.sprint) && !frozen && this.sprintReady();
+    const sprinting = !castle && !raceMode && Boolean(input.sprint) && !frozen && this.sprintReady();
     this.sprintActive = sprinting;
     let iceMax = 0;
     for (const c of this.cells.values()) {
       c.mass += (c.tmass - c.mass) * kMass;
       if (c.pid === this.cfg.pid) {
-        if (castle) {
+        if (raceMode) {
+          this.stepRaceOwn(c, dt, input);
+        } else if (castle) {
           // «Замки»: однакова швидкість; вода й камінь сповільнюють, у замку під час відродження - стоїмо
           if (this.castleRespawnMs() <= 0) {
             const v = castle.speed * (inWater(castle.river, c.x, c.y) ? 1 - castle.waterSlow : 1) * (carry ? 1 - castle.carrySlow : 1) * input.power;
@@ -1006,18 +1230,18 @@ export class FlockModel {
           if (this.coliseum) [c.x, c.y] = clampToColiseum(this.coliseum, c.x, c.y, this.radiusOf(c.mass));
         }
         // снос вітром (ту саму формулу рахує сервер); на паузі й у кущі не діє
-        if (!castle && windOn && !this.insideBush(c.x, c.y, c.mass)) {
+        if (!castle && !raceMode && windOn && !this.insideBush(c.x, c.y, c.mass)) {
           const wv = this.windSpeed(c.mass) * dt;
           c.x = Math.min(world, Math.max(0, c.x + wdx * wv));
           c.y = Math.min(world, Math.max(0, c.y + wdy * wv));
         }
         // «Острів скарбів»: міст не витримує важку клітину - м'який зсув до берега (та сама формула, що на сервері)
-        if (this.cfg.treasure && !castle) {
+        if (this.cfg.treasure && !castle && !raceMode) {
           const ny = twBridgeAdjust(this.cfg.treasure, c.x, c.y, c.mass, this.cfg.treasure.push * dt);
           if (ny !== null) c.y = ny;
         }
         // течія шоколадної ріки (та сама формула, що на сервері): діє поза печеньками й кущами
-        if (!castle && this.cfg.candy?.river) {
+        if (!castle && !raceMode && this.cfg.candy?.river) {
           const rd = riverDriftAt(this.cfg.candy, c.x, c.y, c.mass);
           if (rd !== 0 && !this.insideBush(c.x, c.y, c.mass)) {
             const exit = riverExitDepthAt(this.cfg.candy, c.y);
@@ -1025,7 +1249,7 @@ export class FlockModel {
           }
         }
         // тріщини льоду під своєю клітиною («Зимовий мороз»): та сама формула, що на сервері
-        if (this.cfg.ice && !castle) {
+        if (this.cfg.ice && !castle && !raceMode) {
           const ice = this.cfg.ice;
           const on = Math.hypot(c.x - ice.x, c.y - ice.y) < ice.r;
           const next = iceStep(this.iceLevels.get(c.id) ?? 0, on, c.mass, dt, ice);
@@ -1046,6 +1270,8 @@ export class FlockModel {
           c.x += ex * k;
           c.y += ey * k;
         }
+        // лабіринт: корекція під сервер ніколи не заводить клітину в стіну
+        if (raceMode) [c.x, c.y] = pushOut(this.maze!.grid, c.x, c.y, radiusOfMass(c.tmass, this.race!.move.radiusK));
       } else {
         sampleSnap(c, tr);
       }
@@ -1069,8 +1295,9 @@ export class FlockModel {
     let cx = 0;
     let cy = 0;
     let big: RCell | null = null;
+    const camPid = this.race && this.race.specPid ? this.race.specPid : this.cfg.pid;
     for (const c of this.cells.values()) {
-      if (c.pid !== this.cfg.pid) continue;
+      if (c.pid !== camPid) continue;
       m += c.mass;
       cx += c.x * c.mass;
       cy += c.y * c.mass;
