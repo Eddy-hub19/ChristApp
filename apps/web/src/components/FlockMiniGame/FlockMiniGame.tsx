@@ -773,8 +773,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const entryArenaId = hud.arenaId;
   useEffect(() => {
     if (entryArenaId === null) return;
-    const map = clientRef.current?.model?.cfg.map ?? 0;
-    setMapToast(MAP_KEYS[map] ?? MAP_KEYS[0]);
+    const model = clientRef.current?.model;
+    const map = model?.cfg.map ?? 0;
+    // «Лабіринт»: замість назви пасовища - підказка «Лабіринт»
+    setMapToast(model?.race ? "maze" : (MAP_KEYS[map] ?? MAP_KEYS[0]));
     const id = setTimeout(() => setMapToast(null), 3000);
     return () => clearTimeout(id);
   }, [entryArenaId]);
@@ -1547,7 +1549,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : null}
           {mapToast ? (
             <div key={entryArenaId} className={styles.mapToast} role="status">
-              {t(`mapNames.${mapToast}`)}
+              {mapToast === "maze" ? t("maze.entryHint") : t(`mapNames.${mapToast}`)}
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
               {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
               {mapToast === "candy" ? <small className={styles.mapToastSub}>{t("candy.mapSub")}</small> : null}

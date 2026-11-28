@@ -198,6 +198,9 @@ export interface RaceClientState {
   lastFrameAt: number;
 }
 
+/** Радіус камери клієнта в гонці (світові одиниці). Сервер шле клітини й їжу в більшому радіусі огляду (~900), камера ближче: клітина читається на телефоні. */
+export const RACE_CAMERA_RADIUS = 400;
+
 export const DEFAULT_TIMINGS = { lobbyMs: 20000, countdownMs: 5000, finishGraceMs: 8000, resultsMs: 10000, dropMs: 10000, maxParticipants: 6 };
 export const DEFAULT_REWARD = { rubies: 5, dailyWinLimit: 3, minHumans: 2 };
 

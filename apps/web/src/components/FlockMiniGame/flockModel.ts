@@ -2,6 +2,7 @@ import type { MazeView } from "./flockMaze";
 import { moveInMaze, pushOut } from "./flockMazeGrid";
 import { radiusOfMass, raceSpeed, stepDash } from "./flockRaceShared";
 import {
+  RACE_CAMERA_RADIUS,
   RACE_RACING,
   ST_RACING,
   buildRoundView,
@@ -972,8 +973,13 @@ export class FlockModel {
     if (!st || !w) return false;
     this.race = st;
     this.raceTick = 0;
+    // пасовищних кущів у печері нема (навіть якщо старий сервер їх надіслав)
+    this.thorns = [];
+    // камера ближче за радіус видимості сервера (900): на телефоні клітина інакше була б у кілька пікселів
+    const camR = Math.min(this.cfg.view.max, RACE_CAMERA_RADIUS);
+    this.cfg.view = { base: camR, perSqrtMass: 0, max: camR };
     // їжа лабіринту дрібна за замовчуванням (foodRadius звичайної арени): збільшуємо її відмальовку
-    this.cfg.foodRadius = Math.max(this.cfg.foodRadius ?? 8.5, 15);
+    this.cfg.foodRadius = Math.max(this.cfg.foodRadius ?? 8.5, 22);
     this.maze = buildRoundView(st, st.seed, w.maze, w.vis);
     this.syncLit(st.mine.cp);
     return true;

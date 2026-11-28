@@ -1493,6 +1493,7 @@
     "special": "Special",
     "legendary": "Legendary",
     "maze": {
+      "live": "In the arena now: {n} of {max}",
       "off": "The “Maze” mode is temporarily off",
       "gridError": "The maze grid does not match the server. Please reload the page.",
       "title": "Maze",
