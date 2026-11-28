@@ -15,6 +15,7 @@
 | map-maze | mazeMelody ("Maze" mode music, lazy-loaded) | Sirens in Darkness | cynicmusic | https://opengameart.org/content/sirens-in-darkness | CC0 | 012_Sirens_in_Darkness_0.mp3 -> mp3 96k stereo | 2.8 MB | 2026-11-28 |
 | map-candy | candyMelody ("Candy Land" map music, lazy-loaded) | Magic Puzzle In-Game 1 | MintoDog | https://opengameart.org/content/magic-puzzle-in-game-1 | CC0 | magic_puzzle_in-game_1_bpm110.mp3 -> mp3 96k stereo | 1.5 MB | 2026-11-28 |
 | map-grove | groveMelody ("Grove" map music, lazy-loaded) | Forest Ambience | TinyWorlds | https://opengameart.org/content/forest-ambience | CC0 | Forest_Ambience.mp3 -> mp3 96k stereo | 0.5 MB | 2026-11-28 |
+| map-frost | frostMelody ("Frost" map music, lazy-loaded) | Jingle Bells | ChristmasSongs | https://opengameart.org/content/jingle-bells | CC0 | JingleBells.mp3 -> mp3 96k stereo | 0.5 MB | 2026-11-28 |
 | bonus | bonus | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 12.5 KB | 2026-10-31 |
 | star-warn | starWarn | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 14.7 KB | 2026-10-31 |
 | star-pick | starPick | provided by project owner | owner | - | no license required (per owner; not verified) | owner's own file (mp3 only), trimmed/normalised | 9.0 KB | 2026-10-31 |
