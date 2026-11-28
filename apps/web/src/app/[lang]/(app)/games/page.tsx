@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import SkinPreview from "@/components/FlockMiniGame/FlockSkinPreview";
 import FlockResumeBanner from "@/components/FlockMiniGame/FlockResumeBanner";
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl";
 import SoloPuzzleHost from "./SoloPuzzleHost";
@@ -60,7 +60,7 @@ export default function GamesPage() {
         <FlockResumeBanner />
         <Link href="/games/flock" className={styles.card} prefetch={false}>
           <span className={styles.art} aria-hidden>
-            <SkinPreview skinId={0} size={104} />
+            <Image className={styles.artImg} src="/flock/invite-sheep.png" alt="" width={244} height={200} unoptimized />
           </span>
           <span className={styles.cardBody}>
             <span className={styles.cardTitle}>

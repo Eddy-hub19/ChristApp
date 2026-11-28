@@ -72,15 +72,16 @@
 }
 
 .art {
-  display: grid;
-  place-items: center;
-  width: 104px;
-  height: 104px;
+  display: block;
+  width: 150px;
   flex: none;
-
-  canvas {
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
-  }
+}
+.artImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.6);
 }
 
 .cardBody {
@@ -155,13 +156,7 @@
     padding: 18px 16px;
   }
   .art {
-    width: 88px;
-    height: 88px;
-
-    canvas {
-      width: 88px !important;
-      height: 88px !important;
-    }
+    width: 120px;
   }
   .cta {
     width: 100%;
