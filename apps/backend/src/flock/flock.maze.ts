@@ -297,6 +297,7 @@ export class MazeCourse implements RaceCourse {
 
   rankKey(e: RaceEntrant): number {
     const g = this.grid;
+    if (!g) return 0;
     const cell = cellAt(g, e.x, e.y);
     if (cell < 0) return Infinity;
     const [cx, cy] = cellCenter(g, cell);
@@ -307,6 +308,8 @@ export class MazeCourse implements RaceCourse {
 
   viewFor(e: RaceEntrant, focus: RaceEntrant, all: Iterable<RaceEntrant>, now: number, elapsedMs: number): object {
     const g = this.grid;
+    // набір: сітки ще нема (seed з'являється з початком відліку) - клієнту нічого малювати
+    if (!g) return { m: [0, 0, M.startMass, 0, 0, 0, 0, 0], c: [], f: [] };
     const R = M.viewRadius;
     const me = focus;
     const d = D(e);

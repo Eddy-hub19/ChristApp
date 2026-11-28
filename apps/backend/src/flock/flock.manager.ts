@@ -646,7 +646,7 @@ class Arena {
       const skin = FREE_SKIN_IDS[Math.floor(this.rng() * FREE_SKIN_IDS.length)];
       const p = this.world.addPlayer({ name, skin, bot: true });
       this.bots.add(p.id);
-      race.add(race.newEntrant(p.id, { userId: null, name, skin, botLevel: (have % 2) + 1 === 1 ? 1 : 2 }));
+      race.add(race.newEntrant(p.id, { userId: null, name, skin, botLevel: have % 2 === 0 ? 1 : 2 }));
       have++;
     }
     while (have > want) {

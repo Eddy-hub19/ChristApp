@@ -9,7 +9,7 @@
 Повідомлення `j` (як у «Замках»): `{ mode: 'maze', skin?: number, v: 2, resume?, arena? }`.
 - Скін - будь-який доступний гравцеві (лише вигляд; бонуси скінів і артефакти вимкнені, `artifact` ігнорується).
 - Помилки: `full` (арена заповнена), `maze_off` (режим вимкнено), решта як у звичайній арені (`skin_locked`, `skin_unavailable`).
-- HTTP-лобі: `GET /api/flock/maze/lobby` -> `{ enabled, phase, leftMs, humans, max }` (картка в «Режимах»).
+- HTTP-лобі: `GET /flock/maze/lobby` (той самий базовий шлях, що й `/flock/castles/lobby`) -> `{ enabled, phase, leftMs, humans, max }` (картка в «Режимах»).
 
 Вихід/обрив звʼязку: `leave` - одразу вибув; обрив довше `race.dropMs` (10 с) під час гонки = вибуває з раунду (стає глядачем до наступного).
 
