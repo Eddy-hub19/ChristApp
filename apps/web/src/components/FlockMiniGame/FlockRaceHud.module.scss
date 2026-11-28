@@ -1,0 +1,310 @@
+/* HUD гоночних режимів. Хром інтерфейсу - змінні теми застосунку; без backdrop-filter і великих тіней. */
+.top {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.capsule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.clock {
+  min-width: 48px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.place {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.state {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 5px;
+}
+.pip,
+.pipOn {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--foreground) 55%, transparent);
+  box-sizing: border-box;
+}
+.pipOn {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.count {
+  font-size: 96px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 3px rgba(0, 0, 0, 0.55);
+  animation: pop 0.9s ease-out both;
+}
+
+.hint {
+  padding: 8px 22px;
+  border-radius: 999px;
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+  animation: hint 1.4s ease-out both;
+}
+.hintCp {
+  background: color-mix(in srgb, #ff9a3d 88%, #000);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0.9;
+    transform: scale(0.95);
+  }
+}
+@keyframes hint {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: none;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.toasts {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 50px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+
+  li {
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    animation: hint 3.2s ease-out both;
+  }
+}
+.toastAte {
+  background: color-mix(in srgb, #2fb572 85%, #000);
+}
+.toastEaten {
+  background: color-mix(in srgb, #e5484d 85%, #000);
+}
+
+/* «Ривок»: кругла кнопка з кільцем перезарядки. Телефон: праворуч унизу над рядом кнопок гри (у гонці вони сховані), поруч із джойстиком. */
+.dash {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 112px);
+  z-index: 3;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--foreground);
+  background: conic-gradient(var(--accent) var(--ready, 360deg), color-mix(in srgb, var(--foreground) 18%, transparent) 0);
+  touch-action: none;
+  cursor: pointer;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.8;
+  }
+}
+.dashReady:active {
+  transform: scale(0.94);
+}
+.dashLabel {
+  position: relative;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ПК: кнопка менша й ближче до краю; Space працює з клавіатури */
+@media (hover: hover) and (pointer: fine) {
+  .dash {
+    width: 64px;
+    height: 64px;
+    bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 130px);
+  }
+}
+/* Низький екран (телефон у ландшафті): ліворуч від мінікарти, у ряд із рештою */
+@media (max-height: 520px) and (orientation: landscape) {
+  .dash {
+    right: calc(max(12px, env(safe-area-inset-right, 0px)) + 96px + 12px);
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Підсумок */
+.endWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+}
+.end {
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 98%, var(--background));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 22px;
+    text-align: center;
+  }
+}
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr 64px 44px 52px;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+}
+.rowsHead {
+  background: none !important;
+  font-size: 11px !important;
+  opacity: 0.65;
+}
+.rowName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowPlace {
+  flex: none;
+  width: 20px;
+  text-align: center;
+}
+.rowMe {
+  background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
+  font-weight: 700;
+}
+.reward {
+  text-align: center;
+  min-height: 26px;
+}
+.rewardOk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+}
+.rewardNo {
+  font-size: 13px;
+  opacity: 0.7;
+}
+.endBtn {
+  height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .count,
+  .hint,
+  .toasts li {
+    animation: none;
+  }
+}

@@ -25,7 +25,9 @@ export function createSender(
       if (event === 's') sock.volatile.emit(event, data);
       else sock.emit(event, data);
     } else {
-      sock.emit(event, payload);
+      // стан гоночного режиму - як `s`: застарілий кадр не накопичується для повільного клієнта
+      if (event === 'rz') sock.volatile.emit(event, payload);
+      else sock.emit(event, payload);
     }
   };
 }

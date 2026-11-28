@@ -20,6 +20,7 @@ import { BONUS_WORLD_SIZE, BOSS_MARK_COLOR, THORN_SPRITE_FILL, bonusFullSprite, 
 export { drawCreature };
 import { viewScale } from "./flockModel";
 import { drawDarkness, drawNightTop } from "./flockNight";
+import { drawMazeDissolve, drawMazeFinishArrow, drawMazeMinimap, drawMazeShield, drawMazeWorld } from "./flockMazeArt";
 import { drawFallWarning, drawCastleMinimap, drawCastleScreenArrows, drawCastleWorld, drawTeamMarkers, drawTeamNames, drawTeamRings } from "./flockCastleRender";
 import { PHRASE_FADE_MS, phraseById, type PhraseLang } from "./flockPhrases";
 
@@ -593,12 +594,20 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // пасовище: колір + сітка-трава + пучки одним готовим патерном (тайл у кеші), а не лініями щокадру
   // «Небесні тераси»: замість пасовища - небо й острови (малює drawCastleWorld)
   const terraces = m.cfg.castle?.kind === "terraces";
-  if (!sky && !col && !terraces) {
+  // «Лабіринт»: печера замість пасовища, загорожі й межі світу (малює drawMazeWorld)
+  const maze = m.maze;
+  // набір гравців ще без сітки (seed з'являється з відліком): темна печера замість зеленого пасовища
+  const raceWait = m.race !== null && maze === null;
+  if (raceWait) {
+    ctx.fillStyle = "#0c0f1e";
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  }
+  if (!sky && !col && !terraces && !maze && !raceWait) {
     ctx.fillStyle = pastureTile(ctx, theme, scale * dpr, groundOf(m.cfg.map)) ?? theme.bg;
     ctx.fillRect(0, 0, world, world);
   }
   // «Літній луг»: статичні сонячні блики поверх землі (кешований тайл, без анімації)
-  if (!sky && !col && !terraces && groundOf(m.cfg.map) === "meadow") {
+  if (!sky && !col && !terraces && !maze && !raceWait && groundOf(m.cfg.map) === "meadow") {
     const sun = sunlightPattern(ctx, scale * dpr);
     if (sun) {
       ctx.globalAlpha = theme.dark ? 0.55 : 1;
@@ -610,15 +619,16 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
   // межа світу (на «Небі» - хмарний бордюр)
   if (!sky && !col) ctx.strokeStyle = theme.dark ? "rgba(200,255,200,0.35)" : "rgba(60,100,40,0.55)";
   ctx.lineWidth = 6 / scale;
-  if (!sky && !col && !m.cfg.treasure && !terraces) ctx.strokeRect(0, 0, world, world);
+  if (!sky && !col && !m.cfg.treasure && !terraces && !maze && !raceWait) ctx.strokeRect(0, 0, world, world);
   // лава: річка з кешованих тайлів (одна фаза мерехтіння), береги й мости
   if (m.cfg.lava) drawLava(ctx, m.cfg.lava, x0, x1, y0, y1, o.time, scale * dpr, world);
   // «Замки»: ріка з мостами, декор, зони баз і замки
   const castleMode = Boolean(m.cfg.castle);
   if (castleMode) drawCastleWorld(ctx, m, x0, x1, y0, y1, scale * dpr, o.time);
+  if (maze) drawMazeWorld(ctx, maze, x0, x1, y0, y1, scale * dpr, o.time);
   // загорожа за межею поля (кешований тайл, лише видима частина)
   if (sky) drawCloudBorder(ctx, world, x0, x1, y0, y1, scale * dpr);
-  else if (!col && !m.cfg.treasure && !terraces) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
+  else if (!col && !m.cfg.treasure && !terraces && !maze && !raceWait) drawFence(ctx, fenceStyleOf(m.cfg.map), world, x0, x1, y0, y1, scale * dpr, m.cfg.candy?.river);
   // «Цукеркова країна»: карамельні калюжі й липка карамель лежать на землі під їжею й клітинами
   // «Острів скарбів»: вода, береги, річка, мости й декор на піску (загорожі нема: межу задає вода)
   if (m.cfg.treasure) {
@@ -809,6 +819,23 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     drawTeamMarkers(ctx, m, VISIBLE, scale, o.time);
     drawFallWarning(ctx, m, scale, o.time);
   }
+  // «Лабіринт»: мигаючий контур захисту після відродження; з'їдені клітини розчиняються
+  if (maze) {
+    const nowMs = m.localNow;
+    for (const c of VISIBLE) {
+      const until = maze.protectedUntil.get(c.pid);
+      if (until !== undefined && until > nowMs) drawMazeShield(ctx, c.x, c.y, m.radiusOf(c.mass), o.time, scale);
+    }
+    for (const [pid, t0] of maze.dissolving) {
+      const age = nowMs - t0;
+      if (age > maze.extras.dissolveMs) {
+        maze.dissolving.delete(pid);
+        continue;
+      }
+      const meta = m.lastOwn && pid === m.cfg.pid ? m.lastOwn : null;
+      if (meta) drawMazeDissolve(ctx, meta.x, meta.y, meta.r, age, maze.extras.dissolveMs);
+    }
+  }
 
   // клітини, що тануть (з'їдені)
   for (const d of m.dying) {
@@ -881,6 +908,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     ctx.restore();
   }
   if (castleMode) drawCastleScreenArrows(ctx, m, W, H, scale, o.time);
+  if (maze) drawMazeFinishArrow(ctx, maze, W, H, scale, m.camX, m.camY, o.time);
   drawRainOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   drawWindOverlay(ctx, m, W, H, o.time, prefersReducedMotion());
   // червоне світіння біля краю екрана, коли гравець наближається до лави
@@ -1015,6 +1043,11 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, m: FlockModel, size: 
   // «Цукеркова країна»: світла рожево-кремова мініатюра на обидві теми застосунку
   ctx.fillStyle = m.cfg.map === CANDY_MAP_ID ? "rgba(255,230,238,0.86)" : theme.dark ? "rgba(18,34,24,0.72)" : "rgba(235,248,225,0.78)";
   ctx.fillRect(0, 0, size, size);
+  // «Лабіринт»: лише свої відвідані клітини, фініш і своя позиція; інших учасників не показуємо взагалі
+  if (m.maze) {
+    drawMazeMinimap(ctx, m.maze, size, m.camX, m.camY);
+    return;
+  }
   if (m.cfg.lava) drawLavaMinimap(ctx, m.cfg.lava, m.cfg.world, size);
   if (m.sky) drawSkyMinimap(ctx, m, m.sky, size);
   if (m.coliseum) drawColiseumMinimap(ctx, m.coliseum, m.cfg.world, size);

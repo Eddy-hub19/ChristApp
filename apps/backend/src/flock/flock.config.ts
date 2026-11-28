@@ -737,6 +737,93 @@ export const FLOCK_CONFIG = {
   aspectMin: 0.4,
   aspectMax: 2.5,
 
+  /**
+   * Гоночні режими (спільна основа flock.race.ts: «Лабіринт», далі «Печерний забіг»). Раунди йдуть підряд: набір lobbyMs, відлік
+   * countdownMs, гонка (макс. тривалість задає траса), після першого фінішу ще finishGraceMs на решту, підсумки resultsMs.
+   * Хто зайшов посеред раунду - дивиться до наступного; хто вийшов чи втратив звʼязок на dropMs - вибуває з раунду.
+   * Нагорода переможцю (лише сервер, одна транзакція з унікальним ключем раунду, причина RACE_WIN) - один ЗАГАЛЬНИЙ добовий ліміт
+   * на всі гоночні режими разом, входить у rubies.dailyEarnCap; проти самих ботів і без умов - без нагороди; смарагдів немає.
+   */
+  race: {
+    enabled: true,
+    /** Учасників у раунді (люди й боти разом). */
+    maxParticipants: 6,
+    lobbyMs: 20_000,
+    countdownMs: 5_000,
+    finishGraceMs: 8_000,
+    resultsMs: 10_000,
+    dropMs: 10_000,
+    /** «Ривок»: множник швидкості, тривалість і перезарядка (рахується від початку ривка). Стіни ривком не проходяться. */
+    dash: { mult: 1.6, durationMs: 400, cooldownMs: 3000 },
+    reward: {
+      rubies: 5,
+      /** Оплачуваних перемог на добу (за Києвом) на ВСІ гоночні режими разом. */
+      dailyWinLimit: 3,
+      /** Живих людей у раунді не менше (інакше раунд без нагороди). */
+      minHumans: 2,
+      /** AFK: переможець мав зробити хоч стільки вводів і пройти хоч стільки одиниць. */
+      afkMinActions: 8,
+      afkMinMove: 800,
+      /** Час переможця не менший за minTimeSlack від мінімально можливого (по довжині траси й швидкості з ривками). */
+      minTimeSlack: 0.8,
+    },
+  },
+  /**
+   * Режим «Лабіринт» (окрема арена, картка в «Режимах»). Сітка будується з seed раунду (flock.maze.grid.ts, однаково на клієнті);
+   * шлях старт -> «Печерний кристал» у межах [pathMin, pathMax] клітин (~45-75 с чистого пробігу). Стіни не проходяться, клітини одна одну
+   * не штовхають: їсть та, чия маса не менша за eatRatio від маси жертви (як у звичайній «Отарі»). Маса росте лише від їжі (у тупиках) і
+   * з'їдених; швидкість за формулою «Отари», але не нижче minSpeedFactor від стартової.
+   */
+  maze: {
+    enabled: true,
+    /** Скільки арен режиму одночасно (окремо від maxArenas звичайних і teamMode). */
+    maxArenas: 1,
+    maxDurationMs: 180_000,
+    cols: 11,
+    rows: 11,
+    cell: 260,
+    wall: 40,
+    /** Частка закритих стін, що знімається для петель. */
+    braid: 0.12,
+    /** Допустима довжина найкоротшого шляху (клітин). */
+    pathMin: 32,
+    pathMax: 56,
+    checkpoints: 3,
+    startMass: 24,
+    maxMass: 43.2,
+    foodMass: 1.4,
+    foodMin: 30,
+    foodMax: 50,
+    foodRespawnMs: 20_000,
+    /** Їсти: eatRatio / eatOverlap як у звичайній «Отарі» (flock.config eatRatio, eatOverlap). Частка маси жертви, що отримує той, хто з'їв. */
+    eatGain: 0.3,
+    /** Швидкість не нижча за цю частку від стартової. */
+    minSpeedFactor: 0.7,
+    /** Після з'їдання: 'start' - у стартову кімнату з нуля чекпойнтів, 'checkpoint' - на останній чекпойнт. */
+    respawnAt: 'start' as 'start' | 'checkpoint',
+    spawnProtectMs: 3000,
+    dissolveMs: 500,
+    maxRespawns: 10,
+    /** Радіус огляду (світові одиниці): клітини й їжа лише в ньому. */
+    viewRadius: 900,
+    /** Через скільки мс від старту раунду показується стрілка до фінішу (0 - вимкнена). */
+    hintArrowAfterMs: 0,
+    /** Заготовка: вогняні плити в тупиках БЕЗ попередження (постійний ритм, постійно видні); false - нічого не підключено й не малюється. */
+    mazeTraps: false,
+    /** Радіус «торкнутися кристала» (світові одиниці від центру клітини фінішу). */
+    finishRadius: 70,
+    bots: {
+      /** Заповнювачів не більше (до maxParticipants мінус люди). */
+      max: 5,
+      easy: { mistake: 0.2, delayMs: 400 },
+      medium: { mistake: 0.08, delayMs: 200, fleeDelayMs: 400 },
+      /** З'їсти придатну клітину, якщо вона ближче eatRadius і не далі eatDetourCells клітин від шляху. */
+      eatRadius: 400,
+      eatDetourCells: 2,
+      foodDetourCells: 2,
+    },
+  },
+
   // --- рубіни (внутрішньоігрова валюта, лише від сервера) ---
   rubies: {
     /** Нагорода за 1-ше місце в «Топ-10» з масою від порога (раз за життя). */
@@ -1338,6 +1425,13 @@ export function clientGameConfig() {
       zoomPct: Math.round((c.teamMode.cameraZoom - 1) * 100),
       afkMinActions: c.teamMode.afkMinActions,
     },
+    /** «Лабіринт» і гоночна основа: числа для вікон «Режими», «Про гру» та правил (сам режим бере все з welcome). */
+    race: {
+      maxParticipants: c.race.maxParticipants,
+      dash: { mult: c.race.dash.mult, durationMs: c.race.dash.durationMs, cooldownMs: c.race.dash.cooldownMs },
+      reward: { rubies: c.race.reward.rubies, dailyWinLimit: c.race.reward.dailyWinLimit, minHumans: c.race.reward.minHumans },
+    },
+    maze: { maxDurationMs: c.maze.maxDurationMs, cols: c.maze.cols, rows: c.maze.rows, checkpoints: c.maze.checkpoints },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
     treasure: {

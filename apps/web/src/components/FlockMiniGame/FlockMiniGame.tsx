@@ -29,6 +29,11 @@ import type { ColiseumHud } from "./flockColiseum";
 import type { TigerResult } from "./flockClient";
 import FlockQuests from "./FlockQuests";
 import FlockModes from "./FlockModes";
+import FlockMazeLobby from "./FlockMazeLobby";
+import { MAZE_MODE_READY, mazeAdapter } from "./flockMazeAdapter";
+import FlockRaceHud, { RaceResultsCard } from "./FlockRaceHud";
+import type { RaceHudData, RaceResults, RaceToast } from "./flockRace";
+import { applyReward, hudOf, type RaceEventMsg } from "./flockRaceNet";
 import FlockCastlesLobby from "./FlockCastlesLobby";
 import FlockChatFeed, { FEED_MAX, type FeedItem } from "./FlockChatFeed";
 import FlockCastleHud, { CastleEndCard, type CastleHudData } from "./FlockCastleHud";
@@ -91,12 +96,14 @@ type Hud = {
   castle: CastleHudData | null;
   /** Карта «Арена»: HUD хвиль (з таймером паузи, що тікає локально); null - інша карта. */
   coliseum: { hud: ColiseumHud; nextMs: number; leftMs: number | null; carry: number; carryMax: number } | null;
+  /** «Лабіринт»: HUD гонки (null - інший режим). */
+  race: RaceHudData | null;
 };
 
 /** Ключи названий карт (flock.mapNames) по номеру карты FLOCK_MAPS. */
 const MAP_KEYS = ["meadow", "grove", "frost", "volcano", "lake", "night", "sky", "coliseum", "candy", "treasure", "terraces"] as const;
 
-const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null };
+const EMPTY_HUD: Hud = { total: 0, rank: 0, alive: 0, top: [], streak: null, selfPid: 0, effects: [], arenaId: null, sprintSupported: false, sprintReady: false, sprintActive: false, circle: null, wind: null, pipeCalled: false, castle: null, coliseum: null, race: null };
 const MINIMAP_SIZE = 96;
 /** Максимум пікселів буфера ігрового канвасу (≈1080p): вище - зменшуємо ефективний DPR, вигляд майже не змінюється. */
 const MAX_CANVAS_PX = 2_400_000;
@@ -235,6 +242,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const [circleEnd, setCircleEnd] = useState<(CircleEndInfo & { at: number }) | null>(null);
   /** «Замки»: лобі режиму, підсумок матчу, нагорода, напис події, помилка входу. */
   const [castlesOpen, setCastlesOpen] = useState(false);
+  const [mazeOpen, setMazeOpen] = useState(false);
+  /** «Лабіринт»: підсумок раунду (картка), тости про поїдання, помилка сітки. */
+  const [raceResults, setRaceResults] = useState<RaceResults | null>(null);
+  const [raceToasts, setRaceToasts] = useState<RaceToast[]>([]);
+  const [raceError, setRaceError] = useState(false);
+  const raceToastIdRef = useRef(0);
   const [castleEnd, setCastleEnd] = useState<CastleEndInfo | null>(null);
   const [castleReward, setCastleReward] = useState<CastleRewardInfo | null>(null);
   const [castleToast, setCastleToast] = useState<{ id: number; text: string; good: boolean } | null>(null);
@@ -403,6 +416,17 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const castlesNums = ((me?.config.game as Record<string, unknown> | undefined)?.castles ?? {}) as CastlesGameConfig;
   castlesNumsRef.current = castlesNums;
   /** «Замки»: події тіку -> звук і напис (звуки лише наявні). Ref, щоб клієнт не тримав застарілий замикання. */
+  /** «Лабіринт»: подія раунду -> тост (поїдання) або закриття картки підсумків (нове лобі). */
+  const handleRaceEventRef = useRef<(e: RaceEventMsg) => void>(() => undefined);
+  handleRaceEventRef.current = (e) => {
+    if (e.k === "lobby" || e.k === "go") setRaceResults(null);
+    if (e.k === "eaten" || e.k === "ate") {
+      const id = ++raceToastIdRef.current;
+      const name = e.k === "eaten" ? e.by : e.name;
+      setRaceToasts((prev) => [...prev.slice(-2), { id, kind: e.k === "eaten" ? "eatenBy" : "ate", name }]);
+      setTimeout(() => setRaceToasts((prev) => prev.filter((x) => x.id !== id)), 3200);
+    }
+  };
   const handleCastleEventsRef = useRef<(events: CastleEvent[], team: Team | 0, pid: number) => void>(() => undefined);
   handleCastleEventsRef.current = (events, team, pid) => {
     for (const e of events) {
@@ -565,6 +589,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           setCastleEnd(null);
           setCastleReward(null);
         },
+        onRaceEvent: (e, _pid) => handleRaceEventRef.current(e),
+        onRaceResults: (res) => setRaceResults(res),
+        onRaceReward: (rw) => {
+          setRaceResults((r) => (r ? applyReward(r, rw) : r));
+          if (typeof rw.balance === "number") setMe((m) => (m ? { ...m, rubies: rw.balance as number } : m));
+        },
+        onRaceError: () => setRaceError(true),
         onStatus: (s) => {
           setStatus(s);
           matchTrackerRef.current.onStatus(s, matchContext());
@@ -655,8 +686,34 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     setCastleReward(null);
     setModesOpen(false);
     setCastlesOpen(false);
+    setMazeOpen(false);
     clientRef.current?.join(skinId, 0, "castles", {}, team, castleMap);
   }, []);
+
+  /** «Лабіринт»: вхід в окрему арену режиму; скін будь-який (лише вигляд), бонуси й артефакти вимкнені. */
+  const playMaze = useCallback(() => {
+    maxTotalRef.current = 0;
+    matchModeRef.current = "maze";
+    track("otara_play_click");
+    setDeath(null);
+    setReward(null);
+    setCircleEnd(null);
+    setRoundWait(null);
+    setCastleEnd(null);
+    setRaceResults(null);
+    setRaceToasts([]);
+    setRaceError(false);
+    setModesOpen(false);
+    setCastlesOpen(false);
+    setMazeOpen(false);
+    clientRef.current?.join(skin, 0, "maze", {});
+  }, [skin]);
+  useEffect(() => {
+    mazeAdapter.join = playMaze;
+    return () => {
+      mazeAdapter.join = null;
+    };
+  }, [playMaze]);
 
   // секунды на карточке итогов и в подсказке «раунд ещё идёт» тикают раз в 500 мс
   useEffect(() => {
@@ -716,8 +773,10 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
   const entryArenaId = hud.arenaId;
   useEffect(() => {
     if (entryArenaId === null) return;
-    const map = clientRef.current?.model?.cfg.map ?? 0;
-    setMapToast(MAP_KEYS[map] ?? MAP_KEYS[0]);
+    const model = clientRef.current?.model;
+    const map = model?.cfg.map ?? 0;
+    // «Лабіринт»: замість назви пасовища - підказка «Лабіринт»
+    setMapToast(model?.race ? "maze" : (MAP_KEYS[map] ?? MAP_KEYS[0]));
     const id = setTimeout(() => setMapToast(null), 3000);
     return () => clearTimeout(id);
   }, [entryArenaId]);
@@ -1043,6 +1102,13 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
     clientRef.current?.toLobby();
     setDeath(null);
   }, []);
+  /** Кнопка «Ривок»: короткий імпульс «утримання» - сервер і передбачення стартують ривок по фронту. */
+  const pulseRaceDash = useCallback(() => {
+    sprintHeldRef.current = true;
+    setTimeout(() => {
+      sprintHeldRef.current = false;
+    }, 180);
+  }, []);
   const arenaDeath = status === "dead" && !!death && !!clientRef.current?.model?.coliseum;
   useEffect(() => {
     if (!arenaDeath) return;
@@ -1140,7 +1206,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         selfPid: model.cfg.pid,
         arenaId: model.cfg.arenaId,
         effects: model.effects.map((e) => ({ ...e })),
-        sprintSupported: Boolean(model.cfg.speed.sprint),
+        sprintSupported: Boolean(model.cfg.speed.sprint) && !model.race,
         sprintReady: model.sprintReady(),
         sprintActive: model.sprintActive,
         circle: model.cfg.mode === "circle" ? model.circleStatus(performance.now()) : null,
@@ -1150,6 +1216,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         })(),
         pipeCalled: performance.now() - model.pipeCalledAt < 1500,
         coliseum: model.coliseum && model.coliseumHud ? { hud: model.coliseumHud, nextMs: Math.max(0, (model.coliseumHud.next ?? 0) - (performance.now() - model.coliseumHudAt)), carry: model.carry, carryMax: model.carryMax, leftMs: model.coliseumHud.tl === undefined ? null : Math.max(0, model.coliseumHud.tl - (performance.now() - model.coliseumHudAt)) } : null,
+        race: model.race ? hudOf(model.race, performance.now()) : null,
         castle: (() => {
           const cs = model.castle;
           const cc = model.cfg.castle;
@@ -1217,7 +1284,9 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
       if (e.code === "Space") {
         e.preventDefault();
-        if (!e.repeat) splitQueuedRef.current = true;
+        // «Лабіринт»: пробіл - «Ривок» (по фронту натискання), поділу в режимі нема
+        if (clientRef.current?.model?.race) sprintHeldRef.current = true;
+        else if (!e.repeat) splitQueuedRef.current = true;
       } else if (e.code === "KeyF" && playing && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // «Арена»: постріл стрілою
         clientRef.current?.sendArrow();
@@ -1241,6 +1310,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
       }
     };
     const up = (e: KeyboardEvent) => {
+      if (e.code === "Space" && clientRef.current?.model?.race) sprintHeldRef.current = false;
       if (e.code === "KeyW") throwHeldRef.current = false;
       if (e.code === "ShiftLeft" || e.code === "ShiftRight") sprintHeldRef.current = false;
     };
@@ -1479,7 +1549,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : null}
           {mapToast ? (
             <div key={entryArenaId} className={styles.mapToast} role="status">
-              {t(`mapNames.${mapToast}`)}
+              {mapToast === "maze" ? t("maze.entryHint") : t(`mapNames.${mapToast}`)}
               {mapToast === "night" ? <small className={styles.mapToastSub}>{t("night.mapSub")}</small> : null}
               {mapToast === "sky" ? <small className={styles.mapToastSub}>{t("sky.mapSub")}</small> : null}
               {mapToast === "candy" ? <small className={styles.mapToastSub}>{t("candy.mapSub")}</small> : null}
@@ -1545,6 +1615,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               <span className={styles.rewardText}>{t("rubies.reward", { count: reward.amount })}</span>
             </div>
           ) : null}
+          {hud.race ? <FlockRaceHud hud={hud.race} toasts={raceToasts} onDash={pulseRaceDash} /> : null}
+          {raceError ? (
+            <div className={styles.sayNotice} role="alert">
+              {t("maze.gridError")}
+            </div>
+          ) : null}
           {hud.castle ? (
             <>
               <FlockCastleHud c={hud.castle} />
@@ -1570,7 +1646,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               ) : null}
             </>
           ) : null}
-          {!hud.castle ? (
+          {!hud.castle && !hud.race ? (
           <div className={styles.massBadge} aria-live="off">
             <span className={styles.massLabel}>{t("hud.mass")}</span>
             <span className={styles.massRow}>
@@ -1580,7 +1656,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           </div>
           ) : null}
 
-          {!hud.castle ? (
+          {!hud.castle && !hud.race ? (
           <button
             type="button"
             className={`${styles.board} ${boardCollapsed ? styles.boardCollapsed : ""}`}
@@ -1661,7 +1737,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
           ) : null}
           </div>
 
-          {!hud.castle ? (
+          {!hud.castle && !hud.race ? (
           <div className={styles.actions}>
             <button
               type="button"
@@ -1790,7 +1866,7 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
             <span aria-hidden>💬</span>
           </button>
           <FlockSoundButton variant="hud" onOpen={() => setSoundOpen(true)} />
-          {!isTouch && !hud.castle ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
+          {!isTouch && !hud.castle && !hud.race ? <p className={styles.keyHint}>{t("controls.keys")}</p> : null}
         </>
       ) : null}
 
@@ -1843,6 +1919,12 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
               )}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {status === "playing" && raceResults && hud.race ? (
+        <div onClickCapture={lobbyClickSound}>
+          <RaceResultsCard results={raceResults} onClose={() => setRaceResults(null)} />
         </div>
       ) : null}
 
@@ -2021,7 +2103,18 @@ export default function FlockMiniGame({ open, userId, arenaId = null, onClose }:
         <FlockModes game={me?.config.game} canPlay={status === "ready"} onPlayCastles={() => {
           track("otara_mode_selected", { mode: "castles" });
           setCastlesOpen(true);
-        }} onClose={() => setModesOpen(false)} />
+        }} onPlayMaze={MAZE_MODE_READY ? () => {
+          track("otara_mode_selected", { mode: "maze" });
+          setMazeOpen(true);
+        } : undefined} onClose={() => setModesOpen(false)} />
+      ) : null}
+      {mazeOpen && showLobby ? (
+        <FlockMazeLobby
+          canPlay={status === "ready"}
+          error={notice === "mazeOff" ? t("maze.off") : undefined}
+          onPlay={() => mazeAdapter.join?.()}
+          onClose={() => setMazeOpen(false)}
+        />
       ) : null}
       {castlesOpen && showLobby ? (
         <FlockCastlesLobby

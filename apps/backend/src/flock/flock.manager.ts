@@ -27,6 +27,8 @@ import { QuestTracker, type QuestEmit } from './flock.quest-tracker';
 import { ColiseumDirector, thinkMob } from './flock.coliseum';
 import { coliseumGeometry } from './flock.coliseum.geo';
 import { CastleMatch, type TeamSettlement } from './flock.castles';
+import { RaceMatch, type RaceSettlement } from './flock.race';
+import { MazeCourse } from './flock.maze';
 import { sanitizeSay, type SayReject } from './flock.say';
 import { AdaptiveRate } from './flock.adaptive';
 import {
@@ -131,12 +133,14 @@ export interface FlockHooks {
       players: (TeamSettlement['players'][number] & { connKey: string | null })[];
     },
   ) => void;
+  /** Раунд гоночного режиму скінчився й переможцю належить нагорода (рубіни нараховує лише шлюз, через БД; ключ раунду - ідемпотентність). */
+  onRaceWin?: (s: RaceSettlement & { connKey: string | null }) => void;
   /** Держатель серії днів на 1-му місці (FlockStreak.days > 0) або null; читається при вході на арену. */
   getStreak?: () => { userId: string; days: number } | null;
 }
 
 /** normal - звичайна арена; circle - режим «Звужуване коло» (окрема арена). */
-export type ArenaMode = 'normal' | 'circle' | 'castles';
+export type ArenaMode = 'normal' | 'circle' | 'castles' | 'maze';
 
 class Arena {
   readonly world: FlockWorld;
@@ -147,6 +151,8 @@ class Arena {
   private coliseumHudAt = -1e9;
   /** Режим «Замки»: матч команд (null - інші режими). */
   readonly castle: CastleMatch | null = null;
+  /** Режим «Лабіринт»: гоночний матч (null - інші режими). Світ (world) тут лише тримає pid-заглушки й не тікає. */
+  readonly race: RaceMatch | null = null;
   /** «Звужуване коло»: поточний раунд і його стан (running - іде, ended - показуємо підсумки до roundEndAt). */
   private round: CircleRound | null = null;
   private roundState: 'running' | 'ended' = 'running';
@@ -244,13 +250,22 @@ class Arena {
         ? C.teamMode.mapId
         : mode === 'circle'
           ? C.circle.maps[Math.floor(rng() * C.circle.maps.length)]
-          : pickMapId(rng));
+          : mode === 'maze'
+            ? 0
+            : pickMapId(rng));
     this.world = new FlockWorld(rng, this.mapId);
     this.coliseum = this.world.arena ? new ColiseumDirector(this.world, rng) : null;
-    this.quests = mode !== 'castles' && hooks.onQuest ? new QuestTracker(hooks.onQuest, this.mapId) : null;
+    this.quests = mode !== 'castles' && mode !== 'maze' && hooks.onQuest ? new QuestTracker(hooks.onQuest, this.mapId) : null;
     if (mode === 'castles') {
       this.castle = new CastleMatch(this.world, rng, FLOCK_MAPS.find((m) => m.id === this.mapId)?.castleKind ?? 'river');
       this.world.team = this.castle.rules;
+    }
+    if (mode === 'maze') {
+      this.race = new RaceMatch({ course: new MazeCourse(rng), arenaId: id, rng });
+      this.race.onBotRemoved = (pid) => {
+        this.bots.delete(pid);
+        this.world.removePlayer(pid);
+      };
     }
     this.monsterTarget =
       C.monsters.min + Math.floor(rng() * (C.monsters.max - C.monsters.min + 1));
@@ -311,6 +326,7 @@ class Arena {
   targetBots() {
     if (this.coliseum) return 0; // на «Арені» лише вовки хвиль
     if (this.castle) return this.castle.wantedBots(1) + this.castle.wantedBots(2);
+    if (this.race) return Math.max(0, Math.min(C.maze.bots.max, C.race.maxParticipants - this.race.humansRacing()));
     if (this.mode === 'circle') return circleBotsForHumans(this.humans);
     const n = botsForHumans(this.humans);
     return this.world.treasure ? Math.min(n, C.treasure.maxBots) : n;
@@ -580,6 +596,7 @@ class Arena {
    * рівних - найдальші від людей. Якщо потрібно більше, спершу скасовуємо «відхід», потім додаємо нових.
    */
   syncBots() {
+    if (this.race) return this.syncRaceBots();
     if (this.castle) return this.syncTeamBots();
     const want = this.wantBots();
     let active = this.activeBots;
@@ -616,6 +633,79 @@ class Arena {
         active--;
       }
     }
+  }
+
+  /** «Лабіринт»: боти добивають слоти гонщиків (не більше maze.bots.max і не більше, ніж дозволяє регулятор); додаємо лише в наборі/відліку, зайвих прибираємо одразу. */
+  private syncRaceBots() {
+    const race = this.race as RaceMatch;
+    const want = this.wantBots();
+    let have = race.botCount();
+    const open = race.phase === 0 || race.phase === 1;
+    while (have < want && open && race.racerSlotsFree() > 0) {
+      const name = pickBotName(this.rng, [...this.world.players.values()].map((p) => p.name));
+      const skin = FREE_SKIN_IDS[Math.floor(this.rng() * FREE_SKIN_IDS.length)];
+      const p = this.world.addPlayer({ name, skin, bot: true });
+      this.bots.add(p.id);
+      race.add(race.newEntrant(p.id, { userId: null, name, skin, botLevel: have % 2 === 0 ? 1 : 2 }));
+      have++;
+    }
+    while (have > want) {
+      const bot = [...race.entrants.values()].find((e) => e.bot);
+      if (!bot) break;
+      race.remove(bot.pid);
+      this.bots.delete(bot.pid);
+      this.world.removePlayer(bot.pid);
+      have--;
+    }
+  }
+
+  /** Один тік гоночного режиму: регулятор ботів, крок матчу, розрахунок нагороди й розсилка. */
+  private stepRaceTick() {
+    const t0 = process.hrtime.bigint();
+    const race = this.race as RaceMatch;
+    const tA = performance.now();
+    if (this.now() - this.lastLoadEval >= C.botLoad.evalMs) {
+      this.lastLoadEval = this.now();
+      this.evaluateLoad();
+    } else {
+      this.syncBots();
+    }
+    race.tick(1000 / this.rate.hz);
+    const st = race.takeSettlement();
+    if (st) this.hooks.onRaceWin?.({ ...st, connKey: this.sessions.get(st.winnerUserId)?.connKey ?? null });
+    const tB = performance.now();
+    this.phase.world += tB - tA;
+    this.broadcastRace();
+    this.cpuMs += Number(process.hrtime.bigint() - t0) / 1e6;
+    this.ticks++;
+  }
+
+  private broadcastRace() {
+    const race = this.race as RaceMatch;
+    const t0 = performance.now();
+    let sentMs = 0;
+    const send = (key: string, ev: string, payload: Uint8Array | object) => {
+      const ts = performance.now();
+      this.send(key, ev, payload);
+      sentMs += performance.now() - ts;
+      this.packets++;
+    };
+    const msgs = race.drain();
+    const roster = race.rosterDirty ? race.roster() : null;
+    race.rosterDirty = false;
+    for (const s of this.sessions.values()) {
+      const key = s.connKey;
+      if (!key) continue;
+      if (roster) send(key, 'rp', roster);
+      for (const m of msgs) if (m.to === 0 || m.to === s.pid) send(key, m.ev, m.body);
+      const state = race.stateFor(s.pid);
+      if (state) {
+        this.bytesOut += JSON.stringify(state).length;
+        send(key, 'rz', state);
+      }
+    }
+    this.phase.send += sentMs;
+    this.phase.encode += performance.now() - t0 - sentMs;
   }
 
   /** «Замки»: боти добивають команди до teamSize; загалом не більше, ніж дозволяє регулятор навантаження; зайвих прибираємо одразу. */
@@ -924,6 +1014,10 @@ class Arena {
   }
 
   step() {
+    if (this.race) {
+      this.stepRaceTick();
+      return;
+    }
     const t0 = process.hrtime.bigint();
     const w = this.world;
     const tA = performance.now();
@@ -1420,7 +1514,7 @@ export interface JoinOptions {
 
 export interface JoinResult {
   ok: boolean;
-  error?: 'full' | 'busy' | 'expired' | 'round_running' | 'castles_off' | 'team_full' | 'team_unbalanced' | 'bad_team';
+  error?: 'full' | 'busy' | 'expired' | 'round_running' | 'castles_off' | 'maze_off' | 'team_full' | 'team_unbalanced' | 'bad_team';
   /** Для round_running: скільки мс чекати нового раунду. */
   waitMs?: number;
   pid?: number;
@@ -1456,6 +1550,8 @@ export interface JoinResult {
   circle?: CircleMsg;
   /** «Замки»: твоя команда й геометрія карти. */
   castle?: ReturnType<CastleMatch['welcome']>;
+  /** «Лабіринт»: усе для клієнта (фаза, seed, формули, склад учасників); без поля - інший режим. */
+  race?: ReturnType<RaceMatch['welcome']>;
   rain?: { l: number; y: number; d: number; p: [number, number, number, number][] };
   /** «Вітер» на момент входу: a - напрям (рад), w - мс до початку (0 - уже дме), l - скільки лишилось сносу. */
   wind?: { a: number; w: number; l: number };
@@ -1524,6 +1620,7 @@ export class FlockManager {
         sameConn = undefined;
       }
     }
+    if (sameConn?.arena.race) return this.joined(sameConn);
     if (sameConn) {
       // повторний вхід з того ж сокета = переродження
       const p = sameConn.arena.world.players.get(sameConn.pid);
@@ -1565,15 +1662,17 @@ export class FlockManager {
       const verdict = live?.castle?.canJoin(team) ?? 'ok';
       if (verdict !== 'ok') return { ok: false, error: verdict, resumeFailed };
     }
+    if (mode === 'maze' && (!C.maze.enabled || !C.race.enabled)) return { ok: false, error: 'maze_off', resumeFailed };
     const arena = this.pickArena(opts.arena, mode, opts.castleMap);
     if (!arena) return { ok: false, error: 'full', resumeFailed };
     const player = arena.world.addPlayer({
       name: name.slice(0, 24) || 'Овечка',
       skin,
-      artifact: mode === 'castles' ? 0 : opts.artifact,
+      artifact: mode === 'castles' || mode === 'maze' ? 0 : opts.artifact,
       ...(mode === 'castles' ? { team } : {}),
     });
     arena.castle?.add(player, team, userId);
+    arena.race?.add(arena.race.newEntrant(player.id, { userId, name: player.name, skin }));
     const session: Session = {
       connKey,
       token: newToken(),
@@ -1628,6 +1727,20 @@ export class FlockManager {
     };
   }
 
+  private mazeArena() {
+    for (const a of this.arenas.values()) if (a.mode === 'maze') return a;
+    return undefined;
+  }
+
+  /** Лобі режиму «Лабіринт» (HTTP, до входу): фаза й скільки людей у наборі. */
+  mazeLobby() {
+    const r = this.mazeArena()?.race;
+    return {
+      enabled: C.maze.enabled && C.race.enabled,
+      ...(r?.lobby() ?? { phase: 0, leftMs: 0, humans: 0, max: C.race.maxParticipants }),
+    };
+  }
+
   private joined(s: Session): JoinResult {
     return {
       ok: true,
@@ -1635,7 +1748,8 @@ export class FlockManager {
       arenaId: s.arena.id,
       humans: s.arena.humans,
       token: s.token,
-      thorns: s.arena.thornList,
+      // у гонці кущів нема (лабіринт малює свої стіни): інакше клієнт намалював би пасовищні кущі всередині печери
+      thorns: s.arena.race ? [] : s.arena.thornList,
       mapId: s.arena.mapId,
       thornStyle: FLOCK_MAPS.find((m) => m.id === s.arena.mapId)?.thornStyle,
       lava: s.arena.world.lava ?? undefined,
@@ -1659,6 +1773,7 @@ export class FlockManager {
       night: s.arena.world.night ? true : undefined,
       circle: s.arena.circleSnapshot(),
       castle: s.arena.castle?.welcome(s.arena.castle.teamOf(s.pid)),
+      race: s.arena.race?.welcome(s.pid),
       streak: this.streakInfo(s.arena) ?? undefined,
     };
   }
@@ -1736,7 +1851,7 @@ export class FlockManager {
 
   /** Арена для нового гравця: запрошена (якщо є місце) → будь-яка з місцем → нова (до ліміту). */
   private pickArena(requested?: number, mode: ArenaMode = 'normal', castleMap?: number): Arena | null {
-    const cap = mode === 'castles' ? 2 * C.teamMode.maxTeamSize : C.maxHumansPerArena;
+    const cap = mode === 'castles' ? 2 * C.teamMode.maxTeamSize : mode === 'maze' ? C.race.maxParticipants : C.maxHumansPerArena;
     const roomy = (a: Arena) => a.mode === mode && a.humans < cap;
     const fresh = (a: Arena) => roomy(a) && !this.mapExpired(a);
     const wanted = requested ? this.arenas.get(requested) : undefined;
@@ -1751,7 +1866,9 @@ export class FlockManager {
     const atLimit =
       mode === 'castles'
         ? !C.teamMode.enabled || sameMode >= C.teamMode.maxArenas
-        : mode === 'circle'
+        : mode === 'maze'
+          ? !C.maze.enabled || sameMode >= C.maze.maxArenas
+          : mode === 'circle'
           ? !C.circle.enabled || sameMode >= C.circle.maxArenas
           : sameMode >= C.maxArenas || all.length >= 2 * C.maxArenas;
     if (atLimit) {
@@ -1797,6 +1914,7 @@ export class FlockManager {
     s.phraseSent.clear();
     const p = s.arena.world.players.get(s.pid);
     if (p && !p.alive) s.deadSent = false;
+    s.arena.race?.setConnected(s.pid, true);
     s.arena.world.resumePlayer(s.pid, C.resumeShieldMs);
     this.byConn.set(connKey, s);
     return { ...this.joined(s), resumed: true };
@@ -1837,6 +1955,11 @@ export class FlockManager {
     s.lastInputAt = t;
     if (Number.isFinite(aspect)) {
       s.aspect = Math.max(C.aspectMin, Math.min(C.aspectMax, aspect));
+    }
+    if (s.arena.race) {
+      // «Лабіринт»: прапорець sprint у вводі - кнопка «Ривок»; поділ і кидок не діють
+      s.arena.race.input(s.pid, angle, power, sprint);
+      return;
     }
     const w = s.arena.world;
     w.setInput(s.pid, angle, power);
@@ -1961,6 +2084,13 @@ export class FlockManager {
     const s = this.byConn.get(connKey);
     if (!s) return;
     this.byConn.delete(connKey);
+    if (s.arena.race) {
+      // гонка: місце тримаємо resumePauseMs, але з раунду вибуває за race.dropMs (див. RaceMatch)
+      s.arena.race.setConnected(s.pid, false);
+      s.connKey = null;
+      s.pausedUntil = this.now() + C.resumePauseMs;
+      return;
+    }
     const p = s.arena.world.players.get(s.pid);
     if (!p || !p.alive || C.resumePauseMs <= 0) {
       this.removeSession(s);
@@ -1983,9 +2113,10 @@ export class FlockManager {
     const arena = s.arena;
     arena.quests?.leave(arena.world, s);
     const leaving = arena.world.players.get(s.pid);
-    if (leaving && !arena.coliseum) this.hooks.onMass?.(s.userId, Math.max(0, leaving.maxMass - leaving.chestMass));
+    if (leaving && !arena.coliseum && !arena.race) this.hooks.onMass?.(s.userId, Math.max(0, leaving.maxMass - leaving.chestMass));
     arena.sessions.delete(s.userId);
     arena.castle?.remove(s.pid);
+    arena.race?.remove(s.pid);
     arena.world.removePlayer(s.pid);
     if (arena.humans === 0) {
       arena.stop();

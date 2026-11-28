@@ -73,6 +73,12 @@ export class FlockController {
     return this.gateway.castlesLobby();
   }
 
+  /** Лобі режиму «Лабіринт»: фаза раунду й скільки людей. */
+  @Get('maze/lobby')
+  mazeLobby() {
+    return this.gateway.mazeLobby();
+  }
+
   /** Щоденні завдання: три завдання доби, час до скидання за Києвом. */
   @Get('quests')
   questsList(@Req() req: Request) {

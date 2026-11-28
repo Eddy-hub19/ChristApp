@@ -90,6 +90,16 @@ export const markAnnouncementSeen = (version: number) => call<{ seen: number }>(
 /** Лобі режиму «Замки»: скільки людей на кожній стороні (без входу в арену). */
 export const fetchCastlesLobby = () => call<import("./flockCastles").CastlesLobby>("/castles/lobby");
 
+/** Лобі режиму «Лабіринт»: чи ввімкнено, фаза раунду (0 набір, 1 відлік, 2 гонка, 3 підсумки) і скільки людей (без входу в арену). */
+export interface MazeLobbyInfo {
+  enabled: boolean;
+  phase: number;
+  leftMs: number;
+  humans: number;
+  max: number;
+}
+export const fetchMazeLobby = () => call<MazeLobbyInfo>("/maze/lobby");
+
 /** Щоденні завдання (GET /flock/quests). */
 export interface FlockQuest {
   slot: number;

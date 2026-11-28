@@ -28,6 +28,7 @@ export {
   WindIcon,
   CircleZoneIcon,
   CastleIcon,
+  MazeIcon,
   LanternIcon,
   FirefliesJarIcon,
   EmeraldIcon,

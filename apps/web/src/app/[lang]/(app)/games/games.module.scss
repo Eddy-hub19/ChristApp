@@ -47,9 +47,9 @@
 .card {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
   width: 100%;
-  padding: 14px;
+  padding: 22px 20px;
   text-align: left;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
@@ -72,19 +72,16 @@
 }
 
 .art {
-  position: relative;
-  width: 92px;
-  height: 56px;
+  display: block;
+  width: 150px;
   flex: none;
 }
-.blob {
-  position: absolute;
-  top: 6px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22), inset -4px -5px 0 rgba(0, 0, 0, 0.07);
-  border: 2px solid rgba(255, 255, 255, 0.5);
+.artImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.6);
 }
 
 .cardBody {
@@ -98,24 +95,24 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
 }
 .cardIcon {
   flex: none;
 }
 .cardDesc {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 .cta {
   flex: none;
-  padding: 8px 14px;
-  border-radius: 12px;
+  padding: 11px 20px;
+  border-radius: 14px;
   background: var(--accent);
   color: #fff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .cardWrap {
@@ -151,4 +148,18 @@
   font-size: 13px;
   background: var(--surface-elevated);
   color: var(--foreground);
+}
+
+@media (max-width: 520px) {
+  .card {
+    flex-wrap: wrap;
+    padding: 18px 16px;
+  }
+  .art {
+    width: 120px;
+  }
+  .cta {
+    width: 100%;
+    text-align: center;
+  }
 }

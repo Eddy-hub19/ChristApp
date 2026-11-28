@@ -6,6 +6,8 @@ import { FlockModel, type CircleMsgIn, type FlockCfg } from "./flockModel";
 import type { CastleEndInfo, CastleEvent, CastleMsg, CastleRewardInfo, Team } from "./flockCastles";
 import { BTN_SPLIT, BTN_SPRINT, BTN_THROW, encodeInputPacked, packetType, PKT_BOARD, PKT_STATE } from "./flockProtocol";
 import type { Dir } from "./flockInputMath";
+import { resultsOf, type RaceEventMsg, type RaceFrameMsg, type RaceResultsMsg, type RaceRewardMsg, type RaceRoundMsg, type RaceRosterMsg } from "./flockRaceNet";
+import type { RaceResults } from "./flockRace";
 import { playFlockSound } from "./flockSound";
 import { attachFlockSounds } from "./flockSoundDirector";
 import {
@@ -32,10 +34,10 @@ export type FlockStatus =
   | "taken";
 
 /** Повідомлення в лобі: "Сесія завершилась, починаємо заново". */
-export type FlockNotice = "expired" | "skinLocked" | "skinUnavailable" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | null;
+export type FlockNotice = "expired" | "skinLocked" | "skinUnavailable" | "artifactLocked" | "roundRunning" | "teamUnbalanced" | "teamFull" | "skinSide" | "castlesOff" | "mazeOff" | null;
 
 /** Режим арени: звичайна або «Звужуване коло». */
-export type FlockMode = "normal" | "circle" | "castles";
+export type FlockMode = "normal" | "circle" | "castles" | "maze";
 
 /** Підсумок раунду «Звужуване коло» (подія `ce`; you - особисто для цього гравця). */
 export interface CircleEndInfo {
@@ -103,6 +105,14 @@ export interface FlockClientOptions {
   onCastleReward?: (info: CastleRewardInfo) => void;
   /** Новий матч «Замків» (фаза не «підсумки»): картку ховаємо. */
   onCastleStart?: () => void;
+  /** «Лабіринт»: подія раунду (`rv`: чекпойнт, поїдання, відродження, початок лобі тощо) - тости й підказки. */
+  onRaceEvent?: (e: RaceEventMsg, myPid: number) => void;
+  /** «Лабіринт»: підсумок раунду (`rs`) для картки; raw - сирі дані (виграш, нагорода). */
+  onRaceResults?: (res: RaceResults, raw: RaceResultsMsg) => void;
+  /** «Лабіринт»: рубіни переможцю підтверджено (`rw`) або відмовлено (ліміт). */
+  onRaceReward?: (rw: RaceRewardMsg) => void;
+  /** «Лабіринт»: сітка клієнта не збіглась із серверною (хеш) - показати помилку. */
+  onRaceError?: (code: "hash") => void;
   /** Мертвого не пускають до кінця раунду: скільки мс чекати. */
   onRoundWait?: (waitMs: number) => void;
   /** Якщо є свіжа збережена сесія - повертатись у неї одразу, без лобі. */
@@ -279,7 +289,7 @@ export class FlockClient {
         attachFlockSounds(this.model);
         this.model.selfPerks = this.perks;
         // повтор входу ("Грати знову") лишається в тому ж режимі, у якому ми зараз
-        this.mode = cfg.mode === "circle" ? "circle" : cfg.mode === "castles" ? "castles" : "normal";
+        this.mode = cfg.mode === "circle" ? "circle" : cfg.mode === "castles" ? "castles" : cfg.mode === "maze" ? "maze" : "normal";
         if (cfg.castle) this.team = cfg.castle.team;
         this.model.initSky(cfg.sky, performance.now());
         this.model.initColiseum(cfg.coliseum);
@@ -288,6 +298,16 @@ export class FlockClient {
         this.model.applyRain(cfg.rain, performance.now());
         this.model.applyWind(cfg.wind, performance.now());
         this.model.applyCircle(cfg.circle, performance.now());
+        if (cfg.mode === "maze") {
+          const ok = this.model.initRace(cfg.race, performance.now());
+          if (!ok) console.error("flock: maze welcome without race fields");
+          else if (this.model.race?.hashOk === false) {
+            console.error("flock: maze grid hash mismatch (client != server)");
+            this.opts.onRaceError?.("hash");
+          }
+          const rs = cfg.race?.results;
+          if (rs) this.opts.onRaceResults?.(resultsOf(rs, cfg.pid), rs);
+        }
         this.stored = {
           token: cfg.resumeToken,
           arenaId: cfg.arenaId,
@@ -334,7 +354,7 @@ export class FlockClient {
         this.stored = null;
         playFlockSound(info?.burned ? "burn" : info?.fell || info?.swept || info?.iced || info?.shark ? "fall" : "death", { self: true });
         // «Замки» і клієнт без моделі: без показу смерті, одразу підсумки як раніше
-        if (!this.model || this.mode === "castles" || this.pendingDeath) {
+        if (!this.model || this.mode === "castles" || this.mode === "maze" || this.pendingDeath) {
           this.setStatus("dead");
           this.opts.onDeath(info);
           return;
@@ -399,12 +419,56 @@ export class FlockClient {
     socket.on("sk", (msg: unknown) => {
       this.later(() => this.model?.applyStreak(msg));
     });
-    socket.on("rv", () => {
+    socket.on("rv", (msg: Partial<RaceEventMsg> | null) => {
       this.later(() => {
-        if (this.model) {
-          playFlockSound("revive", { self: true });
-          this.opts.onRevive?.();
+        if (!this.model) return;
+        // у гоночних режимах `rv` несе подію раунду з полем k (звичайне «Друге життя» приходить порожнім)
+        if (msg && typeof (msg as { k?: unknown }).k === "string") {
+          const e = msg as RaceEventMsg;
+          this.model.applyRaceEvent(e, performance.now());
+          if (e.k === "cp" || e.k === "fin") playFlockSound("bonus", { self: true });
+          else if (e.k === "go") playFlockSound("starWarn", { self: true });
+          this.opts.onRaceEvent?.(e, this.model.cfg.pid);
+          return;
         }
+        playFlockSound("revive", { self: true });
+        this.opts.onRevive?.();
+      });
+    });
+    // «Лабіринт»: початок відліку (seed нової сітки), склад учасників, стан кожного тіку, підсумок і нагорода
+    socket.on("rr", (msg: RaceRoundMsg) => {
+      this.later(() => {
+        if (!this.model?.race) return;
+        const ok = this.model.applyRaceRound(msg, performance.now());
+        if (!ok) {
+          console.error("flock: maze grid hash mismatch (client != server)");
+          this.opts.onRaceError?.("hash");
+        }
+      });
+    });
+    socket.on("rp", (list: RaceRosterMsg[]) => {
+      this.later(() => this.model?.applyRaceRoster(list));
+    });
+    socket.on("rz", (f: RaceFrameMsg) => {
+      this.later(() => {
+        if (!this.model?.race) return;
+        // Виняток у обробнику socket.io-client трактує як "parse error" і РВЕ зʼєднання - ловимо самі.
+        try {
+          this.model.applyRaceFrame(f, performance.now());
+        } catch (e) {
+          console.error("flock: bad race frame", e);
+        }
+      });
+    });
+    socket.on("rs", (rs: RaceResultsMsg) => {
+      this.later(() => {
+        if (!this.model?.race || !rs || !Array.isArray(rs.rows)) return;
+        this.opts.onRaceResults?.(resultsOf(rs, this.model.cfg.pid), rs);
+      });
+    });
+    socket.on("rw", (rw: RaceRewardMsg) => {
+      this.later(() => {
+        if (typeof rw?.rubies === "number") this.opts.onRaceReward?.(rw);
       });
     });
     socket.on("qf", (msg: Partial<FeedMsg> | null) => {
@@ -506,6 +570,12 @@ export class FlockClient {
         this.setStatus("ready");
         return;
       }
+      if (e?.code === "maze_off") {
+        this.wantPlay = false;
+        this.opts.onNotice?.("mazeOff");
+        this.setStatus("ready");
+        return;
+      }
       if (e?.code === "team_unbalanced" || e?.code === "team_full" || e?.code === "skin_side" || e?.code === "castles_off") {
         this.wantPlay = false;
         this.opts.onNotice?.(e.code === "team_unbalanced" ? "teamUnbalanced" : e.code === "team_full" ? "teamFull" : e.code === "skin_side" ? "skinSide" : "castlesOff");
@@ -589,10 +659,10 @@ export class FlockClient {
 
   /** Увійти в арену (або відродитись після "Тебе з'їли"). */
   join(skin: number, artifact = 0, mode: FlockMode = this.mode, perks: { speed?: number; spawnBoostBonus?: number; spawnBoostMs?: number } = {}, team?: Team, castleMap?: number) {
-    this.perks = mode === "castles" ? {} : perks;
+    this.perks = mode === "castles" || mode === "maze" ? {} : perks;
     if (team) this.team = team;
     if (castleMap !== undefined) this.castleMap = castleMap;
-    if (mode === "castles") artifact = 0;
+    if (mode === "castles" || mode === "maze") artifact = 0;
     this.mode = mode;
     this.skin = skin;
     this.artifact = artifact;
@@ -608,6 +678,7 @@ export class FlockClient {
   private modeFields() {
     if (this.mode === "circle") return { mode: "circle" };
     if (this.mode === "castles") return { mode: "castles", team: this.team, ...(this.castleMap ? { castleMap: this.castleMap } : {}) };
+    if (this.mode === "maze") return { mode: "maze" };
     return {};
   }
 
