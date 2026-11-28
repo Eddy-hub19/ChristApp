@@ -12,6 +12,7 @@ import {
   type RadioAdminTrack,
 } from "@/lib/radioApi";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useRadio } from "@/providers/radioContext";
 import styles from "./Radio.module.scss";
 
@@ -36,10 +37,11 @@ function measureDuration(file: File): Promise<number> {
 
 const stripExt = (name: string) => name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
 
-/** Управление эфиром (только админ): загрузка и удаление треков, порядок очереди, «играть следующим». */
+/** «Добавить трек»: загрузка доступна всем; очередь эфира с удалением треков видит только админ. */
 export default function RadioAdminSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("radio");
   const radio = useRadio();
+  const isAdmin = useIsAdmin() === true;
   const currentId = radio.state?.track?.id ?? null;
 
   const [tracks, setTracks] = useState<RadioAdminTrack[] | null>(null);
@@ -55,13 +57,14 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const load = useCallback(() => {
+    if (!isAdmin) return;
     fetchRadioTracks()
       .then((rows) => {
         setTracks(rows);
         setLoadError(false);
       })
       .catch(() => setLoadError(true));
-  }, []);
+  }, [isAdmin]);
 
   // Открыли шторку или эфир переключился (текущий трек поменялся): перечитываем очередь.
   useEffect(() => {
@@ -153,8 +156,8 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
           ) : null}
         </form>
 
-        <h3 className={styles.sectionTitle}>{t("queueTitle")}</h3>
-        {loadError ? (
+        {isAdmin ? <h3 className={styles.sectionTitle}>{t("queueTitle")}</h3> : null}
+        {!isAdmin ? null : loadError ? (
           <p className={styles.msgError} role="alert">
             {t("loadFailed")}{" "}
             <button type="button" className={styles.linkBtn} onClick={load}>

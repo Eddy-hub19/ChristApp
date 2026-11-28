@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { RadioState } from "@/lib/radioApi";
+import type { RadioListener, RadioState } from "@/lib/radioApi";
 
 /** idle - не слушаю; connecting - подключаюсь; listening - в эфире; blocked - браузер не дал начать без касания; error - нет связи/сбой. */
 export type RadioStatus = "idle" | "connecting" | "listening" | "blocked" | "error";
@@ -11,6 +11,8 @@ export interface RadioContextValue {
   state: RadioState | null;
   /** Сколько человек сейчас слушают эфир. */
   listeners: number;
+  /** Кто сейчас слушает (имя и аватар; до 50 человек, счётчик `listeners` - полный). */
+  listenerUsers: RadioListener[];
   /** Я подключён к эфиру (слушаю). */
   tunedIn: boolean;
   status: RadioStatus;

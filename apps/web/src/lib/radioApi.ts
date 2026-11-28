@@ -19,6 +19,12 @@ export interface RadioState {
   serverNow: number;
 }
 
+export interface RadioListener {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface RadioRecent {
   id: string;
   title: string;

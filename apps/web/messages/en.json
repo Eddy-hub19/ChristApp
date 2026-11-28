@@ -12,7 +12,7 @@
   "radio": {
     "title": "Christ Radio",
     "subtitle": "Christian music: everyone listens together",
-    "manage": "Manage broadcast",
+    "manage": "Add a track",
     "liveCard": "Live broadcast",
     "live": "LIVE",
     "listeners": "{count, plural, one {# listener} other {# listeners}} online",
@@ -32,8 +32,8 @@
     "tapToListen": "Tap to start listening",
     "error": "No connection to the broadcast",
     "listeningNow": "You are on air",
-    "manageTitle": "Manage broadcast",
-    "rightsNote": "Upload only content the church has rights to. Links to third-party services are not supported: only mp3, m4a, aac or ogg files up to 25 MB.",
+    "manageTitle": "Add a track",
+    "rightsNote": "Upload only content you have rights to. Links to third-party services are not supported: only mp3, m4a, aac or ogg files up to 25 MB.",
     "uploadTitle": "Upload a track",
     "fileLabel": "Audio file",
     "titleLabel": "Title",
@@ -52,7 +52,10 @@
     "delete": "Delete “{title}”",
     "deleteConfirm": "Remove “{title}” from the broadcast?",
     "deleteYes": "Delete",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "listenersTitle": "Listening now",
+    "noListeners": "Nobody is listening yet",
+    "you": "you"
   },
   "login": {
     "title": "Christ App",

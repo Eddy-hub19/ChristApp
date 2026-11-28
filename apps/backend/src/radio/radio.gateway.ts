@@ -15,6 +15,14 @@ import { RadioService } from './radio.service';
 type RadioSocket = Socket<any, any, any, { userId?: string }>;
 
 const LISTENERS_THROTTLE_MS = 1000;
+/** Сколько слушателей отдаём списком (счётчик всегда полный). */
+const LISTENERS_LIST_MAX = 50;
+
+export interface RadioListener {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
 
 /**
  * Отдельный namespace `/radio`: клиент подключается на экране «Музыка» и пока слушает эфир. Авторизация - тот же JWT, что в чате.
@@ -26,6 +34,8 @@ export class RadioGateway implements OnGatewayInit, OnGatewayDisconnect, OnModul
   private ns!: Namespace;
   /** userId -> id сокетов, которые сейчас в эфире. */
   private readonly listeners = new Map<string, Set<string>>();
+  /** Имя и аватар слушателей (подгружаются при `radio:join`, живут пока человек в эфире). */
+  private readonly info = new Map<string, RadioListener>();
   private pushTimer: NodeJS.Timeout | null = null;
   private unsubscribe: (() => void) | null = null;
 
@@ -54,7 +64,7 @@ export class RadioGateway implements OnGatewayInit, OnGatewayDisconnect, OnModul
     });
     ns.on('connection', (socket: RadioSocket) => {
       socket.emit('radio:state', this.radio.getState());
-      socket.emit('radio:listeners', { count: this.listeners.size });
+      socket.emit('radio:listeners', this.listenersPayload());
     });
     this.unsubscribe = this.radio.onChange((state) => this.ns?.emit('radio:state', state));
     this.log.log('Radio gateway ready');
@@ -65,16 +75,41 @@ export class RadioGateway implements OnGatewayInit, OnGatewayDisconnect, OnModul
     if (this.pushTimer) clearTimeout(this.pushTimer);
   }
 
+  private listenersPayload() {
+    const users: RadioListener[] = [];
+    for (const id of this.listeners.keys()) {
+      const u = this.info.get(id);
+      if (u) users.push(u);
+      if (users.length >= LISTENERS_LIST_MAX) break;
+    }
+    return { count: this.listeners.size, users };
+  }
+
+  private async loadInfo(userId: string) {
+    if (this.info.has(userId)) return;
+    const row = await this.prisma.user
+      .findUnique({ where: { id: userId }, select: { username: true, nickname: true, avatarUrl: true } })
+      .catch(() => null);
+    this.info.set(userId, {
+      id: userId,
+      name: row?.nickname?.trim() || row?.username || '?',
+      avatarUrl: row?.avatarUrl ?? null,
+    });
+  }
+
   @SubscribeMessage('radio:join')
-  join(@ConnectedSocket() client: RadioSocket) {
+  async join(@ConnectedSocket() client: RadioSocket) {
     const userId = client.data.userId;
     if (!userId) return { ok: false };
+    await this.loadInfo(userId);
+    // пока грузили профиль, сокет мог закрыться: не оставляем «призрака» в списке слушателей
+    if (!client.connected) return { ok: false };
     const set = this.listeners.get(userId) ?? new Set<string>();
     set.add(client.id);
     this.listeners.set(userId, set);
     this.scheduleListenersPush();
     // свежее состояние в ответ: клиент берёт его для расчёта позиции и сдвига часов
-    return { ok: true, state: this.radio.getState(), count: this.listeners.size };
+    return { ok: true, state: this.radio.getState(), ...this.listenersPayload() };
   }
 
   @SubscribeMessage('radio:leave')
@@ -93,7 +128,10 @@ export class RadioGateway implements OnGatewayInit, OnGatewayDisconnect, OnModul
     const set = this.listeners.get(userId);
     if (!set) return;
     set.delete(client.id);
-    if (set.size === 0) this.listeners.delete(userId);
+    if (set.size === 0) {
+      this.listeners.delete(userId);
+      this.info.delete(userId);
+    }
     this.scheduleListenersPush();
   }
 
@@ -102,7 +140,7 @@ export class RadioGateway implements OnGatewayInit, OnGatewayDisconnect, OnModul
     if (this.pushTimer) return;
     this.pushTimer = setTimeout(() => {
       this.pushTimer = null;
-      this.ns?.emit('radio:listeners', { count: this.listeners.size });
+      this.ns?.emit('radio:listeners', this.listenersPayload());
     }, LISTENERS_THROTTLE_MS);
     this.pushTimer.unref?.();
   }
