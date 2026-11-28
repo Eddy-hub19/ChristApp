@@ -1425,6 +1425,13 @@ export function clientGameConfig() {
       zoomPct: Math.round((c.teamMode.cameraZoom - 1) * 100),
       afkMinActions: c.teamMode.afkMinActions,
     },
+    /** «Лабіринт» і гоночна основа: числа для вікон «Режими», «Про гру» та правил (сам режим бере все з welcome). */
+    race: {
+      maxParticipants: c.race.maxParticipants,
+      dash: { mult: c.race.dash.mult, durationMs: c.race.dash.durationMs, cooldownMs: c.race.dash.cooldownMs },
+      reward: { rubies: c.race.reward.rubies, dailyWinLimit: c.race.reward.dailyWinLimit, minHumans: c.race.reward.minHumans },
+    },
+    maze: { maxDurationMs: c.maze.maxDurationMs, cols: c.maze.cols, rows: c.maze.rows, checkpoints: c.maze.checkpoints },
     monsters: { min: c.monsters.min, max: c.monsters.max, speedPct: Math.round((c.monsters.speedMultiplier - 1) * 100), respawnMs: c.monsters.respawnMs, capHumans6: c.monsters.capByHumans[0]?.[1] ?? c.monsters.max, capFromHumans: c.monsters.capByHumans[0]?.[0] ?? 6, massMin: c.monsters.massMin, massMax: c.monsters.massMax },
     sprint: { ...c.sprint },
     treasure: {
