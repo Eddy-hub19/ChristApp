@@ -8,6 +8,7 @@ import OtaraAnnouncement from "@/components/OtaraAnnouncement/OtaraAnnouncement"
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync";
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket";
 import CallProvider from "@/components/calls/CallProvider";
+import PlayerAutoPause from "@/components/SheepPlayer/PlayerAutoPause";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt/PwaInstallPrompt";
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration";
 import PushAutoSync from "@/components/PushAutoSync/PushAutoSync";
@@ -54,6 +55,7 @@ export default function AppShellLayout({
         <PresenceSocket>
           <CallProvider>
             <CinemaProvider>
+              <PlayerAutoPause />
               <OtaraAnnouncement />
               <DesignBackdrop />
               <AppBackground />

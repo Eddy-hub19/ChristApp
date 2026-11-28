@@ -1,0 +1,460 @@
+/* Плеер-овечка: карточка в зоне закрепов чата, мини-полоска над навбаром и шторка.
+   Цвета - только переменные темы; анимации - transform/opacity и только пока играет или грузится. */
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 56px;
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 22%);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, var(--accent-soft) 12%);
+  color: var(--foreground);
+}
+
+.cardCollapsed {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 4px 6px;
+  gap: 4px;
+  border-radius: 999px;
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.figureBtn {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title,
+.artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.artist {
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.playBtn {
+  background: var(--accent);
+  color: var(--surface-elevated);
+
+  &:hover {
+    background: var(--accent);
+    opacity: 0.9;
+  }
+}
+
+/* На узком экране прыжки назад/вперёд остаются в шторке: карточке нужно место под название. */
+@media (max-width: 420px) {
+  .skipBtn {
+    display: none;
+  }
+}
+
+.thin {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.thinFill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+
+/* --- мини-полоска над навбаром (вне чата) --- */
+.mini {
+  position: fixed;
+  z-index: 140;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  /* над плавающим TabBar (bottom 12px + safe-area, высота ~80px) */
+  bottom: calc(12px + 80px + 8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px 0 10px;
+  box-sizing: border-box;
+  color: var(--foreground);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 22%);
+  background: color-mix(in srgb, var(--surface-elevated) 94%, var(--accent-soft) 6%);
+
+  @media (min-width: 768px) {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 32px));
+  }
+}
+
+.miniMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.miniTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* --- овечка --- */
+.figure {
+  flex-shrink: 0;
+  color: var(--foreground);
+  overflow: visible;
+}
+
+.wool circle {
+  fill: color-mix(in srgb, var(--foreground) 6%, var(--surface-elevated));
+  stroke: color-mix(in srgb, var(--foreground) 45%, var(--surface-elevated));
+  stroke-width: 1.2;
+}
+
+.face {
+  fill: color-mix(in srgb, var(--foreground) 62%, var(--surface-elevated));
+}
+
+.legs {
+  stroke: color-mix(in srgb, var(--foreground) 62%, var(--surface-elevated));
+}
+
+.eye {
+  fill: var(--surface-elevated);
+}
+
+.mouth {
+  fill: var(--surface-elevated);
+}
+
+.lid {
+  stroke: var(--surface-elevated);
+}
+
+.zzz {
+  fill: var(--accent);
+  font-family: inherit;
+}
+
+.notes {
+  opacity: 0;
+}
+
+.note {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.figure[data-state="playing"] {
+  .body {
+    animation: sheepSway 1.6s ease-in-out infinite;
+  }
+  .notes {
+    opacity: 1;
+  }
+  .note {
+    animation: noteFloat 2.2s ease-in infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .noteLate {
+    animation-delay: 1.1s;
+  }
+}
+
+.figure[data-state="loading"] {
+  animation: sheepPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sheepSway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes noteFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes sheepPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figure[data-state="playing"] .body,
+  .figure[data-state="playing"] .note,
+  .figure[data-state="loading"] {
+    animation: none;
+  }
+}
+
+/* --- шторка --- */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.sheetHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.sheetTitle {
+  margin: 8px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.sheetArtist {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.status,
+.statusError {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.status {
+  color: var(--text-muted);
+}
+
+.statusError {
+  color: var(--foreground);
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.seekRow,
+.volumeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time {
+  min-width: 36px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.sheetControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.playBig {
+  width: 52px;
+  height: 52px;
+  background: var(--accent);
+  color: var(--surface-elevated);
+
+  &:hover {
+    background: var(--accent);
+    opacity: 0.9;
+  }
+}
+
+.queueTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.queueList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.queueItem {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.queueItemActive {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.queueName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.queueArtist {
+  font-size: 12px;
+  color: var(--text-muted);
+}

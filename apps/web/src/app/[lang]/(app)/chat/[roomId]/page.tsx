@@ -40,6 +40,7 @@ import {
 } from "@/lib/chatRooms";
 import { chatMessagePreview } from "@/lib/chatMessagePreview";
 import PinnedBar from "@/components/ChatShared/PinnedBar";
+import SheepPlayer from "@/components/SheepPlayer/SheepPlayer";
 import type { RoomPin } from "@/types/pin";
 import {
   parseLegacyReplyPrefix,
@@ -3770,6 +3771,7 @@ export default function ChatPageDetails() {
   const messagingPane = (
     <ChatWindow
       messages={messages}
+      audioRoomId={effectiveSocketRoomId ?? undefined}
       onLoadOlder={handleLoadOlder}
       hasMoreOlder={hasMoreOlder}
       loadingOlder={loadingOlder}
@@ -3996,6 +3998,8 @@ export default function ChatPageDetails() {
             </div>
           </div>
         </div>
+
+        {!authError ? <SheepPlayer /> : null}
 
         {!authError && !isHistoryLoading && pins.length > 0 ? (
           <PinnedBar pins={pins} onOpen={(messageId) => jumpToMessageRef.current?.(messageId)} />

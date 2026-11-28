@@ -3,15 +3,12 @@
 import {
   memo,
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
-  type ChangeEvent,
   type MouseEvent,
 } from "react";
 import Image from "next/image";
-import { RotateCw, X } from "lucide-react";
+import { Pause, Play, RotateCw, X } from "lucide-react";
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback";
 import {
   type AppReactionType,
@@ -43,14 +40,14 @@ import GameInviteCard from "@/components/FlockMiniGame/GameInviteCard";
 import { parseGameInvite, type PairGameId } from "@/lib/gameInviteMessage";
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage";
 import { stripLegacyReplyPrefix } from "@/lib/legacyReplyPrefix";
-import ChatMessageAudio from "@/components/ChatMessageAudio/ChatMessageAudio";
 import ChatImage from "@/components/ChatImage/ChatImage";
 import FileBubble from "@/components/FileBubble/FileBubble";
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble";
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText";
 import VideoSheep from "@/components/VideoSheep/VideoSheep";
 import BookMessageBubble from "@/components/BookMessageBubble/BookMessageBubble";
-import { repairMojibakeName } from "@/lib/chatMedia";
+import { getFileDisplayName, isAudioFileName } from "@/lib/audioFileTrack";
+import { type AudioTrack, usePlayer, usePlayerTime } from "@/providers/playerContext";
 import { bookFormatFromName, isBookFileName, toRawCloudinaryUrl } from "@/lib/book/bookFile";
 import { fetchBookFile, shareOrDownloadBook, canShareFiles } from "@/lib/book/shareFile";
 
@@ -102,11 +99,6 @@ const URL_REGEX = /((?:https?:\/\/|www\.)[^\s<]+)/gi;
 type LinkChunk =
   | { type: "text"; value: string }
   | { type: "link"; value: string; href: string };
-
-function isAudioFileName(name: string): boolean {
-  const ext = name.split(".").pop()?.toLowerCase();
-  return ext === "mp3" || ext === "m4a";
-}
 
 function fmtTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -238,58 +230,46 @@ function LinkPreviewCard({ href }: { href: string }) {
   );
 }
 
-function AudioFileBubble({ src, filename }: { src: string; filename: string }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+function ActiveAudioProgress({ onSeek, label }: { onSeek: (seconds: number) => void; label: string }) {
+  const { currentTime, duration } = usePlayerTime();
+  return (
+    <>
+      <input
+        type="range"
+        className={styles.audioFileProgress}
+        min={0}
+        max={duration || 0}
+        step={0.1}
+        value={Math.min(currentTime, duration || 0)}
+        onChange={(e) => {
+          e.stopPropagation();
+          onSeek(parseFloat(e.target.value));
+        }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label={label}
+        aria-valuetext={`${fmtTime(currentTime)} / ${fmtTime(duration)}`}
+      />
+      <span className={styles.audioFileTime}>
+        {duration > 0 ? `${fmtTime(currentTime)} / ${fmtTime(duration)}` : fmtTime(currentTime)}
+      </span>
+    </>
+  );
+}
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onMeta = () => setDuration(audio.duration);
-    const onTime = () => setCurrentTime(audio.currentTime);
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-    };
-    audio.addEventListener("loadedmetadata", onMeta);
-    audio.addEventListener("timeupdate", onTime);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("loadedmetadata", onMeta);
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, []);
+/** Аудиофайл в чате: сам не играет, а управляет общим плеером (один <audio> на приложение). */
+function AudioFileBubble({ track, filename }: { track: AudioTrack; filename: string }) {
+  const tp = useTranslations("player");
+  const { currentTrack, isPlaying, isLoading, toggleTrack, seek } = usePlayer();
+  const active = currentTrack?.id === track.id;
+  const playing = active && isPlaying;
 
   const toggle = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (isPlaying) audio.pause();
-    else void audio.play();
-  };
-
-  const handleSeek = (e: ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    const audio = audioRef.current;
-    if (!audio) return;
-    const val = parseFloat(e.target.value);
-    audio.currentTime = val;
-    setCurrentTime(val);
+    toggleTrack(track);
   };
 
   return (
     <div className={styles.audioFileBubble} data-bubble-control>
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio ref={audioRef} src={src} preload="metadata" />
       <p className={styles.audioFileTitle}>
         <span className={styles.audioFileIcon} aria-hidden>
           ♪
@@ -301,26 +281,28 @@ function AudioFileBubble({ src, filename }: { src: string; filename: string }) {
           type="button"
           className={styles.audioPlayButton}
           onClick={toggle}
-          aria-label={isPlaying ? "Пауза" : "Воспроизвести"}
+          aria-label={playing ? tp("pause") : tp("play")}
+          aria-busy={active && isLoading}
         >
-          {isPlaying ? "⏸" : "▶"}
+          {playing ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
         </button>
-        <input
-          type="range"
-          className={styles.audioFileProgress}
-          min={0}
-          max={duration || 0}
-          step={0.1}
-          value={currentTime}
-          onChange={handleSeek}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Прогресс воспроизведения"
-        />
-        <span className={styles.audioFileTime}>
-          {duration > 0
-            ? `${fmtTime(currentTime)} / ${fmtTime(duration)}`
-            : fmtTime(currentTime)}
-        </span>
+        {active ? (
+          <ActiveAudioProgress onSeek={seek} label={tp("progress")} />
+        ) : (
+          <>
+            <input
+              type="range"
+              className={styles.audioFileProgress}
+              min={0}
+              max={0}
+              value={0}
+              disabled
+              aria-label={tp("progress")}
+              readOnly
+            />
+            <span className={styles.audioFileTime}>{fmtTime(0)}</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -606,19 +588,7 @@ function MessageBubble({
         }
 
         if (message.type === "FILE" && imgUrl) {
-          const fallbackName = (() => {
-            const raw = message.content?.trim();
-            if (raw) {
-              return repairMojibakeName(raw);
-            }
-            try {
-              const pathname = new URL(imgUrl).pathname;
-              const segment = pathname.split("/").filter(Boolean).pop();
-              return segment ? repairMojibakeName(decodeURIComponent(segment)) : "file";
-            } catch {
-              return "file";
-            }
-          })();
+          const fallbackName = getFileDisplayName(message.content, imgUrl);
 
           if (isAudioFileName(fallbackName)) {
             return (
@@ -637,7 +607,10 @@ function MessageBubble({
                     <span> — {tChat("musicLabel")}</span>
                   </p>
                 ) : null}
-                <AudioFileBubble src={imgUrl} filename={fallbackName} />
+                <AudioFileBubble
+                  track={{ id: message.id, audioUrl: imgUrl, title: fallbackName.replace(/\.[^.]+$/, "") || fallbackName, artist: senderName }}
+                  filename={fallbackName}
+                />
               </div>
             );
           }
@@ -775,7 +748,6 @@ function MessageBubble({
                   ))}
                 </div>
               ) : null}
-              <ChatMessageAudio text={message.content} />
             </>
           );
         }

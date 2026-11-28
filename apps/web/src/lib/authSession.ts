@@ -413,6 +413,8 @@ export async function logout(options?: {
 
     rejectQueue(createUnauthorizedError("Logged out"));
     isRefreshing = false;
+    // Плеер и прочие клиентские подсистемы останавливаются по этому событию (звук не должен пережить сессию).
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("app:logout"));
     resetClientAuthState();
     // Єдине місце для всіх виходів (кнопка, 401, синхронізація вкладок): локальні кеші не переживають сесію.
     await clearUserCaches();
