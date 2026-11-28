@@ -14,12 +14,15 @@ export function initMonster(p: Player, rng: Rng) {
   p.brain = brain;
 }
 
-/** Чи можна напасти на гравця: людина, жива, не на паузі, без щита й привида, не новачок (перші botGraceMs). */
+/** Чи можна напасти на гравця: людина чи звичайний бот (не чудовисько, вовк, тигр і вожак), жива, не на паузі, без щита й привида, не новачок (перші botGraceMs). */
 function attackable(world: FlockWorld, o: Player | undefined): o is Player {
   return (
     !!o &&
     o.alive &&
-    !o.bot &&
+    !o.monster &&
+    !o.wolf &&
+    !o.tiger &&
+    !o.boss &&
     !o.paused &&
     !world.isShielded(o) &&
     !world.isGhost(o) &&
@@ -28,8 +31,8 @@ function attackable(world: FlockWorld, o: Player | undefined): o is Player {
 }
 
 /**
- * Дешевий ШІ: рідше за звичайних ботів (раз на monsters.thinkEvery тіків) шукає найближчу клітину людини, на яку можна
- * напасти, - спершу в пространственій сітці навколо (aggroRadius), інакше біжить до найближчої такої людини на карті.
+ * Дешевий ШІ: рідше за звичайних ботів (раз на monsters.thinkEvery тіків) шукає найближчу клітину гравця (людини чи бота), на яку можна
+ * напасти, - спершу в пространственій сітці навколо (aggroRadius), інакше біжить до найближчого такого гравця на карті.
  * Лави не боїться (стежить лише за ціллю), ділитися й кидати не вміє. Між думками їде за попереднім напрямком.
  */
 export function thinkMonster(world: FlockWorld, p: Player, _rng: Rng) {
