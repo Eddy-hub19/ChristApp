@@ -947,14 +947,329 @@ $emerald: #1fb572;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
-.sheetKind_premium .allGrid,
-.sheetKind_legendary .allGrid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
 .sheetCard .allGrid > button {
   border-radius: 16px;
 }
 .sheetCard .allGrid > button canvas {
   width: 100% !important;
   height: auto !important;
+}
+
+/* Компактно: ширина как на телефоне, чтобы все скины помещались на один экран без прокрутки. */
+.sheetHead,
+.sheetScroll,
+.sheetFoot {
+  width: min(400px, 100%);
+}
+.sheetScroll {
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+.sheetCard {
+  padding: 12px;
+  border-radius: 22px;
+}
+.sheetCard .sheetSection {
+  gap: 6px;
+  padding-bottom: 10px;
+}
+.sheetCard .sheetSectionTitle {
+  font-size: 12px;
+}
+.sheetCard .allGrid {
+  gap: 5px;
+}
+.sheetCard .allGrid > button {
+  border-radius: 12px;
+}
+.sheetHead {
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+.sheetFoot {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Покупка закрытого скина: отдельной строкой под превью на всю ширину (иначе имя сжимается в столбик). */
+.miniBuy {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+
+  > * {
+    margin-top: 0;
+  }
+}
+
+.miniArt {
+  width: 44px;
+  height: 44px;
+}
+
+/* Выбранный скин - сверху (под заголовком), «Готово» - сразу под сеткой, без пустого провала между ними. */
+.sheetPreview {
+  flex: none;
+  width: min(400px, 100%);
+  margin: 0 auto;
+  padding: 0 16px 8px;
+  box-sizing: border-box;
+}
+.sheetPreview .miniPreview {
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+.sheetScroll {
+  flex: 0 1 auto;
+}
+.sheetFoot {
+  border-top: 0;
+  padding-top: 0;
+  background: transparent;
+}
+
+/* Обёртки колонок: на телефоне «невидимы» (как раньше, одна колонка), на широком экране - сетка из трёх колонок. */
+.colSkins,
+.colQuests,
+.colStats,
+.colBoard,
+.notices {
+  display: contents;
+}
+
+@media (min-width: 1000px) {
+  .lobbyCard {
+    width: min(1000px, 100%);
+  }
+  .scroll {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto 1fr auto;
+    align-items: stretch;
+    column-gap: 14px;
+    row-gap: 14px;
+    padding: 18px 20px 20px;
+    overflow-y: auto;
+  }
+  .head,
+  .tagline,
+  .notices {
+    grid-column: 1 / -1;
+  }
+  .tagline {
+    margin: -10px 0 0;
+  }
+  .notices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    &:empty {
+      display: none;
+    }
+  }
+
+  /* колонка 1: выбранный облик, вкладки, плитки */
+  .colSkins {
+    grid-column: 1;
+    grid-row: 3 / span 3;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+    background: color-mix(in srgb, var(--foreground) 4%, transparent);
+    min-width: 0;
+  }
+  .colSkins .showcase {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: center;
+  }
+  .colSkins .showcasePreview {
+    width: 150px;
+    height: 150px;
+
+    canvas {
+      width: 140px !important;
+      height: 140px !important;
+    }
+  }
+  .colSkins .showcaseInfo {
+    align-items: center;
+    width: 100%;
+  }
+  .colSkins .showcaseTop {
+    align-items: center;
+  }
+  .colSkins .showcaseStatus {
+    justify-content: center;
+  }
+  .colSkins .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .colSkins .railRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .colSkins .rail {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 2px;
+    overflow: visible;
+
+    > button {
+      flex: none;
+      width: auto;
+    }
+  }
+  .colSkins .allBtn {
+    height: 38px;
+    justify-content: center;
+  }
+
+  /* колонка 2: задания и личная статистика */
+  .colQuests {
+    grid-column: 2;
+    grid-row: 3;
+    display: block;
+    min-width: 0;
+  }
+  .colStats {
+    grid-column: 2;
+    grid-row: 4;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  /* колонка 3: рекорды дня */
+  .colBoard {
+    grid-column: 3;
+    grid-row: 3 / span 3;
+    display: block;
+    min-width: 0;
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+    background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  }
+
+  .dock {
+    padding: 12px 20px;
+  }
+}
+
+/* «Личная статистика»: заголовок виден только в десктопной раскладке, блок - карточка. */
+.statsTitle {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .colStats {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+    background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  }
+  .statsTitle {
+    display: block;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+  }
+  .colStats .statsToggle {
+    cursor: default;
+    pointer-events: none;
+    background: transparent;
+    padding: 0;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .colStats .statsToggle > svg {
+    display: none;
+  }
+  .colStats .statCell {
+    padding: 10px 4px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  }
+  .colStats .statValue {
+    font-size: 20px;
+  }
+  .colStats .statsFull {
+    display: none;
+  }
+}
+
+/* Артефакты: блок внизу средней колонки (на телефоне скрыт - там кнопка в шапке и меню «⋮»). */
+.colArtifacts {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .colArtifacts {
+    grid-column: 2;
+    grid-row: 5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+    background: color-mix(in srgb, var(--foreground) 4%, transparent);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    img {
+      flex: none;
+      object-fit: contain;
+    }
+    &:hover {
+      background: color-mix(in srgb, var(--foreground) 8%, transparent);
+    }
+  }
+  .artifactsText {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-size: 15px;
+    }
+    span {
+      font-size: 13px;
+      opacity: 0.7;
+    }
+  }
+  /* кнопка артефактов в шапке на десктопе не нужна - есть блок */
+  .headTools .toolInline:nth-child(2) {
+    display: none !important;
+  }
+
+  /* «Играть» компактнее: не на всю ширину, по центру */
+  .dock {
+    justify-content: center;
+    height: 44px;
+  }
+  .play {
+    flex: 0 0 260px;
+    font-size: 16px;
+    border-radius: 14px;
+  }
+  .dockIcon,
+  .dockInvite {
+    flex: 0 0 44px;
+  }
 }

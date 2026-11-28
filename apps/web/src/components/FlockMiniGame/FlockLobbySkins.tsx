@@ -202,6 +202,38 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
           <X size={20} aria-hidden />
         </button>
       </header>
+      <div className={styles.sheetPreview}>
+        <div className={styles.miniPreview}>
+          <div className={styles.miniArt}>
+            <SkinPreview skinId={focus} artifactId={artifact} size={52} />
+          </div>
+          <div className={styles.miniInfo}>
+            <strong className={styles.miniName}>{skinName(focus)}</strong>
+            <span className={styles.miniMeta}>
+              {locked ? soon ? t("rubies.soon") : <span className={styles.priceLine}>{priceNode(focus)}</span> : isCurrent ? <span className={styles.ownedLine}>{t("lobby.current")}</span> : isOwnedPaid(focus, tabs, isOwned) ? <span className={styles.ownedLine}>{t("lobby.owned")}</span> : null}
+            </span>
+            {perkNode}
+          </div>
+          <div className={styles.miniAction}>
+            {locked ? (
+              soon ? (
+                <button type="button" className={styles.miniBtn} disabled>
+                  {t("rubies.soon")}
+                </button>
+              ) : previewSkin === focus ? null : (
+                <button type="button" className={styles.miniBtn} onClick={() => onPeek(focus)}>
+                  {t("lobby.buy")}
+                </button>
+              )
+            ) : (
+              <button type="button" className={styles.miniBtn} disabled={isCurrent} onClick={() => onSelect(focus)}>
+                {isCurrent ? t("lobby.current") : t("lobby.choose")}
+              </button>
+            )}
+          </div>
+          {locked && !soon && previewSkin === focus ? <div className={styles.miniBuy}>{buyBlock(focus)}</div> : null}
+        </div>
+      </div>
       <div className={styles.sheetScroll}>
         <div className={styles.sheetCard}>
         {tabs.map((x) => {
@@ -233,37 +265,6 @@ function SkinsSheet({ tabs, initialTab, onClose, isOwned, isLocked, isSoon, pric
         </div>
       </div>
       <footer className={styles.sheetFoot}>
-        <div className={styles.miniPreview}>
-          <div className={styles.miniArt}>
-            <SkinPreview skinId={focus} artifactId={artifact} size={52} />
-          </div>
-          <div className={styles.miniInfo}>
-            <strong className={styles.miniName}>{skinName(focus)}</strong>
-            <span className={styles.miniMeta}>
-              {locked ? soon ? t("rubies.soon") : <span className={styles.priceLine}>{priceNode(focus)}</span> : isCurrent ? <span className={styles.ownedLine}>{t("lobby.current")}</span> : isOwnedPaid(focus, tabs, isOwned) ? <span className={styles.ownedLine}>{t("lobby.owned")}</span> : null}
-            </span>
-            {perkNode}
-          </div>
-          <div className={styles.miniAction}>
-            {locked ? (
-              soon ? (
-                <button type="button" className={styles.miniBtn} disabled>
-                  {t("rubies.soon")}
-                </button>
-              ) : previewSkin === focus ? (
-                buyBlock(focus)
-              ) : (
-                <button type="button" className={styles.miniBtn} onClick={() => onPeek(focus)}>
-                  {t("lobby.buy")}
-                </button>
-              )
-            ) : (
-              <button type="button" className={styles.miniBtn} disabled={isCurrent} onClick={() => onSelect(focus)}>
-                {isCurrent ? t("lobby.current") : t("lobby.choose")}
-              </button>
-            )}
-          </div>
-        </div>
         <button type="button" className={styles.done} onClick={onClose}>
           {t("lobby.done")}
         </button>
