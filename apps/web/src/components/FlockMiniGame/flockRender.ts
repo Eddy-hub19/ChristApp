@@ -822,12 +822,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, m: FlockModel, o: DrawO
     }
     for (const [pid, t0] of maze.dissolving) {
       const age = nowMs - t0;
-      if (age > maze.cfg.dissolveMs) {
+      if (age > maze.extras.dissolveMs) {
         maze.dissolving.delete(pid);
         continue;
       }
       const meta = m.lastOwn && pid === m.cfg.pid ? m.lastOwn : null;
-      if (meta) drawMazeDissolve(ctx, meta.x, meta.y, meta.r, age, maze.cfg.dissolveMs);
+      if (meta) drawMazeDissolve(ctx, meta.x, meta.y, meta.r, age, maze.extras.dissolveMs);
     }
   }
 

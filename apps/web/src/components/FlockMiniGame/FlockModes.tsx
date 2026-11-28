@@ -30,8 +30,8 @@ export default function FlockModes({ game, canPlay, onPlayCastles, onPlayMaze, o
     size: size === undefined ? "…" : String(size),
     minutes: matchMs === undefined ? "…" : String(Math.round(matchMs / 60_000)),
   });
-  const mazeMax = configValue(game, "maze.maxPlayers") ?? MAZE_UI.maxPlayers;
-  const mazeSec = configValue(game, "maze.roundMs") === undefined ? MAZE_UI.roundMaxSec : Math.round((configValue(game, "maze.roundMs") as number) / 1000);
+  const mazeMax = configValue(game, "race.maxParticipants") ?? MAZE_UI.maxPlayers;
+  const mazeSec = configValue(game, "maze.maxDurationMs") === undefined ? MAZE_UI.roundMaxSec : Math.round((configValue(game, "maze.maxDurationMs") as number) / 1000);
   return (
     <FlockSheet title={t("title")} closeLabel={t("close")} onClose={onClose} testId="flock-modes">
       {() => (

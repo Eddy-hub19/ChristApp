@@ -4,7 +4,7 @@
  * кристал-фініш із променями). Без shadowBlur, без одного величезного полотна, без перестворення спрайтів на кадрі.
  * Палітра не залежить від теми застосунку. При «зменшити рух» мерехтіння й пульсації вимкнено.
  */
-import { MAZE_DIRS, mazeCellCenter, type MazeGrid, type MazeView } from "./flockMaze";
+import { OPEN_E, OPEN_N, OPEN_S, OPEN_W, cellCenter, type MazeGrid, type MazeView } from "./flockMaze";
 import { prefersReducedMotion } from "./flockSprites";
 
 const TAU = Math.PI * 2;
@@ -426,6 +426,13 @@ function runeSprite(size: number, q: number) {
   });
 }
 
+// ---------------------------------------------------------------- допоміжне (геометрія контракту: стіна - смуга `wall`, ліва/верхня межа лінії i на o + i*cell)
+const ctr = (g: MazeGrid, i: number) => {
+  const [x, y] = cellCenter(g, i);
+  return { x, y };
+};
+const openCount = (m: number) => (m & OPEN_N ? 1 : 0) + (m & OPEN_E ? 1 : 0) + (m & OPEN_S ? 1 : 0) + (m & OPEN_W ? 1 : 0);
+
 // ---------------------------------------------------------------- декор у нішах (детерміновано за сіткою)
 interface Deco {
   kind: "shroom" | "crystal";
@@ -438,31 +445,29 @@ function decoFor(g: MazeGrid): Deco[] {
   let d = decoCache.get(g);
   if (d) return d;
   d = [];
-  const off = g.cell * 0.27;
-  const isRoom = new Set(g.room);
+  const off = (g.cell - g.wall) * 0.27;
+  const isRoom = new Set(g.startRoom);
   const onPath = new Set(g.path);
   for (let i = 0; i < g.cols * g.rows; i++) {
     if (isRoom.has(i)) continue;
-    const m = g.walls[i];
-    const walls = (m & 1 ? 1 : 0) + (m & 2 ? 1 : 0) + (m & 4 ? 1 : 0) + (m & 8 ? 1 : 0);
+    const m = g.open[i];
+    const n = openCount(m);
     const x = i % g.cols;
     const y = Math.floor(i / g.cols);
     const h = cellHash(x, y);
-    const c = mazeCellCenter(g, i);
-    if (walls === 3) {
-      // глухий кут: декор біля закритого кінця (протилежно до відкритої сторони)
+    const c = ctr(g, i);
+    if (n === 1) {
+      // глухий кут: декор біля закритого кінця (протилежно до єдиного відкритого проходу)
       let ox = 0;
       let oy = 0;
-      if (!(m & MAZE_DIRS.N)) oy = off;
-      else if (!(m & MAZE_DIRS.S)) oy = -off;
-      else if (!(m & MAZE_DIRS.E)) ox = -off;
+      if (m & OPEN_N) oy = off;
+      else if (m & OPEN_S) oy = -off;
+      else if (m & OPEN_E) ox = -off;
       else ox = off;
       d.push({ kind: h % 3 === 0 ? "crystal" : "shroom", x: c.x + ox, y: c.y + oy, v: h >> 4 });
-    } else if (walls === 2 && !onPath.has(i) && h % 3 === 0) {
+    } else if (n === 2 && !onPath.has(i) && h % 3 === 0) {
       // ніша в куті
-      const cornerX = (h >> 3) & 1 ? off : -off;
-      const cornerY = (h >> 5) & 1 ? off : -off;
-      d.push({ kind: h % 2 ? "shroom" : "crystal", x: c.x + cornerX, y: c.y + cornerY, v: h >> 4 });
+      d.push({ kind: h % 2 ? "shroom" : "crystal", x: c.x + ((h >> 3) & 1 ? off : -off), y: c.y + ((h >> 5) & 1 ? off : -off), v: h >> 4 });
     }
   }
   decoCache.set(g, d);
@@ -478,30 +483,31 @@ export function drawMazeWorld(ctx: CanvasRenderingContext2D, v: MazeView, x0: nu
   const g = v.grid;
   const q = quant(px);
   const animate = !prefersReducedMotion();
+  const cell = g.cell;
+  const wall = g.wall;
   ctx.fillStyle = C.void;
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-  const cx0 = Math.max(0, Math.floor((x0 - g.ox) / g.cell) - 1);
-  const cx1 = Math.min(g.cols - 1, Math.floor((x1 - g.ox) / g.cell) + 1);
-  const cy0 = Math.max(0, Math.floor((y0 - g.oy) / g.cell) - 1);
-  const cy1 = Math.min(g.rows - 1, Math.floor((y1 - g.oy) / g.cell) + 1);
+  const cx0 = Math.max(0, Math.floor((x0 - g.ox) / cell) - 1);
+  const cx1 = Math.min(g.cols - 1, Math.floor((x1 - g.ox) / cell) + 1);
+  const cy0 = Math.max(0, Math.floor((y0 - g.oy) / cell) - 1);
+  const cy1 = Math.min(g.rows - 1, Math.floor((y1 - g.oy) / cell) + 1);
   if (cx1 < cx0 || cy1 < cy0) return;
 
-  // 1. підлога
+  // 1. підлога: блок клітини (внутрішність + ліва/верхня смуга стіни; стіни лягають поверх)
   for (let cy = cy0; cy <= cy1; cy++) {
     for (let cx = cx0; cx <= cx1; cx++) {
-      ctx.drawImage(floorTile(cellHash(cx, cy) % FLOOR_VARIANTS, g.cell, q), g.ox + cx * g.cell, g.oy + cy * g.cell, g.cell, g.cell);
+      ctx.drawImage(floorTile(cellHash(cx, cy) % FLOOR_VARIANTS, cell, q), g.ox + cx * cell, g.oy + cy * cell, cell, cell);
     }
   }
   // 2. кімната старту: тепле підсвічення й руна по центру
   {
-    const c0 = mazeCellCenter(g, g.room[0]);
-    const c3 = mazeCellCenter(g, g.room[3]);
-    const rx = (c0.x + c3.x) / 2;
-    const ry = (c0.y + c3.y) / 2;
-    if (rx > x0 - g.cell * 2 && rx < x1 + g.cell * 2 && ry > y0 - g.cell * 2 && ry < y1 + g.cell * 2) {
+    const rw = cell * 2 - wall;
+    const rx = g.ox + wall + rw / 2;
+    const ry = g.oy + wall + rw / 2;
+    if (rx > x0 - cell * 2 && rx < x1 + cell * 2 && ry > y0 - cell * 2 && ry < y1 + cell * 2) {
       ctx.fillStyle = "rgba(255,217,120,0.07)";
-      ctx.fillRect(g.ox, g.oy, g.cell * 2, g.cell * 2);
-      const rs = g.cell * 1.7;
+      ctx.fillRect(g.ox + wall, g.oy + wall, rw, rw);
+      const rs = cell * 1.7;
       ctx.drawImage(runeSprite(Math.round(rs), q), rx - rs / 2, ry - rs / 2, rs, rs);
     }
   }
@@ -512,31 +518,27 @@ export function drawMazeWorld(ctx: CanvasRenderingContext2D, v: MazeView, x0: nu
     ctx.drawImage(halo(70, d.kind === "shroom" ? "rgba(69,230,200,0.40)" : "rgba(143,233,255,0.38)", q, d.kind), d.x - 70, d.y - 62, 140, 140);
     ctx.drawImage(d.kind === "shroom" ? mushroomSprite(d.v & 1, q) : crystalSprite(d.v & 1, q), d.x - S / 2, d.y - S * 0.7, S, S);
   }
-  // 4. тіні стін, потім тіла стін (щоб тінь не лягала на сусідні стіни)
-  const wall = g.wall;
-  const len = g.cell + wall;
-  const hw = wall / 2;
+  // 4. тіні стін, потім тіла (щоб тінь не лягала на сусідні стіни). Стіна - смуга `wall`: горизонтальна
+  // над клітиною (c,r) закрита, якщо r == 0 або нема проходу на північ; вертикальна ліворуч - якщо c == 0 або нема проходу на захід.
+  // Нижня й права межа малюються для останнього ряду / стовпця.
+  const len = cell + wall;
+  const hBar = (c: number, r: number) => (r <= 0 || r >= g.rows ? true : !(g.open[r * g.cols + c] & OPEN_N));
+  const vBar = (c: number, r: number) => (c <= 0 || c >= g.cols ? true : !(g.open[r * g.cols + c] & OPEN_W));
   for (let pass = 0; pass < 2; pass++) {
-    for (let cy = cy0; cy <= cy1; cy++) {
-      for (let cx = cx0; cx <= cx1; cx++) {
-        const m = g.walls[cy * g.cols + cx];
-        if (!m) continue;
-        const left = g.ox + cx * g.cell;
-        const top = g.oy + cy * g.cell;
-        const north = (m & MAZE_DIRS.N) !== 0;
-        const west = (m & MAZE_DIRS.W) !== 0;
-        const south = cy === g.rows - 1 && (m & MAZE_DIRS.S) !== 0;
-        const east = cx === g.cols - 1 && (m & MAZE_DIRS.E) !== 0;
+    for (let cy = cy0; cy <= cy1 + 1; cy++) {
+      for (let cx = cx0; cx <= cx1 + 1; cx++) {
+        const bx = g.ox + cx * cell;
+        const by = g.oy + cy * cell;
+        const h = cx < g.cols && cy <= g.rows && hBar(cx, cy);
+        const vv = cy < g.rows && cx <= g.cols && vBar(cx, cy);
         if (pass === 0) {
-          if (north) ctx.drawImage(wallShadow(true, len, wall, q), left - hw - SH, top - hw - SH, len + SH * 2, wall + SH * 2);
-          if (west) ctx.drawImage(wallShadow(false, len, wall, q), left - hw - SH, top - hw - SH, wall + SH * 2, len + SH * 2);
-          if (south) ctx.drawImage(wallShadow(true, len, wall, q), left - hw - SH, top + g.cell - hw - SH, len + SH * 2, wall + SH * 2);
-          if (east) ctx.drawImage(wallShadow(false, len, wall, q), left + g.cell - hw - SH, top - hw - SH, wall + SH * 2, len + SH * 2);
+          if (h) ctx.drawImage(wallShadow(true, len, wall, q), bx - SH, by - SH, len + SH * 2, wall + SH * 2);
+          if (vv) ctx.drawImage(wallShadow(false, len, wall, q), bx - SH, by - SH, wall + SH * 2, len + SH * 2);
         } else {
-          if (north) ctx.drawImage(wallBody(true, len, wall, q), left - hw, top - hw, len, wall);
-          if (west) ctx.drawImage(wallBody(false, len, wall, q), left - hw, top - hw, wall, len);
-          if (south) ctx.drawImage(wallBody(true, len, wall, q), left - hw, top + g.cell - hw, len, wall);
-          if (east) ctx.drawImage(wallBody(false, len, wall, q), left + g.cell - hw, top - hw, wall, len);
+          if (h) ctx.drawImage(wallBody(true, len, wall, q), bx, by, len, wall);
+          if (vv) ctx.drawImage(wallBody(false, len, wall, q), bx, by, wall, len);
+          // стовп на перетині ліній (є завжди, навіть без сусідніх смуг)
+          ctx.drawImage(wallBody(true, wall, wall, q), bx, by, wall, wall);
         }
       }
     }
@@ -544,23 +546,25 @@ export function drawMazeWorld(ctx: CanvasRenderingContext2D, v: MazeView, x0: nu
   // 5. смолоскипи-чекпоінти (одна фаза мерехтіння на всіх)
   const frame = animate ? FLAME_SEQ[Math.floor(time * 8) % FLAME_SEQ.length] : 0;
   for (let k = 0; k < g.checkpoints.length; k++) {
-    const c = mazeCellCenter(g, g.checkpoints[k]);
+    const c = ctr(g, g.checkpoints[k]);
     if (c.x < x0 - 200 || c.x > x1 + 200 || c.y < y0 - 200 || c.y > y1 + 200) continue;
     const lit = v.lit[k] === true;
     const hr = lit ? 190 : 80;
     ctx.drawImage(halo(hr, lit ? "rgba(255,179,71,0.55)" : "rgba(160,170,220,0.22)", q, lit ? "torchOn" : "torchOff"), c.x - hr, c.y - hr - 34, hr * 2, hr * 2);
     ctx.drawImage(torchSprite(lit, frame, q), c.x - TORCH_W / 2, c.y - TORCH_H * 0.7, TORCH_W, TORCH_H);
   }
-  // 6. кристал-фінiш (пульс лише коли можна рухатись)
+  // 6. кристал-фініш (пульс лише коли можна рухатись)
   {
-    const c = mazeCellCenter(g, g.finish);
-    if (c.x > x0 - g.cell * 2 && c.x < x1 + g.cell * 2 && c.y > y0 - g.cell * 2 && c.y < y1 + g.cell * 2) {
+    const fx = g.finishX;
+    const fy = g.finishY;
+    if (fx > x0 - cell * 2 && fx < x1 + cell * 2 && fy > y0 - cell * 2 && fy < y1 + cell * 2) {
       const pulse = animate ? 1 + Math.sin(time * 2.2) * 0.04 : 1;
+      const inner = cell - wall;
       ctx.fillStyle = "rgba(127,240,255,0.10)";
-      ctx.fillRect(c.x - g.cell / 2, c.y - g.cell / 2, g.cell, g.cell);
-      ctx.drawImage(halo(g.cell * 0.9, "rgba(127,240,255,0.5)", q, "finish"), c.x - g.cell * 0.9, c.y - g.cell * 0.9, g.cell * 1.8, g.cell * 1.8);
-      const s = g.cell * 1.5 * pulse;
-      ctx.drawImage(finishSprite(g.cell, q), c.x - s / 2, c.y - s / 2, s, s);
+      ctx.fillRect(fx - inner / 2, fy - inner / 2, inner, inner);
+      ctx.drawImage(halo(cell * 0.9, "rgba(127,240,255,0.5)", q, "finish"), fx - cell * 0.9, fy - cell * 0.9, cell * 1.8, cell * 1.8);
+      const s = cell * 1.5 * pulse;
+      ctx.drawImage(finishSprite(cell, q), fx - s / 2, fy - s / 2, s, s);
     }
   }
 }
@@ -586,7 +590,7 @@ export function drawMazeDissolve(ctx: CanvasRenderingContext2D, x: number, y: nu
   ctx.restore();
 }
 
-/** Мигаючий контур захисту після відродження (≈4 Гц); при «зменшити рух» - постійний тонкий контур. */
+/** Мигаючий контур захисту після відродження (≈3 Гц); при «зменшити рух» - постійний тонкий контур. */
 export function drawMazeShield(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, time: number, scale: number) {
   const blink = prefersReducedMotion() ? true : Math.floor(time * 6) % 2 === 0;
   ctx.save();
@@ -603,59 +607,62 @@ export function drawMazeShield(ctx: CanvasRenderingContext2D, x: number, y: numb
 // ---------------------------------------------------------------- мінікарта з туманом
 /**
  * Мінікарта: тільки власна позиція, відвідані клітини (з їхніми стінами) і фініш. Інших учасників не показуємо взагалі.
- * Викликати після того, як мінікарта вже залита фоном; world - розмір світу (cfg.world).
+ * Викликати після того, як мінікарта вже залита фоном.
  */
 export function drawMazeMinimap(ctx: CanvasRenderingContext2D, v: MazeView, size: number, ownX: number, ownY: number) {
   const g = v.grid;
-  const k = size / v.cfg.world;
+  const k = size / v.params.world;
   ctx.fillStyle = C.mini.bg;
   ctx.fillRect(0, 0, size, size);
   const cs = g.cell * k;
-  // відвідані клітини
+  const wk = Math.max(1, g.wall * k);
+  // відвідані клітини (блок клітини)
   ctx.fillStyle = C.mini.cell;
   for (let i = 0; i < g.cols * g.rows; i++) {
     if (!v.visited[i]) continue;
-    const x = g.ox + (i % g.cols) * g.cell;
-    const y = g.oy + Math.floor(i / g.cols) * g.cell;
-    ctx.fillRect(x * k, y * k, cs, cs);
+    ctx.fillRect((g.ox + (i % g.cols) * g.cell) * k, (g.oy + Math.floor(i / g.cols) * g.cell) * k, cs, cs);
   }
-  // їхні стіни
+  // їхні стіни: по осях смуг (верх, ліво, низ, право)
   ctx.strokeStyle = C.mini.wall;
-  ctx.lineWidth = Math.max(1, g.wall * k * 0.8);
+  ctx.lineWidth = wk;
   ctx.lineCap = "square";
   ctx.beginPath();
+  const half = wk / 2;
   for (let i = 0; i < g.cols * g.rows; i++) {
     if (!v.visited[i]) continue;
-    const m = g.walls[i];
-    const x = (g.ox + (i % g.cols) * g.cell) * k;
-    const y = (g.oy + Math.floor(i / g.cols) * g.cell) * k;
-    if (m & MAZE_DIRS.N) {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + cs, y);
+    const m = g.open[i];
+    const c = i % g.cols;
+    const r = Math.floor(i / g.cols);
+    const x = (g.ox + c * g.cell) * k;
+    const y = (g.oy + r * g.cell) * k;
+    if (!(m & OPEN_N)) {
+      ctx.moveTo(x, y + half);
+      ctx.lineTo(x + cs + wk, y + half);
     }
-    if (m & MAZE_DIRS.W) {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, y + cs);
+    if (!(m & OPEN_W)) {
+      ctx.moveTo(x + half, y);
+      ctx.lineTo(x + half, y + cs + wk);
     }
-    if (m & MAZE_DIRS.S) {
-      ctx.moveTo(x, y + cs);
-      ctx.lineTo(x + cs, y + cs);
+    if (!(m & OPEN_S)) {
+      ctx.moveTo(x, y + cs + half);
+      ctx.lineTo(x + cs + wk, y + cs + half);
     }
-    if (m & MAZE_DIRS.E) {
-      ctx.moveTo(x + cs, y);
-      ctx.lineTo(x + cs, y + cs);
+    if (!(m & OPEN_E)) {
+      ctx.moveTo(x + cs + half, y);
+      ctx.lineTo(x + cs + half, y + cs + wk);
     }
   }
   ctx.stroke();
   // фініш завжди видно: ромб
-  const f = mazeCellCenter(g, g.finish);
   ctx.fillStyle = C.mini.fin;
   ctx.beginPath();
   const fr = Math.max(3.2, cs * 0.45);
-  ctx.moveTo(f.x * k, f.y * k - fr);
-  ctx.lineTo(f.x * k + fr, f.y * k);
-  ctx.lineTo(f.x * k, f.y * k + fr);
-  ctx.lineTo(f.x * k - fr, f.y * k);
+  const fx = g.finishX * k;
+  const fy = g.finishY * k;
+  ctx.moveTo(fx, fy - fr);
+  ctx.lineTo(fx + fr, fy);
+  ctx.lineTo(fx, fy + fr);
+  ctx.lineTo(fx - fr, fy);
   ctx.closePath();
   ctx.fill();
   // своя позиція
@@ -668,15 +675,17 @@ export function drawMazeMinimap(ctx: CanvasRenderingContext2D, v: MazeView, size
   ctx.stroke();
 }
 
-/** Стрілка до фінішу біля краю екрана (лише коли fінiш за межами видимого й минув hintArrowAfterMs; 0 - вимкнена). */
+/** Стрілка до фінішу біля краю екрана (лише коли фініш за межами видимого й минув hintArrowAfterMs; 0 - вимкнена). */
 export function drawMazeFinishArrow(ctx: CanvasRenderingContext2D, v: MazeView, W: number, H: number, scale: number, camX: number, camY: number, time: number) {
-  if (v.hintArrowAfterMs <= 0 || v.roundMs < v.hintArrowAfterMs) return;
-  const f = mazeCellCenter(v.grid, v.grid.finish);
-  const sx = W / 2 + (f.x - camX) * scale;
-  const sy = H / 2 + (f.y - camY) * scale;
+  const after = v.extras.hintArrowAfterMs;
+  if (after <= 0 || v.roundMs < after) return;
+  const fx = v.grid.finishX;
+  const fy = v.grid.finishY;
+  const sx = W / 2 + (fx - camX) * scale;
+  const sy = H / 2 + (fy - camY) * scale;
   const pad = 36;
   if (sx > pad && sx < W - pad && sy > pad && sy < H - pad) return;
-  const ang = Math.atan2(f.y - camY, f.x - camX);
+  const ang = Math.atan2(fy - camY, fx - camX);
   const ex = Math.max(pad, Math.min(W - pad, sx));
   const ey = Math.max(pad, Math.min(H - pad, sy));
   const bob = prefersReducedMotion() ? 0 : Math.sin(time * 5) * 2;

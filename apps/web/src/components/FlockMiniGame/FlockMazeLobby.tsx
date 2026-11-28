@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import FlockSheet from "./FlockSheet";
-import { MAZE_DEFAULTS, MAZE_UI } from "./flockMaze";
+import { MAZE_UI } from "./flockMaze";
 import styles from "./FlockInfo.module.scss";
 
 type Props = {
@@ -22,7 +22,6 @@ export default function FlockMazeLobby({ canPlay, nums, onPlay, onClose }: Props
     reward: nums?.reward ?? MAZE_UI.rewardRubies,
     limit: nums?.limit ?? MAZE_UI.winsPerDay,
   };
-  void MAZE_DEFAULTS;
   return (
     <FlockSheet title={t("title")} closeLabel={t("play")} onClose={onClose} testId="flock-maze-lobby">
       {() => (
