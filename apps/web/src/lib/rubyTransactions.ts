@@ -18,6 +18,7 @@ export const RUBY_REASONS = [
   "DAILY_QUEST",
   "ARENA_COLISEUM",
   "ARENA_COLISEUM_SKIN",
+  "RACE_WIN",
 ] as const;
 export type RubyReason = (typeof RUBY_REASONS)[number];
 

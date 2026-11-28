@@ -1,3 +1,4 @@
+import type { MazeView } from "./flockMaze";
 import { iceStep, type IceCfg } from "./flockIce";
 import { twBridgeAdjust, type TreasureCfg } from "./flockTreasure";
 import { candyFactorOf, riverDriftAt, riverExitDepthAt, type CandyCfg } from "./flockCandy";
@@ -305,6 +306,8 @@ export class FlockModel {
   carry = 0;
   carryMax = 6;
   sky: SkyState | null = null;
+  /** «Лабіринт»: сітка й стан раунду (null - інший режим). Наповнюється склейкою з welcome (див. flockMaze.createMazeView). */
+  maze: MazeView | null = null;
   readonly falls: SkyFall[] = [];
   selfVoidMs = 0;
   /** Остання клітина власного гравця (для анімації смерті) і сама анімація (null - гравець живий). */

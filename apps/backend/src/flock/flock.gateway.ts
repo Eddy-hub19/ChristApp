@@ -65,6 +65,7 @@ export class FlockGateway
         onBossKill: (userId, connKey) => void this.rewardBossKill(userId, connKey),
         onCircleWin: (userId, connKey) => void this.rewardCircleWin(userId, connKey),
         onTeamMatchEnd: (s) => void this.settleTeamMatch(s),
+        onRaceWin: (s) => void this.settleRaceWin(s),
         // щоденні завдання: лише пам'ять (запис у БД пакетний); про виконане - окреме рідкісне повідомлення `qd`
         onQuest: (userId, connKey, events, flush) => {
           this.achievements.credit(userId, events);
@@ -173,6 +174,26 @@ export class FlockGateway
   }
 
   /**
+   * Переможець гонки («Лабіринт» і наступні гоночні режими): рубіни нараховує лише сервер, одна транзакція з унікальним ключем раунду,
+   * добовий ліміт спільний для всіх гоночних режимів. Клієнту - подія `rw` (картка підсумків уже показана з `reward.pending`).
+   */
+  private async settleRaceWin(s: Parameters<NonNullable<FlockHooks['onRaceWin']>>[0]) {
+    try {
+      const res = await this.rubies.awardRaceWin(s.winnerUserId, s.roundKey);
+      if (s.connKey) {
+        this.ns?.sockets.get(s.connKey)?.emit('rw', {
+          rubies: res.rubies,
+          balance: res.balance,
+          ...(res.reason ? { reason: res.reason } : {}),
+          limit: FLOCK_CONFIG.race.reward.dailyWinLimit,
+        });
+      }
+    } catch (e) {
+      this.log.error(`settleRaceWin: ${String(e)}`);
+    }
+  }
+
+  /**
    * Тигра на «Арені» повалено: кожній людині - картка `tw`. Нагорода (рубіни, смарагд, лічильник, скін) - у БД, одна транзакція з унікальним
    * ключем перемоги; без урону, надто коротка присутність і AFK нагороди не мають (reason).
    */
@@ -204,6 +225,11 @@ export class FlockGateway
 
   castlesLobby() {
     return this.manager.castlesLobby();
+  }
+
+  /** Лобі режиму «Лабіринт» (HTTP): фаза раунду й скільки людей. */
+  mazeLobby() {
+    return this.manager.mazeLobby();
   }
 
   afterInit(ns: Namespace) {
@@ -283,6 +309,7 @@ export class FlockGateway
         : undefined;
     const userId = client.data.userId!;
     const castles = body?.mode === 'castles';
+    const maze = body?.mode === 'maze';
     // Скін ніколи не підміняється мовчки: недоступний (знятий, схований у лобі вовк, поза нумерацією) - явна помилка `skin_unavailable`.
     // Без поля skin (старий клієнт) беремо обраний у профілі.
     const rawSkin = typeof body?.skin === 'number' ? Math.floor(body.skin) : undefined;
@@ -309,7 +336,7 @@ export class FlockGateway
       return;
     }
     // Артефакт: клієнт лише просить, бонус дає сервер за покупкою в БД (підміна неможлива). Без поля (старий клієнт) - береться надітий у профілі.
-    const artifact = castles
+    const artifact = castles || maze
       ? 0
       : await this.rubies.resolveArtifact(
           userId,
@@ -330,7 +357,7 @@ export class FlockGateway
         resume,
         arena,
         resumeOnly: body?.resumeOnly === true,
-        mode: body?.mode === 'circle' ? 'circle' : castles ? 'castles' : 'normal',
+        mode: body?.mode === 'circle' ? 'circle' : castles ? 'castles' : maze ? 'maze' : 'normal',
         team,
         castleMap: typeof body?.castleMap === 'number' ? Math.floor(body.castleMap) : undefined,
         legacyThorns: !(typeof body?.v === 'number' && body.v >= 2),
@@ -341,7 +368,7 @@ export class FlockGateway
       return;
     }
     // обраний скін запам'ятовуємо в профілі (усі пристрої; безкоштовні теж), не блокуючи вхід
-    if (!castles) void this.rubies.rememberSelectedSkin(userId, wanted).catch(() => undefined);
+    if (!castles && !maze) void this.rubies.rememberSelectedSkin(userId, wanted).catch(() => undefined);
     client.emit('w', {
       pid: res.pid,
       arenaId: res.arenaId,
@@ -398,6 +425,8 @@ export class FlockGateway
         : undefined,
       /** «Замки»: { team, river, castles, steal, speed, mass, carrySlow, waterSlow, seed, world }. */
       castle: res.castle,
+      /** «Лабіринт»: { kind, phase, left, seed, maze, move, eat, view, hint, timings, reward, roster, you, vis, ... } - див. docs/flock-maze.md. */
+      race: res.race,
       /** На скільки калюжа уповільнює клітини (частка), для передбачення на клієнті. */
       rainSlow: FLOCK_CONFIG.rain.slowFraction,
       /** Серія днів на 1-му місці: { p - pid держателя тут (0 - нема), d - днів }; далі приходить подією `sk`. */
@@ -424,7 +453,9 @@ export class FlockGateway
         light: FLOCK_CONFIG.night.chargeCap * 100,
       },
       magnetRadius: FLOCK_CONFIG.magnetRadius,
-      view: res.castle
+      view: res.race
+        ? { base: FLOCK_CONFIG.maze.viewRadius, perSqrtMass: 0, max: FLOCK_CONFIG.maze.viewRadius }
+        : res.castle
         ? { base: teamViewRadius(), perSqrtMass: 0, max: teamViewRadius() }
         : {
             base: FLOCK_CONFIG.viewBase,

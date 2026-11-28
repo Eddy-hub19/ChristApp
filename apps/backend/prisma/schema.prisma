@@ -421,6 +421,7 @@ enum RubyReason {
   DAILY_QUEST
   ARENA_COLISEUM
   ARENA_COLISEUM_SKIN
+  RACE_WIN
 }
 
 enum EmeraldReason {

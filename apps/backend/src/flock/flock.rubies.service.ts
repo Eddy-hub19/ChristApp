@@ -92,7 +92,7 @@ export class FlockRubiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN, ARENA_COLISEUM, ARENA_COLISEUM_SKIN; щоденні завдання сюди НЕ входять): rubies.dailyEarnCap
+   * Скільки ще можна отримати за добу (за Києвом) з ігрових джерел разом (ARENA_TOP1, ARENA_BOSS, TEAM_WIN, RACE_WIN, ARENA_COLISEUM, ARENA_COLISEUM_SKIN; щоденні завдання сюди НЕ входять): rubies.dailyEarnCap
    * мінус уже зароблене сьогодні. Разові (вхід, колекція), серія й адмінські правки сюди не входять.
    */
   private async earnCapLeft(tx: Tx | PrismaService, userId: string, now: Date): Promise<number> {
@@ -100,7 +100,7 @@ export class FlockRubiesService {
       _sum: { delta: true },
       where: {
         userId,
-        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN, RubyReason.ARENA_COLISEUM, RubyReason.ARENA_COLISEUM_SKIN] },
+        reason: { in: [RubyReason.ARENA_TOP1, RubyReason.ARENA_BOSS, RubyReason.TEAM_WIN, RubyReason.RACE_WIN, RubyReason.ARENA_COLISEUM, RubyReason.ARENA_COLISEUM_SKIN] },
         delta: { gt: 0 },
         createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) },
       },
@@ -387,6 +387,37 @@ export class FlockRubiesService {
   async botOnlyLeft(userId: string, now = new Date()): Promise<number> {
     const T = FLOCK_CONFIG.teamMode;
     return Math.max(0, T.botOnlyRewardLimit - (await this.botOnlyUsed(this.prisma, userId, now)));
+  }
+
+  /**
+   * Нагорода переможцю гонки (усі гоночні режими): журнал RACE_WIN, у межах dailyEarnCap. Одна транзакція під блокуванням профілю:
+   * рядок журналу з note = ключ раунду - ознака «уже виплачено», тож повторний розрахунок того ж раунду нічого не нараховує.
+   * Не більше race.reward.dailyWinLimit оплачуваних перемог на добу (за Києвом) на ВСІ гоночні режими разом (спільний лічильник
+   * за причиною RACE_WIN, а не за режимом).
+   */
+  async awardRaceWin(
+    userId: string,
+    roundKey: string,
+    now = new Date(),
+  ): Promise<{ rubies: number; balance: number; reason?: 'daily' | 'cap'; duplicate?: boolean }> {
+    const Rw = FLOCK_CONFIG.race.reward;
+    return this.prisma.$transaction(async (tx) => {
+      const balance = await this.lockProfile(tx, userId);
+      const done = await tx.rubyTransaction.findFirst({ where: { userId, reason: RubyReason.RACE_WIN, note: roundKey } });
+      if (done) return { rubies: done.delta, balance, duplicate: true };
+      const paidToday = await tx.rubyTransaction.count({
+        where: { userId, reason: RubyReason.RACE_WIN, delta: { gt: 0 }, createdAt: { gte: dayStartInZone(now, R.dailyTimeZone) } },
+      });
+      if (paidToday >= Rw.dailyWinLimit) return { rubies: 0, balance, reason: 'daily' as const };
+      const capLeft = await this.earnCapLeft(tx, userId, now);
+      if (capLeft <= 0) {
+        this.log.log(`daily earn cap reached: RACE_WIN ${Rw.rubies} cut to 0`);
+        return { rubies: 0, balance, reason: 'cap' as const };
+      }
+      const amount = Math.min(Rw.rubies, capLeft);
+      const next = await this.apply(tx, userId, balance, { delta: amount, reason: RubyReason.RACE_WIN, note: roundKey });
+      return { rubies: amount, balance: next };
+    });
   }
 
   /**
