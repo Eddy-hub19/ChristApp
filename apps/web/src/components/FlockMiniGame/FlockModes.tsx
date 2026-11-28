@@ -57,13 +57,6 @@ export default function FlockModes({ game, canPlay, onPlayCastles, onPlayMaze, o
               <span className={styles.modeBtnSub}>{canPlay ? t("mazeSub", { max: String(mazeMax), sec: String(mazeSec) }) : t("connecting")}</span>
             </button>
           ) : null}
-          <div className={`${styles.modeBtn} ${styles.modeBtnSoon}`} aria-disabled="true">
-            <span className={styles.modeBtnIcon} aria-hidden="true">
-              ⚽
-            </span>
-            <span className={styles.modeBtnTitle}>{t("footballTitle")}</span>
-            <span className={styles.modeBtnSub}>{t("soon")}</span>
-          </div>
         </div>
       )}
     </FlockSheet>
