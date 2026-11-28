@@ -64,7 +64,9 @@
     "coverPick": "Choose",
     "coverRemove": "Remove",
     "coverTooBig": "The cover is too big (5 MB max)",
-    "coverBad": "Cover: jpg, png or webp only"
+    "coverBad": "Cover: jpg, png or webp only",
+    "fileNone": "No file chosen",
+    "fileChange": "Replace"
   },
   "login": {
     "title": "Christ App",

@@ -623,3 +623,9 @@ button.listeners {
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 38%, var(--background)), color-mix(in srgb, var(--accent-soft, var(--accent)) 30%, var(--background)));
   color: color-mix(in srgb, var(--foreground) 55%, transparent);
 }
+
+/* Файл выбран: плитка аудио подсвечивается акцентом. */
+.coverThumb.coverFallback.fileThumbOn {
+  color: #fff;
+  background: var(--accent);
+}

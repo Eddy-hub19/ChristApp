@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Headphones, Play, Trash2, Upload } from "lucide-react";
+import { Headphones, Music, Play, Trash2, Upload } from "lucide-react";
 import Sheet from "@/components/Cinema/Sheet";
 import {
   RadioApiError,
@@ -176,10 +176,23 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
 
         <form ref={formRef} className={styles.form} onSubmit={submit}>
           <h3 className={styles.sectionTitle}>{t("uploadTitle")}</h3>
-          <label className={styles.field}>
+          <div className={styles.field}>
             <span>{t("fileLabel")}</span>
-            <input type="file" accept=".mp3,.m4a,.aac,.ogg,audio/mpeg,audio/mp4,audio/aac,audio/ogg" onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} required />
-          </label>
+            <div className={styles.coverPick}>
+              <span className={`${styles.coverThumb} ${styles.coverFallback} ${file ? styles.fileThumbOn : ""}`} aria-hidden>
+                <Music size={22} />
+              </span>
+              <span className={styles.coverInfo}>
+                <span className={styles.coverNote}>{file ? file.name : t("fileNone")}</span>
+                <span className={styles.coverActions}>
+                  <label className={styles.ghostBtn}>
+                    {file ? t("fileChange") : t("coverPick")}
+                    <input type="file" accept=".mp3,.m4a,.aac,.ogg,audio/mpeg,audio/mp4,audio/aac,audio/ogg" hidden onChange={(e) => { onPickFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                  </label>
+                </span>
+              </span>
+            </div>
+          </div>
           <label className={styles.field}>
             <span>{t("titleLabel")}</span>
             <input type="text" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} required />

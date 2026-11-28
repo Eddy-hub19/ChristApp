@@ -64,7 +64,9 @@
     "coverPick": "Обрати",
     "coverRemove": "Прибрати",
     "coverTooBig": "Обкладинка завелика (максимум 5 МБ)",
-    "coverBad": "Обкладинка: лише jpg, png або webp"
+    "coverBad": "Обкладинка: лише jpg, png або webp",
+    "fileNone": "Файл не обрано",
+    "fileChange": "Замінити"
   },
   "login": {
     "title": "Christ App",
