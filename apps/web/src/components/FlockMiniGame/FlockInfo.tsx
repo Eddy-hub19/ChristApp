@@ -6,7 +6,7 @@ import { BONUS_ICON_COMPONENTS, BonusIcon } from "@/components/icons/game";
 import { artifactIconSrc } from "./flockArtifacts";
 import { BONUS_ICON } from "./flockRender";
 import type { FlockGameConfig } from "./flockApi";
-import { artifactDescParams, fillInfoText, isInfoEntryVisible, INFO_SECTIONS, type InfoEntry, type InfoLang } from "./flockInfoData";
+import { artifactDescParams, fillInfoText, isInfoEntryVisible, INFO_SECTIONS, INFO_SECTION_META, type InfoEntry, type InfoLang, type InfoSection } from "./flockInfoData";
 import { ICONS } from "./FlockWhatsNew";
 import { WHATS_NEW } from "./flockWhatsNewData";
 import { latestVersion } from "./flockWhatsNewLogic";
@@ -46,8 +46,9 @@ export default function FlockInfo({ game, coliseum, seenBefore, onUpdatesViewed,
   const [tab, setTab] = useState<Tab>("about");
   const latest = latestVersion();
   const [openVersions, setOpenVersions] = useState<Set<number>>(() => new Set([latest]));
-  /** Разделы «Про гру» по умолчанию свёрнуты. */
-  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
+  /** «Про гру»: главный экран с плитками тем; открытая тема - `section`; поиск по всем темам - `query`. */
+  const [section, setSection] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const reportedRef = useRef(false);
 
   useEffect(() => {
@@ -64,13 +65,89 @@ export default function FlockInfo({ game, coliseum, seenBefore, onUpdatesViewed,
       return next;
     });
 
-  const toggleSection = (id: string) =>
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const visibleEntries = (sec: InfoSection) => sec.entries.filter((e) => isInfoEntryVisible(e, game));
+
+  /** Название и текст записи (у артефактов - из переводов). */
+  const entryView = (sec: InfoSection, e: InfoEntry) => {
+    if (sec.artifacts) {
+      const n = Number(e.icon.slice(9));
+      return { title: t(`artifacts.items.${n}.name`), text: String(t(`artifacts.items.${n}.desc`, artifactDescParams(game))) };
+    }
+    return { title: e.title[lang], text: fillInfoText(e.text[lang], e.params, game) };
+  };
+
+  const renderEntry = (sec: InfoSection, e: InfoEntry, tag?: string) => {
+    const v = entryView(sec, e);
+    return (
+      <li key={`${sec.id}-${e.id}`} className={styles.entry}>
+        <span className={styles.icon}>
+          <EntryIcon icon={e.icon} />
+        </span>
+        <span className={styles.entryText}>
+          {tag ? <span className={styles.tag}>{tag}</span> : null}
+          <strong>{v.title}</strong>
+          <span>{v.text}</span>
+          {e.id === "coliseum" && coliseum ? <strong>{t("coliseum.progress", { n: coliseum.toSkin, per: coliseum.perSkin })}</strong> : null}
+        </span>
+      </li>
+    );
+  };
+
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? INFO_SECTIONS.flatMap((sec) =>
+        visibleEntries(sec)
+          .filter((e) => {
+            const v = entryView(sec, e);
+            return v.title.toLowerCase().includes(q) || v.text.toLowerCase().includes(q);
+          })
+          .map((e) => ({ sec, e })),
+      )
+    : [];
+  const current = section ? INFO_SECTIONS.find((x) => x.id === section) ?? null : null;
+
+  const renderAbout = () => {
+    if (q) {
+      return results.length ? (
+        <ul className={styles.list}>{results.map(({ sec, e }) => renderEntry(sec, e, sec.title[lang]))}</ul>
+      ) : (
+        <p className={styles.empty}>{t("info.empty")}</p>
+      );
+    }
+    if (current) {
+      const meta = INFO_SECTION_META[current.id];
+      return (
+        <div className={styles.detail}>
+          <div className={styles.detailHead}>
+            <button type="button" className={styles.back} onClick={() => setSection(null)} aria-label={t("info.back")} title={t("info.back")}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
+            </button>
+            <span className={styles.detailIcon}>{ICONS[meta?.icon ?? "star"]({ size: 26 })}</span>
+            <h3 className={styles.detailTitle}>{current.title[lang]}</h3>
+          </div>
+          {current.intro ? <p className={styles.intro}>{fillInfoText(current.intro.text[lang], current.intro.params, game)}</p> : null}
+          <ul className={styles.list}>{visibleEntries(current).map((e) => renderEntry(current, e))}</ul>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.hub}>
+        {INFO_SECTIONS.map((sec, i) => {
+          const meta = INFO_SECTION_META[sec.id];
+          return (
+            <button key={sec.id} type="button" className={`${styles.tile} ${i === 0 ? styles.tileWide : ""}`} onClick={() => setSection(sec.id)}>
+              <span className={styles.tileIcon}>{ICONS[meta?.icon ?? "star"]({ size: 30 })}</span>
+              <span className={styles.tileTitle}>{sec.title[lang]}</span>
+              {meta ? <span className={styles.tileHint}>{meta.hint[lang]}</span> : null}
+              <span className={styles.tileCount}>{visibleEntries(sec).length}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   /** В «Оновленнях» показываем только последние обновления. */
   const entries = [...WHATS_NEW].sort((a, b) => b.version - a.version).slice(0, LAST_UPDATES);
@@ -99,42 +176,18 @@ export default function FlockInfo({ game, coliseum, seenBefore, onUpdatesViewed,
       {(titleId) => (
         <>
           {tab === "about"
-            ? INFO_SECTIONS.map((s) => {
-                const open = openSections.has(s.id);
-                return (
-                  <section key={s.id} className={styles.version}>
-                    <button type="button" className={styles.versionHead} aria-expanded={open} aria-controls={`${titleId}-s-${s.id}`} onClick={() => toggleSection(s.id)}>
-                      <span className={styles.versionName}>{s.title[lang]}</span>
-                      <span className={styles.versionDate} />
-                      <svg className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </button>
-                    <div className={`${styles.collapse} ${open ? styles.collapseOpen : ""}`}>
-                      <div id={`${titleId}-s-${s.id}`} className={styles.collapseInner} inert={!open}>
-                        {s.intro ? <p className={styles.intro}>{fillInfoText(s.intro.text[lang], s.intro.params, game)}</p> : null}
-                        <ul className={styles.list}>
-                          {s.entries.filter((e) => isInfoEntryVisible(e, game)).map((e) => {
-                            const n = s.artifacts ? Number(e.icon.slice(9)) : 0;
-                            return (
-                              <li key={e.id} className={styles.entry}>
-                                <span className={styles.icon}>
-                                  <EntryIcon icon={e.icon} />
-                                </span>
-                                <span className={styles.entryText}>
-                                  <strong>{s.artifacts ? t(`artifacts.items.${n}.name`) : e.title[lang]}</strong>
-                                  <span>{s.artifacts ? t(`artifacts.items.${n}.desc`, artifactDescParams(game)) : fillInfoText(e.text[lang], e.params, game)}</span>
-                                  {e.id === "coliseum" && coliseum ? <strong>{t("coliseum.progress", { n: coliseum.toSkin, per: coliseum.perSkin })}</strong> : null}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    </div>
-                  </section>
-                );
-              })
+            ? (
+                <>
+                  <label className={styles.search}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <input type="search" value={query} onChange={(ev) => setQuery(ev.target.value)} placeholder={t("info.search")} aria-label={t("info.search")} />
+                  </label>
+                  {renderAbout()}
+                </>
+              )
             : entries.map((e) => {
                 const open = openVersions.has(e.version);
                 const fresh = e.version > seenBefore;
