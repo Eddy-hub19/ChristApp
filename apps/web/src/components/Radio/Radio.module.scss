@@ -580,3 +580,46 @@ button.listeners {
     cursor: default;
   }
 }
+
+/* Выбор обложки в форме «Добавить трек». */
+.coverPick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.coverThumb {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.coverInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.coverNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.coverActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Стандартный фон без обложки: тот же градиент, что на карточке эфира. */
+.coverThumb.coverFallback {
+  opacity: 1;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 38%, var(--background)), color-mix(in srgb, var(--accent-soft, var(--accent)) 30%, var(--background)));
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+}

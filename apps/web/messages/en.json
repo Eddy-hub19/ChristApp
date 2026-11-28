@@ -57,7 +57,14 @@
     "noListeners": "Nobody is listening yet",
     "you": "you",
     "skip": "Next track",
-    "playNow": "Play “{title}” now"
+    "playNow": "Play “{title}” now",
+    "coverLabel": "Cover (optional)",
+    "coverFromFile": "From the file",
+    "coverDefault": "The default background will be used",
+    "coverPick": "Choose",
+    "coverRemove": "Remove",
+    "coverTooBig": "The cover is too big (5 MB max)",
+    "coverBad": "Cover: jpg, png or webp only"
   },
   "login": {
     "title": "Christ App",

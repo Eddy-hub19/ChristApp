@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Trash2, Upload } from "lucide-react";
+import { Headphones, Play, Trash2, Upload } from "lucide-react";
 import Sheet from "@/components/Cinema/Sheet";
 import {
   RadioApiError,
@@ -12,7 +12,7 @@ import {
   uploadRadioTrack,
   type RadioAdminTrack,
 } from "@/lib/radioApi";
-import { readAudioTags, tagsFromFileName } from "@/lib/audioTags";
+import { MAX_COVER_BYTES, readAudioTags, tagsFromFileName } from "@/lib/audioTags";
 import { formatTime } from "@/components/SheepPlayer/SheepPlayerSheet";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useRadio } from "@/providers/radioContext";
@@ -53,6 +53,14 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  /** Обложка: выбранная вручную важнее встроенной в файл; без обеих на эфире остаётся стандартный фон. */
+  const [embeddedCover, setEmbeddedCover] = useState<File | null>(null);
+  const [customCover, setCustomCover] = useState<File | null>(null);
+  const cover = customCover ?? embeddedCover;
+  const coverUrl = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
+  useEffect(() => () => {
+    if (coverUrl) URL.revokeObjectURL(coverUrl);
+  }, [coverUrl]);
   const [uploading, setUploading] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -90,6 +98,7 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
   const onPickFile = (picked: File | null) => {
     pickedRef.current = picked;
     setFile(picked);
+    setEmbeddedCover(null);
     setMessage(null);
     if (!picked) return;
     const fromName = tagsFromFileName(picked.name);
@@ -100,7 +109,25 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
       if (pickedRef.current !== picked) return;
       if (tags.title) setTitle(tags.title);
       if (tags.artist) setArtist(tags.artist);
+      if (tags.cover) {
+        const ext = tags.cover.mime === "image/png" ? "png" : tags.cover.mime === "image/webp" ? "webp" : "jpg";
+        setEmbeddedCover(new File([tags.cover.data as BlobPart], `cover.${ext}`, { type: tags.cover.mime }));
+      }
     });
+  };
+
+  const onPickCover = (picked: File | null) => {
+    setMessage(null);
+    if (!picked) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(picked.type)) {
+      setMessage({ kind: "error", text: t("coverBad") });
+      return;
+    }
+    if (picked.size > MAX_COVER_BYTES) {
+      setMessage({ kind: "error", text: t("coverTooBig") });
+      return;
+    }
+    setCustomCover(picked);
   };
 
   const submit = async (e: FormEvent) => {
@@ -123,11 +150,15 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
       form.append("title", title.trim());
       form.append("artist", artist.trim());
       form.append("durationSec", String(durationSec));
+      if (cover) form.append("cover", cover);
       await uploadRadioTrack(form);
       setMessage({ kind: "ok", text: t("uploaded") });
       setFile(null);
       setTitle("");
       setArtist("");
+      setEmbeddedCover(null);
+      setCustomCover(null);
+      pickedRef.current = null;
       formRef.current?.reset();
       load();
       radio.refresh();
@@ -157,6 +188,33 @@ export default function RadioAdminSheet({ open, onClose }: { open: boolean; onCl
             <span>{t("artistLabel")}</span>
             <input type="text" value={artist} maxLength={120} onChange={(e) => setArtist(e.target.value)} />
           </label>
+          <div className={styles.field}>
+            <span>{t("coverLabel")}</span>
+            <div className={styles.coverPick}>
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverUrl} alt="" className={styles.coverThumb} />
+              ) : (
+                <span className={`${styles.coverThumb} ${styles.coverFallback}`} aria-hidden>
+                  <Headphones size={22} />
+                </span>
+              )}
+              <span className={styles.coverInfo}>
+                <span className={styles.coverNote}>{customCover ? customCover.name : embeddedCover ? t("coverFromFile") : t("coverDefault")}</span>
+                <span className={styles.coverActions}>
+                  <label className={styles.ghostBtn}>
+                    {t("coverPick")}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { onPickCover(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                  </label>
+                  {cover ? (
+                    <button type="button" className={styles.ghostBtn} onClick={() => { setCustomCover(null); setEmbeddedCover(null); }}>
+                      {t("coverRemove")}
+                    </button>
+                  ) : null}
+                </span>
+              </span>
+            </div>
+          </div>
           <button type="submit" className={styles.primaryBtn} disabled={!file || !title.trim() || uploading}>
             <Upload size={16} aria-hidden />
             {uploading ? t("uploading") : t("upload")}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseId3, parseMp4, parseOgg, tagsFromFileName } from "./audioTags";
+import { parseId3, parseMp4, parseOgg, sniffImage, tagsFromFileName } from "./audioTags";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 const syncsafe = (n: number) => [(n >> 21) & 0x7f, (n >> 14) & 0x7f, (n >> 7) & 0x7f, n & 0x7f];
@@ -14,7 +14,27 @@ function id3(frames: number[][]) {
   return new Uint8Array([...enc("ID3"), 3, 0, 0, ...syncsafe(all.length), ...all]);
 }
 
+const JPEG = [0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 2, 3];
+
 describe("audioTags", () => {
+  it("читает обложку из ID3 APIC", () => {
+    const apic = id3Frame("APIC", new Uint8Array([...enc("image/jpeg"), 0, 3, ...enc("cover"), 0, ...JPEG]).subarray(0), 0);
+    const tags = parseId3(id3([id3Frame("TIT2", enc("T"), 3), apic]));
+    expect(tags.cover?.mime).toBe("image/jpeg");
+    expect(tags.cover?.data.length).toBe(JPEG.length);
+  });
+
+  it("читает обложку из MP4 covr", () => {
+    const atom = (type: string, body: number[]) => [...be32(8 + body.length), ...Array.from(type, (c) => c.charCodeAt(0)), ...body];
+    const covr = atom("covr", atom("data", [0, 0, 0, 13, 0, 0, 0, 0, ...JPEG]));
+    const moov = atom("moov", atom("udta", atom("meta", [0, 0, 0, 0, ...atom("ilst", covr)])));
+    expect(parseMp4(new Uint8Array(moov)).cover?.mime).toBe("image/jpeg");
+  });
+
+  it("sniffImage отсекает не-картинки", () => {
+    expect(sniffImage(new Uint8Array(20))).toBeNull();
+  });
+
   it("читает ID3v2.3 в UTF-8 и windows-1251", () => {
     const cp1251 = new Uint8Array([0xcf, 0xf0, 0xe8, 0xe2, 0xe5, 0xf2]); // «Привет»
     const tags = parseId3(id3([id3Frame("TIT2", enc("Песня"), 3), id3Frame("TPE1", cp1251, 0)]));

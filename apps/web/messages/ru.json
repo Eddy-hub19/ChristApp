@@ -57,7 +57,14 @@
     "noListeners": "Пока никто не слушает",
     "you": "вы",
     "skip": "Следующий трек",
-    "playNow": "Включить «{title}» сейчас"
+    "playNow": "Включить «{title}» сейчас",
+    "coverLabel": "Обложка (необязательно)",
+    "coverFromFile": "Из файла",
+    "coverDefault": "Будет стандартный фон",
+    "coverPick": "Выбрать",
+    "coverRemove": "Убрать",
+    "coverTooBig": "Обложка слишком большая (максимум 5 МБ)",
+    "coverBad": "Обложка: только jpg, png или webp"
   },
   "login": {
     "title": "Christ App",

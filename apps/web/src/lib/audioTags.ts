@@ -2,9 +2,51 @@
  * Название и исполнитель из тегов аудиофайла, без зависимостей: ID3v2 (mp3, aac), MP4 `ilst` (m4a), Vorbis/Opus-комментарии (ogg).
  * Читается в браузере при выборе файла; битый или пустой тег - просто `{}` (формы заполняются из имени файла).
  */
+export interface AudioCover {
+  data: Uint8Array;
+  mime: "image/jpeg" | "image/png" | "image/webp";
+}
+
 export interface AudioTags {
   title?: string;
   artist?: string;
+  /** Встроенная обложка (ID3 APIC, MP4 covr); в ogg не читается. */
+  cover?: AudioCover;
+}
+
+export const MAX_COVER_BYTES = 5 * 1024 * 1024;
+
+/** Тип картинки по первым байтам (расширение/mime в тегах бывают неверными); null - не jpeg/png/webp или больше лимита сервера. */
+export function sniffImage(data: Uint8Array): AudioCover | null {
+  if (data.length < 12 || data.length > MAX_COVER_BYTES) return null;
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return { data, mime: "image/jpeg" };
+  if (data[0] === 0x89 && latin(data.subarray(1, 4)) === "PNG") return { data, mime: "image/png" };
+  if (latin(data.subarray(0, 4)) === "RIFF" && latin(data.subarray(8, 12)) === "WEBP") return { data, mime: "image/webp" };
+  return null;
+}
+
+/** Картинка ID3-кадра APIC (v2.3/2.4: кодировка, mime\0, тип, описание\0, данные) или PIC (v2.2: кодировка, 3 байта формата, тип, описание, данные). */
+function parseApic(frame: Uint8Array, v22: boolean): { type: number; cover: AudioCover } | null {
+  if (frame.length < 16) return null;
+  const enc = frame[0];
+  let pos = 1;
+  if (v22) pos += 3;
+  else {
+    while (pos < frame.length && frame[pos] !== 0) pos++;
+    pos++;
+  }
+  const type = frame[pos];
+  pos++;
+  // описание: для UTF-16 заканчивается двумя нулевыми байтами (по границе символа), иначе одним
+  if (enc === 1 || enc === 2) {
+    while (pos + 1 < frame.length && !(frame[pos] === 0 && frame[pos + 1] === 0)) pos += 2;
+    pos += 2;
+  } else {
+    while (pos < frame.length && frame[pos] !== 0) pos++;
+    pos++;
+  }
+  const cover = sniffImage(frame.subarray(pos));
+  return cover ? { type, cover } : null;
 }
 
 const MAX_ID3_BYTES = 4 * 1024 * 1024;
@@ -73,6 +115,11 @@ export function parseId3(buf: Uint8Array): AudioTags {
     if (size <= 0 || start + size > buf.length) break;
     if (id === "TIT2" || id === "TT2") tags.title ??= decodeId3Text(buf.subarray(start, start + size));
     else if (id === "TPE1" || id === "TP1") tags.artist ??= decodeId3Text(buf.subarray(start, start + size));
+    else if (id === "APIC" || id === "PIC") {
+      const pic = parseApic(buf.subarray(start, start + size), v22);
+      // предпочитаем «лицевую» обложку (тип 3), иначе первую найденную
+      if (pic && (!tags.cover || pic.type === 3)) tags.cover = pic.cover;
+    }
     pos = start + size;
   }
   return tags;
@@ -92,9 +139,11 @@ export function parseMp4(buf: Uint8Array): AudioTags {
       const stop = Math.min(to, pos + size);
       const body = pos + 8;
       const here = [...path, type];
-      if (type === "moov" || type === "udta" || type === "ilst" || type === "©nam" || type === "©ART" || type === "aART") walk(body, stop, here);
+      if (type === "moov" || type === "udta" || type === "ilst" || type === "©nam" || type === "©ART" || type === "aART" || type === "covr") walk(body, stop, here);
       else if (type === "meta") walk(body + 4, stop, here);
-      else if (type === "data" && (path.at(-1) === "©nam" || path.at(-1) === "©ART")) {
+      else if (type === "data" && path.at(-1) === "covr") {
+        tags.cover ??= sniffImage(buf.subarray(body + 8, stop)) ?? undefined;
+      } else if (type === "data" && (path.at(-1) === "©nam" || path.at(-1) === "©ART")) {
         const text = clean(new TextDecoder("utf-8").decode(buf.subarray(body + 8, stop)));
         if (path.at(-1) === "©nam") tags.title ??= text;
         else tags.artist ??= text;
